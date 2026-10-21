@@ -240,7 +240,7 @@ export const InformationPage: React.FC = () => {
                     </td>
                     <td className="py-4 px-5">
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                        JUNIOR & KID (&lt; 15 Years Old & Intermediate)
+                        JUNIOR & KID (&lt; Mix)
                       </span>
                     </td>
                     <td className="py-4 px-5 text-right font-mono text-slate-400">

@@ -426,5 +426,62 @@ export const cloudinaryService = {
       uploadUrl: 'https://api.cloudinary.com/v1_1/dva-volleyball-club/image/upload',
       uploadPreset: 'dva_unsigned_sports',
     });
+  },
+
+  async uploadImage(file: File, folder: string = 'dva_uploads'): Promise<string> {
+    const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = (import.meta as any).env?.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (cloudName && uploadPreset) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', uploadPreset);
+        formData.append('folder', folder);
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.secure_url) return data.secure_url;
+        }
+      } catch (e) {
+        console.warn('Cloudinary upload error, using local fallback:', e);
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 800;
+          let w = img.width;
+          let h = img.height;
+          if (w > h) {
+            if (w > maxDim) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            }
+          } else {
+            if (h > maxDim) {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = reject;
+        img.src = loadEvt.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 };

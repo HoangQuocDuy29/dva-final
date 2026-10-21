@@ -235,8 +235,14 @@ export const HomePage: React.FC = () => {
               </div>
 
               <div className="h-40 rounded-2xl overflow-hidden relative bg-gradient-to-br from-red-950 via-slate-900 to-black p-4 flex flex-col justify-between border border-red-900/30">
-                <div className="text-3xl">🏆</div>
-                <div>
+                <img
+                  src="/teams/senior.png"
+                  alt="DVA Senior Team"
+                  className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                />
+                <div className="relative z-10 text-3xl">🏆</div>
+                <div className="relative z-10">
                   <h3 className="font-heading font-black text-2xl text-white">
                     DVA Senior Team
                   </h3>
@@ -289,8 +295,14 @@ export const HomePage: React.FC = () => {
               </div>
 
               <div className="h-40 rounded-2xl overflow-hidden relative bg-gradient-to-br from-blue-950 via-slate-900 to-black p-4 flex flex-col justify-between border border-blue-900/30">
-                <div className="text-3xl">⚡</div>
-                <div>
+                <img
+                  src="/teams/junior.png"
+                  alt="DVA Junior Team"
+                  className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                />
+                <div className="relative z-10 text-3xl">⚡</div>
+                <div className="relative z-10">
                   <h3 className="font-heading font-black text-2xl text-white">
                     DVA Junior Team
                   </h3>
@@ -343,8 +355,14 @@ export const HomePage: React.FC = () => {
               </div>
 
               <div className="h-40 rounded-2xl overflow-hidden relative bg-gradient-to-br from-emerald-950 via-slate-900 to-black p-4 flex flex-col justify-between border border-emerald-900/30">
-                <div className="text-3xl">🌱</div>
-                <div>
+                <img
+                  src="/teams/kid.png"
+                  alt="DVA Kid Academy"
+                  className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                />
+                <div className="relative z-10 text-3xl">🌱</div>
+                <div className="relative z-10">
                   <h3 className="font-heading font-black text-2xl text-white">
                     DVA Kid Academy
                   </h3>
@@ -407,8 +425,14 @@ export const HomePage: React.FC = () => {
             {/* Card 1: Founder & Head Coach */}
             <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-red-500/50 transition-all shadow-xl group">
               <div className="space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-                  DUY
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
+                  <img
+                    src="/coaches/duy.png"
+                    alt="Hoang Quoc Duy"
+                    className="w-full h-full object-cover relative z-10"
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">DUY</span>
                 </div>
                 <div className="text-center space-y-1">
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-red-950 text-red-400 border border-red-800 inline-block">
@@ -431,8 +455,14 @@ export const HomePage: React.FC = () => {
             {/* Card 2: Technical Leader */}
             <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-blue-500/50 transition-all shadow-xl group">
               <div className="space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-700 to-cyan-600 flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-                  NAM
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-700 to-cyan-600 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
+                  <img
+                    src="/coaches/nam.png"
+                    alt="Nguyen Thanh Nam"
+                    className="w-full h-full object-cover relative z-10"
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">NAM</span>
                 </div>
                 <div className="text-center space-y-1">
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-950 text-blue-300 border border-blue-800 inline-block">
@@ -455,8 +485,14 @@ export const HomePage: React.FC = () => {
             {/* Card 3: Operations Manager */}
             <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-amber-500/50 transition-all shadow-xl group">
               <div className="space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-600 to-yellow-500 flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-                  THAO
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-600 to-yellow-500 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
+                  <img
+                    src="/leadership/thao.png"
+                    alt="Le Thu Thao"
+                    className="w-full h-full object-cover relative z-10"
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">THAO</span>
                 </div>
                 <div className="text-center space-y-1">
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-950 text-amber-300 border border-amber-800 inline-block">
@@ -479,8 +515,14 @@ export const HomePage: React.FC = () => {
             {/* Card 4: Media & Content Creator */}
             <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-orange-500/50 transition-all shadow-xl group">
               <div className="space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-pink-600 flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-                  KHANG
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-pink-600 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
+                  <img
+                    src="/leadership/khang.png"
+                    alt="Tran Minh Khang"
+                    className="w-full h-full object-cover relative z-10"
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">KHANG</span>
                 </div>
                 <div className="text-center space-y-1">
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-orange-950 text-orange-300 border border-orange-800 inline-block">
@@ -530,20 +572,29 @@ export const HomePage: React.FC = () => {
                 className="bg-[#161F30] rounded-3xl border border-slate-800 overflow-hidden shadow-xl flex flex-col justify-between"
               >
                 <div>
-                  <div className="h-44 bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-6 flex flex-col justify-between text-white">
-                    <div className="flex justify-between items-start">
-                      <span className="px-2.5 py-0.5 rounded text-[11px] font-extrabold uppercase bg-red-600 text-white">
+                  <div className="relative h-44 w-full overflow-hidden bg-slate-900">
+                    <img
+                      src={court.imageUrl}
+                      alt={court.name}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#161F30] via-black/50 to-black/30" />
+
+                    <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
+                      <span className="px-2.5 py-0.5 rounded text-[11px] font-extrabold uppercase bg-red-600 text-white shadow-md">
                         {court.code}
                       </span>
-                      <span className="font-mono text-xs bg-white/10 px-2.5 py-0.5 rounded text-orange-400 font-bold">
+                      <span className="font-mono text-xs bg-black/60 backdrop-blur px-2.5 py-0.5 rounded text-orange-400 font-bold border border-orange-500/30">
                         {court.hourlyRate ? `${Math.round(court.hourlyRate / 1000)}k/h` : '500k/h'}
                       </span>
                     </div>
-                    <div>
-                      <h3 className="font-heading font-black text-xl text-white">
+
+                    <div className="absolute bottom-3 left-4 right-4">
+                      <h3 className="font-heading font-black text-xl text-white drop-shadow-md">
                         {court.name}
                       </h3>
-                      <p className="text-xs text-slate-300 mt-1">{court.floorType}</p>
+                      <p className="text-xs text-slate-300 mt-0.5">{court.floorType}</p>
                     </div>
                   </div>
 

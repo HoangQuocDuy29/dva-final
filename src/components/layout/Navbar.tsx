@@ -93,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="font-heading font-black text-xl tracking-tight text-white flex items-center gap-1.5">
               DVA <span className="text-orange-500">VOLLEYBALL</span>
             </span>
-            <span className="text-[10px] tracking-widest text-slate-400 uppercase font-bold">Premier Sports Arena</span>
+            <span className="text-[10px] tracking-widest text-slate-400 uppercase font-bold"> Sports Arena</span>
           </div>
         </Link>
 

@@ -31,7 +31,9 @@ import {
   FileSpreadsheet,
   Code,
   HelpCircle,
-  Send
+  Send,
+  Loader2,
+  Image as ImageIcon
 } from 'lucide-react';
 import { 
   Booking, 
@@ -56,6 +58,7 @@ import {
 } from '../services/api';
 import { INITIAL_PLAYERS, INITIAL_COURTS } from '../data/mockData';
 import { getScheduleSlotsForCourtAndDate } from './CourtBookingPage';
+import { uploadToCloudinary } from '../utils/cloudinary';
 
 interface AdminDashboardPageProps {
   currentUser: UserType;
@@ -105,9 +108,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   const [isTestingSync, setIsTestingSync] = useState<boolean>(false);
   const [syncTestMessage, setSyncTestMessage] = useState<string | null>(null);
 
+  // Upload loading states
+  const [isUploadingPlayerPhoto, setIsUploadingPlayerPhoto] = useState(false);
+  const [isUploadingNewsThumb, setIsUploadingNewsThumb] = useState(false);
+
   // News Create modal state
   const [isNewsModalOpen, setIsNewsModalOpen] = useState(false);
   const [newsTitle, setNewsTitle] = useState('');
+  const [newsThumbnail, setNewsThumbnail] = useState('');
   const [newsCategory, setNewsCategory] = useState<NewsPost['category']>('TOURNAMENT');
   const [newsExcerpt, setNewsExcerpt] = useState('');
   const [newsContent, setNewsContent] = useState('');
@@ -263,6 +271,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
       const created = await newsService.createNews({
         title: newsTitle.trim(),
         category: newsCategory,
+        thumbnail: newsThumbnail.trim() || 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80',
         excerpt: newsExcerpt.trim() || (newsContent.trim().substring(0, 150) + '...'),
         content: newsContent.trim(),
         authorName: newsAuthorName.trim() || currentUser.fullName,
@@ -272,6 +281,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
       setFeedback(`News story "${newsTitle}" published successfully!`);
       setIsNewsModalOpen(false);
       setNewsTitle('');
+      setNewsThumbnail('');
       setNewsExcerpt('');
       setNewsContent('');
       setTimeout(() => setFeedback(null), 3500);
@@ -1452,45 +1462,39 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                   </div>
 
                   <div className="flex-1 space-y-2">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs cursor-pointer border border-slate-700 font-medium transition-colors">
-                      <Upload className="w-3.5 h-3.5 text-orange-400" />
-                      <span>Chọn ảnh từ thiết bị</span>
+                    <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                      isUploadingPlayerPhoto 
+                        ? 'bg-slate-700 text-slate-300 border-slate-600 cursor-wait' 
+                        : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700 cursor-pointer'
+                    }`}>
+                      {isUploadingPlayerPhoto ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                          <span>Đang tải lên Cloud...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5 text-orange-400" />
+                          <span>Tải ảnh lên (Cloudinary / File)</span>
+                        </>
+                      )}
                       <input
                         type="file"
                         accept="image/*"
+                        disabled={isUploadingPlayerPhoto}
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (loadEvt) => {
-                              const img = new Image();
-                              img.onload = () => {
-                                const canvas = document.createElement('canvas');
-                                const maxDim = 400;
-                                let w = img.width;
-                                let h = img.height;
-                                if (w > h) {
-                                  if (w > maxDim) {
-                                    h = Math.round((h * maxDim) / w);
-                                    w = maxDim;
-                                  }
-                                } else {
-                                  if (h > maxDim) {
-                                    w = Math.round((w * maxDim) / h);
-                                    h = maxDim;
-                                  }
-                                }
-                                canvas.width = w;
-                                canvas.height = h;
-                                const ctx = canvas.getContext('2d');
-                                ctx?.drawImage(img, 0, 0, w, h);
-                                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                                setPlayerForm((prev) => ({ ...prev, avatarUrl: compressedDataUrl }));
-                              };
-                              img.src = loadEvt.target?.result as string;
-                            };
-                            reader.readAsDataURL(file);
+                            setIsUploadingPlayerPhoto(true);
+                            try {
+                              const res = await uploadToCloudinary(file, 'dva_players');
+                              setPlayerForm((prev) => ({ ...prev, avatarUrl: res.url }));
+                            } catch (err) {
+                              console.error('Upload error:', err);
+                            } finally {
+                              setIsUploadingPlayerPhoto(false);
+                            }
                           }
                         }}
                       />
@@ -1498,7 +1502,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
 
                     <input
                       type="url"
-                      placeholder="Hoặc dán URL ảnh trực tiếp (Cloud/Imgur/CDN)..."
+                      placeholder="Hoặc dán URL ảnh trực tiếp (Cloudinary / Unsplash / CDN)..."
                       value={playerForm.avatarUrl || ''}
                       onChange={(e) => setPlayerForm({ ...playerForm, avatarUrl: e.target.value })}
                       className="w-full px-3 py-1.5 bg-[#161F30] border border-slate-700 rounded-xl text-white outline-none text-xs font-mono"
@@ -1666,6 +1670,86 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                     placeholder="Author name"
                     className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
                   />
+                </div>
+              </div>
+
+              {/* COVER / THUMBNAIL PHOTO */}
+              <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-200 font-semibold block text-xs">
+                    Cover Image / Thumbnail (Cloudinary CDN or Link)
+                  </label>
+                  {newsThumbnail && (
+                    <button
+                      type="button"
+                      onClick={() => setNewsThumbnail('')}
+                      className="text-[10px] text-red-400 hover:underline cursor-pointer"
+                    >
+                      Clear Image
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-20 h-14 rounded-xl bg-[#161F30] border border-slate-700 overflow-hidden flex items-center justify-center shrink-0">
+                    {newsThumbnail ? (
+                      <img
+                        src={newsThumbnail}
+                        alt="News preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 text-slate-500" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-2">
+                    <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                      isUploadingNewsThumb 
+                        ? 'bg-slate-700 text-slate-300 border-slate-600 cursor-wait' 
+                        : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700 cursor-pointer'
+                    }`}>
+                      {isUploadingNewsThumb ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                          <span>Uploading to Cloud...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5 text-orange-400" />
+                          <span>Upload Cover Image</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingNewsThumb}
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setIsUploadingNewsThumb(true);
+                            try {
+                              const res = await uploadToCloudinary(file, 'dva_news');
+                              setNewsThumbnail(res.url);
+                            } catch (err) {
+                              console.error('News thumb upload error:', err);
+                            } finally {
+                              setIsUploadingNewsThumb(false);
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+
+                    <input
+                      type="url"
+                      placeholder="Or paste direct image URL (Unsplash / Cloudinary / Imgur)..."
+                      value={newsThumbnail}
+                      onChange={(e) => setNewsThumbnail(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-[#161F30] border border-slate-700 rounded-xl text-white outline-none text-xs font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
