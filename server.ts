@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { 
   INITIAL_USERS, 
@@ -25,14 +26,45 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // In-Memory Database for Live Preview
-let users: User[] = [...INITIAL_USERS];
-let courts = [...INITIAL_COURTS];
-let players: Player[] = [...INITIAL_PLAYERS];
-let newsPosts: NewsPost[] = [...INITIAL_NEWS];
-let trainingCourses = [...INITIAL_TRAINING_COURSES];
-let bookings: Booking[] = [...INITIAL_BOOKINGS];
-let closedSlots: ClosedSlot[] = [];
-let memberApplications: MemberApplication[] = [...INITIAL_MEMBER_APPLICATIONS];
+// Thư mục lưu trữ dữ liệu bền vững (Không bị mất khi tắt server)
+const DATA_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function loadPersisted<T>(filename: string, fallback: T): T {
+  const filePath = path.join(DATA_DIR, filename);
+  try {
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(data);
+    }
+    fs.writeFileSync(filePath, JSON.stringify(fallback, null, 2), 'utf-8');
+    return fallback;
+  } catch (err) {
+    console.warn(`[Storage] Failed to read ${filename}, using default:`, err);
+    return fallback;
+  }
+}
+
+function savePersisted<T>(filename: string, data: T) {
+  const filePath = path.join(DATA_DIR, filename);
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error(`[Storage] Failed to write ${filename}:`, err);
+  }
+}
+
+// Khởi tạo dữ liệu từ file trên ổ cứng (Chỉ lấy mockData seed lần đầu nếu file chưa có)
+let users: User[] = loadPersisted<User[]>('users.json', INITIAL_USERS);
+let courts = loadPersisted('courts.json', INITIAL_COURTS);
+let players: Player[] = loadPersisted<Player[]>('players.json', INITIAL_PLAYERS);
+let newsPosts: NewsPost[] = loadPersisted<NewsPost[]>('news.json', INITIAL_NEWS);
+let trainingCourses = loadPersisted('trainingCourses.json', INITIAL_TRAINING_COURSES);
+let bookings: Booking[] = loadPersisted<Booking[]>('bookings.json', INITIAL_BOOKINGS);
+let closedSlots: ClosedSlot[] = loadPersisted<ClosedSlot[]>('closedSlots.json', []);
+let memberApplications: MemberApplication[] = loadPersisted<MemberApplication[]>('applications.json', INITIAL_MEMBER_APPLICATIONS);
 let trainingRegistrations: TrainingRegistration[] = [
   {
     id: 'tr-001',
@@ -233,6 +265,7 @@ app.post('/api/players', (req, res) => {
     avatarUrl: req.body.avatarUrl || '',
   };
   players.unshift(newPlayer);
+  savePersisted('players.json', players);
   res.status(201).json(newPlayer);
 });
 
@@ -243,12 +276,14 @@ app.put('/api/players/:id', (req, res) => {
     return res.status(404).json({ error: 'Player not found' });
   }
   players[index] = { ...players[index], ...req.body };
+  savePersisted('players.json', players);
   res.json(players[index]);
 });
 
 app.delete('/api/players/:id', (req, res) => {
   const { id } = req.params;
   players = players.filter(p => p.id !== id);
+  savePersisted('players.json', players);
   res.json({ success: true, message: 'Player deleted' });
 });
 
@@ -264,6 +299,7 @@ app.patch('/api/players/:id/level', (req, res) => {
     return res.status(400).json({ error: 'Invalid level' });
   }
   player.level = level;
+  savePersisted('players.json', players);
   res.json(player);
 });
 

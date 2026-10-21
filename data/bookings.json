@@ -1,0 +1,52 @@
+[
+  {
+    "id": "b-001",
+    "courtId": "court-btl",
+    "courtName": "BTL Thong Tin court",
+    "customerName": "Marcus Tran",
+    "customerEmail": "marcus.tran@gmail.com",
+    "customerPhone": "0903123456",
+    "bookingDate": "2026-10-15",
+    "startTime": "17:30",
+    "endTime": "19:00",
+    "totalHours": 1.5,
+    "courtPrice": 825000,
+    "addons": {
+      "mineralWaterBottles": 6,
+      "mikasaBallCrate": true,
+      "certifiedReferee": false
+    },
+    "addonsPrice": 190000,
+    "totalPrice": 1015000,
+    "paymentStatus": "PAID",
+    "bookingCode": "DVA-BTL-17H30-19H-20261015",
+    "transferContent": "DVA BTL TT 17H30 19H00 20261015",
+    "createdAt": "2026-10-14T10:15:00Z",
+    "notes": "Friendly inter-club tournament game"
+  },
+  {
+    "id": "b-002",
+    "courtId": "court-thecong",
+    "courtName": "The Cong court",
+    "customerName": "David Le",
+    "customerEmail": "david.le@gmail.com",
+    "customerPhone": "0918765432",
+    "bookingDate": "2026-10-16",
+    "startTime": "19:00",
+    "endTime": "20:30",
+    "totalHours": 1.5,
+    "courtPrice": 825000,
+    "addons": {
+      "mineralWaterBottles": 4,
+      "mikasaBallCrate": false,
+      "certifiedReferee": true
+    },
+    "addonsPrice": 260000,
+    "totalPrice": 1085000,
+    "paymentStatus": "PENDING",
+    "bookingCode": "DVA-THECONG-19H-20H30-20261020",
+    "transferContent": "DVA THE CONG 19H00 20H30 20261020",
+    "createdAt": "2026-10-20T08:00:00Z",
+    "notes": "Certified referee requested for league qualifier"
+  }
+]

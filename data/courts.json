@@ -1,0 +1,56 @@
+[
+  {
+    "id": "court-btl",
+    "code": "BTL_TT",
+    "shortName": "BTL TT",
+    "name": "BTL Thong Tin court",
+    "description": "Premier FIVB standard competition court equipped with Taraflex Pro Elite 7.5mm shock-absorption flooring, 1200 Lux glare-free arena LED lighting, and 200-seat grandstand.",
+    "floorType": "Taraflex Pro Elite 7.5mm (Injury-Preventive)",
+    "hourlyRate": 550000,
+    "minHours": 1.5,
+    "includes": [
+      "1 Free Official Mikasa V200W Olympic Match Ball",
+      "Electronic scoreboard & referee high-chair",
+      "Air-conditioned locker rooms & hot showers",
+      "Complimentary chilled drinking water"
+    ],
+    "imageUrl": "/courts/btl.png",
+    "isAvailable": true
+  },
+  {
+    "id": "court-thecong",
+    "code": "THE_CONG",
+    "shortName": "THE CONG",
+    "name": "The Cong court",
+    "description": "Elite sports complex court with professional Taraflex Sport surface, competition antenna net system, and high-velocity cooling.",
+    "floorType": "Gerflor Taraflex Sport M Plus",
+    "hourlyRate": 500000,
+    "minHours": 1.5,
+    "includes": [
+      "1 Free Official Mikasa V200W Match Ball",
+      "Manual flip scoreboard & match whistle",
+      "Industrial airflow cooling systems",
+      "Dedicated spectator bench seating"
+    ],
+    "imageUrl": "/courts/thecong.png",
+    "isAvailable": true
+  },
+  {
+    "id": "court-mydinh",
+    "code": "MY_DINH",
+    "shortName": "MY DINH",
+    "name": "My Dinh court",
+    "description": "Modern training and match court at My Dinh sports district, height-adjustable nets (Men 2.43m / Women 2.24m) with premium acoustics.",
+    "floorType": "Gerflor Taraflex Performance 9.0mm",
+    "hourlyRate": 500000,
+    "minHours": 1.5,
+    "includes": [
+      "1 Free Official Mikasa V200W Match Ball",
+      "Height-adjustable tournament net posts",
+      "Secure player storage lockers",
+      "Warmup conditioning area"
+    ],
+    "imageUrl": "/courts/mydinh.png",
+    "isAvailable": true
+  }
+]

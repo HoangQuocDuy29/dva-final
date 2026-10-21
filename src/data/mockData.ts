@@ -147,7 +147,7 @@ export const INITIAL_PLAYERS: Player[] = [
     bornYear: 2005,
     level: 'SENIOR',
     position: 'OH',
-    avatarUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+    avatarUrl: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792588658/dva_players/vtswjsb7fyjuqg8visva.webp',
     bio: 'Sharpshooting outside hitter with consistent pass-to-attack transitions.',
     joinedYear: 2025,
   },

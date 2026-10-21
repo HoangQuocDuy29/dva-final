@@ -1,0 +1,26 @@
+[
+  {
+    "id": "user-superadmin",
+    "email": "quocduyhoang42@gmail.com",
+    "fullName": "Hoang Quoc Duy",
+    "role": "SUPERADMIN",
+    "phoneNumber": "0902090671",
+    "createdAt": "2025-01-01T08:00:00Z"
+  },
+  {
+    "id": "user-admin",
+    "email": "admin.dva@gmail.com",
+    "fullName": "Tran Minh Tuan",
+    "role": "ADMIN",
+    "phoneNumber": "0987654321",
+    "createdAt": "2025-02-15T09:30:00Z"
+  },
+  {
+    "id": "user-player",
+    "email": "player.hung@gmail.com",
+    "fullName": "Nguyen Van Hung",
+    "role": "PLAYER",
+    "phoneNumber": "0912345678",
+    "createdAt": "2025-03-10T14:20:00Z"
+  }
+]

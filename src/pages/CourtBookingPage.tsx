@@ -228,9 +228,9 @@ const CourtBookingContent: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successReceipt, setSuccessReceipt] = useState<Booking | null>(null);
 
-  // Load real-time bookings & closed slots
-  const fetchRealtimeStatus = async () => {
-    setIsRefreshing(true);
+// Load real-time bookings & closed slots (có thêm cờ silent để quét nền không giật nút refresh)
+  const fetchRealtimeStatus = async (silent: boolean = false) => {
+    if (!silent) setIsRefreshing(true);
     try {
       const [fetchedCourts, fetchedBookings, fetchedClosed] = await Promise.all([
         courtService.getCourts(),
@@ -239,7 +239,11 @@ const CourtBookingContent: React.FC = () => {
       ]);
 
       if (Array.isArray(fetchedCourts) && fetchedCourts.length > 0) {
-        setCourts(fetchedCourts);
+        const mergedCourts = fetchedCourts.map(fc => {
+          const local = INITIAL_COURTS.find(ic => ic.id === fc.id);
+          return local ? { ...fc, imageUrl: local.imageUrl || fc.imageUrl } : fc;
+        });
+        setCourts(mergedCourts);
       }
       if (Array.isArray(fetchedBookings)) {
         setExistingBookings(fetchedBookings);
@@ -250,12 +254,20 @@ const CourtBookingContent: React.FC = () => {
     } catch (err) {
       console.warn('Real-time sync notice:', err);
     } finally {
-      setIsRefreshing(false);
+      if (!silent) setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchRealtimeStatus();
+    // 1. Tải ngay khi vào trang hoặc đổi sân/ngày
+    fetchRealtimeStatus(false);
+
+    // 2. Tự động đồng bộ mỗi 3 giây để bắt kịp lệnh Admin Lock hoặc đơn đặt mới
+    const syncInterval = setInterval(() => {
+      fetchRealtimeStatus(true);
+    }, 3000);
+
+    return () => clearInterval(syncInterval);
   }, [selectedCourtId, bookingDate]);
 
   const selectedCourt: Court = courts.find((c) => c.id === selectedCourtId) || courts[0] || INITIAL_COURTS[0];
@@ -281,16 +293,16 @@ const CourtBookingContent: React.FC = () => {
     return `DVA ${courtTag} ${startClean} ${endClean} ${dateNum}`.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase();
   }, [selectedCourt, selectedCourtId, selectedSlotObj, bookingDate]);
 
-  // Determine slot status for the selected date & court
   const getSlotStatus = (slot: CourtTimeSlot): 'AVAILABLE' | 'HOLDING' | 'BOOKED' | 'CLOSED' => {
-    // 1. Check if closed by admin
+    // 1. Check nếu Admin đã Lock/Close khung giờ này
     const isClosedByAdmin = closedSlots.some(
       cs => cs.courtId === selectedCourtId && cs.date === bookingDate && cs.slotLabel === slot.label
     );
     if (isClosedByAdmin) return 'CLOSED';
 
-    // 2. Check if locked by paid booking
     if (!Array.isArray(existingBookings)) return 'AVAILABLE';
+
+    // 2. Check nếu ca đã thanh toán thành công (Màu xám BOOKED)
     const paidBooking = existingBookings.find(
       (b) =>
         b &&
@@ -299,8 +311,19 @@ const CourtBookingContent: React.FC = () => {
         b.paymentStatus === 'PAID' &&
         (b.startTime === slot.start || `${b.startTime} - ${b.endTime}` === slot.label)
     );
-
     if (paidBooking) return 'BOOKED';
+
+    // 3. Check nếu ca đang chờ chuyển khoản VietQR (Màu vàng hổ phách HOLDING)
+    const holdingBooking = existingBookings.find(
+      (b) =>
+        b &&
+        b.courtId === selectedCourtId &&
+        b.bookingDate === bookingDate &&
+        b.paymentStatus === 'PENDING' &&
+        (b.startTime === slot.start || `${b.startTime} - ${b.endTime}` === slot.label)
+    );
+    if (holdingBooking) return 'HOLDING';
+
     return 'AVAILABLE';
   };
 
@@ -433,7 +456,7 @@ const CourtBookingContent: React.FC = () => {
           </div>
 
           <button
-            onClick={fetchRealtimeStatus}
+            onClick={() => fetchRealtimeStatus()}
             disabled={isRefreshing}
             className="self-start md:self-auto px-4 py-2 bg-[#161F30] border border-slate-700 rounded-xl text-xs font-bold text-slate-300 hover:text-white flex items-center gap-2 cursor-pointer transition-colors shrink-0"
           >

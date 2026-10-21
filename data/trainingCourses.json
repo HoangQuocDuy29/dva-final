@@ -1,0 +1,169 @@
+[
+  {
+    "id": "tc-scrimmage-basic",
+    "title": "Team Scrimmage Matchplay",
+    "level": "Open Scrimmage",
+    "tag": "MOST POPULAR",
+    "targetAudience": "Recreational and club players seeking real matchplay scrimmage",
+    "price": 70000,
+    "priceUnit": "/ player / session",
+    "schedule": "Mon · Wed · Fri & Sunday Evenings (18:30 – 21:30)",
+    "duration": "2 - 3 hours of competitive matchplay",
+    "coachName": "DVA Match Coordinator",
+    "coachTitle": "Certified Referee & Floor Director",
+    "description": "Join randomized, balanced scrimmage teams on FIVB-grade Taraflex flooring with official refereeing and video replay.",
+    "benefits": [
+      "2 to 3 hours of continuous structured scrimmage",
+      "Balanced team lottery draw supervised by coaches",
+      "Match highlight video recorded for replay review"
+    ],
+    "curriculum": [
+      "Warm-up & dynamic stretching on Taraflex",
+      "Draft lottery & team balance setup",
+      "Full regulation match sets with refereeing",
+      "Post-match cooldown & video replay archive"
+    ],
+    "maxSlots": 24,
+    "enrolledSlots": 18
+  },
+  {
+    "id": "tc-scrimmage-pos",
+    "title": "Scrimmage + Fixed Position Selection",
+    "level": "Position Specialist",
+    "tag": "POPULAR CHOICE",
+    "targetAudience": "Athletes who want guaranteed playing time at their primary position (OH, OP, S, MB, L)",
+    "price": 150000,
+    "priceUnit": "/ player / session",
+    "schedule": "Mon · Wed · Fri · Sat Evenings (19:00 – 21:30) & Sun (14:00 - 16:30)",
+    "duration": "2.5 hours position-specific scrimmage",
+    "coachName": "DVA Tactical Staff",
+    "coachTitle": "5-1 System Coordinator",
+    "description": "Lock in your preferred specialist position for the entire session without rotation displacement (Outside Hitter, Opposite, Setter, Middle, or Libero).",
+    "benefits": [
+      "Guaranteed locked position (OH / OP / S / MB / L) throughout matchplay",
+      "Scientific 5-1 / 6-2 rotation formations orchestrated by coaching staff",
+      "Even ball distribution from designated setters",
+      "Pre-match specialist hitting lines and defensive warm-up"
+    ],
+    "curriculum": [
+      "Specialist warm-up (setting tempos, quick hits, pipe)",
+      "Rotation 1 through 6 positioning briefing",
+      "5-1 tactical matchplay sets",
+      "Individual positional feedback"
+    ],
+    "maxSlots": 18,
+    "enrolledSlots": 14
+  },
+  {
+    "id": "tc-scrimmage-care",
+    "title": "Scrimmage + Position + Dedicated Coaching Care",
+    "level": "VIP Progression",
+    "tag": "VIP PROGRESSION",
+    "targetAudience": "Players seeking real-time in-game technique corrections from senior coaches",
+    "price": 250000,
+    "priceUnit": "/ player / session",
+    "schedule": "Mon · Wed · Fri · Sat Evenings (19:00 – 21:30) & Sun (14:00 - 16:30)",
+    "duration": "2.5 hours with full-time coach care",
+    "coachName": "Coach Hoang Quoc Duy & Senior Staff",
+    "coachTitle": "Head Coach On-Court Mentorship",
+    "description": "The premier matchplay experience: Guaranteed position plus an on-court senior coach observing every rally, catching biomechanical errors, and providing immediate set-by-set adjustments.",
+    "benefits": [
+      "Fixed specialized position (OH / OP / S / MB / L)",
+      "Professional coach dedicated to your court 100% of the session",
+      "Real-time cues on approach timing, wrist-snap angles, and defensive coverage",
+      "Post-session personalized diagnostic sheet & homework drills"
+    ],
+    "curriculum": [
+      "Pre-match biomechanics assessment",
+      "In-game live correction between rallies",
+      "Tactical transition & block read coaching",
+      "Post-match private diagnostic evaluation"
+    ],
+    "maxSlots": 12,
+    "enrolledSlots": 9
+  },
+  {
+    "id": "tc-team-scrimmage",
+    "title": "Full Team Scrimmage Registration",
+    "level": "Squad Package",
+    "tag": "TEAM PACKAGE",
+    "targetAudience": "Pre-formed teams (6 to 10 players) seeking equal-level match challenges",
+    "price": 600000,
+    "priceUnit": "/ team / session (6–10 players)",
+    "schedule": "Mon · Wed · Fri · Sat (19:00 – 21:30) & Sun (14:00 - 16:30)",
+    "duration": "2.5 hours regulation tournament friendly",
+    "coachName": "DVA Tournament Board",
+    "coachTitle": "Match Arbiter & Scrimmage Director",
+    "description": "Bring your entire roster (6 to 10 teammates) to compete against matched-caliber opponent squads under official FIVB rules and scorekeeping.",
+    "benefits": [
+      "All-inclusive group rate covering 6 to 10 athletes",
+      "Opponents curated based on verified squad skill ratings",
+      "Certified referee and official Mikasa V200W match balls provided",
+      "Full-match HD video recording archive"
+    ],
+    "curriculum": [
+      "Warm-up hitting lines and team serving",
+      "Best-of-5 tournament scrimmage format",
+      "Official scoresheets & timeout management",
+      "Post-match team video archive download"
+    ],
+    "maxSlots": 6,
+    "enrolledSlots": 4
+  },
+  {
+    "id": "tc-group-custom",
+    "title": "Custom Small Group Coaching (3–5 Players)",
+    "level": "Group Training",
+    "tag": "GROUP TRAINING",
+    "targetAudience": "Groups of friends or corporate teams wanting focused skill refinement",
+    "price": 2500000,
+    "priceUnit": "/ group (3–5 players) / 120-min session",
+    "schedule": "Flexible custom scheduling directly with head coach",
+    "duration": "120-minute dedicated private session",
+    "coachName": "Coach Hoang Quoc Duy & Assistant Coach",
+    "coachTitle": "Dedicated Coaching Duo for 120 Minutes",
+    "description": "Customized 100% to your group goals: reception-to-set transition, block-defense systems, or dynamic quick hitting patterns.",
+    "benefits": [
+      "Private session for 3 to 5 players with zero outside participants",
+      "Full 120 minutes of high-repetition coaching",
+      "Access to Mikasa ball carts and automated ball launcher",
+      "Custom focus topics: First touch, spike mechanics, setting, or jump power"
+    ],
+    "curriculum": [
+      "Diagnostic agility and passing warmup",
+      "High-repetition drill sequences tailored to group needs",
+      "Combination offensive set plays",
+      "Cool-down and video breakdown"
+    ],
+    "maxSlots": 10,
+    "enrolledSlots": 7
+  },
+  {
+    "id": "tc-1on1-mastery",
+    "title": "Học 1-1 với coach kèm từ cơ bản (1-on-1 Coaching from Basic)",
+    "level": "Private 1-on-1 Intensive",
+    "tag": "PRIVATE 1-ON-1",
+    "targetAudience": "Athletes wanting rapid breakthrough from foundational mechanics to advanced mastery",
+    "price": 1500000,
+    "priceUnit": "/ person / 2-hour session",
+    "schedule": "Flexible customized time slot scheduled with coach",
+    "duration": "2-hour dedicated 1-on-1 session",
+    "coachName": "Coach Hoang Quoc Duy",
+    "coachTitle": "Head Coach, DVA Volleyball Club",
+    "description": "The most intensive 1-on-1 masterclass: 120fps slow-motion biomechanical analysis, arm-swing correction, 3-step kinetic approach, spin-serve mechanics, and jump timing.",
+    "benefits": [
+      "100% coach attention focused exclusively on you for 2 full hours",
+      "Electronic vertical reach measurement and jump technique calibration",
+      "Elimination of bad habits that cause shoulder and wrist pain",
+      "Guaranteed noticeable improvement in hitting power and precision in 1 session"
+    ],
+    "curriculum": [
+      "120fps slow-motion approach and arm-swing capture",
+      "Wrist-snap and kinetic kinetic chain corrections",
+      "Toss consistency and contact point optimization",
+      "Individualized training plan & exercise prescription"
+    ],
+    "maxSlots": 8,
+    "enrolledSlots": 5
+  }
+]
