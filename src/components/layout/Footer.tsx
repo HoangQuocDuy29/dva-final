@@ -145,7 +145,7 @@ export const Footer: React.FC = () => {
             <div className="w-full h-52 rounded-2xl overflow-hidden border border-slate-800 bg-[#121826] relative shadow-inner">
               <iframe
                 title="DVA Sports Arena Location"
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3724.819207869634!2d105.82885917609176!3d20.99988228876807!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3135ac8466b0a7b5%3A0x6a053c8c1e21b0!2zMTU1IFRyxrDhu51uZyBDaGluaCwgS2jGsMahbmcgTWFpLCBUaGFuaCBYdcOibiBZw6puLCBIw6AgTuG7mWksIFZp4buHdCBOYW0!5e0!3m2!1sen!2s!4v1718000000000!5m2!1sen!2s"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3579.4279507469305!2d105.8314439750799!3d20.995316580645632!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3135ac636fc82dd9%3A0xddf37bc4f391daff!2zTmjDoCB0aGkgxJHhuqV1IELDs25nIGNodXnhu4FuIFRow7RuZyBUaW4!5e1!3m2!1svi!2s!4v1792692619456!5m2!1svi!2s" 
                 width="100%"
                 height="100%"
                 style={{ border: 0, filter: 'grayscale(0.2) contrast(1.1) invert(0.9) hue-rotate(180deg)' }}
