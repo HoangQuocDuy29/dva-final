@@ -41,6 +41,7 @@ export interface Player {
   avatarUrl?: string;
   bio?: string;
   isCaptain?: boolean;
+  captain?: boolean;
   joinedYear?: number;
 }
 

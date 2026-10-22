@@ -71,7 +71,7 @@ export const ContactBanner: React.FC<ContactBannerProps> = ({ className = '', co
 
           {/* 4. Instagram: Gradient Magenta/Pink */}
           <a
-            href="https://instagram.com/dvavolleyball"
+            href="https://www.instagram.com/_nathan.hq_/"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl font-bold text-xs sm:text-sm bg-gradient-to-r from-[#9333EA] via-[#E11D48] to-[#F59E0B] text-white hover:opacity-90 shadow-lg shadow-pink-600/25 active:scale-95 transition-all cursor-pointer whitespace-nowrap"

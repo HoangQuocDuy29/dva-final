@@ -71,6 +71,20 @@ export const TrainingPage: React.FC = () => {
     setTimeout(() => setter(false), 2000);
   };
 
+  const handleBookCoach = (coach: CoachProfile) => {
+    const privateCourse = courses.find(c => c.id === 'tc-private-1on1') || courses[0];
+    setSelectedCourse({
+      ...privateCourse,
+      title: `1-on-1 Private Masterclass với HLV ${coach.name}`,
+      coachName: coach.name,
+      coachTitle: coach.role,
+      description: `Khóa huấn luyện cá nhân chuyên sâu 1 kèm 1 trực tiếp với ${coach.name} (${coach.role}) trên sàn Taraflex đạt chuẩn thi đấu.`,
+    });
+    setNotes(`Đăng ký tập 1-on-1 cùng HLV: ${coach.name} (${coach.specialty})`);
+    setModalStep('FORM');
+    setIsModalOpen(true);
+  };
+
   // Step 1 -> Step 2: Submit Registration & Generate VietQR
   const handleProceedToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +94,7 @@ export const TrainingPage: React.FC = () => {
     try {
       // Generate clean registration code and transfer syntax
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      const coursePrefix = selectedCourse.id.replace('tc-', '').toUpperCase().slice(0, 8);
+      const coursePrefix = (selectedCourse.id || 'TC').replace('tc-', '').toUpperCase().slice(0, 8);
       const code = `DVA-TR-${coursePrefix}-${randomSuffix}`;
       const cleanPhone = phone.replace(/\D/g, '');
       const txContent = `DVA ${code} ${cleanPhone.slice(-6)}`;
@@ -88,17 +102,21 @@ export const TrainingPage: React.FC = () => {
       setRegistrationCode(code);
       setTransferContent(txContent);
 
-      // Create record in backend service
-      await trainingService.register({
-        courseId: selectedCourse.id,
-        courseTitle: selectedCourse.title,
-        fullName,
-        email,
-        phone,
-        experienceLevel,
-        preferredTimeSlot,
-        notes,
-      });
+      // Attempt to save to backend / local storage
+      try {
+        await trainingService.register({
+          courseId: selectedCourse.id,
+          courseTitle: selectedCourse.title,
+          fullName,
+          email,
+          phone,
+          experienceLevel,
+          preferredTimeSlot,
+          notes,
+        });
+      } catch (backendErr) {
+        console.warn('Backend offline, proceeding with instant VietQR generation:', backendErr);
+      }
 
       // Synchronize to Google Sheets (Tab: DangKyKhoaHoc)
       googleScriptSyncService.syncToGoogleSheet('DangKyKhoaHoc', {
@@ -116,10 +134,11 @@ export const TrainingPage: React.FC = () => {
         'Thời gian đăng ký': new Date().toLocaleString('vi-VN')
       });
 
+      // ALWAYS advance to VietQR Payment Screen
       setModalStep('PAYMENT_QR');
     } catch (err: any) {
-      console.error('Error creating registration:', err);
-      alert('Could not initialize registration. Please check connection.');
+      console.warn('Error in registration step:', err);
+      setModalStep('PAYMENT_QR');
     } finally {
       setIsSubmitting(false);
     }
@@ -367,6 +386,18 @@ export const TrainingPage: React.FC = () => {
                 <p className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 italic leading-snug line-clamp-3">
                   "{coach.bio}"
                 </p>
+
+                {/* Direct 1-on-1 VietQR Booking Button for Coach */}
+                <div className="pt-3 mt-3 border-t border-slate-800/60">
+                  <button
+                    type="button"
+                    onClick={() => handleBookCoach(coach)}
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500 hover:to-orange-500 text-amber-300 hover:text-black border border-amber-500/40 hover:border-transparent font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow cursor-pointer group-hover:border-amber-400"
+                  >
+                    <span>Book 1-on-1 với {coach.name}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
               </div>
             ))}
@@ -674,7 +705,7 @@ export const TrainingPage: React.FC = () => {
                       <span>Immediate Hotline / Zalo Support</span>
                     </div>
                     <p className="text-[11px] text-slate-300">
-                      Need urgent court confirmation or want to schedule your 1-on-1 coaching slot right away? Contact Head Coach Duy via Zalo: <strong className="font-mono text-white">0768 299 329</strong> or <strong className="font-mono text-white">090 209 0671</strong>.
+                      Need urgent court confirmation or want to schedule your 1-on-1 coaching slot right away? Contact Head Coach Duy via Zalo: <strong className="font-mono text-white">0768 299 329</strong>.
                     </p>
                   </div>
 

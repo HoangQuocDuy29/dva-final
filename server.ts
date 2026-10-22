@@ -1,3 +1,24 @@
+/*
+  =============================================================================
+  CLUB CREDENTIALS BACKUP (FOR OWNER / DEVELOPER REFERENCE)
+  -----------------------------------------------------------------------------
+  1. SuperAdmin Account:
+     - Email: quocduyhoang42@gmail.com
+     - Password: dva@2025
+     - Role: SUPERADMIN (All modules access, system configurations)
+
+  2. Operations Admin Account:
+     - Email: admin.dva@gmail.com
+     - Password: dva@2025
+     - Role: ADMIN (Court bookings, schedule locking, roster management)
+
+  3. Registered Athlete Account:
+     - Email: player.hung@gmail.com
+     - Password: dva@123
+     - Role: PLAYER (Member portal, personal bookings, team bulletin)
+  =============================================================================
+*/
+
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -9,10 +30,11 @@ import {
   INITIAL_PLAYERS, 
   INITIAL_NEWS, 
   INITIAL_TRAINING_COURSES, 
+  INITIAL_COACHES,
   INITIAL_BOOKINGS, 
   INITIAL_MEMBER_APPLICATIONS 
 } from './src/data/mockData';
-import { Booking, ClosedSlot, MemberApplication, NewsPost, Player, TrainingRegistration, User } from './src/types';
+import { Booking, ClosedSlot, CoachProfile, MemberApplication, NewsPost, Player, TrainingCourse, TrainingRegistration, User } from './src/types';
 
 dotenv.config();
 
@@ -25,8 +47,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// In-Memory Database for Live Preview
-// Thư mục lưu trữ dữ liệu bền vững (Không bị mất khi tắt server)
+// Persistent File Storage Directory (Never reset upon npm run dev restart)
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -56,16 +77,17 @@ function savePersisted<T>(filename: string, data: T) {
   }
 }
 
-// Khởi tạo dữ liệu từ file trên ổ cứng (Chỉ lấy mockData seed lần đầu nếu file chưa có)
+// Persistent Database - loaded from disk if exists, seeds from mockData on first run only
 let users: User[] = loadPersisted<User[]>('users.json', INITIAL_USERS);
 let courts = loadPersisted('courts.json', INITIAL_COURTS);
 let players: Player[] = loadPersisted<Player[]>('players.json', INITIAL_PLAYERS);
 let newsPosts: NewsPost[] = loadPersisted<NewsPost[]>('news.json', INITIAL_NEWS);
-let trainingCourses = loadPersisted('trainingCourses.json', INITIAL_TRAINING_COURSES);
+let trainingCourses: TrainingCourse[] = loadPersisted<TrainingCourse[]>('trainingCourses.json', INITIAL_TRAINING_COURSES);
+let coaches: CoachProfile[] = loadPersisted<CoachProfile[]>('coaches.json', INITIAL_COACHES);
 let bookings: Booking[] = loadPersisted<Booking[]>('bookings.json', INITIAL_BOOKINGS);
 let closedSlots: ClosedSlot[] = loadPersisted<ClosedSlot[]>('closedSlots.json', []);
 let memberApplications: MemberApplication[] = loadPersisted<MemberApplication[]>('applications.json', INITIAL_MEMBER_APPLICATIONS);
-let trainingRegistrations: TrainingRegistration[] = [
+let trainingRegistrations: TrainingRegistration[] = loadPersisted<TrainingRegistration[]>('trainingRegistrations.json', [
   {
     id: 'tr-001',
     courseId: 'tc-1',
@@ -79,7 +101,7 @@ let trainingRegistrations: TrainingRegistration[] = [
     status: 'CONFIRMED',
     createdAt: '2026-10-18T10:00:00Z',
   }
-];
+]);
 
 // In-Memory Google Sheets Multi-Tab Sync Storage
 interface GoogleSheetsDatabase {
@@ -175,6 +197,39 @@ const googleSheetsDB: GoogleSheetsDatabase = {
     ]
   }
 };
+
+interface AppConfig {
+  googleScriptUrl: string;
+}
+const DEFAULT_APP_CONFIG: AppConfig = {
+  googleScriptUrl: process.env.GOOGLE_SCRIPT_URL || '',
+};
+let appConfig: AppConfig = loadPersisted<AppConfig>('appConfig.json', DEFAULT_APP_CONFIG);
+
+async function forwardToGoogleSheetsWebhook(sheetName: string, data: Record<string, any>) {
+  const url = appConfig.googleScriptUrl || process.env.GOOGLE_SCRIPT_URL;
+  if (!url) {
+    return;
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        sheetName,
+        data,
+        timestamp: new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    console.log(`[Google Sheets Remote Webhook] Forwarded to sheet: "${sheetName}", status: ${response.status}`);
+  } catch (err: any) {
+    console.warn(`[Google Sheets Remote Webhook Notice] ${err?.message || err}`);
+  }
+}
 
 // Helper function to sync to Google Sheets
 function syncRowToGoogleSheets(tab: keyof GoogleSheetsDatabase['tabs'], rowData: Record<string, any>) {
@@ -308,6 +363,17 @@ app.get('/api/courts', (req, res) => {
   res.json(courts);
 });
 
+app.put('/api/courts/:id', (req, res) => {
+  const { id } = req.params;
+  const index = courts.findIndex(c => c.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: 'Court not found' });
+  }
+  courts[index] = { ...courts[index], ...req.body };
+  savePersisted('courts.json', courts);
+  res.json(courts[index]);
+});
+
 // Closed / Blocked Slots API
 app.get('/api/courts/closed-slots', (req, res) => {
   const { courtId, date } = req.query;
@@ -330,6 +396,7 @@ app.post('/api/courts/closed-slots/toggle', (req, res) => {
   if (existingIndex > -1) {
     // Reopen slot
     const removed = closedSlots.splice(existingIndex, 1)[0];
+    savePersisted('closedSlots.json', closedSlots);
     return res.json({ success: true, action: 'REOPENED', slot: removed });
   } else {
     // Close slot
@@ -345,6 +412,7 @@ app.post('/api/courts/closed-slots/toggle', (req, res) => {
       createdAt: new Date().toISOString(),
     };
     closedSlots.push(newClosedSlot);
+    savePersisted('closedSlots.json', closedSlots);
     return res.json({ success: true, action: 'CLOSED', slot: newClosedSlot });
   }
 });
@@ -441,9 +509,10 @@ app.post('/api/bookings', (req, res) => {
   };
 
   bookings.unshift(newBooking);
+  savePersisted('bookings.json', bookings);
 
   // Auto Sync to Google Sheets Tab "Court_Bookings"
-  syncRowToGoogleSheets('Court_Bookings', {
+  const bookingSheetPayload = {
     'Timestamp': new Date().toISOString().replace('T', ' ').substring(0, 19),
     'Booking_Code': bookingCode,
     'Transfer_Content': transferContent,
@@ -457,7 +526,9 @@ app.post('/api/bookings', (req, res) => {
     'Total_VND': newBooking.totalPrice,
     'Payment_Status': 'PENDING',
     'Bank_Beneficiary': 'MB Bank - 0002090671521 (HOANG QUOC DUY)'
-  });
+  };
+  syncRowToGoogleSheets('Court_Bookings', bookingSheetPayload);
+  forwardToGoogleSheetsWebhook('DatSan', bookingSheetPayload);
 
   res.status(201).json(newBooking);
 });
@@ -470,6 +541,7 @@ app.patch('/api/bookings/:id/status', (req, res) => {
     return res.status(404).json({ error: 'Booking not found' });
   }
   booking.paymentStatus = paymentStatus;
+  savePersisted('bookings.json', bookings);
 
   // Update in Google Sheets representation as well
   const sheetRow = googleSheetsDB.tabs.Court_Bookings.find(r => r.Booking_Code === booking.bookingCode);
@@ -489,36 +561,86 @@ app.post('/api/bookings/:id/confirm-payment', (req, res) => {
   }
 
   booking.paymentStatus = 'PAID';
+  savePersisted('bookings.json', bookings);
 
   // Ensure row in Google Sheets has Payment_Status: 'PAID'
+  const confirmedSheetPayload = {
+    'Timestamp': new Date().toISOString().replace('T', ' ').substring(0, 19),
+    'Booking_Code': booking.bookingCode,
+    'Transfer_Content': booking.transferContent,
+    'Court_Name': booking.courtName,
+    'Customer_Name': booking.customerName,
+    'Phone': booking.customerPhone,
+    'Email': booking.customerEmail,
+    'Date': booking.bookingDate,
+    'Time_Slot': `${booking.startTime} - ${booking.endTime}`,
+    'Total_Hours': booking.totalHours,
+    'Total_VND': booking.totalPrice,
+    'Payment_Status': 'PAID (Customer Confirmed Transfer)',
+    'Bank_Beneficiary': 'MB Bank - 0002090671521 (HOANG QUOC DUY)'
+  };
+
   const sheetRow = googleSheetsDB.tabs.Court_Bookings.find(r => r.Booking_Code === booking.bookingCode);
   if (sheetRow) {
-    sheetRow.Payment_Status = 'PAID';
+    sheetRow.Payment_Status = 'PAID (Customer Confirmed Transfer)';
   } else {
-    syncRowToGoogleSheets('Court_Bookings', {
-      'Timestamp': new Date().toISOString().replace('T', ' ').substring(0, 19),
-      'Booking_Code': booking.bookingCode,
-      'Transfer_Content': booking.transferContent,
-      'Court_Name': booking.courtName,
-      'Customer_Name': booking.customerName,
-      'Phone': booking.customerPhone,
-      'Email': booking.customerEmail,
-      'Date': booking.bookingDate,
-      'Time_Slot': `${booking.startTime} - ${booking.endTime}`,
-      'Total_Hours': booking.totalHours,
-      'Total_VND': booking.totalPrice,
-      'Payment_Status': 'PAID',
-      'Bank_Beneficiary': 'MB Bank - 0002090671521 (HOANG QUOC DUY)'
-    });
+    syncRowToGoogleSheets('Court_Bookings', confirmedSheetPayload);
   }
+  forwardToGoogleSheetsWebhook('DatSan', confirmedSheetPayload);
 
   console.log(`[VietQR Confirmed] Booking ${booking.bookingCode} marked PAID and synced to Google Sheets Court_Bookings!`);
   res.json({ success: true, booking });
 });
 
-// 5. Training API
+app.put('/api/bookings/:id', (req, res) => {
+  const { id } = req.params;
+  const idx = bookings.findIndex(b => b.id === id);
+  if (idx === -1) return res.status(404).json({ error: 'Booking not found' });
+  bookings[idx] = { ...bookings[idx], ...req.body };
+  savePersisted('bookings.json', bookings);
+  res.json(bookings[idx]);
+});
+
+app.delete('/api/bookings/:id', (req, res) => {
+  const { id } = req.params;
+  bookings = bookings.filter(b => b.id !== id);
+  savePersisted('bookings.json', bookings);
+  res.json({ success: true, message: 'Booking deleted' });
+});
+
+// 5. Training & Academy API
 app.get('/api/training/courses', (req, res) => {
   res.json(trainingCourses);
+});
+
+app.post('/api/training/courses', (req, res) => {
+  const newCourse: TrainingCourse = {
+    ...req.body,
+    id: `tc-${Date.now()}`,
+    curriculum: req.body.curriculum || [],
+    benefits: req.body.benefits || [],
+    maxSlots: Number(req.body.maxSlots) || 20,
+    enrolledSlots: Number(req.body.enrolledSlots) || 0,
+  };
+  trainingCourses.unshift(newCourse);
+  savePersisted('trainingCourses.json', trainingCourses);
+  res.status(201).json(newCourse);
+});
+
+app.put('/api/training/courses/:id', (req, res) => {
+  const { id } = req.params;
+  const idx = trainingCourses.findIndex(c => c.id === id);
+  if (idx === -1) return res.status(404).json({ error: 'Course not found' });
+  trainingCourses[idx] = { ...trainingCourses[idx], ...req.body };
+  savePersisted('trainingCourses.json', trainingCourses);
+  res.json(trainingCourses[idx]);
+});
+
+app.delete('/api/training/courses/:id', (req, res) => {
+  const { id } = req.params;
+  trainingCourses = trainingCourses.filter(c => c.id !== id);
+  savePersisted('trainingCourses.json', trainingCourses);
+  res.json({ success: true, message: 'Course deleted' });
 });
 
 app.get('/api/training/registrations', (req, res) => {
@@ -542,17 +664,22 @@ app.post('/api/training/register', (req, res) => {
   };
 
   trainingRegistrations.unshift(newReg);
+  savePersisted('trainingRegistrations.json', trainingRegistrations);
 
   // Auto Sync to Google Sheets Tab "Training_Registrations"
-  syncRowToGoogleSheets('Training_Registrations', {
+  const trainingSheetPayload = {
     'Timestamp': new Date().toISOString().replace('T', ' ').substring(0, 19),
     'Course': courseTitle,
     'Full_Name': fullName,
     'Email': email,
     'Phone': phone,
-    'Experience': experienceLevel || 'Cơ bản',
+    'Experience': experienceLevel || 'Fundamental',
+    'Preferred_Slot': preferredTimeSlot || 'Evenings',
+    'Notes': notes || 'None',
     'Status': 'PENDING'
-  });
+  };
+  syncRowToGoogleSheets('Training_Registrations', trainingSheetPayload);
+  forwardToGoogleSheetsWebhook('DangKyKhoaHoc', trainingSheetPayload);
 
   res.status(201).json(newReg);
 });
@@ -565,7 +692,47 @@ app.patch('/api/training/registrations/:id/status', (req, res) => {
     return res.status(404).json({ error: 'Registration not found' });
   }
   reg.status = status;
+  savePersisted('trainingRegistrations.json', trainingRegistrations);
   res.json(reg);
+});
+
+app.delete('/api/training/registrations/:id', (req, res) => {
+  const { id } = req.params;
+  trainingRegistrations = trainingRegistrations.filter(r => r.id !== id);
+  savePersisted('trainingRegistrations.json', trainingRegistrations);
+  res.json({ success: true, message: 'Registration deleted' });
+});
+
+// Coaches API
+app.get('/api/coaches', (req, res) => {
+  res.json(coaches);
+});
+
+app.post('/api/coaches', (req, res) => {
+  const newCoach: CoachProfile = {
+    ...req.body,
+    id: `coach-${Date.now()}`,
+    certifications: req.body.certifications || [],
+  };
+  coaches.push(newCoach);
+  savePersisted('coaches.json', coaches);
+  res.status(201).json(newCoach);
+});
+
+app.put('/api/coaches/:id', (req, res) => {
+  const { id } = req.params;
+  const idx = coaches.findIndex(c => c.id === id);
+  if (idx === -1) return res.status(404).json({ error: 'Coach not found' });
+  coaches[idx] = { ...coaches[idx], ...req.body };
+  savePersisted('coaches.json', coaches);
+  res.json(coaches[idx]);
+});
+
+app.delete('/api/coaches/:id', (req, res) => {
+  const { id } = req.params;
+  coaches = coaches.filter(c => c.id !== id);
+  savePersisted('coaches.json', coaches);
+  res.json({ success: true, message: 'Coach deleted' });
 });
 
 // 6. Member Application & Auto-Player Promotion
@@ -582,9 +749,10 @@ app.post('/api/members/register', (req, res) => {
   };
 
   memberApplications.unshift(newApp);
+  savePersisted('applications.json', memberApplications);
 
   // Auto Sync to Google Sheets Tab "Member_Registrations"
-  syncRowToGoogleSheets('Member_Registrations', {
+  const memberSheetPayload = {
     'Timestamp': new Date().toISOString().replace('T', ' ').substring(0, 19),
     'Application_ID': newApp.id,
     'Full_Name': newApp.fullName,
@@ -597,10 +765,12 @@ app.post('/api/members/register', (req, res) => {
     'Block_Reach_cm': newApp.blockReach,
     'Gmail': newApp.gmail,
     'Zalo': newApp.zalo,
-    'Instagram': newApp.instagram || 'Không có',
+    'Instagram': newApp.instagram || 'None',
     'Rotation_Knowledge': newApp.rotationKnowledge,
     'Status': 'PENDING'
-  });
+  };
+  syncRowToGoogleSheets('Member_Registrations', memberSheetPayload);
+  forwardToGoogleSheetsWebhook('TuyenThanhVien', memberSheetPayload);
 
   res.status(201).json(newApp);
 });
@@ -635,7 +805,11 @@ app.patch('/api/members/applications/:id/status', (req, res) => {
       joinedYear: 2026,
     };
     players.unshift(createdPlayer);
+    savePersisted('players.json', players);
+    savePersisted('applications.json', memberApplications);
     console.log(`[DVA Member Approved] Auto-created player profile for ${appItem.fullName} in roster!`);
+  } else {
+    savePersisted('applications.json', memberApplications);
   }
 
   // Update in Google Sheets representation
@@ -645,6 +819,13 @@ app.patch('/api/members/applications/:id/status', (req, res) => {
   }
 
   res.json({ application: appItem, promotedPlayer: status === 'APPROVED' });
+});
+
+app.delete('/api/members/applications/:id', (req, res) => {
+  const { id } = req.params;
+  memberApplications = memberApplications.filter(a => a.id !== id);
+  savePersisted('applications.json', memberApplications);
+  res.json({ success: true, message: 'Application deleted' });
 });
 
 // 7. News API
@@ -677,26 +858,55 @@ app.post('/api/news', (req, res) => {
     publishedAt: new Date().toISOString().split('T')[0],
   };
   newsPosts.unshift(newPost);
+  savePersisted('news.json', newsPosts);
   res.status(201).json(newPost);
+});
+
+app.put('/api/news/:id', (req, res) => {
+  const { id } = req.params;
+  const index = newsPosts.findIndex(n => n.id === id || n.slug === id);
+  if (index === -1) {
+    return res.status(404).json({ error: 'News post not found' });
+  }
+  newsPosts[index] = { ...newsPosts[index], ...req.body };
+  savePersisted('news.json', newsPosts);
+  res.json(newsPosts[index]);
 });
 
 app.delete('/api/news/:id', (req, res) => {
   newsPosts = newsPosts.filter(n => n.id !== req.params.id);
+  savePersisted('news.json', newsPosts);
   res.json({ success: true, message: 'News post deleted' });
 });
 
 // 8. Google Sheets Multi-Tab Live Inspector & Sync API
+app.get('/api/sheets/config', (req, res) => {
+  res.json({ scriptUrl: appConfig.googleScriptUrl || '' });
+});
+
+app.post('/api/sheets/config', (req, res) => {
+  const { scriptUrl } = req.body;
+  appConfig.googleScriptUrl = (scriptUrl || '').trim();
+  savePersisted('appConfig.json', appConfig);
+  console.log(`[Google Sheets] Updated Webhook URL to: ${appConfig.googleScriptUrl}`);
+  res.json({ success: true, scriptUrl: appConfig.googleScriptUrl });
+});
+
 app.get('/api/sheets/data', (req, res) => {
   res.json(googleSheetsDB);
 });
 
-app.post('/api/sheets/sync', (req, res) => {
-  const { tab, rowData } = req.body;
-  if (tab && rowData && googleSheetsDB.tabs[tab as keyof GoogleSheetsDatabase['tabs']]) {
-    syncRowToGoogleSheets(tab as keyof GoogleSheetsDatabase['tabs'], rowData);
-    return res.json({ success: true, message: `Row synced to tab ${tab}` });
+app.post('/api/sheets/sync', async (req, res) => {
+  const { sheetName, tab, data, rowData } = req.body;
+  const targetTab = sheetName || tab || 'DatSan';
+  const targetData = data || rowData || {};
+
+  if (targetTab && targetData && googleSheetsDB.tabs[targetTab as keyof GoogleSheetsDatabase['tabs']]) {
+    syncRowToGoogleSheets(targetTab as keyof GoogleSheetsDatabase['tabs'], targetData);
   }
-  return res.json({ success: true, message: 'Google Sheets sync batch processed' });
+
+  await forwardToGoogleSheetsWebhook(targetTab, targetData);
+  return res.json({ success: true, message: `Dispatched to ${targetTab}` });
 });
 
 // 9. Free Cloud Media Storage: Cloudinary pre-signed upload simulation
@@ -746,7 +956,12 @@ async function setupViteOrStatic() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        watch: {
+          ignored: ['**/data/**', '**/*.json', '**/public/assets/**', '**/dist/**', '**/node_modules/**'],
+        },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

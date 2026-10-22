@@ -35,6 +35,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedPosition, setSelectedPosition] = useState<string>('ALL');
+  const [selectedLetter, setSelectedLetter] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'SINGLE_TAB' | '3_COLUMNS'>('SINGLE_TAB');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 8; // 8 player cards per page for optimal grid layout
@@ -60,10 +61,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     fetchPlayers();
   }, []);
 
-  // Reset pagination when level, search, or position changes
+  // Reset pagination when level, search, position, or alphabet changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [resolvedLevel, search, selectedPosition]);
+  }, [resolvedLevel, search, selectedPosition, selectedLetter]);
 
   // Position badge styling
   const getPositionBadgeStyle = (pos: VolleyballPosition) => {
@@ -83,29 +84,35 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     }
   };
 
-  // Filter helper
-  const filterList = (list: Player[]) => {
-    return list.filter((p) => {
-      if (selectedPosition !== 'ALL' && p.position !== selectedPosition) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        return (
-          p.fullName.toLowerCase().includes(q) ||
-          String(p.jerseyNumber).includes(q) ||
-          p.position.toLowerCase().includes(q) ||
-          (p.bio && p.bio.toLowerCase().includes(q)) ||
-          p.hometownCountry.toLowerCase().includes(q) ||
-          (p.countryName && p.countryName.toLowerCase().includes(q))
-        );
-      }
-      return true;
-    });
+  // Filter & Alphabetical (A-Z) Sort helper
+  const filterAndSortList = (list: Player[]) => {
+    return list
+      .filter((p) => {
+        if (selectedPosition !== 'ALL' && p.position !== selectedPosition) return false;
+        if (selectedLetter !== 'ALL') {
+          const firstChar = (p.fullName || '').trim().charAt(0).toUpperCase();
+          if (firstChar !== selectedLetter) return false;
+        }
+        if (search.trim()) {
+          const q = search.toLowerCase();
+          return (
+            p.fullName.toLowerCase().includes(q) ||
+            String(p.jerseyNumber).includes(q) ||
+            p.position.toLowerCase().includes(q) ||
+            (p.bio && p.bio.toLowerCase().includes(q)) ||
+            p.hometownCountry.toLowerCase().includes(q) ||
+            (p.countryName && p.countryName.toLowerCase().includes(q))
+          );
+        }
+        return true;
+      })
+      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi', { sensitivity: 'base' }));
   };
 
-  // Squad counts
-  const seniorPlayers = useMemo(() => filterList(players.filter(p => p.level === 'SENIOR')), [players, search, selectedPosition]);
-  const juniorPlayers = useMemo(() => filterList(players.filter(p => p.level === 'JUNIOR')), [players, search, selectedPosition]);
-  const kidPlayers = useMemo(() => filterList(players.filter(p => p.level === 'KID')), [players, search, selectedPosition]);
+  // Squad counts (alphabetically sorted)
+  const seniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'SENIOR')), [players, search, selectedPosition, selectedLetter]);
+  const juniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'JUNIOR')), [players, search, selectedPosition, selectedLetter]);
+  const kidPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'KID')), [players, search, selectedPosition, selectedLetter]);
 
   // Active level list for Single Tab
   const activeLevelPlayers = useMemo(() => {
@@ -127,14 +134,28 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
 
   const renderPlayerCard = (player: Player) => {
     const posMeta = getPositionBadgeStyle(player.position);
+    const isTeamCaptain = Boolean(player.captain || player.isCaptain);
     return (
       <div
         key={player.id}
-        className="w-full rounded-3xl bg-[#131822] border border-[#1e2738] p-5 shadow-xl hover:border-slate-600 transition-all duration-300 flex flex-col justify-between relative group hover:scale-[1.01]"
+        className={`w-full rounded-3xl bg-[#131822] p-5 shadow-xl transition-all duration-300 flex flex-col justify-between relative group hover:scale-[1.01] ${
+          isTeamCaptain 
+            ? 'border-2 border-amber-500/80 shadow-lg shadow-amber-500/10 hover:border-amber-400 ring-1 ring-amber-400/30' 
+            : 'border border-[#1e2738] hover:border-slate-600'
+        }`}
       >
-        {/* Flag Badge */}
-        <div className="absolute top-4 right-4 text-lg select-none" title={player.countryName || 'Vietnam'}>
-          {player.countryFlag || '🇻🇳'}
+        {/* Top Badges: Captain Badge (Top-Left) and Flag (Top-Right) */}
+        <div className="flex items-center justify-between mb-2">
+          {isTeamCaptain ? (
+            <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-orange-500 text-slate-950 text-[10px] font-black uppercase tracking-widest shadow-md shadow-amber-500/30 border border-yellow-200 flex items-center gap-1">
+              ★ CAPTAIN
+            </span>
+          ) : (
+            <div />
+          )}
+          <div className="text-lg select-none" title={player.countryName || 'Vietnam'}>
+            {player.countryFlag || '🇻🇳'}
+          </div>
         </div>
 
         <div>
@@ -446,6 +467,25 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
                 }`}
               >
                 {item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Alphabetical A-Z Filter Bar */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/80">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Sort & Filter (A - Z):</span>
+            {['ALL', 'A', 'B', 'C', 'D', 'E', 'G', 'H', 'K', 'L', 'M', 'N', 'P', 'Q', 'S', 'T', 'V', 'X', 'Y'].map((letter) => (
+              <button
+                key={letter}
+                type="button"
+                onClick={() => setSelectedLetter(letter)}
+                className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center ${
+                  selectedLetter === letter
+                    ? 'bg-amber-500 text-black font-black shadow'
+                    : 'bg-[#161F30] text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+                }`}
+              >
+                {letter}
               </button>
             ))}
           </div>

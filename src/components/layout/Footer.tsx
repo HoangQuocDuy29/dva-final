@@ -47,7 +47,7 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-orange-500 shrink-0" />
-                <span>Operating Hours: 06:00 - 23:00 (Mon – Sun)</span>
+                <span>Operating Hours: 06:00 - 21:30 (Mon – Sun)</span>
               </div>
             </div>
 
@@ -106,11 +106,11 @@ export const Footer: React.FC = () => {
             <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                <span>DVA Sports Arena, 18 Hoang Quoc Viet Street, Cau Giay District, Hanoi, Vietnam</span>
+                <span>155 Truong Chinh, Thanh Xuan, Hanoi, Vietnam</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-red-500 shrink-0" />
-                <span className="font-mono text-white">0768 299 329 / 090 209 0671</span>
+                <span className="font-mono text-white">0768 299 329</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-red-500 shrink-0" />
@@ -131,7 +131,7 @@ export const Footer: React.FC = () => {
                 <span>Arena Location Map</span>
               </h4>
               <a
-                href="https://maps.google.com/?q=18+Hoang+Quoc+Viet+Cau+Giay+Hanoi"
+                href="https://maps.google.com/?q=155+Truong+Chinh+Thanh+Xuan+Hanoi"
                 target="_blank"
                 rel="noreferrer"
                 className="text-[11px] text-orange-400 hover:underline flex items-center gap-1"
@@ -145,7 +145,7 @@ export const Footer: React.FC = () => {
             <div className="w-full h-52 rounded-2xl overflow-hidden border border-slate-800 bg-[#121826] relative shadow-inner">
               <iframe
                 title="DVA Sports Arena Location"
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3723.657519342721!2d105.7958448760927!3d21.04638538716868!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3135ab3b52d431c3%3A0x8cf65f5a2b16df3c!2zMTggSG_DoG5nIFF14buRYyBWaeG7h3QsIE5naMSpYSDEkMO0LCBD4bqndSBHaeG6pXksIEjDoCBO4buZaSwgVmnhu4d0IE5hbQ!5e0!3m2!1sen!2s!4v1718000000000!5m2!1sen!2s"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3724.819207869634!2d105.82885917609176!3d20.99988228876807!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3135ac8466b0a7b5%3A0x6a053c8c1e21b0!2zMTU1IFRyxrDhu51uZyBDaGluaCwgS2jGsMahbmcgTWFpLCBUaGFuaCBYdcOibiBZw6puLCBIw6AgTuG7mWksIFZp4buHdCBOYW0!5e0!3m2!1sen!2s!4v1718000000000!5m2!1sen!2s"
                 width="100%"
                 height="100%"
                 style={{ border: 0, filter: 'grayscale(0.2) contrast(1.1) invert(0.9) hue-rotate(180deg)' }}
@@ -155,7 +155,7 @@ export const Footer: React.FC = () => {
               />
             </div>
             <div className="text-[10px] text-slate-500 text-center">
-              18 Hoang Quoc Viet, Cau Giay District, Hanoi
+              155 Truong Chinh, Thanh Xuan, Hanoi, Vietnam
             </div>
           </div>
 

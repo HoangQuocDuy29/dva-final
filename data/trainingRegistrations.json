@@ -1,0 +1,54 @@
+[
+  {
+    "id": "tr-1792690671230",
+    "courseId": "tc-scrimmage-basic",
+    "courseTitle": "Team Scrimmage Matchplay",
+    "fullName": "Luong The Phong",
+    "email": "quocduyhoang42@gmail.com",
+    "phone": "0768299329",
+    "experienceLevel": "Intermediate Recreational",
+    "preferredTimeSlot": "Mon - Wed - Sat Evenings (19:00 - 21:30)",
+    "notes": "",
+    "status": "PENDING",
+    "createdAt": "2026-10-22T17:37:51.230Z"
+  },
+  {
+    "id": "tr-1792685895604",
+    "courseId": "tc-scrimmage-basic",
+    "courseTitle": "Team Scrimmage Matchplay",
+    "fullName": "Hoàng Quốc Duy",
+    "email": "quocduyhoang42@gmail.com",
+    "phone": "0768299329",
+    "experienceLevel": "Club Competitor",
+    "preferredTimeSlot": "Mon - Wed - Sat Evenings (19:00 - 21:30)",
+    "notes": "Đăng ký tập 1-on-1 cùng HLV: Dinh Gia Bao (Youth Skill Development, Setting Fundamentals & Bilingual Coaching)",
+    "status": "PENDING",
+    "createdAt": "2026-10-22T16:18:15.604Z"
+  },
+  {
+    "id": "tr-1792682900998",
+    "courseId": "tc-scrimmage-basic",
+    "courseTitle": "Team Scrimmage Matchplay",
+    "fullName": "Hoàng Quốc Duy",
+    "email": "quocduyhoang42@gmail.com",
+    "phone": "0768299329",
+    "experienceLevel": "Beginner / Fundamental",
+    "preferredTimeSlot": "Mon - Wed - Sat Evenings (19:00 - 21:30)",
+    "notes": "",
+    "status": "PENDING",
+    "createdAt": "2026-10-22T15:28:20.998Z"
+  },
+  {
+    "id": "tr-001",
+    "courseId": "tc-1",
+    "courseTitle": "Khóa Kỹ Thuật Nền Tảng (Foundation Skills)",
+    "fullName": "Lê Văn Khải",
+    "email": "khai.le@gmail.com",
+    "phone": "0933445566",
+    "experienceLevel": "Chưa từng chơi bóng chuyền",
+    "preferredTimeSlot": "Tối T2-T4-T6 (18:00)",
+    "notes": "Muốn học để rèn luyện sức khỏe",
+    "status": "CONFIRMED",
+    "createdAt": "2026-10-18T10:00:00Z"
+  }
+]

@@ -7,6 +7,7 @@ import {
   Player, 
   PlayerLevel, 
   TrainingCourse, 
+  CoachProfile,
   TrainingRegistration, 
   User, 
   UserRole 
@@ -16,6 +17,7 @@ import {
   GUEST_USER,
   INITIAL_COURTS, 
   INITIAL_PLAYERS, 
+  INITIAL_COACHES,
   INITIAL_NEWS, 
   INITIAL_TRAINING_COURSES, 
   INITIAL_BOOKINGS, 
@@ -201,31 +203,76 @@ export const courtService = {
 
 export const bookingService = {
   async getBookings(params?: { date?: string; courtId?: string }): Promise<Booking[]> {
+    const saved = localStorage.getItem('dva_bookings');
+    const localFallback = saved ? JSON.parse(saved) : INITIAL_BOOKINGS;
     const query = new URLSearchParams(params as any).toString();
-    return request<Booking[]>(`/bookings${query ? `?${query}` : ''}`, {}, INITIAL_BOOKINGS);
+    const res = await request<Booking[]>(`/bookings${query ? `?${query}` : ''}`, {}, localFallback);
+    if (res && res.length > 0) localStorage.setItem('dva_bookings', JSON.stringify(res));
+    return res;
   },
 
   async createBooking(bookingData: Partial<Booking>): Promise<Booking> {
-    return request<Booking>('/bookings', {
-      method: 'POST',
-      body: JSON.stringify(bookingData),
-    }, {
+    const newBooking: Booking = {
       ...bookingData,
       id: `b-${Date.now()}`,
-      bookingCode: `DVA-TT-${Date.now().toString().slice(-6)}`,
+      bookingCode: `DVA-${Date.now().toString().slice(-6)}`,
       paymentStatus: 'PENDING',
       createdAt: new Date().toISOString(),
-    } as Booking);
+    } as Booking;
+
+    const res = await request<Booking>('/bookings', {
+      method: 'POST',
+      body: JSON.stringify(bookingData),
+    }, newBooking);
+
+    const saved = localStorage.getItem('dva_bookings');
+    const currentList: Booking[] = saved ? JSON.parse(saved) : INITIAL_BOOKINGS;
+    localStorage.setItem('dva_bookings', JSON.stringify([res, ...currentList.filter(b => b.id !== res.id)]));
+    return res;
+  },
+
+  async updateBooking(id: string, updateData: Partial<Booking>): Promise<Booking> {
+    const res = await request<Booking>(`/bookings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    }, { id, ...updateData } as Booking);
+
+    const saved = localStorage.getItem('dva_bookings');
+    if (saved) {
+      const list: Booking[] = JSON.parse(saved);
+      localStorage.setItem('dva_bookings', JSON.stringify(list.map(b => b.id === id ? { ...b, ...res } : b)));
+    }
+    return res;
+  },
+
+  async deleteBooking(id: string): Promise<{ success: boolean }> {
+    const res = await request<{ success: boolean }>(`/bookings/${id}`, {
+      method: 'DELETE',
+    }, { success: true });
+
+    const saved = localStorage.getItem('dva_bookings');
+    if (saved) {
+      const list: Booking[] = JSON.parse(saved);
+      localStorage.setItem('dva_bookings', JSON.stringify(list.filter(b => b.id !== id)));
+    }
+    return res;
   },
 
   async updateStatus(id: string, paymentStatus: 'PENDING' | 'PAID' | 'CANCELLED'): Promise<Booking> {
-    return request<Booking>(`/bookings/${id}/status`, {
+    const res = await request<Booking>(`/bookings/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ paymentStatus }),
     }, {
       id,
       paymentStatus,
     } as Booking);
+
+    const saved = localStorage.getItem('dva_bookings');
+    if (saved) {
+      const list: Booking[] = JSON.parse(saved);
+      localStorage.setItem('dva_bookings', JSON.stringify(list.map(b => b.id === id ? { ...b, paymentStatus } : b)));
+    }
+    return res;
   },
 
   async confirmPayment(id: string): Promise<{ success: boolean; booking: Booking }> {
@@ -240,7 +287,59 @@ export const bookingService = {
 
 export const trainingService = {
   async getCourses(): Promise<TrainingCourse[]> {
-    return request<TrainingCourse[]>('/training/courses', {}, INITIAL_TRAINING_COURSES);
+    const saved = localStorage.getItem('dva_courses');
+    const fallback = saved ? JSON.parse(saved) : INITIAL_TRAINING_COURSES;
+    const res = await request<TrainingCourse[]>('/training/courses', {}, fallback);
+    if (res && res.length > 0) localStorage.setItem('dva_courses', JSON.stringify(res));
+    return res;
+  },
+
+  async createCourse(courseData: Partial<TrainingCourse>): Promise<TrainingCourse> {
+    const newCourse: TrainingCourse = {
+      ...courseData,
+      id: `tc-${Date.now()}`,
+      curriculum: courseData.curriculum || [],
+      benefits: courseData.benefits || [],
+      maxSlots: courseData.maxSlots || 20,
+      enrolledSlots: courseData.enrolledSlots || 0,
+    } as TrainingCourse;
+
+    const res = await request<TrainingCourse>('/training/courses', {
+      method: 'POST',
+      body: JSON.stringify(courseData),
+    }, newCourse);
+
+    const saved = localStorage.getItem('dva_courses');
+    const list: TrainingCourse[] = saved ? JSON.parse(saved) : INITIAL_TRAINING_COURSES;
+    localStorage.setItem('dva_courses', JSON.stringify([res, ...list]));
+    return res;
+  },
+
+  async updateCourse(id: string, courseData: Partial<TrainingCourse>): Promise<TrainingCourse> {
+    const res = await request<TrainingCourse>(`/training/courses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(courseData),
+    }, { id, ...courseData } as TrainingCourse);
+
+    const saved = localStorage.getItem('dva_courses');
+    if (saved) {
+      const list: TrainingCourse[] = JSON.parse(saved);
+      localStorage.setItem('dva_courses', JSON.stringify(list.map(c => c.id === id ? { ...c, ...res } : c)));
+    }
+    return res;
+  },
+
+  async deleteCourse(id: string): Promise<{ success: boolean }> {
+    const res = await request<{ success: boolean }>(`/training/courses/${id}`, {
+      method: 'DELETE',
+    }, { success: true });
+
+    const saved = localStorage.getItem('dva_courses');
+    if (saved) {
+      const list: TrainingCourse[] = JSON.parse(saved);
+      localStorage.setItem('dva_courses', JSON.stringify(list.filter(c => c.id !== id)));
+    }
+    return res;
   },
 
   async getRegistrations(): Promise<TrainingRegistration[]> {
@@ -267,6 +366,68 @@ export const trainingService = {
       id,
       status,
     } as TrainingRegistration);
+  },
+
+  async deleteRegistration(id: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/training/registrations/${id}`, {
+      method: 'DELETE',
+    }, { success: true });
+  }
+};
+
+export const coachService = {
+  async getCoaches(): Promise<CoachProfile[]> {
+    const saved = localStorage.getItem('dva_coaches');
+    const fallback = saved ? JSON.parse(saved) : INITIAL_COACHES;
+    const res = await request<CoachProfile[]>('/coaches', {}, fallback);
+    if (res && res.length > 0) localStorage.setItem('dva_coaches', JSON.stringify(res));
+    return res;
+  },
+
+  async addCoach(coachData: Partial<CoachProfile>): Promise<CoachProfile> {
+    const newCoach: CoachProfile = {
+      ...coachData,
+      id: `coach-${Date.now()}`,
+      avatarUrl: coachData.avatarUrl || '/coaches/duy.png',
+      certifications: coachData.certifications || [],
+    } as CoachProfile;
+
+    const res = await request<CoachProfile>('/coaches', {
+      method: 'POST',
+      body: JSON.stringify(coachData),
+    }, newCoach);
+
+    const saved = localStorage.getItem('dva_coaches');
+    const list: CoachProfile[] = saved ? JSON.parse(saved) : INITIAL_COACHES;
+    localStorage.setItem('dva_coaches', JSON.stringify([res, ...list]));
+    return res;
+  },
+
+  async updateCoach(id: string, coachData: Partial<CoachProfile>): Promise<CoachProfile> {
+    const res = await request<CoachProfile>(`/coaches/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(coachData),
+    }, { id, ...coachData } as CoachProfile);
+
+    const saved = localStorage.getItem('dva_coaches');
+    if (saved) {
+      const list: CoachProfile[] = JSON.parse(saved);
+      localStorage.setItem('dva_coaches', JSON.stringify(list.map(c => c.id === id ? { ...c, ...res } : c)));
+    }
+    return res;
+  },
+
+  async deleteCoach(id: string): Promise<{ success: boolean }> {
+    const res = await request<{ success: boolean }>(`/coaches/${id}`, {
+      method: 'DELETE',
+    }, { success: true });
+
+    const saved = localStorage.getItem('dva_coaches');
+    if (saved) {
+      const list: CoachProfile[] = JSON.parse(saved);
+      localStorage.setItem('dva_coaches', JSON.stringify(list.filter(c => c.id !== id)));
+    }
+    return res;
   }
 };
 
@@ -299,13 +460,23 @@ export const memberService = {
       } as MemberApplication,
       promotedPlayer: status === 'APPROVED',
     });
+  },
+
+  async deleteApplication(id: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/members/applications/${id}`, {
+      method: 'DELETE',
+    }, { success: true });
   }
 };
 
 export const newsService = {
   async getNews(params?: { category?: string; search?: string }): Promise<NewsPost[]> {
+    const saved = localStorage.getItem('dva_news');
+    const fallback = saved ? JSON.parse(saved) : INITIAL_NEWS;
     const query = new URLSearchParams(params as any).toString();
-    return request<NewsPost[]>(`/news${query ? `?${query}` : ''}`, {}, INITIAL_NEWS);
+    const res = await request<NewsPost[]>(`/news${query ? `?${query}` : ''}`, {}, fallback);
+    if (res && res.length > 0) localStorage.setItem('dva_news', JSON.stringify(res));
+    return res;
   },
 
   async getNewsById(id: string): Promise<NewsPost> {
@@ -313,22 +484,50 @@ export const newsService = {
   },
 
   async createNews(postData: Partial<NewsPost>): Promise<NewsPost> {
-    return request<NewsPost>('/news', {
-      method: 'POST',
-      body: JSON.stringify(postData),
-    }, {
+    const created: NewsPost = {
       ...postData,
       id: `news-${Date.now()}`,
-      slug: postData.slug || 'news-post',
+      slug: postData.slug || `news-${Date.now()}`,
       publishedAt: new Date().toISOString().split('T')[0],
       readTimeMinutes: 4,
-    } as NewsPost);
+    } as NewsPost;
+
+    const res = await request<NewsPost>('/news', {
+      method: 'POST',
+      body: JSON.stringify(postData),
+    }, created);
+
+    const saved = localStorage.getItem('dva_news');
+    const list: NewsPost[] = saved ? JSON.parse(saved) : INITIAL_NEWS;
+    localStorage.setItem('dva_news', JSON.stringify([res, ...list]));
+    return res;
+  },
+
+  async updateNews(id: string, postData: Partial<NewsPost>): Promise<NewsPost> {
+    const res = await request<NewsPost>(`/news/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(postData),
+    }, { id, ...postData } as NewsPost);
+
+    const saved = localStorage.getItem('dva_news');
+    if (saved) {
+      const list: NewsPost[] = JSON.parse(saved);
+      localStorage.setItem('dva_news', JSON.stringify(list.map(n => n.id === id ? { ...n, ...res } : n)));
+    }
+    return res;
   },
 
   async deleteNews(id: string): Promise<{ success: boolean }> {
-    return request<{ success: boolean }>(`/news/${id}`, {
+    const res = await request<{ success: boolean }>(`/news/${id}`, {
       method: 'DELETE',
     }, { success: true });
+
+    const saved = localStorage.getItem('dva_news');
+    if (saved) {
+      const list: NewsPost[] = JSON.parse(saved);
+      localStorage.setItem('dva_news', JSON.stringify(list.filter(n => n.id !== id)));
+    }
+    return res;
   }
 };
 
@@ -357,17 +556,53 @@ export const googleScriptSyncService = {
   getScriptUrl(): string {
     return localStorage.getItem('dva_google_script_url') || '';
   },
-  setScriptUrl(url: string) {
-    localStorage.setItem('dva_google_script_url', url.trim());
+  async fetchConfig(): Promise<string> {
+    try {
+      const res = await fetch('/api/sheets/config');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.scriptUrl) {
+          localStorage.setItem('dva_google_script_url', json.scriptUrl);
+          return json.scriptUrl;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return this.getScriptUrl();
+  },
+  async setScriptUrl(url: string) {
+    const cleanUrl = url.trim();
+    localStorage.setItem('dva_google_script_url', cleanUrl);
+    try {
+      await fetch('/api/sheets/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptUrl: cleanUrl }),
+      });
+    } catch (e) {
+      console.warn('Could not persist sheet config to backend:', e);
+    }
   },
   async syncToGoogleSheet(
     sheetName: 'DatSan' | 'TuyenThanhVien' | 'DangKyKhoaHoc' | 'LienHe',
     data: Record<string, any>
   ): Promise<{ success: boolean; message?: string }> {
+    // 1. Dispatch through server-side proxy so server can forward reliably without browser CORS
+    try {
+      fetch('/api/sheets/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetName, data }),
+      }).catch((e) => console.warn('Server sheets sync warning:', e));
+    } catch (e) {
+      // ignore
+    }
+
+    // 2. Direct client-side dispatch if script URL exists
     const scriptUrl = this.getScriptUrl();
     if (!scriptUrl) {
-      console.log(`[Google Sheets Notice] No Google Apps Script URL configured. Data saved in local & memory.`);
-      return { success: false, message: 'Chưa cấu hình URL Google Apps Script' };
+      return { success: true, message: 'Dispatched to backend sync' };
     }
     try {
       await fetch(scriptUrl, {
@@ -377,13 +612,12 @@ export const googleScriptSyncService = {
         body: JSON.stringify({
           sheetName,
           data,
-          timestamp: new Date().toLocaleString('vi-VN'),
+          timestamp: new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
         }),
       });
-      console.log(`[Google Sheets Webhook Sync] Dispatched to sheet tab: ${sheetName}`, data);
       return { success: true };
     } catch (err: any) {
-      console.warn(`[Google Sheets Webhook Notice]`, err);
+      console.warn(`[Google Sheets Client Sync Notice]`, err);
       return { success: false, message: err?.message };
     }
   },

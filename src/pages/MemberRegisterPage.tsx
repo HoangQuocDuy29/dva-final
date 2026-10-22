@@ -30,12 +30,28 @@ export const MemberRegisterPage: React.FC = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submittedApp, setSubmittedApp] = useState<MemberApplication | null>(null);
+  const [submittedApp, setSubmittedApp] = useState<MemberApplication | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('dva_submitted_app');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleClosePass = () => {
+    setSubmittedApp(null);
+    try {
+      sessionStorage.removeItem('dva_submitted_app');
+    } catch {
+      // ignore
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fullName || !formData.gmail || !formData.zalo) {
-      alert('Vui lòng điền đầy đủ các trường thông tin bắt buộc (*)');
+    if (!formData.fullName.trim() || !formData.gmail.trim() || !formData.zalo.trim()) {
+      alert('Please fill out all required fields (*)');
       return;
     }
 
@@ -46,13 +62,18 @@ export const MemberRegisterPage: React.FC = () => {
         instagram: formData.instagram.trim() ? formData.instagram : 'None',
       });
       setSubmittedApp(created);
+      try {
+        sessionStorage.setItem('dva_submitted_app', JSON.stringify(created));
+      } catch {
+        // ignore
+      }
 
-      // Realtime Google Sheets Sync (mỗi form 1 sheet)
+      // Realtime Google Sheets Sync (Tab: TuyenThanhVien)
       googleScriptSyncService.syncToGoogleSheet('TuyenThanhVien', {
         'Họ và tên': formData.fullName,
         'Ngày sinh': formData.dob,
         'Vị trí': formData.position,
-        'Cấp độ': formData.level === 'SENIOR' ? 'Senior (Chơi tốt, trên 3 năm KN)' : formData.level === 'JUNIOR' ? 'Junior (Trung bình)' : 'Kid (Dưới 15 tuổi)',
+        'Cấp độ': formData.level === 'SENIOR' ? 'Senior (Advanced, 3+ yrs)' : formData.level === 'JUNIOR' ? 'Junior (Intermediate)' : 'Kid (Youth < 15)',
         'Số áo mong muốn': formData.desiredJerseyNumber,
         'Chiều cao (cm)': formData.height,
         'Cân nặng (kg)': formData.weight,
@@ -63,10 +84,10 @@ export const MemberRegisterPage: React.FC = () => {
         'Instagram': formData.instagram || 'None',
         'Chiến thuật 5-1': formData.rotationKnowledge,
         'Quê quán': formData.hometownCountry,
-        'Thời gian gửi': new Date().toLocaleString('vi-VN')
+        'Thời gian gửi': new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })
       });
     } catch (err) {
-      alert('Lỗi gửi hồ sơ đăng ký');
+      alert('Error submitting application. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -89,61 +110,135 @@ export const MemberRegisterPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Confirmation State */}
-        {submittedApp ? (
-          <div className="bg-[#161F30] rounded-3xl border border-emerald-500 p-8 shadow-2xl text-center space-y-6 animate-in zoom-in-95">
-            <div className="w-16 h-16 bg-emerald-950 border-2 border-emerald-500 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow">
-              <Check className="w-8 h-8" />
-            </div>
+        {/* Official DVA Athlete Membership Card Notification Modal */}
+        {submittedApp && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+            <div className="max-w-xl w-full bg-[#0F141F] rounded-3xl border border-amber-500/50 shadow-2xl overflow-hidden text-white relative">
+              {/* Card Ambient Glow */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="space-y-2">
-              <h2 className="font-heading font-black text-2xl text-white">
-                Application Submitted Successfully!
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto">
-                Thank you <strong className="text-white">{submittedApp.fullName}</strong>. Your application for <strong className="text-orange-400">{submittedApp.position}</strong> has been recorded and synced to Google Sheets Tab <strong className="text-emerald-400">Member_Registrations</strong>.
-              </p>
-            </div>
+              {/* Header */}
+              <div className="bg-gradient-to-r from-red-950 via-[#161B26] to-[#121620] px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center font-black text-white text-base shadow-lg shadow-red-950">
+                    DVA
+                  </div>
+                  <div>
+                    <h3 className="font-heading font-black text-sm sm:text-base text-white tracking-wide">
+                      TRYOUT APPLICATION SUBMITTED!
+                    </h3>
+                    <p className="text-[11px] text-amber-400 font-semibold">
+                      DVA Volleyball Club · Official Athlete Membership Pass
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClosePass}
+                  aria-label="Close"
+                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
 
-            <div className="bg-[#0E1524] border border-slate-800 rounded-2xl p-5 max-w-md mx-auto text-left text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Application ID:</span>
-                <span className="font-mono font-bold text-white">{submittedApp.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Division:</span>
-                <span className="font-bold text-orange-400">{submittedApp.level}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Physical Metrics:</span>
-                <span className="font-mono font-bold text-white">{submittedApp.height}cm / {submittedApp.weight}kg</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Spike Reach:</span>
-                <span className="font-mono font-bold text-red-400">{submittedApp.spikeReach}cm</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Rotation System:</span>
-                <span className="font-bold text-white">System {submittedApp.rotationKnowledge}</span>
-              </div>
-            </div>
+              {/* Physical Athlete Card Representation */}
+              <div className="p-6 space-y-6">
+                
+                {/* The Pass Card */}
+                <div className="rounded-3xl border-2 border-amber-500/60 bg-gradient-to-br from-[#1A2234] via-[#121826] to-[#0A0E17] p-6 shadow-2xl relative overflow-hidden group">
+                  {/* Decorative background watermark */}
+                  <div className="absolute right-4 -bottom-6 font-black text-8xl text-white/[0.03] select-none pointer-events-none font-heading">
+                    DVA
+                  </div>
 
-            <div className="flex flex-wrap justify-center gap-4 pt-2">
-              <Link
-                to="/players"
-                className="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-red-600 hover:bg-red-500 transition-colors shadow"
-              >
-                View Active Squad
-              </Link>
-              <button
-                onClick={() => setSubmittedApp(null)}
-                className="px-6 py-2.5 rounded-xl font-bold text-xs text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors"
-              >
-                Submit Another Application
-              </button>
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block">
+                        DVA VOLLEYBALL CLUB · ATHLETE MEMBERSHIP PASS
+                      </span>
+                      <h2 className="font-heading font-black text-2xl sm:text-3xl text-white tracking-tight mt-1">
+                        {submittedApp.fullName}
+                      </h2>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white shadow">
+                          {submittedApp.position} · {submittedApp.level}
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-300">
+                          Jersey #{submittedApp.desiredJerseyNumber}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-16 h-16 rounded-2xl bg-[#090D14] border border-amber-500/40 p-1.5 flex flex-col items-center justify-center shrink-0 shadow-inner">
+                      <span className="text-[8px] font-mono text-slate-400 uppercase">VERIFIED</span>
+                      <span className="font-mono font-bold text-xs text-amber-400">PASSED</span>
+                      <span className="text-[8px] text-emerald-400">✓ SYNCED</span>
+                    </div>
+                  </div>
+
+                  {/* Metrics grid inside card */}
+                  <div className="grid grid-cols-3 gap-2.5 mt-5 pt-4 border-t border-slate-800/80 text-center">
+                    <div className="bg-[#0B0F19]/80 p-2 rounded-xl border border-slate-800">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 block">Height / Weight</span>
+                      <span className="font-mono font-bold text-white text-xs">{submittedApp.height}cm · {submittedApp.weight}kg</span>
+                    </div>
+                    <div className="bg-[#0B0F19]/80 p-2 rounded-xl border border-slate-800">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 block">Spike Reach</span>
+                      <span className="font-mono font-bold text-red-400 text-xs">{submittedApp.spikeReach} cm</span>
+                    </div>
+                    <div className="bg-[#0B0F19]/80 p-2 rounded-xl border border-slate-800">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 block">Tactical System</span>
+                      <span className="font-mono font-bold text-amber-400 text-xs">System {submittedApp.rotationKnowledge}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                    <span>Pass ID: <strong>{submittedApp.id}</strong></span>
+                    <span>Contact: <strong className="text-white">{submittedApp.zalo}</strong></span>
+                  </div>
+                </div>
+
+                {/* Google Sheets Sync Indicator */}
+                <div className="bg-emerald-950/40 border border-emerald-600/40 rounded-2xl p-3.5 flex items-center justify-between text-xs text-emerald-300">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Your application has been recorded & synced to <strong>Google Sheets (Tab TuyenThanhVien)</strong>.</span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">
+                    Live Synced
+                  </span>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <Link
+                    to="/players"
+                    className="w-full sm:flex-1 py-3 px-4 rounded-xl font-black text-xs text-white bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 shadow-lg text-center transition-all cursor-pointer"
+                  >
+                    View Squad Roster
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="w-full sm:w-auto py-3 px-5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all cursor-pointer"
+                  >
+                    Print / Save Pass
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClosePass}
+                    className="w-full sm:w-auto py-3 px-5 rounded-xl font-bold text-xs bg-transparent border border-slate-700 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+
+              </div>
             </div>
           </div>
-        ) : (
+        )}
           /* Main Application Form */
           <form onSubmit={handleSubmit} className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 sm:p-10 shadow-2xl space-y-8">
             
@@ -402,7 +497,6 @@ export const MemberRegisterPage: React.FC = () => {
             </button>
 
           </form>
-        )}
 
       </div>
     </div>
