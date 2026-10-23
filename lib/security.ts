@@ -172,6 +172,7 @@ const PUBLIC_RULES: Rule[] = [
   rule('POST', /^\/training\/register\/?$/),
   rule('POST', /^\/members\/register\/?$/),
   rule('POST', /^\/vietqr\/generate\/?$/),
+  rule('POST', /^\/webhooks\/payment\/?$/),
 ];
 
 const SUPERADMIN_RULES: Rule[] = [rule('GET', /^\/sheets\/config\/?$/), rule('POST', /^\/sheets\/config\/?$/)];

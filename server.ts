@@ -62,6 +62,7 @@ import {
   toStoredUser,
 } from './lib/prisma';
 import { countryCodeToFlagEmoji } from './src/types';
+import { sendBookingConfirmationEmail } from './lib/mailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,9 +83,9 @@ app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Bank details used for VietQR (override via env in production)
 const BANK = {
-  id: process.env.VIETQR_BANK_ID || 'MB',
-  accountNo: process.env.VIETQR_ACCOUNT_NO || '0002090671521',
-  accountName: process.env.VIETQR_ACCOUNT_NAME || 'HOANG QUOC DUY',
+  id: process.env.BANK_ID || process.env.VIETQR_BANK_ID || 'MB',
+  accountNo: process.env.BANK_ACCOUNT_NO || process.env.VIETQR_ACCOUNT_NO || '0002090671521',
+  accountName: process.env.BANK_ACCOUNT_NAME || process.env.VIETQR_ACCOUNT_NAME || 'HOANG QUOC DUY',
 };
 const BANK_BENEFICIARY_LABEL = `${BANK.id} Bank - ${BANK.accountNo} (${BANK.accountName})`;
 const HOLD_MINUTES = Number(process.env.BOOKING_HOLD_MINUTES) || 15;
@@ -764,13 +765,14 @@ app.post('/api/bookings', ah(async (req, res) => {
   const courtShort = targetCourt.shortName || (courtId === 'court-btl' ? 'BTL TT' : courtId === 'court-thecong' ? 'THE CONG' : 'MY DINH');
   const slotClean = `${startTime.replace(':', 'H')} ${endTime.replace(':', 'H')}`.toUpperCase();
   const dateNum = bookingDate.replace(/-/g, '');
-  const transferContent = `DVA ${courtShort} ${slotClean} ${dateNum}`.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase();
 
   const courtTag = courtId === 'court-btl' ? 'BTL' : courtId === 'court-thecong' ? 'TC' : 'MD';
   let bookingCode = '';
   do {
     bookingCode = `DVA-${courtTag}-${dateNum}-${crypto.randomInt(1000, 10000)}`;
   } while (await prisma.booking.findUnique({ where: { bookingCode } }));
+
+  const transferContent = `${bookingCode} ${courtShort} ${slotClean}`.toUpperCase();
 
   // 3. Assign 15-minute hold expiration and HOLDING (PENDING) status
   const paymentStatus = 'PENDING';
@@ -863,17 +865,32 @@ app.patch('/api/bookings/:id/status', ah(async (req, res) => {
       paymentStatus,
       holdExpiresAt: null,
     },
+    include: {
+      court: true,
+    },
   });
+
+  if (paymentStatus === 'PAID' && booking.paymentStatus !== 'PAID') {
+    await sendBookingConfirmationEmail(
+      {
+        ...updated,
+        timeSlot: `${updated.startTime} - ${updated.endTime}`,
+      },
+      updated.court
+    );
+  }
 
   res.json(toBookingDto(updated));
 }));
 
 // Customer reports they have transferred the money via VietQR.
-// This does NOT mark the booking as PAID - staff must verify the bank transaction and approve it.
 app.post('/api/bookings/:id/confirm-payment', ah(async (req, res) => {
   await releaseExpiredHolds();
   const { id } = req.params;
-  let booking = await prisma.booking.findUnique({ where: { id } });
+  let booking = await prisma.booking.findUnique({
+    where: { id },
+    include: { court: true },
+  });
   if (!booking) {
     return res.status(404).json({ error: 'Booking not found' });
   }
@@ -881,6 +898,7 @@ app.post('/api/bookings/:id/confirm-payment', ah(async (req, res) => {
     return res.status(409).json({ error: 'This reservation hold has expired or was cancelled. Please create a new booking.' });
   }
 
+  const wasAlreadyConfirmed = Boolean(booking.customerConfirmedAt);
   if (booking.paymentStatus === 'PENDING' && !booking.customerConfirmedAt) {
     booking = await prisma.booking.update({
       where: { id },
@@ -888,7 +906,19 @@ app.post('/api/bookings/:id/confirm-payment', ah(async (req, res) => {
         customerConfirmedAt: new Date(),
         holdExpiresAt: null, // keep the slot reserved until staff verify the transfer
       },
+      include: { court: true },
     });
+  }
+
+  // Send confirmation email immediately when customer confirms transfer on the UI
+  if (!wasAlreadyConfirmed) {
+    await sendBookingConfirmationEmail(
+      {
+        ...booking,
+        timeSlot: `${booking.startTime} - ${booking.endTime}`,
+      },
+      booking.court
+    );
   }
 
   res.json({ success: true, booking: toBookingDto(booking) });
@@ -1623,6 +1653,163 @@ app.post('/api/vietqr/generate', (req, res) => {
     qrUrl,
   });
 });
+
+// 11. Bank Payment Webhook (SePay / Casso / MB Bank Automated Reconciliation)
+app.post('/api/webhooks/payment', ah(async (req, res) => {
+  const expectedApiKey = (
+    process.env.PAYMENT_WEBHOOK_API_KEY ||
+    process.env.SEPAY_API_KEY ||
+    process.env.CASSO_API_KEY ||
+    ''
+  ).trim();
+
+  // Xác thực tính hợp lệ của request qua Header Authorization hoặc API Token từ SePay/Casso
+  const authHeader = String(req.headers.authorization || '').trim();
+  const headerToken = authHeader.replace(/^(Bearer|Apikey|Token)\s+/i, '').trim();
+  const altToken = String(
+    req.headers['secure-token'] ||
+      req.headers['x-api-key'] ||
+      req.headers['api-key'] ||
+      ''
+  ).trim();
+  const providedToken = headerToken || altToken;
+
+  if (expectedApiKey) {
+    const expectedBuf = Buffer.from(expectedApiKey);
+    const providedBuf = Buffer.from(providedToken);
+    const isTokenValid =
+      expectedBuf.length === providedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, providedBuf);
+
+    if (!providedToken || !isTokenValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized webhook token',
+      });
+    }
+  }
+
+  // Hỗ trợ cả payload trực tiếp { content, amount, transactionDate } và định dạng chuẩn của SePay / Casso
+  const rawPayload =
+    Array.isArray(req.body?.data) && req.body.data.length > 0
+      ? req.body.data[0]
+      : (req.body ?? {});
+
+  const content = String(
+    rawPayload.content ?? rawPayload.description ?? rawPayload.addInfo ?? ''
+  ).trim();
+  const amount = Number(
+    rawPayload.amount ?? rawPayload.transferAmount ?? 0
+  );
+  const transactionDate =
+    rawPayload.transactionDate ?? rawPayload.when ?? new Date().toISOString();
+
+  // Tìm kiếm mã đơn đặt sân (dạng Regex tìm chuỗi 'DVA-...' hoặc mã bị ngân hàng lược bỏ dấu '-' hoặc nội dung CK DVA) bên trong content
+  const hyphenMatch = content.match(/DVA-[A-Z0-9]+(?:-[A-Z0-9]+)*/i);
+  const spacedCodeMatch = content.match(/DVA[\s-]*([A-Z]{2,3})[\s-]*(\d{8})[\s-]*(\d{4})/i);
+  const extractedBookingCode = spacedCodeMatch
+    ? `DVA-${spacedCodeMatch[1].toUpperCase()}-${spacedCodeMatch[2]}-${spacedCodeMatch[3]}`
+    : hyphenMatch
+    ? hyphenMatch[0].toUpperCase()
+    : null;
+
+  const hasDvaKeyword = /\bDVA\b/i.test(content) || Boolean(extractedBookingCode);
+  if (!hasDvaKeyword) {
+    return res.status(200).json({
+      success: true,
+      message: 'Transaction ignored',
+    });
+  }
+
+  // Tra cứu bản ghi trong bảng Booking qua Prisma
+  let booking = extractedBookingCode
+    ? await prisma.booking.findFirst({
+        where: {
+          bookingCode: {
+            equals: extractedBookingCode,
+            mode: 'insensitive',
+          },
+        },
+        include: {
+          court: true,
+        },
+      })
+    : null;
+
+  // Fallback: Nếu ngân hàng tự động xóa dấu '-' hoặc khách dùng nội dung transferContent (VD: "DVA BTL TT 17H30 19H30 20261023")
+  if (!booking) {
+    const normalizedContent = content.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const pendingBookings = await prisma.booking.findMany({
+      where: { paymentStatus: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+      include: { court: true },
+    });
+
+    booking =
+      pendingBookings.find((b) => {
+        const cleanCode = b.bookingCode.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        const cleanTransfer = (b.transferContent || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        return (
+          (cleanCode && normalizedContent.includes(cleanCode)) ||
+          (cleanTransfer && normalizedContent.includes(cleanTransfer))
+        );
+      }) ?? null;
+  }
+
+  if (!booking) {
+    return res.status(200).json({
+      success: true,
+      message: 'Transaction ignored',
+    });
+  }
+
+  // Nếu booking.paymentStatus === 'PAID': Bỏ qua (tránh xử lý trùng)
+  if (booking.paymentStatus === 'PAID') {
+    return res.status(200).json({
+      success: true,
+      message: 'Booking already paid, transaction ignored',
+    });
+  }
+
+  // Kiểm tra số tiền chuyển khoản: Nếu amount >= booking.totalPrice
+  if (!Number.isFinite(amount) || amount < booking.totalPrice) {
+    return res.status(200).json({
+      success: false,
+      message: 'Insufficient payment amount',
+    });
+  }
+
+  const parsedTxDate = transactionDate ? new Date(transactionDate) : new Date();
+  const confirmedAt = Number.isNaN(parsedTxDate.getTime()) ? new Date() : parsedTxDate;
+
+  // Cập nhật trạng thái booking thành PAID trong PostgreSQL
+  const updatedBooking = await prisma.booking.update({
+    where: { id: booking.id },
+    data: {
+      paymentStatus: 'PAID',
+      holdExpiresAt: null,
+      customerConfirmedAt: booking.customerConfirmedAt ?? confirmedAt,
+    },
+  });
+
+  // Gọi hàm sendBookingConfirmationEmail (đã bọc try/catch bất đồng bộ bên trong và tại nơi gọi)
+  try {
+    await sendBookingConfirmationEmail(
+      {
+        ...updatedBooking,
+        timeSlot: `${updatedBooking.startTime} - ${updatedBooking.endTime}`,
+      },
+      booking.court
+    );
+  } catch (mailErr: any) {
+    console.error('[Webhook Mailer Warning]', mailErr?.message || mailErr);
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: 'Payment processed and email sent',
+  });
+}));
 
 // Unknown /api routes must answer with JSON (not the SPA index.html)
 app.use('/api', (_req, res) => {

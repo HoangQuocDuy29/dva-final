@@ -27,6 +27,32 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
     return () => clearInterval(timer);
   }, [booking]);
 
+  // Real-time polling: automatically detect when Bank Webhook (SePay/Casso) marks the booking as PAID
+  useEffect(() => {
+    if (!booking || isSubmitted) return;
+    const poll = setInterval(async () => {
+      try {
+        const list = await bookingService.getBookings({
+          date: booking.bookingDate,
+          courtId: booking.courtId,
+        });
+        const matched = Array.isArray(list) ? list.find((b) => b.id === booking.id) : undefined;
+        if (matched && matched.paymentStatus === 'PAID') {
+          const updated: Booking = {
+            ...booking,
+            ...matched,
+            paymentStatus: 'PAID',
+          };
+          setConfirmedBooking(updated);
+          setIsSubmitted(true);
+        }
+      } catch {
+        // ignore transient network errors during background polling
+      }
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [booking, isSubmitted]);
+
   if (!booking) return null;
 
   const bankName = 'MB Bank (Military Commercial Joint Stock Bank)';
