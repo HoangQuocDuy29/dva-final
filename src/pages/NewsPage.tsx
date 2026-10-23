@@ -14,6 +14,9 @@ interface NewsPageProps {
   currentUser: UserType;
 }
 
+const NEWS_FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80';
+
 export const NewsPage: React.FC<NewsPageProps> = ({ currentUser }) => {
   const [newsList, setNewsList] = useState<NewsPost[]>([]);
   const [search, setSearch] = useState('');
@@ -97,40 +100,51 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser }) => {
 
         {/* News Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {filteredNews.map((post) => (
+          {filteredNews.map((article) => (
             <article
-              key={post.id}
+              key={article.id}
               className="bg-[#161F30] rounded-3xl border border-slate-800 overflow-hidden shadow-xl flex flex-col justify-between hover:border-slate-700 transition-all group"
             >
               <div>
-                <div className="h-44 bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-6 flex flex-col justify-between text-white">
-                  <span className="px-2.5 py-0.5 rounded bg-red-600 text-white font-black text-[10px] uppercase self-start">
-                    {post.category}
+                <div className="relative h-44 bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-6 flex flex-col justify-between text-white overflow-hidden">
+                  <img
+                    src={article.imageUrl || article.image || article.thumbnail || NEWS_FALLBACK_IMAGE}
+                    alt={article.title}
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = NEWS_FALLBACK_IMAGE;
+                    }}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/50 to-slate-950/30" />
+                  <span className="relative z-10 px-2.5 py-0.5 rounded bg-red-600 text-white font-black text-[10px] uppercase self-start">
+                    {article.category}
                   </span>
-                  <div>
-                    <span className="text-[11px] text-slate-400 flex items-center gap-1.5 mb-1">
+                  <div className="relative z-10">
+                    <span className="text-[11px] text-slate-300 flex items-center gap-1.5 mb-1">
                       <Calendar className="w-3.5 h-3.5 text-orange-400" />
-                      <span>{post.publishedAt}</span>
+                      <span>{article.publishedAt}</span>
                       <span>·</span>
-                      <span>{post.readTimeMinutes} min read</span>
+                      <span>{article.readTimeMinutes} min read</span>
                     </span>
                     <h2 className="font-heading font-black text-lg text-white line-clamp-2 group-hover:text-orange-400 transition-colors">
-                      <Link to={`/news/${post.id}`}>{post.title}</Link>
+                      <Link to={`/news/${article.id}`}>{article.title}</Link>
                     </h2>
                   </div>
                 </div>
 
                 <div className="p-6">
                   <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
-                    {post.excerpt}
+                    {article.excerpt}
                   </p>
                 </div>
               </div>
 
               <div className="p-6 pt-0 border-t border-slate-800 flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">{post.authorName}</span>
+                <span className="text-slate-500 font-medium">{article.authorName}</span>
                 <Link
-                  to={`/news/${post.id}`}
+                  to={`/news/${article.id}`}
                   className="font-bold text-orange-400 hover:underline flex items-center gap-1"
                 >
                   <span>Read Article</span>

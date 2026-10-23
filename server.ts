@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import {
@@ -37,7 +38,9 @@ import {
 } from './lib/schemas';
 import {
   ADDON_PRICES,
+  getDefaultWeeklyScheduleForCourt,
   getScheduleSlotsForCourtAndDate,
+  normalizeWeeklySchedule,
   parseSlotLabel,
   rangesOverlap,
   toMinutes,
@@ -407,8 +410,63 @@ app.patch('/api/players/:id/level', ah(async (req, res) => {
 
 // 3. Courts API
 app.get('/api/courts', ah(async (_req, res) => {
-  const dbCourts = await prisma.court.findMany({ orderBy: { createdAt: 'asc' } });
+  const dbCourts = await prisma.court.findMany({
+    where: { isActive: true },
+    orderBy: { createdAt: 'asc' },
+  });
   res.json(dbCourts.map(toCourtDto));
+}));
+
+app.post('/api/courts', ah(async (req, res) => {
+  const data = sanitize(req.body, COURT_SCHEMA, { required: ['name'] });
+  const courtId = `court-${crypto.randomUUID().slice(0, 8)}`;
+  const rawCode = (data.code || data.shortName || data.name)
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/Đ/g, 'D')
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 20);
+  let uniqueCode = rawCode || `COURT_${Date.now().toString().slice(-4)}`;
+  while (await prisma.court.findUnique({ where: { code: uniqueCode } })) {
+    uniqueCode = `${rawCode || 'COURT'}_${crypto.randomInt(100, 999)}`;
+  }
+
+  const defaultSchedule = getDefaultWeeklyScheduleForCourt(courtId);
+  const resolvedSchedule = data.weeklySchedule
+    ? normalizeWeeklySchedule(data.weeklySchedule, courtId)
+    : defaultSchedule;
+
+  const created = await prisma.court.create({
+    data: {
+      id: courtId,
+      code: uniqueCode,
+      shortName: data.shortName || uniqueCode.replace(/_/g, ' ').slice(0, 16),
+      name: data.name,
+      address: data.address || 'DVA Sports Center, Hà Nội',
+      description:
+        data.description ||
+        'Sân bóng chuyền tiêu chuẩn thi đấu FIVB trang bị thảm Taraflex Pro chống chấn thương và hệ thống chiếu sáng tiêu chuẩn.',
+      floorType: data.floorType || 'Gerflor Taraflex Sport Pro',
+      hourlyRate: data.hourlyRate !== undefined ? Math.round(Number(data.hourlyRate)) : 500000,
+      minHours: data.minHours !== undefined ? Number(data.minHours) : 1.5,
+      includes:
+        Array.isArray(data.includes) && data.includes.length > 0
+          ? data.includes
+          : [
+              '1 Free Official Mikasa V200W Match Ball',
+              'Manual/Electronic scoreboard & referee whistle',
+              'Airflow cooling & locker rooms',
+            ],
+      imageUrl: data.imageUrl || '/courts/btl.png',
+      isAvailable: data.isAvailable !== false,
+      isActive: true,
+      weeklySchedule: resolvedSchedule as any,
+    },
+  });
+
+  res.status(201).json(toCourtDto(created));
 }));
 
 app.put('/api/courts/:id', ah(async (req, res) => {
@@ -418,14 +476,50 @@ app.put('/api/courts/:id', ah(async (req, res) => {
     return res.status(404).json({ error: 'Court not found' });
   }
   const data = sanitize(req.body, COURT_SCHEMA, { partial: true });
+  const { weeklySchedule, ...rest } = data;
   const updated = await prisma.court.update({
     where: { id },
     data: {
-      ...data,
-      ...(data.hourlyRate !== undefined ? { hourlyRate: Math.round(Number(data.hourlyRate)) } : {}),
+      ...rest,
+      ...(rest.hourlyRate !== undefined ? { hourlyRate: Math.round(Number(rest.hourlyRate)) } : {}),
+      ...(weeklySchedule !== undefined
+        ? { weeklySchedule: normalizeWeeklySchedule(weeklySchedule, id) as any }
+        : {}),
     },
   });
   res.json(toCourtDto(updated));
+}));
+
+app.delete('/api/courts/:id', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.court.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Court not found' });
+  }
+
+  const bookingCount = await prisma.booking.count({ where: { courtId: id } });
+  if (bookingCount > 0) {
+    const softDeleted = await prisma.court.update({
+      where: { id },
+      data: {
+        isActive: false,
+        isAvailable: false,
+      },
+    });
+    return res.json({
+      success: true,
+      softDeleted: true,
+      message: 'Court has linked bookings and has been archived (isActive = false).',
+      court: toCourtDto(softDeleted),
+    });
+  }
+
+  await prisma.court.delete({ where: { id } });
+  return res.json({
+    success: true,
+    softDeleted: false,
+    message: 'Court permanently deleted.',
+  });
 }));
 
 // Closed / Blocked Slots API
@@ -618,7 +712,7 @@ app.post('/api/bookings', ah(async (req, res) => {
   // 1. Lookup actual Court in PostgreSQL via Prisma to get real hourlyRate (prevent Price Tampering)
   const targetCourt = await prisma.court.findUnique({ where: { id: courtId } });
   if (!targetCourt) return res.status(400).json({ error: 'Unknown court.' });
-  if (targetCourt.isAvailable === false && !staff) {
+  if ((targetCourt.isAvailable === false || targetCourt.isActive === false) && !staff) {
     return res.status(409).json({ error: 'This court is currently unavailable for booking.' });
   }
   if (toMinutes(endTime) <= toMinutes(startTime)) {
@@ -633,7 +727,8 @@ app.post('/api/bookings', ah(async (req, res) => {
   }
 
   // The slot must be one the club actually offers (customers cannot invent time ranges)
-  const scheduleSlot = getScheduleSlotsForCourtAndDate(courtId, bookingDate).find(
+  const courtSchedule = normalizeWeeklySchedule(targetCourt.weeklySchedule, targetCourt.id || targetCourt.code);
+  const scheduleSlot = getScheduleSlotsForCourtAndDate(courtId, bookingDate, courtSchedule).find(
     (s) => s.start === startTime && s.end === endTime
   );
   if (!scheduleSlot && !staff) {
@@ -1175,6 +1270,31 @@ app.delete('/api/members/applications/:id', ah(async (req, res) => {
 }));
 
 // 7. News API
+const NEWS_JSON_PATH = path.join(__dirname, 'data', 'news.json');
+const DEFAULT_NEWS_IMAGE_URL =
+  'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80';
+
+function readNewsJsonFile(): any[] {
+  try {
+    if (fs.existsSync(NEWS_JSON_PATH)) {
+      const parsed = JSON.parse(fs.readFileSync(NEWS_JSON_PATH, 'utf-8'));
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.warn('[News JSON] Could not read data/news.json:', err);
+  }
+  return [];
+}
+
+function writeNewsJsonFile(items: any[]): void {
+  try {
+    fs.mkdirSync(path.dirname(NEWS_JSON_PATH), { recursive: true });
+    fs.writeFileSync(NEWS_JSON_PATH, JSON.stringify(items, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[News JSON] Could not write data/news.json:', err);
+  }
+}
+
 app.get('/api/news', ah(async (req, res) => {
   const { category, search } = req.query;
   const where: Record<string, any> = {};
@@ -1190,22 +1310,46 @@ app.get('/api/news', ah(async (req, res) => {
     ];
   }
 
-  const dbNews = await prisma.newsPost.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-  });
-  res.json(dbNews.map(toNewsDto));
+  try {
+    const dbNews = await prisma.newsPost.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+    return res.json(dbNews.map(toNewsDto));
+  } catch {
+    const fileNews = readNewsJsonFile().map((n) => toNewsDto(n));
+    const filtered = fileNews.filter((item) => {
+      if (typeof category === 'string' && category.trim()) {
+        if (String(item.category).toUpperCase() !== category.trim().toUpperCase()) return false;
+      }
+      if (typeof search === 'string' && search.trim()) {
+        const q = search.trim().toLowerCase();
+        if (!item.title.toLowerCase().includes(q) && !item.excerpt.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+    return res.json(filtered);
+  }
 }));
 
 app.get('/api/news/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const post = await prisma.newsPost.findFirst({
-    where: { OR: [{ id }, { slug: id }] },
-  });
-  if (!post) {
-    return res.status(404).json({ error: 'News post not found' });
+  try {
+    const post = await prisma.newsPost.findFirst({
+      where: { OR: [{ id }, { slug: id }] },
+    });
+    if (!post) {
+      return res.status(404).json({ error: 'News post not found' });
+    }
+    return res.json(toNewsDto(post));
+  } catch {
+    const fileNews = readNewsJsonFile();
+    const post = fileNews.find((n) => n.id === id || n.slug === id);
+    if (!post) {
+      return res.status(404).json({ error: 'News post not found' });
+    }
+    return res.json(toNewsDto(post));
   }
-  res.json(toNewsDto(post));
 }));
 
 app.post('/api/news', ah(async (req, res) => {
@@ -1218,48 +1362,118 @@ app.post('/api/news', ah(async (req, res) => {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-  const created = await prisma.newsPost.create({
-    data: {
-      id: `news-${crypto.randomUUID()}`,
-      title: data.title,
-      slug: `${slugBase || 'post'}-${Date.now().toString(36)}`,
-      excerpt: data.excerpt || '',
-      content: data.content,
-      thumbnail: data.thumbnail || '',
-      category: data.category || 'CLUB_EVENT',
-      authorId: req.user?.id ?? null,
-      authorName: data.authorName || req.user?.fullName || 'DVA',
-      authorRole: data.authorRole || 'Club Administration',
-      publishedAt: new Date().toISOString().split('T')[0],
-      readTimeMinutes: data.readTimeMinutes || 4,
-      featured: Boolean(data.featured),
-    },
-  });
-  res.status(201).json(toNewsDto(created));
+  const resolvedImageUrl =
+    (data.imageUrl && data.imageUrl.trim()) ||
+    (data.image && data.image.trim()) ||
+    (data.thumbnail && data.thumbnail.trim()) ||
+    DEFAULT_NEWS_IMAGE_URL;
+
+  const newRecord = {
+    id: `news-${crypto.randomUUID()}`,
+    title: data.title,
+    slug: `${slugBase || 'post'}-${Date.now().toString(36)}`,
+    excerpt: data.excerpt || '',
+    content: data.content,
+    thumbnail: resolvedImageUrl,
+    category: data.category || 'CLUB_EVENT',
+    authorId: req.user?.id ?? null,
+    authorName: data.authorName || req.user?.fullName || 'DVA',
+    authorRole: data.authorRole || 'Club Administration',
+    publishedAt: new Date().toISOString().split('T')[0],
+    readTimeMinutes: data.readTimeMinutes || 4,
+    featured: Boolean(data.featured),
+  };
+
+  try {
+    const created = await prisma.newsPost.create({ data: newRecord });
+    const dto = toNewsDto(created);
+    const currentFile = readNewsJsonFile();
+    writeNewsJsonFile([dto, ...currentFile.filter((n) => n.id !== dto.id)]);
+    return res.status(201).json(dto);
+  } catch {
+    const dto = toNewsDto(newRecord as any);
+    const currentFile = readNewsJsonFile();
+    writeNewsJsonFile([dto, ...currentFile.filter((n) => n.id !== dto.id)]);
+    return res.status(201).json(dto);
+  }
 }));
 
 app.put('/api/news/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const existing = await prisma.newsPost.findFirst({
-    where: { OR: [{ id }, { slug: id }] },
-  });
-  if (!existing) {
-    return res.status(404).json({ error: 'News post not found' });
-  }
   const data = sanitize(req.body, NEWS_SCHEMA, { partial: true });
-  const updated = await prisma.newsPost.update({
-    where: { id: existing.id },
-    data,
-  });
-  res.json(toNewsDto(updated));
+  const { imageUrl, image, thumbnail, ...restData } = data;
+  const incomingImageUrl =
+    (imageUrl && imageUrl.trim()) ||
+    (image && image.trim()) ||
+    (thumbnail && thumbnail.trim()) ||
+    '';
+
+  try {
+    const existing = await prisma.newsPost.findFirst({
+      where: { OR: [{ id }, { slug: id }] },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'News post not found' });
+    }
+    const resolvedImageUrl = incomingImageUrl || existing.thumbnail || DEFAULT_NEWS_IMAGE_URL;
+    const updated = await prisma.newsPost.update({
+      where: { id: existing.id },
+      data: {
+        ...restData,
+        thumbnail: resolvedImageUrl,
+      },
+    });
+    const dto = toNewsDto(updated);
+    const currentFile = readNewsJsonFile();
+    if (currentFile.length > 0) {
+      writeNewsJsonFile(currentFile.map((n) => (n.id === existing.id || n.slug === id ? dto : n)));
+    }
+    return res.json(dto);
+  } catch {
+    const currentFile = readNewsJsonFile();
+    const idx = currentFile.findIndex((n) => n.id === id || n.slug === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'News post not found' });
+    }
+    const existing = currentFile[idx];
+    const resolvedImageUrl =
+      incomingImageUrl ||
+      existing.imageUrl ||
+      existing.image ||
+      existing.thumbnail ||
+      DEFAULT_NEWS_IMAGE_URL;
+    const merged = {
+      ...existing,
+      ...restData,
+      imageUrl: resolvedImageUrl,
+      image: resolvedImageUrl,
+      thumbnail: resolvedImageUrl,
+    };
+    const dto = toNewsDto(merged);
+    currentFile[idx] = dto;
+    writeNewsJsonFile(currentFile);
+    return res.json(dto);
+  }
 }));
 
 app.delete('/api/news/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const existing = await prisma.newsPost.findUnique({ where: { id } });
-  if (!existing) return res.status(404).json({ error: 'News post not found' });
-  await prisma.newsPost.delete({ where: { id } });
-  res.json({ success: true, message: 'News post deleted' });
+  try {
+    const existing = await prisma.newsPost.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'News post not found' });
+    await prisma.newsPost.delete({ where: { id } });
+    const currentFile = readNewsJsonFile();
+    if (currentFile.length > 0) {
+      writeNewsJsonFile(currentFile.filter((n) => n.id !== id));
+    }
+    return res.json({ success: true, message: 'News post deleted' });
+  } catch {
+    const currentFile = readNewsJsonFile();
+    const exists = currentFile.some((n) => n.id === id);
+    if (!exists) return res.status(404).json({ error: 'News post not found' });
+    writeNewsJsonFile(currentFile.filter((n) => n.id !== id));
+    return res.json({ success: true, message: 'News post deleted' });
+  }
 }));
 
 // 8. Google Sheets Multi-Tab Live Inspector & Sync API (staff only; config is SUPERADMIN only)

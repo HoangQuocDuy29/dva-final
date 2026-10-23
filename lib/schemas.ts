@@ -1,4 +1,5 @@
 import { B, D, E, EM, HttpError, I, N, PH, S, SA, T, U, Rule, Schema } from './validation';
+import { DAY_KEYS_BY_JS_DAY, parseSlotLabel } from '../src/shared/schedule';
 
 export const LEVELS = ['KID', 'JUNIOR', 'SENIOR'] as const;
 export const POSITIONS = ['OH', 'OP', 'MB', 'S', 'L'] as const;
@@ -30,9 +31,33 @@ export const PLAYER_SCHEMA: Schema = {
   joinedYear: I(1990, 2100),
 };
 
+const WEEKLY_SCHEDULE: Rule = (v, k) => {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+    throw new HttpError(400, `${k} must be an object mapping days of week to slot arrays`);
+  }
+  const src = v as Record<string, unknown>;
+  const out: Record<string, string[]> = {};
+  for (const dayKey of DAY_KEYS_BY_JS_DAY) {
+    const val = src[dayKey];
+    if (val === undefined) {
+      out[dayKey] = [];
+      continue;
+    }
+    if (!Array.isArray(val)) {
+      throw new HttpError(400, `${k}.${dayKey} must be an array of slot strings`);
+    }
+    out[dayKey] = val
+      .map((item) => S(80, 3)(item, `${k}.${dayKey}`))
+      .filter((slotStr) => Boolean(parseSlotLabel(slotStr)));
+  }
+  return out;
+};
+
 export const COURT_SCHEMA: Schema = {
   name: S(100, 2),
+  code: S(40),
   shortName: S(30),
+  address: S(300),
   description: S(1000),
   floorType: S(100),
   hourlyRate: N(0, 10_000_000),
@@ -40,6 +65,8 @@ export const COURT_SCHEMA: Schema = {
   includes: SA(20, 200),
   imageUrl: U,
   isAvailable: B,
+  isActive: B,
+  weeklySchedule: WEEKLY_SCHEDULE,
 };
 
 const ADDONS: Rule = (v, k) => {
@@ -126,6 +153,8 @@ export const NEWS_SCHEMA: Schema = {
   slug: S(200),
   excerpt: S(500),
   content: S(20000, 1),
+  imageUrl: U,
+  image: U,
   thumbnail: U,
   category: S(50),
   authorName: S(100),

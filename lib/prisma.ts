@@ -32,6 +32,7 @@ import {
   countryCodeToFlagEmoji,
 } from '../src/types';
 import { StoredUser, hashPassword, isBcryptHash, verifyPassword } from './security';
+import { getDefaultWeeklyScheduleForCourt, normalizeWeeklySchedule } from '../src/shared/schedule';
 import {
   INITIAL_BOOKINGS,
   INITIAL_COACHES,
@@ -116,6 +117,7 @@ export function toCourtDto(c: DbCourt): Court {
     code: c.code,
     shortName: c.shortName ?? undefined,
     name: c.name,
+    address: c.address ?? 'DVA Sports Center, Hà Nội',
     description: c.description,
     floorType: c.floorType,
     hourlyRate: c.hourlyRate,
@@ -123,6 +125,8 @@ export function toCourtDto(c: DbCourt): Court {
     includes: c.includes,
     imageUrl: c.imageUrl,
     isAvailable: c.isAvailable,
+    isActive: c.isActive !== false,
+    weeklySchedule: normalizeWeeklySchedule(c.weeklySchedule, c.id || c.code),
   };
 }
 
@@ -278,14 +282,17 @@ export function toApplicationDto(a: DbMemberApplication): MemberApplication {
   };
 }
 
-export function toNewsDto(n: DbNewsPost): NewsPost {
+export function toNewsDto(n: DbNewsPost & { imageUrl?: string | null; image?: string | null }): NewsPost {
+  const resolvedImageUrl = (n.imageUrl || n.image || n.thumbnail || '').trim();
   return {
     id: n.id,
     title: n.title,
     slug: n.slug,
     excerpt: n.excerpt,
     content: n.content,
-    thumbnail: n.thumbnail,
+    imageUrl: resolvedImageUrl,
+    image: resolvedImageUrl,
+    thumbnail: resolvedImageUrl,
     category: n.category,
     authorName: n.authorName,
     authorRole: n.authorRole,
@@ -441,6 +448,7 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           code: c.code,
           shortName: c.shortName ?? null,
           name: c.name,
+          address: c.address ?? 'DVA Sports Center, Hà Nội',
           description: c.description,
           floorType: c.floorType,
           hourlyRate: Math.round(Number(c.hourlyRate)),
@@ -448,8 +456,27 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           includes: Array.isArray(c.includes) ? c.includes : [],
           imageUrl: c.imageUrl || '',
           isAvailable: c.isAvailable !== false,
+          isActive: c.isActive !== false,
+          weeklySchedule: (c.weeklySchedule ?? getDefaultWeeklyScheduleForCourt(c.id)) as any,
         },
       });
+    }
+  } else {
+    // Backfill weeklySchedule or address for any existing court records that do not have them yet
+    const existingCourts = await prisma.court.findMany();
+    for (const ec of existingCourts) {
+      if (!ec.weeklySchedule || !ec.address) {
+        const initMatch = INITIAL_COURTS.find((ic) => ic.id === ec.id || ic.code === ec.code);
+        await prisma.court.update({
+          where: { id: ec.id },
+          data: {
+            ...(ec.weeklySchedule
+              ? {}
+              : { weeklySchedule: (initMatch?.weeklySchedule ?? getDefaultWeeklyScheduleForCourt(ec.id)) as any }),
+            ...(ec.address ? {} : { address: initMatch?.address ?? 'DVA Sports Center, Hà Nội' }),
+          },
+        });
+      }
     }
   }
 
@@ -660,6 +687,7 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
   if ((await prisma.newsPost.count()) === 0) {
     const legacyNews = readLegacyJsonIfExists<NewsPost[]>('news.json', INITIAL_NEWS);
     for (const n of legacyNews) {
+      const resolvedThumb = (n.imageUrl || n.image || n.thumbnail || '').trim();
       await prisma.newsPost.upsert({
         where: { slug: n.slug },
         update: {},
@@ -669,7 +697,7 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           slug: n.slug,
           excerpt: n.excerpt,
           content: n.content,
-          thumbnail: n.thumbnail || '',
+          thumbnail: resolvedThumb,
           category: n.category,
           authorName: n.authorName,
           authorRole: n.authorRole,
@@ -678,6 +706,24 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           featured: Boolean(n.featured),
         },
       });
+    }
+  } else {
+    // Backfill thumbnail for any existing news records that have empty thumbnail
+    const legacyNews = readLegacyJsonIfExists<NewsPost[]>('news.json', INITIAL_NEWS);
+    const existingNews = await prisma.newsPost.findMany();
+    for (const en of existingNews) {
+      if (!en.thumbnail || !en.thumbnail.trim()) {
+        const match =
+          legacyNews.find((ln) => ln.id === en.id || ln.slug === en.slug) ||
+          INITIAL_NEWS.find((inw) => inw.id === en.id || inw.slug === en.slug);
+        const fallbackImg = (match?.imageUrl || match?.image || match?.thumbnail || '').trim();
+        if (fallbackImg) {
+          await prisma.newsPost.update({
+            where: { id: en.id },
+            data: { thumbnail: fallbackImg },
+          });
+        }
+      }
     }
   }
 

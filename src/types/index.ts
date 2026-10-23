@@ -88,11 +88,26 @@ export interface Player {
   joinedYear?: number;
 }
 
+export type DayOfWeekKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+export type WeeklySchedule = Record<DayOfWeekKey, string[]>;
+
+export const DAYS_OF_WEEK: { key: DayOfWeekKey; labelVi: string; shortVi: string; labelEn: string }[] = [
+  { key: 'monday', labelVi: 'Thứ 2', shortVi: 'T2', labelEn: 'Monday' },
+  { key: 'tuesday', labelVi: 'Thứ 3', shortVi: 'T3', labelEn: 'Tuesday' },
+  { key: 'wednesday', labelVi: 'Thứ 4', shortVi: 'T4', labelEn: 'Wednesday' },
+  { key: 'thursday', labelVi: 'Thứ 5', shortVi: 'T5', labelEn: 'Thursday' },
+  { key: 'friday', labelVi: 'Thứ 6', shortVi: 'T6', labelEn: 'Friday' },
+  { key: 'saturday', labelVi: 'Thứ 7', shortVi: 'T7', labelEn: 'Saturday' },
+  { key: 'sunday', labelVi: 'Chủ Nhật', shortVi: 'CN', labelEn: 'Sunday' },
+];
+
 export interface Court {
   id: string;
   name: string;
   shortName?: string;
   code: string; // 'BTL_TT' | 'THE_CONG' | 'MY_DINH'
+  address?: string;
   description: string;
   floorType: string; // e.g. 'Taraflex Pro Elite'
   hourlyRate: number; // 550,000 VND
@@ -100,6 +115,8 @@ export interface Court {
   includes: string[];
   imageUrl: string;
   isAvailable: boolean;
+  isActive?: boolean;
+  weeklySchedule?: WeeklySchedule;
 }
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'CANCELLED';
@@ -224,6 +241,8 @@ export interface NewsPost {
   slug: string;
   excerpt: string;
   content: string;
+  imageUrl?: string;
+  image?: string;
   thumbnail: string;
   category: 'TOURNAMENT' | 'CLUB_EVENT' | 'TECHNIQUE' | 'TRYOUT' | string;
   authorName: string;

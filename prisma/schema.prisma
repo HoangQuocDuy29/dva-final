@@ -124,24 +124,27 @@ model Player {
 
 /// Sân bóng chuyền thuộc hệ thống DVA (BTL Thông Tin, Thể Công, Mỹ Đình)
 model Court {
-  id          String       @id @default(uuid())
-  code        String       @unique // VD: 'BTL_TT', 'THE_CONG', 'MY_DINH'
-  shortName   String?      // VD: 'BTL TT', 'THE CONG', 'MY DINH'
-  name        String
-  description String       @db.Text
-  floorType   String       // VD: 'Taraflex Pro Elite 7.5mm (Injury-Preventive)'
-  hourlyRate  Int          @default(500000) // Đơn giá theo giờ (VND)
-  minHours    Float        @default(1.5)
-  includes    String[]     // Danh sách tiện ích đi kèm
-  imageUrl    String
-  isAvailable Boolean      @default(true)
+  id             String       @id @default(uuid())
+  code           String       @unique // VD: 'BTL_TT', 'THE_CONG', 'MY_DINH'
+  shortName      String?      // VD: 'BTL TT', 'THE CONG', 'MY DINH'
+  name           String
+  address        String?      @default("DVA Sports Center, Hà Nội")
+  description    String       @db.Text
+  floorType      String       // VD: 'Taraflex Pro Elite 7.5mm (Injury-Preventive)'
+  hourlyRate     Int          @default(500000) // Đơn giá theo giờ (VND)
+  minHours       Float        @default(1.5)
+  includes       String[]     // Danh sách tiện ích đi kèm
+  imageUrl       String
+  isAvailable    Boolean      @default(true)
+  isActive       Boolean      @default(true) // Soft delete flag
+  weeklySchedule Json?        // Cấu hình khung giờ 7 ngày: { monday: ["17:30 - 19:30", ...], ..., sunday: [...] }
 
   // Relations
-  bookings    Booking[]
-  closedSlots ClosedSlot[]
+  bookings       Booking[]
+  closedSlots    ClosedSlot[]
 
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@map("courts")
 }

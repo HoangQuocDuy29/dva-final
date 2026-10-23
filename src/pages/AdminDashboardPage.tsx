@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { 
   Booking, 
+  Court,
   MemberApplication, 
   NewsPost, 
   Player, 
@@ -49,6 +50,9 @@ import {
   VolleyballPosition,
   PlayerLevel,
   ClosedSlot,
+  DayOfWeekKey,
+  WeeklySchedule,
+  DAYS_OF_WEEK,
   PLAYER_COUNTRIES,
   countryCodeToFlagEmoji
 } from '../types';
@@ -64,8 +68,13 @@ import {
   googleScriptSyncService 
 } from '../services/api';
 import { INITIAL_PLAYERS, INITIAL_COURTS, INITIAL_COACHES, INITIAL_TRAINING_COURSES } from '../data/mockData';
-import { getScheduleSlotsForCourtAndDate } from './CourtBookingPage';
-import { uploadToCloudinary } from '../utils/cloudinary';
+import {
+  getDefaultWeeklyScheduleForCourt,
+  getScheduleSlotsForCourtAndDate,
+  normalizeWeeklySchedule,
+  parseSlotLabel,
+} from '../shared/schedule';
+import { uploadToCloudinary, buildCloudinaryFolder } from '../utils/cloudinary';
 
 interface AdminDashboardPageProps {
   currentUser: UserType;
@@ -90,6 +99,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   };
 
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [courtsList, setCourtsList] = useState<Court[]>(INITIAL_COURTS);
   const [applications, setApplications] = useState<MemberApplication[]>([]);
   const [trainingRegs, setTrainingRegs] = useState<TrainingRegistration[]>([]);
   const [coursesList, setCoursesList] = useState<TrainingCourse[]>(INITIAL_TRAINING_COURSES);
@@ -185,6 +195,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   // Coach CRUD modal state
   const [isCoachModalOpen, setIsCoachModalOpen] = useState(false);
   const [editingCoach, setEditingCoach] = useState<CoachProfile | null>(null);
+  const [isUploadingCoachPhoto, setIsUploadingCoachPhoto] = useState(false);
   const [coachForm, setCoachForm] = useState<Partial<CoachProfile>>({
     name: '',
     role: 'Chuyên Gia Tấn Công Biên',
@@ -204,10 +215,31 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   const [lockReason, setLockReason] = useState<string>('Rented to Offline Team / Club Match');
   const [isTogglingSlot, setIsTogglingSlot] = useState<boolean>(false);
 
+  // Court CRUD & Weekly Schedule Modal state
+  const [isCourtModalOpen, setIsCourtModalOpen] = useState<boolean>(false);
+  const [editingCourt, setEditingCourt] = useState<Court | null>(null);
+  const [selectedScheduleDay, setSelectedScheduleDay] = useState<DayOfWeekKey>('monday');
+  const [newSlotInput, setNewSlotInput] = useState<string>('18:00 - 20:00');
+  const [isUploadingCourtImage, setIsUploadingCourtImage] = useState<boolean>(false);
+  const [courtForm, setCourtForm] = useState<Partial<Court>>({
+    name: '',
+    code: '',
+    shortName: '',
+    address: 'DVA Sports Center, Hà Nội',
+    description: 'Sân bóng chuyền tiêu chuẩn FIVB trang bị thảm Taraflex Pro chống chấn thương.',
+    floorType: 'Gerflor Taraflex Sport Pro',
+    hourlyRate: 500000,
+    minHours: 1.5,
+    imageUrl: '/courts/btl.png',
+    isAvailable: true,
+    isActive: true,
+    weeklySchedule: getDefaultWeeklyScheduleForCourt(),
+  });
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [b, a, t, p, n, s, cs, courses, coaches] = await Promise.all([
+      const [b, a, t, p, n, s, cs, courses, coaches, fetchedCourts] = await Promise.all([
         bookingService.getBookings(),
         memberService.getApplications(),
         trainingService.getRegistrations(),
@@ -217,6 +249,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
         courtService.getClosedSlots(),
         trainingService.getCourses(),
         coachService.getCoaches(),
+        courtService.getCourts(),
       ]);
       setBookings(b);
       setApplications(a);
@@ -227,6 +260,25 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
       if (Array.isArray(cs)) setClosedSlots(cs);
       if (Array.isArray(courses) && courses.length > 0) setCoursesList(courses);
       if (Array.isArray(coaches) && coaches.length > 0) setCoachesList(coaches);
+      if (Array.isArray(fetchedCourts) && fetchedCourts.length > 0) {
+        const activeCourts = fetchedCourts
+          .filter((fc) => fc.isActive !== false)
+          .map((fc) => {
+            const local = INITIAL_COURTS.find((ic) => ic.id === fc.id);
+            return local
+              ? {
+                  ...local,
+                  ...fc,
+                  imageUrl: fc.imageUrl || local.imageUrl,
+                  weeklySchedule: normalizeWeeklySchedule(fc.weeklySchedule ?? local.weeklySchedule, fc.id),
+                }
+              : {
+                  ...fc,
+                  weeklySchedule: normalizeWeeklySchedule(fc.weeklySchedule, fc.id),
+                };
+          });
+        setCourtsList(activeCourts);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -377,29 +429,34 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   const handleSaveNews = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newsTitle.trim() || !newsContent.trim()) return;
+    if (isUploadingNewsThumb) {
+      alert('Vui lòng đợi ảnh tải lên Cloudinary hoàn tất trước khi lưu bài viết.');
+      return;
+    }
+    const resolvedImageUrl =
+      newsThumbnail.trim() ||
+      editingNews?.imageUrl ||
+      editingNews?.image ||
+      editingNews?.thumbnail ||
+      'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80';
     try {
+      const payload = {
+        title: newsTitle.trim(),
+        category: newsCategory,
+        imageUrl: resolvedImageUrl,
+        image: resolvedImageUrl,
+        thumbnail: resolvedImageUrl,
+        excerpt: newsExcerpt.trim() || (newsContent.trim().substring(0, 150) + '...'),
+        content: newsContent.trim(),
+        authorName: newsAuthorName.trim() || currentUser.fullName,
+        authorRole: newsAuthorRole.trim() || 'Club Administration',
+      };
       if (editingNews) {
-        const updated = await newsService.updateNews(editingNews.id, {
-          title: newsTitle.trim(),
-          category: newsCategory,
-          thumbnail: newsThumbnail.trim() || 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80',
-          excerpt: newsExcerpt.trim() || (newsContent.trim().substring(0, 150) + '...'),
-          content: newsContent.trim(),
-          authorName: newsAuthorName.trim() || currentUser.fullName,
-          authorRole: newsAuthorRole.trim() || 'Club Administration',
-        });
-        setNewsList(prev => prev.map(n => n.id === editingNews.id ? { ...n, ...updated } : n));
+        const updated = await newsService.updateNews(editingNews.id, payload);
+        setNewsList(prev => prev.map(n => n.id === editingNews.id ? { ...n, ...payload, ...updated } : n));
         setFeedback(`Đã cập nhật bài viết "${newsTitle}"!`);
       } else {
-        const created = await newsService.createNews({
-          title: newsTitle.trim(),
-          category: newsCategory,
-          thumbnail: newsThumbnail.trim() || 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80',
-          excerpt: newsExcerpt.trim() || (newsContent.trim().substring(0, 150) + '...'),
-          content: newsContent.trim(),
-          authorName: newsAuthorName.trim() || currentUser.fullName,
-          authorRole: newsAuthorRole.trim() || 'Club Administration',
-        });
+        const created = await newsService.createNews(payload);
         setNewsList([created, ...newsList]);
         setFeedback(`Đã xuất bản bài viết mới "${newsTitle}"!`);
       }
@@ -471,6 +528,161 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
     } catch (err) {
       alert('Lỗi xóa đơn đặt chỗ');
     }
+  };
+
+  // Court CRUD & Weekly Schedule handlers
+  const handleOpenAddCourtModal = () => {
+    setEditingCourt(null);
+    setSelectedScheduleDay('monday');
+    setNewSlotInput('17:30 - 19:30');
+    setCourtForm({
+      name: '',
+      code: '',
+      shortName: '',
+      address: 'DVA Sports Center, Hà Nội',
+      description: 'Sân bóng chuyền tiêu chuẩn thi đấu FIVB trang bị thảm Taraflex Pro chống chấn thương và hệ thống chiếu sáng tiêu chuẩn.',
+      floorType: 'Gerflor Taraflex Sport Pro',
+      hourlyRate: 500000,
+      minHours: 1.5,
+      imageUrl: '/courts/btl.png',
+      isAvailable: true,
+      isActive: true,
+      weeklySchedule: getDefaultWeeklyScheduleForCourt(),
+    });
+    setIsCourtModalOpen(true);
+  };
+
+  const handleOpenEditCourtModal = (court: Court) => {
+    setEditingCourt(court);
+    setSelectedScheduleDay('monday');
+    setNewSlotInput('18:00 - 20:00');
+    setCourtForm({
+      ...court,
+      address: court.address || 'DVA Sports Center, Hà Nội',
+      hourlyRate: Number(court.hourlyRate) || 500000,
+      weeklySchedule: normalizeWeeklySchedule(court.weeklySchedule, court.id),
+    });
+    setIsCourtModalOpen(true);
+  };
+
+  const handleSaveCourt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!courtForm.name?.trim()) return;
+    try {
+      const payload: Partial<Court> = {
+        ...courtForm,
+        name: courtForm.name.trim(),
+        address: (courtForm.address || 'DVA Sports Center, Hà Nội').trim(),
+        hourlyRate: Math.round(Number(courtForm.hourlyRate) || 500000),
+        weeklySchedule: normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id),
+      };
+
+      if (editingCourt) {
+        const updated = await courtService.updateCourt(editingCourt.id, payload);
+        setCourtsList((prev) =>
+          prev.map((c) =>
+            c.id === editingCourt.id
+              ? {
+                  ...c,
+                  ...payload,
+                  ...updated,
+                  weeklySchedule: normalizeWeeklySchedule(updated.weeklySchedule ?? payload.weeklySchedule, c.id),
+                }
+              : c
+          )
+        );
+        setFeedback(`Đã cập nhật sân "${payload.name}" và lịch hoạt động hàng tuần!`);
+      } else {
+        const created = await courtService.createCourt(payload);
+        const normalizedCreated: Court = {
+          ...created,
+          weeklySchedule: normalizeWeeklySchedule(created.weeklySchedule ?? payload.weeklySchedule, created.id),
+        };
+        setCourtsList((prev) => [...prev, normalizedCreated]);
+        setSelectedManageCourtId(normalizedCreated.id);
+        setFeedback(`Đã tạo sân mới "${normalizedCreated.name}" kèm lịch tuần thành công!`);
+      }
+      setIsCourtModalOpen(false);
+      setEditingCourt(null);
+      setTimeout(() => setFeedback(null), 3500);
+    } catch (err: any) {
+      alert(err?.message || 'Lỗi khi lưu thông tin sân');
+    }
+  };
+
+  const handleDeleteCourt = async (court: Court) => {
+    if (!window.confirm(`Bạn có chắc muốn xóa sân "${court.name}"? (Nếu sân đã có đơn đặt chỗ, hệ thống sẽ chuyển sang trạng thái ngừng hoạt động isActive = false)`)) {
+      return;
+    }
+    try {
+      const res = await courtService.deleteCourt(court.id);
+      setCourtsList((prev) => {
+        const remaining = prev.filter((c) => c.id !== court.id);
+        if (selectedManageCourtId === court.id && remaining.length > 0) {
+          setSelectedManageCourtId(remaining[0].id);
+        }
+        return remaining;
+      });
+      setFeedback(
+        res.softDeleted
+          ? `Đã ẩn sân "${court.name}" (Soft Delete: isActive = false do có lịch sử đặt sân).`
+          : `Đã xóa sân "${court.name}" thành công.`
+      );
+      setTimeout(() => setFeedback(null), 3500);
+    } catch (err: any) {
+      alert(err?.message || 'Lỗi khi xóa sân');
+    }
+  };
+
+  const handleAddSlotToDay = () => {
+    const clean = newSlotInput.trim();
+    if (!clean) return;
+    if (!parseSlotLabel(clean)) {
+      alert('Vui lòng nhập đúng định dạng khung giờ "HH:mm - HH:mm" (Ví dụ: 17:30 - 19:30 hoặc 18:00 - 20:00).');
+      return;
+    }
+    const currentSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
+    const daySlots = currentSchedule[selectedScheduleDay] || [];
+    if (daySlots.includes(clean)) {
+      alert('Khung giờ này đã tồn tại trong ngày đã chọn.');
+      return;
+    }
+    setCourtForm({
+      ...courtForm,
+      weeklySchedule: {
+        ...currentSchedule,
+        [selectedScheduleDay]: [...daySlots, clean],
+      },
+    });
+    setNewSlotInput('');
+  };
+
+  const handleRemoveSlotFromDay = (dayKey: DayOfWeekKey, index: number) => {
+    const currentSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
+    const daySlots = currentSchedule[dayKey] || [];
+    setCourtForm({
+      ...courtForm,
+      weeklySchedule: {
+        ...currentSchedule,
+        [dayKey]: daySlots.filter((_, idx) => idx !== index),
+      },
+    });
+  };
+
+  const handleCopyDayScheduleToWeekdays = (sourceDay: DayOfWeekKey) => {
+    const currentSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
+    const sourceSlots = [...(currentSchedule[sourceDay] || [])];
+    setCourtForm({
+      ...courtForm,
+      weeklySchedule: {
+        ...currentSchedule,
+        monday: [...sourceSlots],
+        tuesday: [...sourceSlots],
+        wednesday: [...sourceSlots],
+        thursday: [...sourceSlots],
+        friday: [...sourceSlots],
+      },
+    });
   };
 
   // Course CRUD handlers
@@ -808,186 +1020,311 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
           </div>
         )}
 
-        {/* MODULE: LIVE COURT SCHEDULE & SLOT LOCK MANAGEMENT */}
+        {/* MODULE: COURTS CRUD, WEEKLY SCHEDULE & LIVE SLOT LOCK MANAGEMENT */}
         {activeModule === 'COURTS' && (
-          <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="space-y-6">
+            {/* 1. COURTS LIST CRUD & WEEKLY SCHEDULE OVERVIEW */}
+            <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
                   <h3 className="font-heading font-black text-lg text-white">
-                    Live Court Schedule & Slot Lock Management
+                    Quản Lý Hệ Thống Sân & Khung Giờ Hàng Tuần (Courts & Weekly Schedule CRUD)
                   </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Thêm sân mới, cập nhật địa chỉ, giá thuê/giờ và tùy chỉnh khung giờ hoạt động theo từng thứ trong tuần (Thứ 2 → Chủ Nhật).
+                  </p>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
-                  Khóa ca thi đấu/giao hữu ngoại tuyến hoặc bảo trì sân. Ca bị khóa sẽ lập tức hiển thị "Closed / Rented" ở phía khách hàng để tránh trùng lặp booking.
-                </p>
+                <button
+                  type="button"
+                  onClick={handleOpenAddCourtModal}
+                  className="px-4 py-2.5 bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-lg cursor-pointer self-start sm:self-auto shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Thêm Sân Mới</span>
+                </button>
               </div>
 
-              {/* Date Picker */}
-              <div className="flex items-center gap-2 bg-[#0E1524] px-3.5 py-2 rounded-xl border border-slate-700">
-                <Calendar className="w-4 h-4 text-orange-400 shrink-0" />
-                <input
-                  type="date"
-                  value={selectedManageDate}
-                  onChange={(e) => setSelectedManageDate(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
-                />
-              </div>
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {courtsList.map((court) => {
+                  const schedule = normalizeWeeklySchedule(court.weeklySchedule, court.id);
+                  const totalWeeklySlots = DAYS_OF_WEEK.reduce(
+                    (acc, d) => acc + (schedule[d.key]?.length || 0),
+                    0
+                  );
 
-            {/* Court Selector Pills */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              {INITIAL_COURTS.map((court) => {
-                const isSelected = court.id === selectedManageCourtId;
-                return (
-                  <button
-                    key={court.id}
-                    type="button"
-                    onClick={() => setSelectedManageCourtId(court.id)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-lg shadow-red-950/40 ring-1 ring-red-400'
-                        : 'bg-[#0E1524] text-slate-400 hover:text-white border border-slate-800'
-                    }`}
-                  >
-                    <span>{court.name}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isSelected ? 'bg-black/30 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                      {court.code}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Lock Reason Optional Input */}
-            <div className="flex items-center gap-3 bg-[#0E1524] p-3 rounded-2xl border border-slate-800 text-xs">
-              <span className="text-slate-400 font-semibold whitespace-nowrap">Lý do khóa ca mặc định:</span>
-              <input
-                type="text"
-                value={lockReason}
-                onChange={(e) => setLockReason(e.target.value)}
-                placeholder="VD: Đội ngoài thuê cố định, Trận đấu giao hữu CLB, Vệ sinh mặt sàn..."
-                className="flex-1 bg-transparent text-white border-b border-slate-700 focus:border-orange-500 focus:outline-none px-2 py-1 text-xs"
-              />
-            </div>
-
-            {/* Slot Grid for the chosen Court & Date */}
-            {(() => {
-              const slots = getScheduleSlotsForCourtAndDate(selectedManageCourtId, selectedManageDate);
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {slots.map((slot) => {
-                    const isClosed = closedSlots.find(
-                      cs => cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && cs.slotLabel === slot.label
-                    );
-                    const bookingMatch = bookings.find(
-                      b => b.courtId === selectedManageCourtId && b.bookingDate === selectedManageDate && b.paymentStatus !== 'CANCELLED' &&
-                      (b.startTime === slot.start || `${b.startTime} - ${b.endTime}` === slot.label)
-                    );
-
-                    return (
-                      <div
-                        key={slot.label}
-                        className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
-                          isClosed
-                            ? 'bg-red-950/30 border-red-800/80'
-                            : bookingMatch
-                            ? 'bg-blue-950/30 border-blue-800/80'
-                            : 'bg-[#0E1524] border-slate-800'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-mono font-bold text-sm text-white flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-orange-400" />
-                              <span>{slot.label}</span>
-                            </div>
-                            <span className="text-[10px] text-slate-400">{slot.period} · {slot.durationHours} hours</span>
+                  return (
+                    <div
+                      key={court.id}
+                      className="rounded-2xl border border-slate-800 bg-[#0E1524] overflow-hidden flex flex-col justify-between shadow-lg hover:border-slate-700 transition-all"
+                    >
+                      <div>
+                        <div className="relative h-36 w-full bg-slate-900 overflow-hidden">
+                          <img
+                            src={court.imageUrl || '/courts/btl.png'}
+                            alt={court.name}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#0E1524] via-black/40 to-transparent" />
+                          <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-red-600 text-white shadow">
+                              {court.code}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-black/75 text-orange-400 border border-orange-500/30">
+                              {Number(court.hourlyRate || 500000).toLocaleString('vi-VN')} đ/h
+                            </span>
                           </div>
-
-                          {isClosed ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200 border border-red-700 flex items-center gap-1">
-                              <Lock className="w-2.5 h-2.5" />
-                              <span>CLOSED</span>
-                            </span>
-                          ) : bookingMatch ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 border border-blue-700">
-                              {bookingMatch.paymentStatus === 'PAID' ? 'BOOKED' : 'HOLDING'}
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                              OPEN
-                            </span>
-                          )}
+                          <div className="absolute bottom-2.5 left-3 right-3">
+                            <h4 className="font-heading font-black text-base text-white truncate">
+                              {court.name}
+                            </h4>
+                            <div className="text-[11px] text-slate-300 flex items-center gap-1 truncate">
+                              <MapPin className="w-3 h-3 text-orange-400 shrink-0" />
+                              <span className="truncate">{court.address || 'DVA Sports Center, Hà Nội'}</span>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs gap-2">
-                          <div className="text-[11px] text-slate-400 truncate">
-                            {isClosed ? (
-                              <span className="text-red-400 font-semibold">Đã khóa: {isClosed.reason || 'Bảo trì'}</span>
-                            ) : bookingMatch ? (
-                              <span>
-                                <strong className="text-white">{bookingMatch.customerName}</strong>
-                                <span className="text-slate-500 ml-1">({bookingMatch.customerPhone})</span>
-                              </span>
-                            ) : (
-                              <span className="text-emerald-400 font-semibold">Ca trống (Sẵn sàng cho thuê)</span>
-                            )}
+                        <div className="p-4 space-y-3 text-xs">
+                          <div className="flex items-center justify-between text-[11px] text-slate-400">
+                            <span>Tổng số ca / tuần:</span>
+                            <strong className="font-mono text-emerald-400">{totalWeeklySlots} ca hoạt động</strong>
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {bookingMatch && (
-                              <button
-                                type="button"
-                                disabled={isTogglingSlot}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleReleaseBookingSlot(bookingMatch.id, slot.label);
-                                }}
-                                className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 flex items-center gap-1 transition-all cursor-pointer shadow"
-                                title="Hủy đặt chỗ của khách và giải phóng ca này ngay lập tức"
-                              >
-                                <Unlock className="w-3.5 h-3.5 text-emerald-400" />
-                                <span>Mở lại ca này</span>
-                              </button>
-                            )}
-
-                            {isClosed ? (
-                              <button
-                                type="button"
-                                disabled={isTogglingSlot}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleToggleSlotLock(slot.label);
-                                }}
-                                className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 transition-all cursor-pointer"
-                              >
-                                <Unlock className="w-3.5 h-3.5 text-emerald-400" />
-                                <span>Mở lại ca</span>
-                              </button>
-                            ) : !bookingMatch ? (
-                              <button
-                                type="button"
-                                disabled={isTogglingSlot}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleToggleSlotLock(slot.label);
-                                }}
-                                className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-red-950 hover:bg-red-900 text-red-300 border border-red-800 flex items-center gap-1 transition-all cursor-pointer"
-                              >
-                                <Lock className="w-3.5 h-3.5 text-red-400" />
-                                <span>Khóa ca</span>
-                              </button>
-                            ) : null}
+                          <div className="bg-[#161F30] p-2.5 rounded-xl border border-slate-800 space-y-1.5 text-[11px]">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-400">T2 – T6 (Ngày thường):</span>
+                              <span className="font-mono text-white font-semibold truncate max-w-[155px]">
+                                {(schedule.monday || []).length > 0
+                                  ? `${schedule.monday.length} ca (${schedule.monday[0]?.split(' ')[0]}...)`
+                                  : 'Nghỉ'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-400">Thứ 7 (Sat):</span>
+                              <span className="font-mono text-orange-300 font-semibold">
+                                {(schedule.saturday || []).length} ca
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-400">Chủ Nhật (Sun):</span>
+                              <span className="font-mono text-orange-300 font-semibold">
+                                {(schedule.sunday || []).length} ca
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="px-4 py-3 border-t border-slate-800/80 flex items-center justify-between gap-2 bg-[#0B101C]">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditCourtModal(court)}
+                          className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-orange-400" />
+                          <span>Sửa Sân & Lịch Tuần</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCourt(court)}
+                          className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-950 text-slate-400 hover:text-red-300 border border-slate-700/80 hover:border-red-800 cursor-pointer transition-colors"
+                          title="Xóa sân"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. LIVE COURT SCHEDULE & SLOT LOCK MANAGEMENT */}
+            <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <h3 className="font-heading font-black text-lg text-white">
+                      Live Court Schedule & Slot Lock Management
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Khóa ca thi đấu/giao hữu ngoại tuyến hoặc bảo trì sân theo ngày cụ thể. Ca bị khóa sẽ lập tức hiển thị "Closed / Rented" ở phía khách hàng.
+                  </p>
                 </div>
-              );
-            })()}
+
+                {/* Date Picker */}
+                <div className="flex items-center gap-2 bg-[#0E1524] px-3.5 py-2 rounded-xl border border-slate-700">
+                  <Calendar className="w-4 h-4 text-orange-400 shrink-0" />
+                  <input
+                    type="date"
+                    value={selectedManageDate}
+                    onChange={(e) => setSelectedManageDate(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Court Selector Pills */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                {courtsList.map((court) => {
+                  const isSelected = court.id === selectedManageCourtId;
+                  return (
+                    <button
+                      key={court.id}
+                      type="button"
+                      onClick={() => setSelectedManageCourtId(court.id)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-lg shadow-red-950/40 ring-1 ring-red-400'
+                          : 'bg-[#0E1524] text-slate-400 hover:text-white border border-slate-800'
+                      }`}
+                    >
+                      <span>{court.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isSelected ? 'bg-black/30 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                        {court.code}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Lock Reason Optional Input */}
+              <div className="flex items-center gap-3 bg-[#0E1524] p-3 rounded-2xl border border-slate-800 text-xs">
+                <span className="text-slate-400 font-semibold whitespace-nowrap">Lý do khóa ca mặc định:</span>
+                <input
+                  type="text"
+                  value={lockReason}
+                  onChange={(e) => setLockReason(e.target.value)}
+                  placeholder="VD: Đội ngoài thuê cố định, Trận đấu giao hữu CLB, Vệ sinh mặt sàn..."
+                  className="flex-1 bg-transparent text-white border-b border-slate-700 focus:border-orange-500 focus:outline-none px-2 py-1 text-xs"
+                />
+              </div>
+
+              {/* Slot Grid for the chosen Court & Date */}
+              {(() => {
+                const selectedManageCourt = courtsList.find((c) => c.id === selectedManageCourtId);
+                const slots = getScheduleSlotsForCourtAndDate(
+                  selectedManageCourtId,
+                  selectedManageDate,
+                  selectedManageCourt?.weeklySchedule
+                );
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {slots.map((slot) => {
+                      const isClosed = closedSlots.find(
+                        cs => cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && cs.slotLabel === slot.label
+                      );
+                      const bookingMatch = bookings.find(
+                        b => b.courtId === selectedManageCourtId && b.bookingDate === selectedManageDate && b.paymentStatus !== 'CANCELLED' &&
+                        (b.startTime === slot.start || `${b.startTime} - ${b.endTime}` === slot.label)
+                      );
+
+                      return (
+                        <div
+                          key={slot.label}
+                          className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                            isClosed
+                              ? 'bg-red-950/30 border-red-800/80'
+                              : bookingMatch
+                              ? 'bg-blue-950/30 border-blue-800/80'
+                              : 'bg-[#0E1524] border-slate-800'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-mono font-bold text-sm text-white flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-orange-400" />
+                                <span>{slot.label}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-400">{slot.period} · {slot.durationHours} hours</span>
+                            </div>
+
+                            {isClosed ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200 border border-red-700 flex items-center gap-1">
+                                <Lock className="w-2.5 h-2.5" />
+                                <span>CLOSED</span>
+                              </span>
+                            ) : bookingMatch ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 border border-blue-700">
+                                {bookingMatch.paymentStatus === 'PAID' ? 'BOOKED' : 'HOLDING'}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                                OPEN
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs gap-2">
+                            <div className="text-[11px] text-slate-400 truncate">
+                              {isClosed ? (
+                                <span className="text-red-400 font-semibold">Đã khóa: {isClosed.reason || 'Bảo trì'}</span>
+                              ) : bookingMatch ? (
+                                <span>
+                                  <strong className="text-white">{bookingMatch.customerName}</strong>
+                                  <span className="text-slate-500 ml-1">({bookingMatch.customerPhone})</span>
+                                </span>
+                              ) : (
+                                <span className="text-emerald-400 font-semibold">Ca trống (Sẵn sàng cho thuê)</span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {bookingMatch && (
+                                <button
+                                  type="button"
+                                  disabled={isTogglingSlot}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleReleaseBookingSlot(bookingMatch.id, slot.label);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 flex items-center gap-1 transition-all cursor-pointer shadow"
+                                  title="Hủy đặt chỗ của khách và giải phóng ca này ngay lập tức"
+                                >
+                                  <Unlock className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Mở lại ca này</span>
+                                </button>
+                              )}
+
+                              {isClosed ? (
+                                <button
+                                  type="button"
+                                  disabled={isTogglingSlot}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleToggleSlotLock(slot.label);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 transition-all cursor-pointer"
+                                >
+                                  <Unlock className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Mở lại ca</span>
+                                </button>
+                              ) : !bookingMatch ? (
+                                <button
+                                  type="button"
+                                  disabled={isTogglingSlot}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleToggleSlotLock(slot.label);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-red-950 hover:bg-red-900 text-red-300 border border-red-800 flex items-center gap-1 transition-all cursor-pointer"
+                                >
+                                  <Lock className="w-3.5 h-3.5 text-red-400" />
+                                  <span>Khóa ca</span>
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         )}
 
@@ -1704,7 +2041,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
               <button
                 type="button"
                 onClick={() => {
+                  setEditingNews(null);
                   setNewsTitle('');
+                  setNewsThumbnail('');
                   setNewsCategory('TOURNAMENT');
                   setNewsExcerpt('');
                   setNewsContent('');
@@ -1723,6 +2062,21 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
               {newsList.map((story) => (
                 <div key={story.id} className="p-5 rounded-2xl border border-slate-800 bg-[#0E1524] flex flex-col justify-between space-y-4">
                   <div className="space-y-2">
+                    {(story.imageUrl || story.image || story.thumbnail) && (
+                      <div className="w-full h-36 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 mb-2">
+                        <img
+                          src={story.imageUrl || story.image || story.thumbnail}
+                          alt={story.title}
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src =
+                              'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80';
+                          }}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-red-950 text-red-400 border border-red-800">
                         {story.category}
@@ -1758,7 +2112,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                           setEditingNews(story);
                           setNewsTitle(story.title);
                           setNewsCategory(story.category);
-                          setNewsThumbnail(story.thumbnail);
+                          setNewsThumbnail(story.imageUrl || story.image || story.thumbnail || '');
                           setNewsExcerpt(story.excerpt || '');
                           setNewsContent(story.content);
                           setNewsAuthorName(story.authorName);
@@ -2461,8 +2815,11 @@ function doGet(e) {
                           if (file) {
                             setIsUploadingPlayerPhoto(true);
                             try {
-                              const res = await uploadToCloudinary(file, 'dva_players');
+                              const subFolder = `${playerForm.level || 'SENIOR'}/${playerForm.position || 'OH'}`;
+                              const res = await uploadToCloudinary(file, 'players', subFolder);
                               setPlayerForm((prev) => ({ ...prev, avatarUrl: res.url }));
+                              setFeedback(`Đã tải ảnh VĐV lên thư mục Cloud: ${res.folder}`);
+                              setTimeout(() => setFeedback(null), 3500);
                             } catch (err) {
                               console.error('Upload error:', err);
                             } finally {
@@ -2677,8 +3034,10 @@ function doGet(e) {
                     onChange={(e) => setNewsCategory(e.target.value as any)}
                     className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-red-500"
                   >
-                    <option value="TOURNAMENT">TOURNAMENT (Giải đấu & Thi đấu)</option>
-                    <option value="TRYOUT">TRYOUT (Tuyển chọn VĐV)</option>
+                    <option value="TOURNAMENT">TOURNAMENT (Giải đấu & Trận đấu)</option>
+                    <option value="TECHNIQUE">TECHNIQUE (Kỹ thuật & Biomechanics)</option>
+                    <option value="TRYOUT">TRYOUT (Tuyển chọn & Tryout)</option>
+                    <option value="CLUB_EVENT">CLUB_EVENT (Hoạt động CLB)</option>
                     <option value="TACTICAL">TACTICAL (Chiến thuật & Kỹ thuật)</option>
                     <option value="COMMUNITY">COMMUNITY (Cộng đồng & Hoạt động)</option>
                     <option value="PARTNERSHIP">PARTNERSHIP (Tài trợ & Đối tác)</option>
@@ -2700,9 +3059,14 @@ function doGet(e) {
               {/* COVER / THUMBNAIL PHOTO */}
               <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-slate-200 font-semibold block text-xs">
-                    Cover Image / Thumbnail (Cloudinary CDN or Link)
-                  </label>
+                  <div>
+                    <label className="text-slate-200 font-semibold block text-xs">
+                      Cover Image / Thumbnail (Cloudinary CDN or Link)
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-500">
+                      Folder: {buildCloudinaryFolder('news', newsCategory)} (Preset: dva_sports)
+                    </span>
+                  </div>
                   {newsThumbnail && (
                     <button
                       type="button"
@@ -2720,6 +3084,12 @@ function doGet(e) {
                       <img
                         src={newsThumbnail}
                         alt="News preview"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src =
+                            'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80';
+                        }}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -2754,12 +3124,16 @@ function doGet(e) {
                           if (file) {
                             setIsUploadingNewsThumb(true);
                             try {
-                              const res = await uploadToCloudinary(file, 'dva_news');
-                              setNewsThumbnail(res.url);
+                              const res = await uploadToCloudinary(file, 'news', newsCategory);
+                              const uploadedUrl = res.secure_url || res.url;
+                              setNewsThumbnail(uploadedUrl);
+                              setFeedback(`Đã tải ảnh bìa tin tức lên thư mục Cloud: ${res.folder}`);
+                              setTimeout(() => setFeedback(null), 3500);
                             } catch (err) {
                               console.error('News thumb upload error:', err);
                             } finally {
                               setIsUploadingNewsThumb(false);
+                              e.target.value = '';
                             }
                           }
                         }}
@@ -2893,7 +3267,7 @@ function doGet(e) {
                     value={bookingForm.courtId || 'court-btl'}
                     onChange={(e) => {
                       const courtId = e.target.value;
-                      const court = INITIAL_COURTS.find(c => c.id === courtId);
+                      const court = courtsList.find(c => c.id === courtId);
                       setBookingForm({
                         ...bookingForm,
                         courtId,
@@ -2902,7 +3276,7 @@ function doGet(e) {
                     }}
                     className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
                   >
-                    {INITIAL_COURTS.map((court) => (
+                    {courtsList.map((court) => (
                       <option key={court.id} value={court.id}>
                         {court.name}
                       </option>
@@ -3236,9 +3610,14 @@ function doGet(e) {
 
               {/* PHOTO UPLOAD / URL */}
               <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-slate-800 space-y-2">
-                <label className="text-slate-200 font-bold block">
-                  Ảnh Chân Dung HLV (Tải lên hoặc dán link Cloud)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-200 font-bold block">
+                    Ảnh Chân Dung HLV (Tải lên hoặc dán link Cloud)
+                  </label>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    Folder: {buildCloudinaryFolder('coaches', 'coaching-staff')}
+                  </span>
+                </div>
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 rounded-xl bg-[#161F30] border border-slate-700 overflow-hidden flex items-center justify-center shrink-0">
                     {coachForm.avatarUrl ? (
@@ -3253,6 +3632,45 @@ function doGet(e) {
                   </div>
 
                   <div className="flex-1 space-y-2">
+                    <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                      isUploadingCoachPhoto
+                        ? 'bg-slate-700 text-slate-300 border-slate-600 cursor-wait'
+                        : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700 cursor-pointer'
+                    }`}>
+                      {isUploadingCoachPhoto ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                          <span>Đang tải lên Cloud...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5 text-orange-400" />
+                          <span>Tải ảnh HLV lên Cloudinary</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingCoachPhoto}
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setIsUploadingCoachPhoto(true);
+                          try {
+                            const res = await uploadToCloudinary(file, 'coaches', 'coaching-staff');
+                            setCoachForm((prev) => ({ ...prev, avatarUrl: res.url }));
+                            setFeedback(`Đã tải ảnh HLV lên thư mục Cloud: ${res.folder}`);
+                            setTimeout(() => setFeedback(null), 3500);
+                          } catch (err) {
+                            console.error('Coach upload error:', err);
+                          } finally {
+                            setIsUploadingCoachPhoto(false);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
                     <input
                       type="url"
                       placeholder="Dán link ảnh (Cloudinary / Unsplash)..."
@@ -3305,6 +3723,302 @@ function doGet(e) {
                   className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-orange-500 rounded-xl text-white font-bold cursor-pointer hover:brightness-110 shadow-lg"
                 >
                   {editingCoach ? 'Lưu Thay Đổi' : 'Thêm Huấn Luyện Viên'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* COURT CREATE / EDIT & WEEKLY SCHEDULE MODAL */}
+      {isCourtModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#0F1623] border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-lg font-black text-white">
+                  {editingCourt ? 'Chỉnh Sửa Sân & Lịch Hoạt Động Tuần' : 'Thêm Sân Mới & Lịch Hoạt Động Tuần'}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Cấu hình thông tin cơ sở vật chất, giá thuê và khung ca hoạt động từ Thứ 2 đến Chủ Nhật
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsCourtModalOpen(false);
+                  setEditingCourt(null);
+                }}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCourt} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Tên Sân *</label>
+                  <input
+                    type="text"
+                    required
+                    value={courtForm.name}
+                    onChange={(e) => setCourtForm({ ...courtForm, name: e.target.value })}
+                    placeholder="VD: Sân Bóng Chuyền Bắc Từ Liêm"
+                    className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Đơn Giá Thuê / Giờ (VNĐ) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="10000"
+                    required
+                    value={courtForm.hourlyRate}
+                    onChange={(e) => setCourtForm({ ...courtForm, hourlyRate: Number(e.target.value) })}
+                    placeholder="VD: 350000"
+                    className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Địa Chỉ Sân *</label>
+                  <input
+                    type="text"
+                    required
+                    value={courtForm.address}
+                    onChange={(e) => setCourtForm({ ...courtForm, address: e.target.value })}
+                    placeholder="VD: Quận Bắc Từ Liêm, Hà Nội"
+                    className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Loại Mặt Sân / Mô Tả Ngắn</label>
+                  <input
+                    type="text"
+                    value={courtForm.floorType || ''}
+                    onChange={(e) => setCourtForm({ ...courtForm, floorType: e.target.value })}
+                    placeholder="VD: Gerflor Taraflex Sport Pro"
+                    className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div>
+                    <label className="block text-slate-300 font-semibold">Ảnh Đại Diện Sân</label>
+                    <span className="text-[10px] font-mono text-slate-500">
+                      Folder: {buildCloudinaryFolder('courts', editingCourt?.id || courtForm.name || 'facilities')}
+                    </span>
+                  </div>
+                  <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-400 font-bold text-[11px] cursor-pointer transition-all">
+                    {isUploadingCourtImage ? (
+                      <>
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Đang tải lên...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3 h-3" /> Tải ảnh từ máy
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      disabled={isUploadingCourtImage}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setIsUploadingCourtImage(true);
+                        try {
+                          const subFolder = editingCourt?.id || courtForm.name || 'facilities';
+                          const uploaded = await uploadToCloudinary(file, 'courts', subFolder);
+                          setCourtForm((prev) => ({ ...prev, imageUrl: uploaded.url }));
+                          setFeedback(`Đã tải ảnh sân lên thư mục Cloud: ${uploaded.folder}`);
+                          setTimeout(() => setFeedback(null), 3500);
+                        } catch (err: any) {
+                          alert(err?.message || 'Upload ảnh sân thất bại.');
+                        } finally {
+                          setIsUploadingCourtImage(false);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <div className="flex items-center gap-3">
+                  {courtForm.imageUrl && (
+                    <img
+                      src={courtForm.imageUrl}
+                      alt="Court Preview"
+                      className="w-16 h-12 rounded-xl object-cover border border-slate-700 shrink-0 bg-slate-900"
+                    />
+                  )}
+                  <input
+                    type="text"
+                    value={courtForm.imageUrl || ''}
+                    onChange={(e) => setCourtForm({ ...courtForm, imageUrl: e.target.value })}
+                    placeholder="Dán link ảnh hoặc bấm 'Tải ảnh từ máy'..."
+                    className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+              </div>
+
+              {/* WEEKLY SCHEDULE SETTINGS */}
+              <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl p-4 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                  <div>
+                    <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-orange-400" />
+                      Thiết Lập Lịch Tuần (Weekly Schedule Settings)
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Chọn thứ trong tuần và thêm/xóa các khung ca tập trong ngày đó
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyDayScheduleToWeekdays(selectedScheduleDay)}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-[10px] cursor-pointer transition-all self-start sm:self-auto"
+                    title="Sao chép các ca của thứ đang chọn sang Thứ 2 -> Thứ 6"
+                  >
+                    Sao chép sang T2 - T6
+                  </button>
+                </div>
+
+                {/* Day Tabs (Monday -> Sunday) */}
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                  {DAYS_OF_WEEK.map((day) => {
+                    const isSelected = selectedScheduleDay === day.key;
+                    const slotCount = (courtForm.weeklySchedule?.[day.key] || []).length;
+                    return (
+                      <button
+                        key={day.key}
+                        type="button"
+                        onClick={() => setSelectedScheduleDay(day.key)}
+                        className={`px-2 py-2 rounded-xl border text-center transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-orange-500/20 border-orange-500 text-orange-300 font-black shadow-md'
+                            : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 font-semibold'
+                        }`}
+                      >
+                        <div className="text-[11px]">{day.shortVi}</div>
+                        <div className="text-[9px] text-slate-400 mt-0.5">{slotCount} ca</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Active Day Slots List + Add Slot */}
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-200">
+                      Danh sách ca hoạt động:{' '}
+                      <span className="text-orange-400">
+                        {DAYS_OF_WEEK.find((d) => d.key === selectedScheduleDay)?.labelVi}
+                      </span>
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {(courtForm.weeklySchedule?.[selectedScheduleDay] || []).length} khung giờ
+                    </span>
+                  </div>
+
+                  {(courtForm.weeklySchedule?.[selectedScheduleDay] || []).length === 0 ? (
+                    <div className="py-5 text-center border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
+                      Chưa có khung ca nào cho ngày này. Nhập khung giờ bên dưới và bấm "+ Thêm ca".
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {(courtForm.weeklySchedule?.[selectedScheduleDay] || []).map((slot, slotIdx) => (
+                        <div
+                          key={`${slot}-${slotIdx}`}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs font-bold"
+                        >
+                          <Clock className="w-3 h-3 text-emerald-400" />
+                          <span>{slot}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSlotFromDay(selectedScheduleDay, slotIdx)}
+                            className="w-4 h-4 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+                            title="Xóa ca này"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Slot Input */}
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                    <input
+                      type="text"
+                      value={newSlotInput}
+                      onChange={(e) => setNewSlotInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddSlotToDay();
+                        }
+                      }}
+                      placeholder="VD: 18:00 - 20:00 hoặc 07:30 - 09:30"
+                      className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs outline-none focus:border-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddSlotToDay}
+                      className="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> + Thêm ca
+                    </button>
+                  </div>
+
+                  {/* Quick Preset Slots */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-slate-400 font-semibold mr-1">Gợi ý nhanh:</span>
+                    {[
+                      '05:30 - 07:30',
+                      '07:30 - 09:30',
+                      '09:30 - 11:30',
+                      '13:30 - 15:30',
+                      '15:30 - 17:30',
+                      '17:30 - 19:30',
+                      '18:00 - 20:00',
+                      '19:30 - 21:30',
+                      '21:30 - 23:30',
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setNewSlotInput(preset)}
+                        className="px-2 py-0.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] text-slate-400 hover:text-white font-mono cursor-pointer transition-colors"
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCourtModalOpen(false);
+                    setEditingCourt(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-orange-500 rounded-xl text-white font-bold cursor-pointer hover:brightness-110 shadow-lg"
+                >
+                  {editingCourt ? 'Lưu Cập Nhật Sân' : 'Tạo Sân Mới'}
                 </button>
               </div>
             </form>

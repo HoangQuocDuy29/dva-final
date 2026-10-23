@@ -1,4 +1,5 @@
 import { Court, MemberApplication, NewsPost, Player, TrainingCourse, User, Booking, CoachProfile } from '../types';
+import { getDefaultWeeklyScheduleForCourt } from '../shared/schedule';
 
 export const GUEST_USER: User = {
   id: 'guest',
@@ -41,6 +42,7 @@ export const INITIAL_COURTS: Court[] = [
     code: 'BTL_TT',
     shortName: 'BTL TT',
     name: 'BTL Thong Tin court',
+    address: 'Nhà thi đấu BTL Thông Tin, Hà Nội',
     description: 'Premier FIVB standard competition court equipped with Taraflex Pro Elite 7.5mm shock-absorption flooring, 1200 Lux glare-free arena LED lighting, and 200-seat grandstand.',
     floorType: 'Taraflex Pro Elite 7.5mm (Injury-Preventive)',
     hourlyRate: 550000,
@@ -53,12 +55,15 @@ export const INITIAL_COURTS: Court[] = [
     ],
     imageUrl: '/courts/btl.png',
     isAvailable: true,
+    isActive: true,
+    weeklySchedule: getDefaultWeeklyScheduleForCourt('court-btl'),
   },
   {
     id: 'court-thecong',
     code: 'THE_CONG',
     shortName: 'THE CONG',
     name: 'The Cong court',
+    address: 'Tổ hợp Thể thao Thể Công, Trường Chinh, Hà Nội',
     description: 'Elite sports complex court with professional Taraflex Sport surface, competition antenna net system, and high-velocity cooling.',
     floorType: 'Gerflor Taraflex Sport M Plus',
     hourlyRate: 500000,
@@ -71,12 +76,15 @@ export const INITIAL_COURTS: Court[] = [
     ],
     imageUrl: '/courts/thecong.png',
     isAvailable: true,
+    isActive: true,
+    weeklySchedule: getDefaultWeeklyScheduleForCourt('court-thecong'),
   },
   {
     id: 'court-mydinh',
     code: 'MY_DINH',
     shortName: 'MY DINH',
     name: 'My Dinh court',
+    address: 'Khu Liên hợp Thể thao Quốc gia Mỹ Đình, Hà Nội',
     description: 'Modern training and match court at My Dinh sports district, height-adjustable nets (Men 2.43m / Women 2.24m) with premium acoustics.',
     floorType: 'Gerflor Taraflex Performance 9.0mm',
     hourlyRate: 500000,
@@ -89,6 +97,8 @@ export const INITIAL_COURTS: Court[] = [
     ],
     imageUrl: '/courts/mydinh.png',
     isAvailable: true,
+    isActive: true,
+    weeklySchedule: getDefaultWeeklyScheduleForCourt('court-mydinh'),
   },
 ];
 
@@ -290,15 +300,13 @@ export const INITIAL_PLAYERS: Player[] = [
 export const INITIAL_NEWS: NewsPost[] = [
   {
     id: 'news-1',
-    title: 'DVA Volleyball Club Crowned Champions at National Open Cup 2025',
+    title: 'DVA at Concordia International School Hanoi Charity Cup',
     slug: 'dva-champions-open-cup-2025',
-    excerpt: 'Displaying relentless defensive grit and explosive 5-1 rotational combinations, DVA Senior secured a thrilling 3-2 victory in the finals.',
-    content: `The final match of the 2025 Club Championship delivered five sets of world-class volleyball at the DVA Central Court Arena.
-
-Led by team captain Hoang Quoc Duy and playmaker setter Duc Anh Pham, DVA triumphed over formidable opponents with set scores of 25-23, 22-25, 25-20, 21-25, 15-12.
-
-This victory underscores our commitment to FIVB-grade training facilities, Olympic Mikasa equipment, and disciplined sportsmanship across all rosters.`,
-    thumbnail: '',
+    excerpt: 'DVA Volleyball Club members gathering on the indoor court for a quick tactical discussion and rotation check during the Charity Volleyball Tournament at Concordia International School Hanoi',
+    content: `Members of DVA Volleyball Club in black team jerseys huddle on the indoor hardwood court for a tactical discussion during the charity volleyball championship hosted at Concordia International School Hanoi.`,
+    imageUrl: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792694979/dva_news/tjtgcumqzmwzob82elmd.jpg',
+    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792694979/dva_news/tjtgcumqzmwzob82elmd.jpg',
+    thumbnail: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792694979/dva_news/tjtgcumqzmwzob82elmd.jpg',
     category: 'TOURNAMENT',
     authorName: 'DVA Media Team',
     authorRole: 'Communications',
@@ -317,7 +325,9 @@ Key biomechanical tips:
 1. Penultimate Step: Lower body center of gravity on step two, driving heel-to-toe transition.
 2. Full Arm Extension: Contact the ball at apex vertical elevation, wrapping wrist over the top.
 3. Taraflex Landing: Dissipate ground reaction forces evenly across knee and hip flexors.`,
-    thumbnail: '',
+    imageUrl: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80',
+    thumbnail: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80',
     category: 'TECHNIQUE',
     authorName: 'Coach Hoang Quoc Duy',
     authorRole: 'Head Coach',
@@ -336,7 +346,9 @@ Admissions Requirements:
 - U14 Kid Academy (Ages 10-14): Athletic enthusiasm and quick motor reflexes.
 - U21 Junior Squad (Ages 15-20): Minimum height requirement Men 180cm, Women 165cm.
 - Benefits: FIVB coaching, Taraflex sports center access, sponsored competition kits, and national league exposure.`,
-    thumbnail: '',
+    imageUrl: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?auto=format&fit=crop&w=1200&q=80',
+    image: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?auto=format&fit=crop&w=1200&q=80',
+    thumbnail: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?auto=format&fit=crop&w=1200&q=80',
     category: 'TRYOUT',
     authorName: 'DVA Academy Board',
     authorRole: 'Academy Director',

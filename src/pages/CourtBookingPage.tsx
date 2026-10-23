@@ -136,10 +136,16 @@ const CourtBookingContent: React.FC = () => {
   const [closedSlots, setClosedSlots] = useState<ClosedSlot[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Compute dynamic slots based on court & date
+  const selectedCourt: Court = courts.find((c) => c.id === selectedCourtId) || courts[0] || INITIAL_COURTS[0];
+
+  // Compute dynamic slots based on court's weeklySchedule & selected date (Day of week)
   const availableSlots = useMemo(() => {
-    return getScheduleSlotsForCourtAndDate(selectedCourtId, bookingDate);
-  }, [selectedCourtId, bookingDate]);
+    return getScheduleSlotsForCourtAndDate(
+      selectedCourt?.id || selectedCourtId,
+      bookingDate,
+      selectedCourt?.weeklySchedule
+    );
+  }, [selectedCourt, selectedCourtId, bookingDate]);
 
   // Selected Slot State: null by default so user picks deliberately
   const [selectedSlotObj, setSelectedSlotObj] = useState<CourtTimeSlot | null>(null);
@@ -207,11 +213,18 @@ const CourtBookingContent: React.FC = () => {
       ]);
 
       if (Array.isArray(fetchedCourts) && fetchedCourts.length > 0) {
-        const mergedCourts = fetchedCourts.map(fc => {
-          const local = INITIAL_COURTS.find(ic => ic.id === fc.id);
-          return local ? { ...fc, imageUrl: local.imageUrl || fc.imageUrl } : fc;
-        });
-        setCourts(mergedCourts);
+        const activeCourts = fetchedCourts
+          .filter((fc) => fc.isActive !== false)
+          .map((fc) => {
+            const local = INITIAL_COURTS.find((ic) => ic.id === fc.id);
+            return local ? { ...local, ...fc, imageUrl: fc.imageUrl || local.imageUrl } : fc;
+          });
+        if (activeCourts.length > 0) {
+          setCourts(activeCourts);
+          if (!activeCourts.some((c) => c.id === selectedCourtId)) {
+            setSelectedCourtId(activeCourts[0].id);
+          }
+        }
       }
       if (Array.isArray(fetchedBookings)) {
         setExistingBookings(fetchedBookings);
@@ -237,8 +250,6 @@ const CourtBookingContent: React.FC = () => {
 
     return () => clearInterval(syncInterval);
   }, [selectedCourtId, bookingDate]);
-
-  const selectedCourt: Court = courts.find((c) => c.id === selectedCourtId) || courts[0] || INITIAL_COURTS[0];
 
   // Pricing calculation
   const sessionHours = selectedSlotObj?.durationHours || 1.5;
@@ -529,8 +540,8 @@ const CourtBookingContent: React.FC = () => {
                         {court.name}
                       </h3>
                       <span className="text-[11px] text-orange-300 font-mono font-semibold flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        <span>DVA Sports Center</span>
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{court.address || 'DVA Sports Center'}</span>
                       </span>
                     </div>
                   </div>

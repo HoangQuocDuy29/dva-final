@@ -3,6 +3,7 @@
  * The server uses these as the single source of truth when validating bookings
  * so the client can never dictate slots or prices.
  */
+import type { DayOfWeekKey, WeeklySchedule } from '../types';
 
 export interface CourtTimeSlot {
   start: string;
@@ -21,59 +22,119 @@ export const ADDON_PRICES = {
 
 export const MAX_WATER_BOTTLES = 100;
 
-// Schedule calculation based on court and day of week
-export const getScheduleSlotsForCourtAndDate = (courtId: string, dateString: string): CourtTimeSlot[] => {
-  const [y, m, d] = dateString.split('-').map(Number);
+export const DAY_KEYS_BY_JS_DAY: DayOfWeekKey[] = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+];
+
+export const getDayOfWeekKey = (dateString: string): DayOfWeekKey => {
+  const [y, m, d] = (dateString || '').split('-').map(Number);
+  if (!y || !m || !d) return 'monday';
   const dateObj = new Date(y, m - 1, d);
-  const day = dateObj.getDay(); // 0 = Sunday, 1 = Mon, ..., 6 = Sat
+  return DAY_KEYS_BY_JS_DAY[dateObj.getDay()] || 'monday';
+};
 
-  // Court 1: BTL Thong Tin court ('court-btl')
-  if (courtId === 'court-btl') {
-    // Sunday (Chủ nhật): 10h-12h, 12h-14h, 14h-17h, 17h-19h
-    if (day === 0) {
-      return [
-        { courtId, start: '10:00', end: '12:00', label: '10:00 - 12:00', durationHours: 2.0, period: 'Morning' },
-        { courtId, start: '12:00', end: '14:00', label: '12:00 - 14:00', durationHours: 2.0, period: 'Afternoon' },
-        { courtId, start: '14:00', end: '17:00', label: '14:00 - 17:00', durationHours: 3.0, period: 'Afternoon' },
-        { courtId, start: '17:00', end: '19:00', label: '17:00 - 19:00', durationHours: 2.0, period: 'Evening' },
-      ];
-    }
-    // Saturday (Thứ bảy): 12h-21h30 divided into 1.5h - 2h slots
-    if (day === 6) {
-      return [
-        { courtId, start: '12:00', end: '14:00', label: '12:00 - 14:00', durationHours: 2.0, period: 'Afternoon' },
-        { courtId, start: '14:00', end: '16:00', label: '14:00 - 16:00', durationHours: 2.0, period: 'Afternoon' },
-        { courtId, start: '16:00', end: '18:00', label: '16:00 - 18:00', durationHours: 2.0, period: 'Evening' },
-        { courtId, start: '18:00', end: '19:30', label: '18:00 - 19:30', durationHours: 1.5, period: 'Evening' },
-        { courtId, start: '19:30', end: '21:30', label: '19:30 - 21:30', durationHours: 2.0, period: 'Evening' },
-      ];
-    }
-    // Monday to Friday (Thứ 2 đến Thứ 6): 17h30-19h và 19h-21h30
-    return [
-      { courtId, start: '17:30', end: '19:00', label: '17:30 - 19:00', durationHours: 1.5, period: 'Evening' },
-      { courtId, start: '19:00', end: '21:30', label: '19:00 - 21:30', durationHours: 2.5, period: 'Evening' },
-    ];
+export const getDefaultWeeklyScheduleForCourt = (courtIdOrCode?: string): WeeklySchedule => {
+  const id = (courtIdOrCode || '').toLowerCase();
+  if (id === 'court-btl' || id === 'btl_tt') {
+    const weekday = ['17:30 - 19:00', '19:00 - 21:30'];
+    return {
+      monday: [...weekday],
+      tuesday: [...weekday],
+      wednesday: [...weekday],
+      thursday: [...weekday],
+      friday: [...weekday],
+      saturday: ['12:00 - 14:00', '14:00 - 16:00', '16:00 - 18:00', '18:00 - 19:30', '19:30 - 21:30'],
+      sunday: ['10:00 - 12:00', '12:00 - 14:00', '14:00 - 17:00', '17:00 - 19:00'],
+    };
   }
 
-  // Court 2: The Cong court ('court-thecong') & Court 3: My Dinh court ('court-mydinh')
-  // Saturday & Sunday: Open All Day
-  if (day === 0 || day === 6) {
-    return [
-      { courtId, start: '08:00', end: '10:00', label: '08:00 - 10:00', durationHours: 2.0, period: 'Morning' },
-      { courtId, start: '10:00', end: '12:00', label: '10:00 - 12:00', durationHours: 2.0, period: 'Morning' },
-      { courtId, start: '14:00', end: '16:00', label: '14:00 - 16:00', durationHours: 2.0, period: 'Afternoon' },
-      { courtId, start: '16:00', end: '18:00', label: '16:00 - 18:00', durationHours: 2.0, period: 'Afternoon' },
-      { courtId, start: '18:00', end: '20:00', label: '18:00 - 20:00', durationHours: 2.0, period: 'Evening' },
-      { courtId, start: '20:00', end: '22:00', label: '20:00 - 22:00', durationHours: 2.0, period: 'Evening' },
-    ];
+  if (id === 'court-thecong' || id === 'the_cong' || id === 'court-mydinh' || id === 'my_dinh') {
+    const weekday = ['19:00 - 20:30', '20:30 - 22:00', '19:00 - 22:00 (Full 3h Block)'];
+    const weekend = ['08:00 - 10:00', '10:00 - 12:00', '14:00 - 16:00', '16:00 - 18:00', '18:00 - 20:00', '20:00 - 22:00'];
+    return {
+      monday: [...weekday],
+      tuesday: [...weekday],
+      wednesday: [...weekday],
+      thursday: [...weekday],
+      friday: [...weekday],
+      saturday: [...weekend],
+      sunday: [...weekend],
+    };
   }
 
-  // Monday to Friday: 19h - 22h
-  return [
-    { courtId, start: '19:00', end: '20:30', label: '19:00 - 20:30', durationHours: 1.5, period: 'Evening' },
-    { courtId, start: '20:30', end: '22:00', label: '20:30 - 22:00', durationHours: 1.5, period: 'Evening' },
-    { courtId, start: '19:00', end: '22:00', label: '19:00 - 22:00 (Full 3h Block)', durationHours: 3.0, period: 'Evening' },
-  ];
+  // Default for newly created courts
+  const defaultWeekday = ['17:30 - 19:30', '19:30 - 21:30'];
+  const defaultWeekend = ['08:00 - 10:00', '10:00 - 12:00', '14:00 - 16:00', '16:00 - 18:00', '18:00 - 20:00', '20:00 - 22:00'];
+  return {
+    monday: [...defaultWeekday],
+    tuesday: [...defaultWeekday],
+    wednesday: [...defaultWeekday],
+    thursday: [...defaultWeekday],
+    friday: [...defaultWeekday],
+    saturday: [...defaultWeekend],
+    sunday: [...defaultWeekend],
+  };
+};
+
+export const normalizeWeeklySchedule = (raw: unknown, fallbackCourtId?: string): WeeklySchedule => {
+  const defaults = getDefaultWeeklyScheduleForCourt(fallbackCourtId);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return defaults;
+  }
+  const obj = raw as Record<string, unknown>;
+  const result: WeeklySchedule = { ...defaults };
+  for (const dayKey of DAY_KEYS_BY_JS_DAY) {
+    if (Array.isArray(obj[dayKey])) {
+      result[dayKey] = (obj[dayKey] as unknown[])
+        .map((s) => String(s || '').trim())
+        .filter((s) => Boolean(parseSlotLabel(s)));
+    }
+  }
+  return result;
+};
+
+const getPeriodFromTime = (startHm: string): string => {
+  const [h] = startHm.split(':').map(Number);
+  if (h < 12) return 'Morning';
+  if (h < 17) return 'Afternoon';
+  return 'Evening';
+};
+
+export const slotLabelToCourtTimeSlot = (courtId: string, label: string): CourtTimeSlot | null => {
+  const parsed = parseSlotLabel(label);
+  if (!parsed) return null;
+  const startMin = toMinutes(parsed.start);
+  const endMin = toMinutes(parsed.end);
+  if (endMin <= startMin) return null;
+  const durationHours = Number(((endMin - startMin) / 60).toFixed(2));
+  return {
+    courtId,
+    start: parsed.start,
+    end: parsed.end,
+    label: label.trim(),
+    durationHours,
+    period: getPeriodFromTime(parsed.start),
+  };
+};
+
+// Schedule calculation based on court, date (day of week), and optional custom weeklySchedule
+export const getScheduleSlotsForCourtAndDate = (
+  courtId: string,
+  dateString: string,
+  weeklySchedule?: WeeklySchedule | null
+): CourtTimeSlot[] => {
+  const dayKey = getDayOfWeekKey(dateString);
+  const schedule = normalizeWeeklySchedule(weeklySchedule, courtId);
+  const daySlotLabels = schedule[dayKey] || [];
+  return daySlotLabels
+    .map((label) => slotLabelToCourtTimeSlot(courtId, label))
+    .filter((slot): slot is CourtTimeSlot => slot !== null);
 };
 
 export const toMinutes = (hm: string): number => {

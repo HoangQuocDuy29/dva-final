@@ -22,6 +22,7 @@ import {
   INITIAL_TRAINING_COURSES, 
   INITIAL_MEMBER_APPLICATIONS 
 } from '../data/mockData';
+import { getDefaultWeeklyScheduleForCourt } from '../shared/schedule';
 
 const BASE_URL = '/api';
 const TOKEN_KEY = 'dva_token';
@@ -239,7 +240,87 @@ export const playerService = {
 
 export const courtService = {
   async getCourts(): Promise<Court[]> {
-    return request<Court[]>('/courts', {}, INITIAL_COURTS);
+    const saved = localStorage.getItem('dva_courts');
+    const fallback = saved ? JSON.parse(saved) : INITIAL_COURTS;
+    const res = await request<Court[]>('/courts', {}, fallback);
+    if (Array.isArray(res) && res.length > 0) {
+      localStorage.setItem('dva_courts', JSON.stringify(res));
+    }
+    return res;
+  },
+
+  async createCourt(courtData: Partial<Court>): Promise<Court> {
+    const id = `court-${Date.now()}`;
+    const fallbackCourt: Court = {
+      id,
+      code: courtData.code || `COURT_${Date.now().toString().slice(-3)}`,
+      shortName: courtData.shortName || courtData.name || 'DVA COURT',
+      name: courtData.name || 'Sân Mới DVA',
+      address: courtData.address || 'DVA Sports Center, Hà Nội',
+      description:
+        courtData.description ||
+        'Sân bóng chuyền tiêu chuẩn FIVB trang bị mặt sàn Taraflex Pro chống chấn thương.',
+      floorType: courtData.floorType || 'Gerflor Taraflex Sport Pro',
+      hourlyRate: Number(courtData.hourlyRate) || 500000,
+      minHours: Number(courtData.minHours) || 1.5,
+      includes: courtData.includes || ['1 Free Official Mikasa V200W Match Ball', 'Airflow cooling & locker rooms'],
+      imageUrl: courtData.imageUrl || '/courts/btl.png',
+      isAvailable: courtData.isAvailable !== false,
+      isActive: true,
+      weeklySchedule: courtData.weeklySchedule || getDefaultWeeklyScheduleForCourt(id),
+    };
+
+    const res = await request<Court>(
+      '/courts',
+      {
+        method: 'POST',
+        body: JSON.stringify(courtData),
+      },
+      fallbackCourt
+    );
+
+    const saved = localStorage.getItem('dva_courts');
+    const list: Court[] = saved ? JSON.parse(saved) : INITIAL_COURTS;
+    localStorage.setItem('dva_courts', JSON.stringify([...list, res]));
+    return res;
+  },
+
+  async updateCourt(id: string, courtData: Partial<Court>): Promise<Court> {
+    const res = await request<Court>(
+      `/courts/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(courtData),
+      },
+      { id, ...courtData } as Court
+    );
+
+    const saved = localStorage.getItem('dva_courts');
+    if (saved) {
+      const list: Court[] = JSON.parse(saved);
+      localStorage.setItem(
+        'dva_courts',
+        JSON.stringify(list.map((c) => (c.id === id ? { ...c, ...res } : c)))
+      );
+    }
+    return res;
+  },
+
+  async deleteCourt(id: string): Promise<{ success: boolean; softDeleted?: boolean; message?: string }> {
+    const res = await request<{ success: boolean; softDeleted?: boolean; message?: string }>(
+      `/courts/${id}`,
+      {
+        method: 'DELETE',
+      },
+      { success: true, softDeleted: true }
+    );
+
+    const saved = localStorage.getItem('dva_courts');
+    if (saved) {
+      const list: Court[] = JSON.parse(saved);
+      localStorage.setItem('dva_courts', JSON.stringify(list.filter((c) => c.id !== id)));
+    }
+    return res;
   },
 
   async getClosedSlots(courtId?: string, date?: string): Promise<ClosedSlot[]> {
@@ -488,51 +569,115 @@ export const memberService = {
   }
 };
 
+function normalizeNewsPost(post: NewsPost): NewsPost {
+  const initMatch = INITIAL_NEWS.find((n) => n.id === post.id || n.slug === post.slug);
+  const resolvedImageUrl = (
+    post.imageUrl ||
+    post.image ||
+    post.thumbnail ||
+    initMatch?.imageUrl ||
+    initMatch?.thumbnail ||
+    ''
+  ).trim();
+  return {
+    ...post,
+    imageUrl: resolvedImageUrl,
+    image: resolvedImageUrl,
+    thumbnail: resolvedImageUrl,
+  };
+}
+
 export const newsService = {
   async getNews(params?: { category?: string; search?: string }): Promise<NewsPost[]> {
     const saved = localStorage.getItem('dva_news');
-    const fallback = saved ? JSON.parse(saved) : INITIAL_NEWS;
+    const fullFallback: NewsPost[] = (saved ? JSON.parse(saved) : INITIAL_NEWS).map(normalizeNewsPost);
+    const filteredFallback = fullFallback.filter((item) => {
+      if (params?.category && item.category !== params.category) return false;
+      if (params?.search) {
+        const q = params.search.toLowerCase();
+        if (!item.title.toLowerCase().includes(q) && !item.excerpt.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
     const query = new URLSearchParams(params as any).toString();
-    const res = await request<NewsPost[]>(`/news${query ? `?${query}` : ''}`, {}, fallback);
-    if (res && res.length > 0) localStorage.setItem('dva_news', JSON.stringify(res));
-    return res;
+    const res = await request<NewsPost[]>(`/news${query ? `?${query}` : ''}`, {}, filteredFallback);
+    const normalizedRes = Array.isArray(res) ? res.map(normalizeNewsPost) : [];
+    if (normalizedRes.length > 0 && !params?.category && !params?.search) {
+      localStorage.setItem('dva_news', JSON.stringify(normalizedRes));
+    }
+    return normalizedRes;
   },
 
   async getNewsById(id: string): Promise<NewsPost> {
-    return request<NewsPost>(`/news/${id}`, {}, INITIAL_NEWS[0]);
+    const saved = localStorage.getItem('dva_news');
+    const list: NewsPost[] = (saved ? JSON.parse(saved) : INITIAL_NEWS).map(normalizeNewsPost);
+    const fallbackPost = list.find((n) => n.id === id || n.slug === id) || normalizeNewsPost(INITIAL_NEWS[0]);
+    const res = await request<NewsPost>(`/news/${id}`, {}, fallbackPost);
+    return normalizeNewsPost(res);
   },
 
   async createNews(postData: Partial<NewsPost>): Promise<NewsPost> {
-    const created: NewsPost = {
+    const resolvedImageUrl = (postData.imageUrl || postData.image || postData.thumbnail || '').trim();
+    const payload = {
       ...postData,
+      imageUrl: resolvedImageUrl,
+      image: resolvedImageUrl,
+      thumbnail: resolvedImageUrl,
+    };
+    const created: NewsPost = normalizeNewsPost({
+      ...payload,
       id: `news-${Date.now()}`,
       slug: postData.slug || `news-${Date.now()}`,
       publishedAt: new Date().toISOString().split('T')[0],
       readTimeMinutes: 4,
-    } as NewsPost;
+    } as NewsPost);
 
-    const res = await request<NewsPost>('/news', {
-      method: 'POST',
-      body: JSON.stringify(postData),
-    }, created);
+    const res = normalizeNewsPost(
+      await request<NewsPost>(
+        '/news',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        },
+        created
+      )
+    );
 
     const saved = localStorage.getItem('dva_news');
-    const list: NewsPost[] = saved ? JSON.parse(saved) : INITIAL_NEWS;
-    localStorage.setItem('dva_news', JSON.stringify([res, ...list]));
+    const list: NewsPost[] = (saved ? JSON.parse(saved) : INITIAL_NEWS).map(normalizeNewsPost);
+    localStorage.setItem('dva_news', JSON.stringify([res, ...list.filter((n) => n.id !== res.id)]));
     return res;
   },
 
   async updateNews(id: string, postData: Partial<NewsPost>): Promise<NewsPost> {
-    const res = await request<NewsPost>(`/news/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(postData),
-    }, { id, ...postData } as NewsPost);
+    const resolvedImageUrl = (postData.imageUrl || postData.image || postData.thumbnail || '').trim();
+    const payload = {
+      ...postData,
+      ...(resolvedImageUrl
+        ? {
+            imageUrl: resolvedImageUrl,
+            image: resolvedImageUrl,
+            thumbnail: resolvedImageUrl,
+          }
+        : {}),
+    };
+    const res = normalizeNewsPost(
+      await request<NewsPost>(
+        `/news/${id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        },
+        { id, ...payload } as NewsPost
+      )
+    );
 
     const saved = localStorage.getItem('dva_news');
-    if (saved) {
-      const list: NewsPost[] = JSON.parse(saved);
-      localStorage.setItem('dva_news', JSON.stringify(list.map(n => n.id === id ? { ...n, ...res } : n)));
-    }
+    const list: NewsPost[] = (saved ? JSON.parse(saved) : INITIAL_NEWS).map(normalizeNewsPost);
+    localStorage.setItem(
+      'dva_news',
+      JSON.stringify(list.map((n) => (n.id === id ? normalizeNewsPost({ ...n, ...res }) : n)))
+    );
     return res;
   },
 
@@ -657,15 +802,15 @@ export const cloudinaryService = {
       method: 'POST',
       body: JSON.stringify({ folder }),
     }, {
-      cloudName: 'dva-volleyball-club',
-      uploadUrl: 'https://api.cloudinary.com/v1_1/dva-volleyball-club/image/upload',
-      uploadPreset: 'dva_unsigned_sports',
+      cloudName: 'dsezvx7xf',
+      uploadUrl: 'https://api.cloudinary.com/v1_1/dsezvx7xf/image/upload',
+      uploadPreset: 'dva_sports',
     });
   },
 
   async uploadImage(file: File, folder: string = 'dva_uploads'): Promise<string> {
-    const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = (import.meta as any).env?.VITE_CLOUDINARY_UPLOAD_PRESET;
+    const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME || 'dsezvx7xf';
+    const uploadPreset = (import.meta as any).env?.VITE_CLOUDINARY_UPLOAD_PRESET || 'dva_sports';
 
     if (cloudName && uploadPreset) {
       try {
