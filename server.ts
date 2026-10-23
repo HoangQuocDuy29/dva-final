@@ -1,954 +1,1428 @@
-/*
-  =============================================================================
-  CLUB CREDENTIALS BACKUP (FOR OWNER / DEVELOPER REFERENCE)
-  -----------------------------------------------------------------------------
-  1. SuperAdmin Account:
-     - Email: quocduyhoang42@gmail.com
-     - Password: dva@2025
-     - Role: SUPERADMIN (All modules access, system configurations)
-
-  2. Operations Admin Account:
-     - Email: admin.dva@gmail.com
-     - Password: dva@2025
-     - Role: ADMIN (Court bookings, schedule locking, roster management)
-
-  3. Registered Athlete Account:
-     - Email: player.hung@gmail.com
-     - Password: dva@123
-     - Role: PLAYER (Member portal, personal bookings, team bulletin)
-  =============================================================================
-*/
-
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
-import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { 
-  INITIAL_USERS, 
-  INITIAL_COURTS, 
-  INITIAL_PLAYERS, 
-  INITIAL_NEWS, 
-  INITIAL_TRAINING_COURSES, 
-  INITIAL_COACHES,
-  INITIAL_BOOKINGS, 
-  INITIAL_MEMBER_APPLICATIONS 
-} from './src/data/mockData';
-import { Booking, ClosedSlot, CoachProfile, MemberApplication, NewsPost, Player, TrainingCourse, TrainingRegistration, User } from './src/types';
-
-dotenv.config();
+import {
+  DUMMY_HASH,
+  apiAccessPolicy,
+  assertSecurityConfig,
+  attachAuth,
+  hashPassword,
+  isStaff,
+  publicUser,
+  rateLimit,
+  securityHeaders,
+  setUserLookup,
+  signToken,
+  verifyPassword,
+} from './lib/security';
+import { EM, HttpError, E, S, N, D, sanitize } from './lib/validation';
+import {
+  APPLICATION_STATUSES,
+  BOOKING_ADMIN_EXTRA_SCHEMA,
+  BOOKING_CREATE_SCHEMA,
+  BOOKING_UPDATE_SCHEMA,
+  COACH_SCHEMA,
+  COURSE_SCHEMA,
+  COURT_SCHEMA,
+  LEVELS,
+  MEMBER_REGISTER_SCHEMA,
+  NEWS_SCHEMA,
+  PAYMENT_STATUSES,
+  PLAYER_SCHEMA,
+  POSITIONS,
+  REGISTRATION_STATUSES,
+  TRAINING_REGISTER_SCHEMA,
+} from './lib/schemas';
+import {
+  ADDON_PRICES,
+  getScheduleSlotsForCourtAndDate,
+  parseSlotLabel,
+  rangesOverlap,
+  toMinutes,
+} from './src/shared/schedule';
+import {
+  ensurePostgreSQLSeeded,
+  fromRotationEnum,
+  prisma,
+  toApplicationDto,
+  toBookingDto,
+  toClosedSlotDto,
+  toCoachDto,
+  toCourseDto,
+  toCourtDto,
+  toNewsDto,
+  toPlayerDto,
+  toRegistrationDto,
+  toRotationEnum,
+  toStoredUser,
+} from './lib/prisma';
+import { countryCodeToFlagEmoji } from './src/types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+dotenv.config({ path: path.join(__dirname, '.env') });
+assertSecurityConfig();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Required when running behind a reverse proxy (Render, Railway, Vercel...) so req.ip is the real client.
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
+app.disable('x-powered-by');
+app.use(securityHeaders);
 
-// Persistent File Storage Directory (Never reset upon npm run dev restart)
-const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+app.use(express.json({ limit: '3mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
-function loadPersisted<T>(filename: string, fallback: T): T {
-  const filePath = path.join(DATA_DIR, filename);
-  try {
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, 'utf-8');
-      return JSON.parse(data);
-    }
-    fs.writeFileSync(filePath, JSON.stringify(fallback, null, 2), 'utf-8');
-    return fallback;
-  } catch (err) {
-    console.warn(`[Storage] Failed to read ${filename}, using default:`, err);
-    return fallback;
-  }
-}
+// Bank details used for VietQR (override via env in production)
+const BANK = {
+  id: process.env.VIETQR_BANK_ID || 'MB',
+  accountNo: process.env.VIETQR_ACCOUNT_NO || '0002090671521',
+  accountName: process.env.VIETQR_ACCOUNT_NAME || 'HOANG QUOC DUY',
+};
+const BANK_BENEFICIARY_LABEL = `${BANK.id} Bank - ${BANK.accountNo} (${BANK.accountName})`;
+const HOLD_MINUTES = Number(process.env.BOOKING_HOLD_MINUTES) || 15;
 
-function savePersisted<T>(filename: string, data: T) {
-  const filePath = path.join(DATA_DIR, filename);
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.error(`[Storage] Failed to write ${filename}:`, err);
-  }
-}
-
-// Persistent Database - loaded from disk if exists, seeds from mockData on first run only
-let users: User[] = loadPersisted<User[]>('users.json', INITIAL_USERS);
-let courts = loadPersisted('courts.json', INITIAL_COURTS);
-let players: Player[] = loadPersisted<Player[]>('players.json', INITIAL_PLAYERS);
-let newsPosts: NewsPost[] = loadPersisted<NewsPost[]>('news.json', INITIAL_NEWS);
-let trainingCourses: TrainingCourse[] = loadPersisted<TrainingCourse[]>('trainingCourses.json', INITIAL_TRAINING_COURSES);
-let coaches: CoachProfile[] = loadPersisted<CoachProfile[]>('coaches.json', INITIAL_COACHES);
-let bookings: Booking[] = loadPersisted<Booking[]>('bookings.json', INITIAL_BOOKINGS);
-let closedSlots: ClosedSlot[] = loadPersisted<ClosedSlot[]>('closedSlots.json', []);
-let memberApplications: MemberApplication[] = loadPersisted<MemberApplication[]>('applications.json', INITIAL_MEMBER_APPLICATIONS);
-let trainingRegistrations: TrainingRegistration[] = loadPersisted<TrainingRegistration[]>('trainingRegistrations.json', [
-  {
-    id: 'tr-001',
-    courseId: 'tc-1',
-    courseTitle: 'Khóa Kỹ Thuật Nền Tảng (Foundation Skills)',
-    fullName: 'Lê Văn Khải',
-    email: 'khai.le@gmail.com',
-    phone: '0933445566',
-    experienceLevel: 'Chưa từng chơi bóng chuyền',
-    preferredTimeSlot: 'Tối T2-T4-T6 (18:00)',
-    notes: 'Muốn học để rèn luyện sức khỏe',
-    status: 'CONFIRMED',
-    createdAt: '2026-10-18T10:00:00Z',
-  }
-]);
-
-// In-Memory Google Sheets Multi-Tab Sync Storage
-interface GoogleSheetsDatabase {
-  spreadsheetId: string;
-  spreadsheetTitle: string;
-  tabs: {
-    Member_Registrations: Array<Record<string, any>>;
-    Court_Bookings: Array<Record<string, any>>;
-    Training_Registrations: Array<Record<string, any>>;
+// Async route helper: forwards rejected promises to the error middleware
+const ah = (fn: (req: express.Request, res: express.Response) => any): express.RequestHandler =>
+  (req, res, next) => {
+    Promise.resolve(fn(req, res)).catch(next);
   };
+
+// Resolve authenticated user directly from PostgreSQL on every Bearer token request
+setUserLookup(async (id) => {
+  const dbUser = await prisma.user.findUnique({ where: { id } });
+  return dbUser ? toStoredUser(dbUser) : undefined;
+});
+
+const isAllowedScriptUrl = (url: string) => /^https:\/\/script\.google(usercontent)?\.com\//i.test(url);
+
+async function getGoogleScriptUrl(): Promise<string> {
+  const cfg = await prisma.appConfig.findUnique({ where: { id: 'default' } });
+  return cfg?.googleScriptUrl || process.env.GOOGLE_SCRIPT_URL || '';
 }
 
-const googleSheetsDB: GoogleSheetsDatabase = {
-  spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || '1dVa-Volleyball-Club-Sync-Spreadsheet-2026',
-  spreadsheetTitle: 'DVA Volleyball Club - Master Data Sheet (Google Sheets v4 API)',
-  tabs: {
-    Member_Registrations: [
-      {
-        'Timestamp': '2026-10-18 16:40:00',
-        'Application_ID': 'app-001',
-        'Full_Name': 'Vũ Quốc Toàn',
-        'DOB': '2005-04-12',
-        'Position': 'OH (Chủ công)',
-        'Level': 'JUNIOR',
-        'Height_cm': 189,
-        'Weight_kg': 78,
-        'Spike_Reach_cm': 335,
-        'Block_Reach_cm': 318,
-        'Gmail': 'quoctoan.vu2005@gmail.com',
-        'Zalo': '0978112233',
-        'Instagram': '@toan.spike15',
-        'Rotation_Knowledge': '5-1',
-        'Status': 'PENDING'
-      },
-      {
-        'Timestamp': '2026-10-19 09:15:00',
-        'Application_ID': 'app-002',
-        'Full_Name': 'Đặng Mai Lan',
-        'DOB': '2007-08-22',
-        'Position': 'S (Chuyền hai)',
-        'Level': 'KID',
-        'Height_cm': 171,
-        'Weight_kg': 56,
-        'Spike_Reach_cm': 288,
-        'Block_Reach_cm': 275,
-        'Gmail': 'mailan.dang@gmail.com',
-        'Zalo': '0912998877',
-        'Instagram': 'Không có',
-        'Rotation_Knowledge': '4-2',
-        'Status': 'PENDING'
-      }
-    ],
-    Court_Bookings: [
-      {
-        'Timestamp': '2026-10-19 10:15:00',
-        'Booking_Code': 'DVA-TT-20261020-4821',
-        'Court_Name': 'Sân TT (Trung Tâm)',
-        'Customer_Name': 'Trần Văn Mạnh',
-        'Phone': '0903123456',
-        'Email': 'tranvanmanh.sports@gmail.com',
-        'Date': '2026-10-20',
-        'Time_Slot': '18:00 - 20:00',
-        'Total_Hours': 2.0,
-        'Total_VND': 1290000,
-        'Payment_Status': 'PAID',
-        'Bank_Beneficiary': 'MB Bank - 0002090671521 (HOANG QUOC DUY)'
-      },
-      {
-        'Timestamp': '2026-10-20 08:00:00',
-        'Booking_Code': 'DVA-1-20261020-7719',
-        'Court_Name': 'Sân 1 (Thi Đấu A)',
-        'Customer_Name': 'Lê Hoàng Nam',
-        'Phone': '0918765432',
-        'Email': 'hoangnam.le@gmail.com',
-        'Date': '2026-10-20',
-        'Time_Slot': '20:00 - 21:30',
-        'Total_Hours': 1.5,
-        'Total_VND': 1085000,
-        'Payment_Status': 'PENDING',
-        'Bank_Beneficiary': 'MB Bank - 0002090671521 (HOANG QUOC DUY)'
-      }
-    ],
-    Training_Registrations: [
-      {
-        'Timestamp': '2026-10-18 10:00:00',
-        'Course': 'Khóa Kỹ Thuật Nền Tảng (Foundation Skills)',
-        'Full_Name': 'Lê Văn Khải',
-        'Email': 'khai.le@gmail.com',
-        'Phone': '0933445566',
-        'Experience': 'Chưa từng chơi bóng chuyền',
-        'Status': 'CONFIRMED'
-      }
-    ]
-  }
-};
-
-interface AppConfig {
-  googleScriptUrl: string;
-}
-const DEFAULT_APP_CONFIG: AppConfig = {
-  googleScriptUrl: process.env.GOOGLE_SCRIPT_URL || '',
-};
-let appConfig: AppConfig = loadPersisted<AppConfig>('appConfig.json', DEFAULT_APP_CONFIG);
-
-async function forwardToGoogleSheetsWebhook(sheetName: string, data: Record<string, any>) {
-  const url = appConfig.googleScriptUrl || process.env.GOOGLE_SCRIPT_URL;
-  if (!url) {
-    return;
-  }
+async function forwardToGoogleSheetsWebhook(
+  sheetName: string,
+  payloadOrData: Record<string, any>
+) {
   try {
+    const url = await getGoogleScriptUrl();
+    if (!url) {
+      return;
+    }
+    // Server-side fetch of an admin-supplied URL: restrict to Google Apps Script (SSRF protection)
+    if (!isAllowedScriptUrl(url)) {
+      console.warn('[Google Sheets Remote Webhook] Blocked non-Google Apps Script URL');
+      return;
+    }
+    const resolvedSheetName =
+      typeof payloadOrData?.sheetName === 'string' && payloadOrData.sheetName.trim()
+        ? payloadOrData.sheetName.trim()
+        : sheetName;
+    const resolvedData =
+      payloadOrData &&
+      typeof payloadOrData.data === 'object' &&
+      payloadOrData.data !== null &&
+      !Array.isArray(payloadOrData.data)
+        ? payloadOrData.data
+        : payloadOrData;
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        sheetName,
-        data,
-        timestamp: new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    console.log(`[Google Sheets Remote Webhook] Forwarded to sheet: "${sheetName}", status: ${response.status}`);
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          sheetName: resolvedSheetName,
+          data: resolvedData,
+          timestamp: new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
+        }),
+        signal: controller.signal,
+      });
+      console.log(`[Google Sheets Remote Webhook] Forwarded to sheet: "${resolvedSheetName}", status: ${response.status}`);
+    } finally {
+      clearTimeout(timeout);
+    }
   } catch (err: any) {
     console.warn(`[Google Sheets Remote Webhook Notice] ${err?.message || err}`);
   }
 }
 
-// Helper function to sync to Google Sheets
-function syncRowToGoogleSheets(tab: keyof GoogleSheetsDatabase['tabs'], rowData: Record<string, any>) {
-  googleSheetsDB.tabs[tab].unshift(rowData);
-  console.log(`[Google Sheets v4 API] Appended 1 row to Sheet Tab: "${tab}" at ${new Date().toISOString()}`);
+async function logGoogleSheetsSync(
+  tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations',
+  rowData: Record<string, any>
+) {
+  try {
+    await prisma.googleSheetsSyncLog.create({
+      data: {
+        tabName,
+        action: 'APPEND_ROW',
+        rowData: rowData as any,
+        status: 'SUCCESS',
+      },
+    });
+  } catch (err) {
+    console.warn('[Google Sheets Sync Log] Could not write sync log:', err);
+  }
+}
+
+/**
+ * Fire-and-forget Google Sheets webhook dispatcher.
+ * Runs asynchronously in the background with full try/catch isolation so slow
+ * Google Apps Script responses or network errors never block or fail client API requests.
+ */
+function dispatchGoogleSheetsWebhookAsync(
+  tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations',
+  sheetName: 'DatSan' | 'TuyenThanhVien' | 'DangKyKhoaHoc',
+  rowData: Record<string, any>
+): void {
+  void (async () => {
+    try {
+      await logGoogleSheetsSync(tabName, rowData);
+      await forwardToGoogleSheetsWebhook(sheetName, rowData);
+    } catch (err: any) {
+      console.warn(`[Google Sheets Webhook Fire-and-Forget] Error syncing to ${sheetName}:`, err?.message || err);
+    }
+  })();
 }
 
 // ==========================================
-// API ROUTES
+// API ROUTES (100% PostgreSQL via Prisma)
 // ==========================================
 
-// 1. Auth & RBAC
-app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  const user = users.find(u => u.email.toLowerCase() === email?.toLowerCase());
-  
-  if (!user) {
-    // If user doesn't exist, create player account for demo convenience
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      email,
-      fullName: email.split('@')[0],
-      role: 'PLAYER',
-      createdAt: new Date().toISOString(),
-    };
-    users.push(newUser);
-    return res.json({
-      token: `dva-jwt-token-${newUser.id}`,
-      user: newUser,
-    });
+// Authentication, then default-deny authorization for every /api route (see lib/security.ts)
+app.use('/api', attachAuth, apiAccessPolicy);
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 10,
+  key: (req) => `${req.ip}|${String(req.body?.email || '').toLowerCase()}`,
+  message: 'Too many login attempts. Please try again in 15 minutes.',
+});
+const publicWriteLimiter = rateLimit({ windowMs: 10 * 60_000, max: 30, message: 'Too many submissions. Please slow down.' });
+app.use('/api/bookings', (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
+app.use('/api/training/register', publicWriteLimiter);
+app.use('/api/members/register', publicWriteLimiter);
+
+// 1. Auth, Users & RBAC
+app.post('/api/auth/login', loginLimiter, ah(async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (!email || !password || password.length > 200) {
+    return res.status(400).json({ error: 'Email and password are required.' });
   }
 
+  const dbUser = await prisma.user.findUnique({ where: { email } });
+  // Always run a hash comparison so response time does not reveal whether the email exists
+  const valid = await verifyPassword(password, dbUser?.passwordHash || DUMMY_HASH);
+  if (!dbUser || !dbUser.passwordHash || !valid) {
+    return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+
+  const user = toStoredUser(dbUser);
+  return res.json({ token: signToken(user), user: publicUser(user) });
+}));
+
+app.get('/api/auth/me', (req, res) => {
+  res.json({ user: publicUser(req.user!) });
+});
+
+app.get('/api/users', ah(async (_req, res) => {
+  const dbUsers = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+  res.json(dbUsers.map((u) => publicUser(toStoredUser(u))));
+}));
+
+app.post('/api/users', ah(async (req, res) => {
+  const data = sanitize(
+    req.body,
+    {
+      email: EM,
+      password: S(200, 8),
+      fullName: S(100, 2),
+      phoneNumber: S(30),
+      avatarUrl: S(500),
+      role: E(['SUPERADMIN', 'ADMIN', 'PLAYER'] as const),
+    },
+    { required: ['email', 'password', 'fullName'] }
+  );
+
+  // Only SUPERADMIN may create ADMIN or SUPERADMIN accounts
+  const requestedRole = data.role || 'PLAYER';
+  if ((requestedRole === 'ADMIN' || requestedRole === 'SUPERADMIN') && req.user?.role !== 'SUPERADMIN') {
+    return res.status(403).json({ error: 'Only SUPERADMIN can create staff accounts.' });
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email: data.email } });
+  if (existing) {
+    return res.status(409).json({ error: 'An account with this email already exists.' });
+  }
+
+  const passwordHash = await hashPassword(data.password);
+  const created = await prisma.user.create({
+    data: {
+      email: data.email,
+      passwordHash,
+      fullName: data.fullName,
+      phoneNumber: data.phoneNumber ?? null,
+      avatarUrl: data.avatarUrl ?? null,
+      role: requestedRole,
+    },
+  });
+
+  res.status(201).json(publicUser(toStoredUser(created)));
+}));
+
+// Password reset needs an email provider; until one is configured the endpoints neither leak nor fake OTPs.
+app.post('/api/auth/forgot-password', (_req, res) => {
   return res.json({
-    token: `dva-jwt-token-${user.id}`,
-    user,
+    success: true,
+    message: 'If this email is registered, please contact the club administrator to reset your password.',
   });
 });
 
-app.post('/api/auth/forgot-password', (req, res) => {
-  const { email } = req.body;
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  console.log(`[DVA Auth] Password Reset OTP for ${email}: ${otp}`);
-  return res.json({
-    success: true,
-    message: `A 6-digit OTP verification code has been dispatched to ${email}. (Test Demo OTP: ${otp})`,
-    demoOtp: otp,
-  });
-});
-
-app.post('/api/auth/verify-otp', (req, res) => {
-  const { email, otp, newPassword } = req.body;
-  if (!otp || otp.length !== 6) {
-    return res.status(400).json({ success: false, message: 'Invalid OTP format. Must be 6 digits.' });
-  }
-  return res.json({
-    success: true,
-    message: 'Password successfully reset. You may now sign in.',
-  });
+app.post('/api/auth/verify-otp', (_req, res) => {
+  return res.status(501).json({ success: false, error: 'Self-service password reset is not available yet.' });
 });
 
 // 2. Players API
-app.get('/api/players', (req, res) => {
+app.get('/api/players', ah(async (req, res) => {
   const { level, position, search } = req.query;
-  let result = [...players];
+  const where: Record<string, any> = {};
 
-  if (level) {
-    result = result.filter(p => p.level.toLowerCase() === String(level).toLowerCase());
+  if (typeof level === 'string' && LEVELS.includes(level.toUpperCase() as any)) {
+    where.level = level.toUpperCase();
   }
-  if (position) {
-    result = result.filter(p => p.position.toUpperCase() === String(position).toUpperCase());
+  if (typeof position === 'string' && POSITIONS.includes(position.toUpperCase() as any)) {
+    where.position = position.toUpperCase();
   }
-  if (search) {
-    const q = String(search).toLowerCase();
-    result = result.filter(p => 
-      p.fullName.toLowerCase().includes(q) || 
-      String(p.jerseyNumber).includes(q) ||
-      p.hometownCountry.toLowerCase().includes(q)
-    );
+  if (typeof search === 'string' && search.trim()) {
+    const q = search.trim();
+    const num = Number(q);
+    where.OR = [
+      { fullName: { contains: q, mode: 'insensitive' } },
+      { hometownCountry: { contains: q, mode: 'insensitive' } },
+      ...(Number.isInteger(num) ? [{ jerseyNumber: num }] : []),
+    ];
   }
 
-  res.json(result);
-});
+  const dbPlayers = await prisma.player.findMany({
+    where,
+    orderBy: [{ level: 'asc' }, { jerseyNumber: 'asc' }],
+  });
+  res.json(dbPlayers.map(toPlayerDto));
+}));
 
-app.post('/api/players', (req, res) => {
-  const newPlayer: Player = {
-    ...req.body,
-    id: `p-${Date.now()}`,
-    avatarUrl: req.body.avatarUrl || '',
-  };
-  players.unshift(newPlayer);
-  savePersisted('players.json', players);
-  res.status(201).json(newPlayer);
-});
+app.post('/api/players', ah(async (req, res) => {
+  const data = sanitize(req.body, PLAYER_SCHEMA, { required: ['fullName', 'jerseyNumber', 'level', 'position'] });
+  const resolvedCountryName = data.country ?? data.countryName ?? 'Vietnam';
+  const resolvedCountryCode = (data.countryCode || 'VN').toUpperCase();
+  const resolvedCountryFlag = data.countryFlag || countryCodeToFlagEmoji(resolvedCountryCode);
+  const resolvedJoinedYear = data.joined ?? data.joinedYear ?? new Date().getFullYear();
 
-app.put('/api/players/:id', (req, res) => {
+  const created = await prisma.player.create({
+    data: {
+      id: `p-${crypto.randomUUID()}`,
+      fullName: data.fullName,
+      jerseyNumber: data.jerseyNumber,
+      height: data.height ?? 185,
+      weight: data.weight ?? 75,
+      spikeTouch: data.spikeTouch ?? 325,
+      blockTouch: data.blockTouch ?? 310,
+      hometownCountry: data.hometownCountry || 'Việt Nam',
+      countryName: resolvedCountryName,
+      countryCode: resolvedCountryCode,
+      countryFlag: resolvedCountryFlag,
+      bornYear: data.bornYear ?? null,
+      level: data.level,
+      position: data.position,
+      avatarUrl: data.avatarUrl || '',
+      bio: data.bio || '',
+      isCaptain: Boolean(data.isCaptain ?? data.captain),
+      joinedYear: Number(resolvedJoinedYear) || new Date().getFullYear(),
+    },
+  });
+  res.status(201).json(toPlayerDto(created));
+}));
+
+const handleUpdatePlayer = ah(async (req, res) => {
   const { id } = req.params;
-  const index = players.findIndex(p => p.id === id);
-  if (index === -1) {
+  const existing = await prisma.player.findUnique({ where: { id } });
+  if (!existing) {
     return res.status(404).json({ error: 'Player not found' });
   }
-  players[index] = { ...players[index], ...req.body };
-  savePersisted('players.json', players);
-  res.json(players[index]);
+  const data = sanitize(req.body, PLAYER_SCHEMA, { partial: true });
+  const { captain, country, joined, ...rest } = data;
+  const resolvedCountryName = rest.countryName ?? country;
+  const resolvedCountryCode = rest.countryCode ? rest.countryCode.toUpperCase() : undefined;
+  const resolvedCountryFlag =
+    rest.countryFlag ?? (resolvedCountryCode ? countryCodeToFlagEmoji(resolvedCountryCode) : undefined);
+  const resolvedJoinedYear = rest.joinedYear ?? joined;
+
+  const updated = await prisma.player.update({
+    where: { id },
+    data: {
+      ...rest,
+      ...(resolvedCountryName !== undefined ? { countryName: resolvedCountryName } : {}),
+      ...(resolvedCountryCode !== undefined ? { countryCode: resolvedCountryCode } : {}),
+      ...(resolvedCountryFlag !== undefined ? { countryFlag: resolvedCountryFlag } : {}),
+      ...(resolvedJoinedYear !== undefined ? { joinedYear: Number(resolvedJoinedYear) } : {}),
+      ...(captain !== undefined && rest.isCaptain === undefined ? { isCaptain: Boolean(captain) } : {}),
+    },
+  });
+  res.json(toPlayerDto(updated));
 });
 
-app.delete('/api/players/:id', (req, res) => {
+app.put('/api/players/:id', handleUpdatePlayer);
+app.patch('/api/players/:id', handleUpdatePlayer);
+
+app.delete('/api/players/:id', ah(async (req, res) => {
   const { id } = req.params;
-  players = players.filter(p => p.id !== id);
-  savePersisted('players.json', players);
+  const existing = await prisma.player.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Player not found' });
+  }
+  await prisma.player.delete({ where: { id } });
   res.json({ success: true, message: 'Player deleted' });
-});
+}));
 
 // Quick level promote/demote (kid <-> junior <-> senior)
-app.patch('/api/players/:id/level', (req, res) => {
+app.patch('/api/players/:id/level', ah(async (req, res) => {
   const { id } = req.params;
-  const { level } = req.body;
-  const player = players.find(p => p.id === id);
-  if (!player) {
+  const { level } = sanitize(req.body, { level: E(LEVELS) }, { required: ['level'] });
+  const existing = await prisma.player.findUnique({ where: { id } });
+  if (!existing) {
     return res.status(404).json({ error: 'Player not found' });
   }
-  if (!['KID', 'JUNIOR', 'SENIOR'].includes(level)) {
-    return res.status(400).json({ error: 'Invalid level' });
-  }
-  player.level = level;
-  savePersisted('players.json', players);
-  res.json(player);
-});
+  const updated = await prisma.player.update({
+    where: { id },
+    data: { level },
+  });
+  res.json(toPlayerDto(updated));
+}));
 
 // 3. Courts API
-app.get('/api/courts', (req, res) => {
-  res.json(courts);
-});
+app.get('/api/courts', ah(async (_req, res) => {
+  const dbCourts = await prisma.court.findMany({ orderBy: { createdAt: 'asc' } });
+  res.json(dbCourts.map(toCourtDto));
+}));
 
-app.put('/api/courts/:id', (req, res) => {
+app.put('/api/courts/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const index = courts.findIndex(c => c.id === id);
-  if (index === -1) {
+  const existing = await prisma.court.findUnique({ where: { id } });
+  if (!existing) {
     return res.status(404).json({ error: 'Court not found' });
   }
-  courts[index] = { ...courts[index], ...req.body };
-  savePersisted('courts.json', courts);
-  res.json(courts[index]);
-});
+  const data = sanitize(req.body, COURT_SCHEMA, { partial: true });
+  const updated = await prisma.court.update({
+    where: { id },
+    data: {
+      ...data,
+      ...(data.hourlyRate !== undefined ? { hourlyRate: Math.round(Number(data.hourlyRate)) } : {}),
+    },
+  });
+  res.json(toCourtDto(updated));
+}));
 
 // Closed / Blocked Slots API
-app.get('/api/courts/closed-slots', (req, res) => {
-  const { courtId, date } = req.query;
-  let result = [...closedSlots];
-  if (courtId) result = result.filter(cs => cs.courtId === courtId);
-  if (date) result = result.filter(cs => cs.date === date);
-  res.json(result);
-});
+app.get('/api/courts/closed-slots', ah(async (req, res) => {
+  const courtId = typeof req.query.courtId === 'string' ? req.query.courtId : undefined;
+  const date = typeof req.query.date === 'string' ? req.query.date : undefined;
+  const dbSlots = await prisma.closedSlot.findMany({
+    where: {
+      ...(courtId ? { courtId } : {}),
+      ...(date ? { date } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json(dbSlots.map(toClosedSlotDto));
+}));
 
-app.post('/api/courts/closed-slots/toggle', (req, res) => {
-  const { courtId, date, slotLabel, reason, closedBy } = req.body;
-  if (!courtId || !date || !slotLabel) {
-    return res.status(400).json({ error: 'courtId, date, and slotLabel are required' });
-  }
-
-  const existingIndex = closedSlots.findIndex(
-    cs => cs.courtId === courtId && cs.date === date && cs.slotLabel === slotLabel
+app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
+  const { courtId, date, slotLabel, reason } = sanitize(
+    req.body,
+    { courtId: S(50, 1), date: D, slotLabel: S(60, 3), reason: S(200) },
+    { required: ['courtId', 'date', 'slotLabel'] }
   );
-
-  if (existingIndex > -1) {
-    // Reopen slot
-    const removed = closedSlots.splice(existingIndex, 1)[0];
-    savePersisted('closedSlots.json', closedSlots);
-    return res.json({ success: true, action: 'REOPENED', slot: removed });
-  } else {
-    // Close slot
-    const targetCourt = courts.find(c => c.id === courtId);
-    const newClosedSlot: ClosedSlot = {
-      id: `cs-${Date.now()}`,
-      courtId,
-      courtName: targetCourt ? targetCourt.name : courtId,
-      date,
-      slotLabel,
-      reason: reason || 'Reserved / Maintenance by Admin',
-      closedBy: closedBy || 'Admin',
-      createdAt: new Date().toISOString(),
-    };
-    closedSlots.push(newClosedSlot);
-    savePersisted('closedSlots.json', closedSlots);
-    return res.json({ success: true, action: 'CLOSED', slot: newClosedSlot });
+  const closedBy = req.user?.fullName || 'Admin';
+  const targetCourt = await prisma.court.findUnique({ where: { id: courtId } });
+  if (!targetCourt) {
+    return res.status(400).json({ error: 'Unknown court' });
   }
-});
+  if (!parseSlotLabel(slotLabel)) {
+    return res.status(400).json({ error: 'slotLabel must contain a "HH:mm - HH:mm" range' });
+  }
+
+  const existing = await prisma.closedSlot.findUnique({
+    where: {
+      courtId_date_slotLabel: { courtId, date, slotLabel },
+    },
+  });
+
+  if (existing) {
+    await prisma.closedSlot.delete({ where: { id: existing.id } });
+    return res.json({ success: true, action: 'REOPENED', slot: toClosedSlotDto(existing) });
+  } else {
+    const created = await prisma.closedSlot.create({
+      data: {
+        id: `cs-${crypto.randomUUID()}`,
+        courtId,
+        courtName: targetCourt.name,
+        date,
+        slotLabel,
+        reason: reason || 'Reserved / Maintenance by Admin',
+        closedBy,
+      },
+    });
+    return res.json({ success: true, action: 'CLOSED', slot: toClosedSlotDto(created) });
+  }
+}));
 
 // 4. Bookings API
-app.get('/api/bookings', (req, res) => {
-  const { date, courtId } = req.query;
-  let result = [...bookings];
-  if (date) {
-    result = result.filter(b => b.bookingDate === date);
-  }
-  if (courtId) {
-    result = result.filter(b => b.courtId === courtId);
-  }
-  res.json(result);
-});
+const todayVN = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+const nowMinutesVN = () => {
+  const [h, m] = new Date()
+    .toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hourCycle: 'h23' })
+    .split(':')
+    .map(Number);
+  return h * 60 + m;
+};
 
-app.post('/api/bookings', (req, res) => {
-  const { 
-    courtId, 
-    courtName,
-    customerName, 
-    customerEmail, 
-    customerPhone, 
-    bookingDate, 
-    startTime, 
-    endTime, 
-    totalHours, 
-    courtPrice, 
-    addons, 
-    addonsPrice, 
-    totalPrice,
-    notes 
-  } = req.body;
+/** Cancels unpaid online bookings whose 15-minute hold ran out, freeing the slot in PostgreSQL. */
+async function releaseExpiredHolds(): Promise<void> {
+  try {
+    await prisma.booking.updateMany({
+      where: {
+        paymentStatus: 'PENDING',
+        holdExpiresAt: { lte: new Date() },
+      },
+      data: {
+        paymentStatus: 'CANCELLED',
+        holdExpiresAt: null,
+      },
+    });
+  } catch (err) {
+    console.warn('[Bookings] Failed to release expired holds:', err);
+  }
+}
+setInterval(() => {
+  void releaseExpiredHolds();
+}, 60_000).unref();
+
+async function hasBookingConflict(
+  courtId: string,
+  date: string,
+  start: string,
+  end: string,
+  ignoreId?: string
+): Promise<boolean> {
+  const now = new Date();
+  const activeBookings = await prisma.booking.findMany({
+    where: {
+      courtId,
+      bookingDate: date,
+      ...(ignoreId ? { id: { not: ignoreId } } : {}),
+      OR: [
+        { paymentStatus: 'PAID' },
+        {
+          paymentStatus: 'PENDING',
+          OR: [
+            { holdExpiresAt: { gt: now } },
+            { holdExpiresAt: null },
+          ],
+        },
+      ],
+    },
+    select: { startTime: true, endTime: true, paymentStatus: true, holdExpiresAt: true },
+  });
+  return activeBookings.some((b) => {
+    const status = String(b.paymentStatus).toUpperCase();
+    const isBookedOrHolding =
+      status === 'PAID' ||
+      status === 'CONFIRMED' ||
+      ((status === 'HOLDING' || status === 'PENDING') && (!b.holdExpiresAt || b.holdExpiresAt > now));
+    return isBookedOrHolding && rangesOverlap(start, end, b.startTime, b.endTime);
+  });
+}
+
+async function hasClosedSlotConflict(courtId: string, date: string, start: string, end: string): Promise<boolean> {
+  const slots = await prisma.closedSlot.findMany({
+    where: { courtId, date },
+    select: { slotLabel: true },
+  });
+  return slots.some((cs) => {
+    const range = parseSlotLabel(cs.slotLabel);
+    return !!range && rangesOverlap(start, end, range.start, range.end);
+  });
+}
+
+app.get('/api/bookings', ah(async (req, res) => {
+  await releaseExpiredHolds();
+  const date = typeof req.query.date === 'string' ? req.query.date : undefined;
+  const courtId = typeof req.query.courtId === 'string' ? req.query.courtId : undefined;
+
+  const dbBookings = await prisma.booking.findMany({
+    where: {
+      ...(date ? { bookingDate: date } : {}),
+      ...(courtId ? { courtId } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  // Public visitors only learn which slots are taken - never customer names, phones or emails.
+  if (!isStaff(req.user)) {
+    return res.json(
+      dbBookings
+        .filter((b) => b.paymentStatus !== 'CANCELLED')
+        .map(({ id, courtId: cId, bookingDate, startTime, endTime, paymentStatus }) => ({
+          id,
+          courtId: cId,
+          bookingDate,
+          startTime,
+          endTime,
+          paymentStatus,
+        }))
+    );
+  }
+  res.json(dbBookings.map(toBookingDto));
+}));
+
+app.post('/api/bookings', ah(async (req, res) => {
+  await releaseExpiredHolds();
+  const staff = isStaff(req.user);
+
+  // Normalize timeSlot / date aliases if sent by client, and strictly ignore any client-supplied price fields
+  const rawBody = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+  const parsedTimeSlot = typeof rawBody.timeSlot === 'string' ? parseSlotLabel(rawBody.timeSlot) : null;
+  const sanitizedInput = {
+    courtId: rawBody.courtId,
+    customerName: rawBody.customerName,
+    customerEmail: rawBody.customerEmail,
+    customerPhone: rawBody.customerPhone,
+    bookingDate: rawBody.bookingDate ?? rawBody.date,
+    startTime: rawBody.startTime ?? parsedTimeSlot?.start,
+    endTime: rawBody.endTime ?? parsedTimeSlot?.end,
+    addons: rawBody.addons,
+    notes: rawBody.notes,
+  };
+
+  const data = sanitize(sanitizedInput, BOOKING_CREATE_SCHEMA, {
+    required: ['courtId', 'customerName', 'customerEmail', 'customerPhone', 'bookingDate', 'startTime', 'endTime'],
+  });
+  const { courtId, bookingDate, startTime, endTime } = data;
+
+  // 1. Lookup actual Court in PostgreSQL via Prisma to get real hourlyRate (prevent Price Tampering)
+  const targetCourt = await prisma.court.findUnique({ where: { id: courtId } });
+  if (!targetCourt) return res.status(400).json({ error: 'Unknown court.' });
+  if (targetCourt.isAvailable === false && !staff) {
+    return res.status(409).json({ error: 'This court is currently unavailable for booking.' });
+  }
+  if (toMinutes(endTime) <= toMinutes(startTime)) {
+    return res.status(400).json({ error: 'End time must be after start time.' });
+  }
+
+  if (!staff) {
+    const today = todayVN();
+    if (bookingDate < today || (bookingDate === today && toMinutes(endTime) <= nowMinutesVN())) {
+      return res.status(400).json({ error: 'This time slot is in the past. Please choose a future slot.' });
+    }
+  }
+
+  // The slot must be one the club actually offers (customers cannot invent time ranges)
+  const scheduleSlot = getScheduleSlotsForCourtAndDate(courtId, bookingDate).find(
+    (s) => s.start === startTime && s.end === endTime
+  );
+  if (!scheduleSlot && !staff) {
+    return res.status(400).json({ error: 'The selected time is not an available session for this court and date.' });
+  }
+
+  // 2. Double Booking Prevention: check PostgreSQL for PAID, CONFIRMED, or active HOLDING/PENDING
+  if (await hasBookingConflict(courtId, bookingDate, startTime, endTime)) {
+    return res.status(409).json({
+      success: false,
+      message: 'Ca sân này vừa có người giữ chỗ hoặc đã được đặt!',
+    });
+  }
+  if (await hasClosedSlotConflict(courtId, bookingDate, startTime, endTime)) {
+    return res.status(409).json({
+      success: false,
+      message: 'Ca sân này vừa có người giữ chỗ hoặc đã được đặt!',
+    });
+  }
+
+  // Server-side pricing calculation: NEVER trust courtPrice, addonsPrice, or totalPrice from req.body
+  const hourlyRate = Number(targetCourt.hourlyRate);
+  const totalHours = scheduleSlot?.durationHours ?? (toMinutes(endTime) - toMinutes(startTime)) / 60;
+  const addons = data.addons || { mineralWaterBottles: 0, mikasaBallCrate: false, certifiedReferee: false };
+  const addonsPrice =
+    Number(addons.mineralWaterBottles || 0) * ADDON_PRICES.mineralWaterBottle +
+    (addons.mikasaBallCrate ? ADDON_PRICES.mikasaBallCrate : 0) +
+    (addons.certifiedReferee ? ADDON_PRICES.certifiedReferee : 0);
+  const courtPrice = Math.round(hourlyRate * totalHours);
+  const totalPrice = courtPrice + addonsPrice;
 
   const slotLabel = `${startTime} - ${endTime}`;
-
-  // 1. Prevent duplicate bookings
-  const isDuplicate = bookings.some(
-    b =>
-      b.courtId === courtId &&
-      b.bookingDate === bookingDate &&
-      b.startTime === startTime &&
-      b.endTime === endTime &&
-      b.paymentStatus !== 'CANCELLED'
-  );
-  if (isDuplicate) {
-    return res.status(409).json({ 
-      error: 'This court session slot has already been booked by another athlete. Please select an available slot.' 
-    });
-  }
-
-  // 2. Prevent booking admin-closed slots
-  const isClosed = closedSlots.some(
-    cs => cs.courtId === courtId && cs.date === bookingDate && cs.slotLabel === slotLabel
-  );
-  if (isClosed) {
-    return res.status(409).json({ 
-      error: 'This court session slot is currently closed by administration.' 
-    });
-  }
-
-  // Generate dynamic bank transfer content & booking code
-  const targetCourt = courts.find(c => c.id === courtId);
-  const courtShort = targetCourt?.shortName || (courtId === 'court-btl' ? 'BTL TT' : (courtId === 'court-thecong' ? 'THE CONG' : 'MY DINH'));
+  const courtShort = targetCourt.shortName || (courtId === 'court-btl' ? 'BTL TT' : courtId === 'court-thecong' ? 'THE CONG' : 'MY DINH');
   const slotClean = `${startTime.replace(':', 'H')} ${endTime.replace(':', 'H')}`.toUpperCase();
-  const dateNum = (bookingDate || '20261020').replace(/-/g, '');
+  const dateNum = bookingDate.replace(/-/g, '');
   const transferContent = `DVA ${courtShort} ${slotClean} ${dateNum}`.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase();
 
-  const courtTag = courtId === 'court-btl' ? 'BTL' : (courtId === 'court-thecong' ? 'TC' : 'MD');
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const bookingCode = `DVA-${courtTag}-${dateNum}-${randomSuffix}`;
+  const courtTag = courtId === 'court-btl' ? 'BTL' : courtId === 'court-thecong' ? 'TC' : 'MD';
+  let bookingCode = '';
+  do {
+    bookingCode = `DVA-${courtTag}-${dateNum}-${crypto.randomInt(1000, 10000)}`;
+  } while (await prisma.booking.findUnique({ where: { bookingCode } }));
 
-  const newBooking: Booking = {
-    id: `b-${Date.now()}`,
-    courtId: courtId || 'court-btl',
-    courtName: courtName || targetCourt?.name || 'BTL Thong Tin court',
-    customerName,
-    customerEmail,
-    customerPhone,
-    bookingDate,
-    startTime,
-    endTime,
-    totalHours: Number(totalHours) || 1.5,
-    courtPrice: Number(courtPrice) || 825000,
-    addons: addons || { mineralWaterBottles: 0, mikasaBallCrate: false, certifiedReferee: false },
-    addonsPrice: Number(addonsPrice) || 0,
-    totalPrice: Number(totalPrice) || 825000,
-    paymentStatus: 'PENDING',
-    bookingCode,
-    transferContent,
-    createdAt: new Date().toISOString(),
-    notes,
+  // 3. Assign 15-minute hold expiration and HOLDING (PENDING) status
+  const paymentStatus = 'PENDING';
+  const holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  const createdBooking = await prisma.booking.create({
+    data: {
+      id: `b-${crypto.randomUUID()}`,
+      bookingCode,
+      courtId,
+      courtName: targetCourt.name,
+      customerName: data.customerName,
+      customerEmail: data.customerEmail,
+      customerPhone: data.customerPhone,
+      bookingDate,
+      startTime,
+      endTime,
+      totalHours,
+      courtPrice,
+      addons: addons as any,
+      addonsPrice,
+      totalPrice,
+      paymentStatus,
+      transferContent,
+      notes: data.notes ?? null,
+      holdExpiresAt,
+    },
+  });
+
+  const dto = toBookingDto(createdBooking);
+
+  // Format addons list for Vietnamese Google Sheets "Ghi chú" fallback
+  const addonsList: string[] = Array.isArray(rawBody.addons)
+    ? rawBody.addons.map(String).filter(Boolean)
+    : [
+        ...(addons.mineralWaterBottles > 0 ? [`Nước khoáng (${addons.mineralWaterBottles} chai)`] : []),
+        ...(addons.mikasaBallCrate ? ['Thùng bóng Mikasa'] : []),
+        ...(addons.certifiedReferee ? ['Trọng tài chuẩn FIVB'] : []),
+      ];
+
+  const booking = {
+    ...dto,
+    date: bookingDate,
+    timeSlot: slotLabel,
+    addons: addonsList,
   };
+  const courtName = targetCourt.name;
 
-  bookings.unshift(newBooking);
-  savePersisted('bookings.json', bookings);
-
-  // Auto Sync to Google Sheets Tab "Court_Bookings"
-  const bookingSheetPayload = {
-    'Timestamp': new Date().toISOString().replace('T', ' ').substring(0, 19),
-    'Booking_Code': bookingCode,
-    'Transfer_Content': transferContent,
-    'Court_Name': newBooking.courtName,
-    'Customer_Name': customerName,
-    'Phone': customerPhone,
-    'Email': customerEmail,
-    'Date': bookingDate,
-    'Time_Slot': slotLabel,
-    'Total_Hours': newBooking.totalHours,
-    'Total_VND': newBooking.totalPrice,
-    'Payment_Status': 'PENDING',
-    'Bank_Beneficiary': 'MB Bank - 0002090671521 (HOANG QUOC DUY)'
+  // Chuẩn hóa payload khớp chính xác với tiêu đề cột tiếng Việt trên Google Sheet tab 'DatSan'
+  const sheetPayload = {
+    sheetName: 'DatSan',
+    data: {
+      'Mã đặt sân': booking.bookingCode || booking.id,
+      'Tên sân': courtName, // Tên hiển thị thực tế của sân
+      'Ngày đặt': booking.date,
+      'Khung giờ': booking.timeSlot,
+      'Tổng số giờ': totalHours || 1.5,
+      'Họ tên khách': booking.customerName,
+      'Số điện thoại': booking.customerPhone,
+      'Email': booking.customerEmail || '',
+      'Tổng tiền (VNĐ)': booking.totalPrice,
+      'Trạng thái': booking.paymentStatus || 'PENDING',
+      'Ghi chú': booking.notes || (booking.addons && booking.addons.length ? booking.addons.join(', ') : 'Không có'),
+    },
   };
-  syncRowToGoogleSheets('Court_Bookings', bookingSheetPayload);
-  forwardToGoogleSheetsWebhook('DatSan', bookingSheetPayload);
+  dispatchGoogleSheetsWebhookAsync('Court_Bookings', 'DatSan', sheetPayload.data);
 
-  res.status(201).json(newBooking);
-});
+  res.status(201).json(dto);
+}));
 
-app.patch('/api/bookings/:id/status', (req, res) => {
+app.patch('/api/bookings/:id/status', ah(async (req, res) => {
   const { id } = req.params;
-  const { paymentStatus } = req.body;
-  const booking = bookings.find(b => b.id === id);
+  const { paymentStatus } = sanitize(req.body, { paymentStatus: E(PAYMENT_STATUSES) }, { required: ['paymentStatus'] });
+  const booking = await prisma.booking.findUnique({ where: { id } });
   if (!booking) {
     return res.status(404).json({ error: 'Booking not found' });
   }
-  booking.paymentStatus = paymentStatus;
-  savePersisted('bookings.json', bookings);
-
-  // Update in Google Sheets representation as well
-  const sheetRow = googleSheetsDB.tabs.Court_Bookings.find(r => r.Booking_Code === booking.bookingCode);
-  if (sheetRow) {
-    sheetRow.Payment_Status = paymentStatus;
+  // Re-activating a cancelled booking must not collide with someone who took the slot meanwhile
+  if (
+    booking.paymentStatus === 'CANCELLED' &&
+    paymentStatus !== 'CANCELLED' &&
+    (await hasBookingConflict(booking.courtId, booking.bookingDate, booking.startTime, booking.endTime, booking.id))
+  ) {
+    return res.status(409).json({ error: 'This slot has been booked by someone else in the meantime.' });
   }
 
-  res.json(booking);
-});
+  const updated = await prisma.booking.update({
+    where: { id },
+    data: {
+      paymentStatus,
+      holdExpiresAt: null,
+    },
+  });
 
-// Explicit confirmation after customer transfers money via VietQR
-app.post('/api/bookings/:id/confirm-payment', (req, res) => {
+  res.json(toBookingDto(updated));
+}));
+
+// Customer reports they have transferred the money via VietQR.
+// This does NOT mark the booking as PAID - staff must verify the bank transaction and approve it.
+app.post('/api/bookings/:id/confirm-payment', ah(async (req, res) => {
+  await releaseExpiredHolds();
   const { id } = req.params;
-  const booking = bookings.find(b => b.id === id);
+  let booking = await prisma.booking.findUnique({ where: { id } });
   if (!booking) {
     return res.status(404).json({ error: 'Booking not found' });
   }
-
-  booking.paymentStatus = 'PAID';
-  savePersisted('bookings.json', bookings);
-
-  // Ensure row in Google Sheets has Payment_Status: 'PAID'
-  const confirmedSheetPayload = {
-    'Timestamp': new Date().toISOString().replace('T', ' ').substring(0, 19),
-    'Booking_Code': booking.bookingCode,
-    'Transfer_Content': booking.transferContent,
-    'Court_Name': booking.courtName,
-    'Customer_Name': booking.customerName,
-    'Phone': booking.customerPhone,
-    'Email': booking.customerEmail,
-    'Date': booking.bookingDate,
-    'Time_Slot': `${booking.startTime} - ${booking.endTime}`,
-    'Total_Hours': booking.totalHours,
-    'Total_VND': booking.totalPrice,
-    'Payment_Status': 'PAID (Customer Confirmed Transfer)',
-    'Bank_Beneficiary': 'MB Bank - 0002090671521 (HOANG QUOC DUY)'
-  };
-
-  const sheetRow = googleSheetsDB.tabs.Court_Bookings.find(r => r.Booking_Code === booking.bookingCode);
-  if (sheetRow) {
-    sheetRow.Payment_Status = 'PAID (Customer Confirmed Transfer)';
-  } else {
-    syncRowToGoogleSheets('Court_Bookings', confirmedSheetPayload);
+  if (booking.paymentStatus === 'CANCELLED') {
+    return res.status(409).json({ error: 'This reservation hold has expired or was cancelled. Please create a new booking.' });
   }
-  forwardToGoogleSheetsWebhook('DatSan', confirmedSheetPayload);
 
-  console.log(`[VietQR Confirmed] Booking ${booking.bookingCode} marked PAID and synced to Google Sheets Court_Bookings!`);
-  res.json({ success: true, booking });
-});
+  if (booking.paymentStatus === 'PENDING' && !booking.customerConfirmedAt) {
+    booking = await prisma.booking.update({
+      where: { id },
+      data: {
+        customerConfirmedAt: new Date(),
+        holdExpiresAt: null, // keep the slot reserved until staff verify the transfer
+      },
+    });
+  }
 
-app.put('/api/bookings/:id', (req, res) => {
+  res.json({ success: true, booking: toBookingDto(booking) });
+}));
+
+app.put('/api/bookings/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const idx = bookings.findIndex(b => b.id === id);
-  if (idx === -1) return res.status(404).json({ error: 'Booking not found' });
-  bookings[idx] = { ...bookings[idx], ...req.body };
-  savePersisted('bookings.json', bookings);
-  res.json(bookings[idx]);
-});
+  const existing = await prisma.booking.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Booking not found' });
+  const data = sanitize(req.body, BOOKING_UPDATE_SCHEMA, { partial: true });
 
-app.delete('/api/bookings/:id', (req, res) => {
+  const nextCourtId = data.courtId ?? existing.courtId;
+  const nextDate = data.bookingDate ?? existing.bookingDate;
+  const nextStart = data.startTime ?? existing.startTime;
+  const nextEnd = data.endTime ?? existing.endTime;
+  const nextStatus = data.paymentStatus ?? existing.paymentStatus;
+
+  if (toMinutes(nextEnd) <= toMinutes(nextStart)) {
+    return res.status(400).json({ error: 'End time must be after start time.' });
+  }
+  if (
+    nextStatus !== 'CANCELLED' &&
+    (await hasBookingConflict(nextCourtId, nextDate, nextStart, nextEnd, existing.id))
+  ) {
+    return res.status(409).json({ error: 'This court session slot overlaps with another booking.' });
+  }
+
+  const updated = await prisma.booking.update({
+    where: { id },
+    data: {
+      ...data,
+      ...(data.courtPrice !== undefined ? { courtPrice: Math.round(Number(data.courtPrice)) } : {}),
+      ...(data.addonsPrice !== undefined ? { addonsPrice: Math.round(Number(data.addonsPrice)) } : {}),
+      ...(data.totalPrice !== undefined ? { totalPrice: Math.round(Number(data.totalPrice)) } : {}),
+      ...(data.paymentStatus && data.paymentStatus !== 'PENDING' ? { holdExpiresAt: null } : {}),
+    },
+  });
+  res.json(toBookingDto(updated));
+}));
+
+app.delete('/api/bookings/:id', ah(async (req, res) => {
   const { id } = req.params;
-  bookings = bookings.filter(b => b.id !== id);
-  savePersisted('bookings.json', bookings);
+  const existing = await prisma.booking.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Booking not found' });
+  await prisma.booking.delete({ where: { id } });
   res.json({ success: true, message: 'Booking deleted' });
-});
+}));
 
 // 5. Training & Academy API
-app.get('/api/training/courses', (req, res) => {
-  res.json(trainingCourses);
-});
+app.get('/api/training/courses', ah(async (_req, res) => {
+  const dbCourses = await prisma.trainingCourse.findMany({ orderBy: { createdAt: 'asc' } });
+  res.json(dbCourses.map(toCourseDto));
+}));
 
-app.post('/api/training/courses', (req, res) => {
-  const newCourse: TrainingCourse = {
-    ...req.body,
-    id: `tc-${Date.now()}`,
-    curriculum: req.body.curriculum || [],
-    benefits: req.body.benefits || [],
-    maxSlots: Number(req.body.maxSlots) || 20,
-    enrolledSlots: Number(req.body.enrolledSlots) || 0,
-  };
-  trainingCourses.unshift(newCourse);
-  savePersisted('trainingCourses.json', trainingCourses);
-  res.status(201).json(newCourse);
-});
+app.post('/api/training/courses', ah(async (req, res) => {
+  const data = sanitize(req.body, COURSE_SCHEMA, { required: ['title'] });
+  const created = await prisma.trainingCourse.create({
+    data: {
+      id: `tc-${crypto.randomUUID()}`,
+      title: data.title,
+      level: data.level || 'JUNIOR',
+      tag: data.tag ?? null,
+      targetAudience: data.targetAudience || '',
+      price: Math.round(Number(data.price) || 0),
+      priceUnit: data.priceUnit ?? null,
+      schedule: data.schedule || '',
+      duration: data.duration || '',
+      coachName: data.coachName || '',
+      coachTitle: data.coachTitle || '',
+      description: data.description || '',
+      benefits: data.benefits || [],
+      curriculum: data.curriculum || [],
+      maxSlots: data.maxSlots || 20,
+      enrolledSlots: data.enrolledSlots || 0,
+      imageUrl: data.imageUrl ?? null,
+    },
+  });
+  res.status(201).json(toCourseDto(created));
+}));
 
-app.put('/api/training/courses/:id', (req, res) => {
+app.put('/api/training/courses/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const idx = trainingCourses.findIndex(c => c.id === id);
-  if (idx === -1) return res.status(404).json({ error: 'Course not found' });
-  trainingCourses[idx] = { ...trainingCourses[idx], ...req.body };
-  savePersisted('trainingCourses.json', trainingCourses);
-  res.json(trainingCourses[idx]);
-});
+  const existing = await prisma.trainingCourse.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Course not found' });
+  const data = sanitize(req.body, COURSE_SCHEMA, { partial: true });
+  const updated = await prisma.trainingCourse.update({
+    where: { id },
+    data: {
+      ...data,
+      ...(data.price !== undefined ? { price: Math.round(Number(data.price)) } : {}),
+    },
+  });
+  res.json(toCourseDto(updated));
+}));
 
-app.delete('/api/training/courses/:id', (req, res) => {
+app.delete('/api/training/courses/:id', ah(async (req, res) => {
   const { id } = req.params;
-  trainingCourses = trainingCourses.filter(c => c.id !== id);
-  savePersisted('trainingCourses.json', trainingCourses);
+  const existing = await prisma.trainingCourse.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Course not found' });
+  await prisma.trainingCourse.delete({ where: { id } });
   res.json({ success: true, message: 'Course deleted' });
-});
+}));
 
-app.get('/api/training/registrations', (req, res) => {
-  res.json(trainingRegistrations);
-});
+app.get('/api/training/registrations', ah(async (_req, res) => {
+  const dbRegs = await prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' } });
+  res.json(dbRegs.map(toRegistrationDto));
+}));
 
-app.post('/api/training/register', (req, res) => {
-  const { courseId, courseTitle, fullName, email, phone, experienceLevel, preferredTimeSlot, notes } = req.body;
-  const newReg: TrainingRegistration = {
-    id: `tr-${Date.now()}`,
-    courseId,
-    courseTitle,
-    fullName,
-    email,
-    phone,
-    experienceLevel: experienceLevel || 'Cơ bản',
-    preferredTimeSlot: preferredTimeSlot || 'Buổi tối',
-    notes,
-    status: 'PENDING',
-    createdAt: new Date().toISOString(),
-  };
+app.post('/api/training/register', ah(async (req, res) => {
+  const data = sanitize(req.body, TRAINING_REGISTER_SCHEMA, { required: ['courseId', 'fullName', 'email', 'phone'] });
+  const { courseId, fullName, email, phone, notes } = data;
+  let course = await prisma.trainingCourse.findUnique({ where: { id: courseId } });
+  if (!course) {
+    course = await prisma.trainingCourse.findFirst({ orderBy: { createdAt: 'asc' } });
+  }
 
-  trainingRegistrations.unshift(newReg);
-  savePersisted('trainingRegistrations.json', trainingRegistrations);
+  const courseTitle =
+    typeof req.body.courseTitle === 'string' && req.body.courseTitle.trim()
+      ? req.body.courseTitle.trim().slice(0, 200)
+      : course?.title || 'Khóa học bóng chuyền DVA';
+  const coursePrice =
+    typeof req.body.price === 'number' && Number.isFinite(req.body.price)
+      ? Math.round(req.body.price)
+      : course?.price ?? 1500000;
+  const experienceLevel = data.experienceLevel || 'Cơ bản';
+  const preferredTimeSlot = data.preferredTimeSlot || 'Buổi tối';
 
-  // Auto Sync to Google Sheets Tab "Training_Registrations"
+  const created = course
+    ? await prisma.trainingRegistration.create({
+        data: {
+          id: `tr-${crypto.randomUUID()}`,
+          courseId: course.id,
+          courseTitle,
+          fullName,
+          email,
+          phone,
+          experienceLevel,
+          preferredTimeSlot,
+          notes: notes ?? null,
+          status: 'PENDING',
+        },
+      })
+    : {
+        id: `tr-${crypto.randomUUID()}`,
+        courseId,
+        courseTitle,
+        fullName,
+        email,
+        phone,
+        experienceLevel,
+        preferredTimeSlot,
+        notes: notes ?? null,
+        status: 'PENDING' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+  // Auto Sync to Google Sheets Tab "DangKyKhoaHoc" (fire-and-forget, non-blocking)
+  const coursePrefix = (courseId || 'TC').replace('tc-', '').toUpperCase().slice(0, 8);
+  const regCode =
+    typeof req.body.registrationCode === 'string' && req.body.registrationCode.trim()
+      ? req.body.registrationCode.trim()
+      : `DVA-TR-${coursePrefix}-${crypto.randomInt(1000, 10000)}`;
+  const cleanPhone = phone.replace(/\D/g, '');
+  const trainingTransferContent =
+    typeof req.body.transferContent === 'string' && req.body.transferContent.trim()
+      ? req.body.transferContent.trim()
+      : `DVA ${regCode} ${cleanPhone.slice(-6)}`;
+
   const trainingSheetPayload = {
-    'Timestamp': new Date().toISOString().replace('T', ' ').substring(0, 19),
-    'Course': courseTitle,
-    'Full_Name': fullName,
-    'Email': email,
-    'Phone': phone,
-    'Experience': experienceLevel || 'Fundamental',
-    'Preferred_Slot': preferredTimeSlot || 'Evenings',
-    'Notes': notes || 'None',
-    'Status': 'PENDING'
+    'Mã đăng ký': regCode,
+    'Gói tập / Khóa học': courseTitle,
+    'Họ và tên học viên': fullName,
+    'Số điện thoại': phone,
+    'Email': email || '',
+    'Trình độ hiện tại': experienceLevel,
+    'Khung giờ mong muốn': preferredTimeSlot,
+    'Mức học phí (VNĐ)': coursePrice,
+    'Nội dung chuyển khoản': trainingTransferContent,
+    'Trạng thái': 'CHỜ THANH TOÁN (PENDING)',
+    'Ghi chú': notes || 'Không có',
+    'Thời gian đăng ký': new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
   };
-  syncRowToGoogleSheets('Training_Registrations', trainingSheetPayload);
-  forwardToGoogleSheetsWebhook('DangKyKhoaHoc', trainingSheetPayload);
+  dispatchGoogleSheetsWebhookAsync('Training_Registrations', 'DangKyKhoaHoc', trainingSheetPayload);
 
-  res.status(201).json(newReg);
-});
+  res.status(201).json(toRegistrationDto(created));
+}));
 
-app.patch('/api/training/registrations/:id/status', (req, res) => {
+app.patch('/api/training/registrations/:id/status', ah(async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
-  const reg = trainingRegistrations.find(r => r.id === id);
-  if (!reg) {
+  const { status } = sanitize(req.body, { status: E(REGISTRATION_STATUSES) }, { required: ['status'] });
+  const existing = await prisma.trainingRegistration.findUnique({ where: { id } });
+  if (!existing) {
     return res.status(404).json({ error: 'Registration not found' });
   }
-  reg.status = status;
-  savePersisted('trainingRegistrations.json', trainingRegistrations);
-  res.json(reg);
-});
+  const updated = await prisma.trainingRegistration.update({
+    where: { id },
+    data: { status },
+  });
+  res.json(toRegistrationDto(updated));
+}));
 
-app.delete('/api/training/registrations/:id', (req, res) => {
+app.delete('/api/training/registrations/:id', ah(async (req, res) => {
   const { id } = req.params;
-  trainingRegistrations = trainingRegistrations.filter(r => r.id !== id);
-  savePersisted('trainingRegistrations.json', trainingRegistrations);
+  const existing = await prisma.trainingRegistration.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Registration not found' });
+  await prisma.trainingRegistration.delete({ where: { id } });
   res.json({ success: true, message: 'Registration deleted' });
-});
+}));
 
 // Coaches API
-app.get('/api/coaches', (req, res) => {
-  res.json(coaches);
-});
+app.get('/api/coaches', ah(async (_req, res) => {
+  const dbCoaches = await prisma.coachProfile.findMany({ orderBy: { createdAt: 'asc' } });
+  res.json(dbCoaches.map(toCoachDto));
+}));
 
-app.post('/api/coaches', (req, res) => {
-  const newCoach: CoachProfile = {
-    ...req.body,
-    id: `coach-${Date.now()}`,
-    certifications: req.body.certifications || [],
-  };
-  coaches.push(newCoach);
-  savePersisted('coaches.json', coaches);
-  res.status(201).json(newCoach);
-});
+app.post('/api/coaches', ah(async (req, res) => {
+  const data = sanitize(req.body, COACH_SCHEMA, { required: ['name'] });
+  const created = await prisma.coachProfile.create({
+    data: {
+      id: `coach-${crypto.randomUUID()}`,
+      name: data.name,
+      role: data.role || '',
+      experience: data.experience || '',
+      height: data.height || '',
+      age: data.age ?? 25,
+      bornYear: data.bornYear ?? 2000,
+      avatarUrl: data.avatarUrl || '',
+      specialty: data.specialty || '',
+      bio: data.bio || '',
+      certifications: data.certifications || [],
+    },
+  });
+  res.status(201).json(toCoachDto(created));
+}));
 
-app.put('/api/coaches/:id', (req, res) => {
+app.put('/api/coaches/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const idx = coaches.findIndex(c => c.id === id);
-  if (idx === -1) return res.status(404).json({ error: 'Coach not found' });
-  coaches[idx] = { ...coaches[idx], ...req.body };
-  savePersisted('coaches.json', coaches);
-  res.json(coaches[idx]);
-});
+  const existing = await prisma.coachProfile.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Coach not found' });
+  const data = sanitize(req.body, COACH_SCHEMA, { partial: true });
+  const updated = await prisma.coachProfile.update({
+    where: { id },
+    data,
+  });
+  res.json(toCoachDto(updated));
+}));
 
-app.delete('/api/coaches/:id', (req, res) => {
+app.delete('/api/coaches/:id', ah(async (req, res) => {
   const { id } = req.params;
-  coaches = coaches.filter(c => c.id !== id);
-  savePersisted('coaches.json', coaches);
+  const existing = await prisma.coachProfile.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Coach not found' });
+  await prisma.coachProfile.delete({ where: { id } });
   res.json({ success: true, message: 'Coach deleted' });
-});
+}));
 
 // 6. Member Application & Auto-Player Promotion
-app.get('/api/members/applications', (req, res) => {
-  res.json(memberApplications);
-});
+app.get('/api/members/applications', ah(async (_req, res) => {
+  const dbApps = await prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' } });
+  res.json(dbApps.map(toApplicationDto));
+}));
 
-app.post('/api/members/register', (req, res) => {
-  const newApp: MemberApplication = {
-    ...req.body,
-    id: `app-${Date.now()}`,
-    status: 'PENDING',
-    createdAt: new Date().toISOString(),
-  };
+app.post('/api/members/register', ah(async (req, res) => {
+  const data = sanitize(req.body, MEMBER_REGISTER_SCHEMA, {
+    required: ['fullName', 'dob', 'position', 'hometownCountry', 'level', 'height', 'weight', 'spikeReach', 'blockReach', 'gmail', 'zalo'],
+  });
 
-  memberApplications.unshift(newApp);
-  savePersisted('applications.json', memberApplications);
+  const created = await prisma.memberApplication.create({
+    data: {
+      id: `app-${crypto.randomUUID()}`,
+      fullName: data.fullName,
+      dob: data.dob,
+      position: data.position,
+      hometownCountry: data.hometownCountry,
+      desiredJerseyNumber: data.desiredJerseyNumber ?? 0,
+      level: data.level,
+      height: data.height,
+      weight: data.weight,
+      spikeReach: data.spikeReach,
+      blockReach: data.blockReach,
+      gmail: data.gmail,
+      instagram: data.instagram || 'None',
+      zalo: data.zalo,
+      rotationKnowledge: toRotationEnum(data.rotationKnowledge),
+      status: 'PENDING',
+    },
+  });
 
-  // Auto Sync to Google Sheets Tab "Member_Registrations"
+  const dto = toApplicationDto(created);
+
+  // Auto Sync to Google Sheets Tab "TuyenThanhVien" (fire-and-forget, non-blocking)
   const memberSheetPayload = {
-    'Timestamp': new Date().toISOString().replace('T', ' ').substring(0, 19),
-    'Application_ID': newApp.id,
-    'Full_Name': newApp.fullName,
-    'DOB': newApp.dob,
-    'Position': newApp.position,
-    'Level': newApp.level,
-    'Height_cm': newApp.height,
-    'Weight_kg': newApp.weight,
-    'Spike_Reach_cm': newApp.spikeReach,
-    'Block_Reach_cm': newApp.blockReach,
-    'Gmail': newApp.gmail,
-    'Zalo': newApp.zalo,
-    'Instagram': newApp.instagram || 'None',
-    'Rotation_Knowledge': newApp.rotationKnowledge,
-    'Status': 'PENDING'
+    'Họ và tên': dto.fullName,
+    'Ngày sinh': dto.dob,
+    'Vị trí': dto.position,
+    'Cấp độ':
+      dto.level === 'SENIOR'
+        ? 'Senior (Advanced, 3+ yrs)'
+        : dto.level === 'JUNIOR'
+        ? 'Junior (Intermediate)'
+        : 'Kid (Youth < 15)',
+    'Số áo mong muốn': dto.desiredJerseyNumber,
+    'Chiều cao (cm)': dto.height,
+    'Cân nặng (kg)': dto.weight,
+    'Bật đập (cm)': dto.spikeReach,
+    'Bật chắn (cm)': dto.blockReach,
+    'Số Zalo': dto.zalo,
+    'Email': dto.gmail || '',
+    'Instagram': dto.instagram || 'None',
+    'Chiến thuật 5-1': dto.rotationKnowledge,
+    'Quê quán': dto.hometownCountry,
+    'Thời gian gửi': new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
   };
-  syncRowToGoogleSheets('Member_Registrations', memberSheetPayload);
-  forwardToGoogleSheetsWebhook('TuyenThanhVien', memberSheetPayload);
+  dispatchGoogleSheetsWebhookAsync('Member_Registrations', 'TuyenThanhVien', memberSheetPayload);
 
-  res.status(201).json(newApp);
-});
+  res.status(201).json(dto);
+}));
 
-app.patch('/api/members/applications/:id/status', (req, res) => {
+app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
   const { id } = req.params;
-  const { status, reviewNotes } = req.body;
-  const appItem = memberApplications.find(a => a.id === id);
-  if (!appItem) {
+  const { status, reviewNotes } = sanitize(
+    req.body,
+    { status: E(APPLICATION_STATUSES), reviewNotes: S(500) },
+    { required: ['status'] }
+  );
+  const existing = await prisma.memberApplication.findUnique({ where: { id } });
+  if (!existing) {
     return res.status(404).json({ error: 'Application not found' });
   }
 
-  appItem.status = status;
-  if (reviewNotes) appItem.reviewNotes = reviewNotes;
+  const alreadyApproved = existing.status === 'APPROVED';
 
-  // Auto Promote to Player if APPROVED
-  if (status === 'APPROVED') {
-    const createdPlayer: Player = {
-      id: `p-${Date.now()}`,
-      fullName: appItem.fullName,
-      jerseyNumber: appItem.desiredJerseyNumber || (Math.floor(Math.random() * 50) + 1),
-      height: appItem.height || 185,
-      weight: appItem.weight || 75,
-      spikeTouch: appItem.spikeReach || 325,
-      blockTouch: appItem.blockReach || 310,
-      hometownCountry: appItem.hometownCountry || 'Việt Nam',
-      countryCode: 'VN',
-      level: appItem.level || 'JUNIOR',
-      position: appItem.position || 'OH',
-      avatarUrl: '',
-      bio: `Tân binh DVA gia nhập qua đợt tuyển chọn thành viên 2026. Am hiểu sơ đồ ${appItem.rotationKnowledge}.`,
-      joinedYear: 2026,
-    };
-    players.unshift(createdPlayer);
-    savePersisted('players.json', players);
-    savePersisted('applications.json', memberApplications);
-    console.log(`[DVA Member Approved] Auto-created player profile for ${appItem.fullName} in roster!`);
-  } else {
-    savePersisted('applications.json', memberApplications);
-  }
+  const updated = await prisma.$transaction(async (tx) => {
+    const appUpdated = await tx.memberApplication.update({
+      where: { id },
+      data: {
+        status,
+        ...(reviewNotes ? { reviewNotes } : {}),
+      },
+    });
 
-  // Update in Google Sheets representation
-  const sheetRow = googleSheetsDB.tabs.Member_Registrations.find(r => r.Application_ID === id);
-  if (sheetRow) {
-    sheetRow.Status = status;
-  }
+    // Auto Promote to Player if APPROVED (only once - re-approving must not duplicate the athlete)
+    if (status === 'APPROVED' && !alreadyApproved) {
+      await tx.player.create({
+        data: {
+          id: `p-${crypto.randomUUID()}`,
+          fullName: existing.fullName,
+          jerseyNumber: existing.desiredJerseyNumber || Math.floor(Math.random() * 50) + 1,
+          height: existing.height || 185,
+          weight: existing.weight || 75,
+          spikeTouch: existing.spikeReach || 325,
+          blockTouch: existing.blockReach || 310,
+          hometownCountry: existing.hometownCountry || 'Việt Nam',
+          countryName: 'Vietnam',
+          countryCode: 'VN',
+          countryFlag: '🇻🇳',
+          level: existing.level || 'JUNIOR',
+          position: existing.position || 'OH',
+          avatarUrl: '',
+          bio: `Tân binh DVA gia nhập qua đợt tuyển chọn thành viên 2026. Am hiểu sơ đồ ${fromRotationEnum(existing.rotationKnowledge)}.`,
+          joinedYear: new Date().getFullYear(),
+        },
+      });
+      console.log(`[DVA Member Approved] Auto-created player profile for ${existing.fullName} in PostgreSQL!`);
+    }
 
-  res.json({ application: appItem, promotedPlayer: status === 'APPROVED' });
-});
+    return appUpdated;
+  });
 
-app.delete('/api/members/applications/:id', (req, res) => {
+  res.json({ application: toApplicationDto(updated), promotedPlayer: status === 'APPROVED' });
+}));
+
+app.delete('/api/members/applications/:id', ah(async (req, res) => {
   const { id } = req.params;
-  memberApplications = memberApplications.filter(a => a.id !== id);
-  savePersisted('applications.json', memberApplications);
+  const existing = await prisma.memberApplication.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Application not found' });
+  await prisma.memberApplication.delete({ where: { id } });
   res.json({ success: true, message: 'Application deleted' });
-});
+}));
 
 // 7. News API
-app.get('/api/news', (req, res) => {
+app.get('/api/news', ah(async (req, res) => {
   const { category, search } = req.query;
-  let result = [...newsPosts];
-  if (category) {
-    result = result.filter(n => n.category.toLowerCase() === String(category).toLowerCase());
-  }
-  if (search) {
-    const q = String(search).toLowerCase();
-    result = result.filter(n => n.title.toLowerCase().includes(q) || n.excerpt.toLowerCase().includes(q));
-  }
-  res.json(result);
-});
+  const where: Record<string, any> = {};
 
-app.get('/api/news/:id', (req, res) => {
-  const post = newsPosts.find(n => n.id === req.params.id || n.slug === req.params.id);
+  if (typeof category === 'string' && category.trim()) {
+    where.category = { equals: category.trim(), mode: 'insensitive' };
+  }
+  if (typeof search === 'string' && search.trim()) {
+    const q = search.trim();
+    where.OR = [
+      { title: { contains: q, mode: 'insensitive' } },
+      { excerpt: { contains: q, mode: 'insensitive' } },
+    ];
+  }
+
+  const dbNews = await prisma.newsPost.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json(dbNews.map(toNewsDto));
+}));
+
+app.get('/api/news/:id', ah(async (req, res) => {
+  const { id } = req.params;
+  const post = await prisma.newsPost.findFirst({
+    where: { OR: [{ id }, { slug: id }] },
+  });
   if (!post) {
     return res.status(404).json({ error: 'News post not found' });
   }
-  res.json(post);
-});
+  res.json(toNewsDto(post));
+}));
 
-app.post('/api/news', (req, res) => {
-  const newPost: NewsPost = {
-    ...req.body,
-    id: `news-${Date.now()}`,
-    slug: req.body.slug || req.body.title.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-    publishedAt: new Date().toISOString().split('T')[0],
-  };
-  newsPosts.unshift(newPost);
-  savePersisted('news.json', newsPosts);
-  res.status(201).json(newPost);
-});
+app.post('/api/news', ah(async (req, res) => {
+  const data = sanitize(req.body, NEWS_SCHEMA, { required: ['title', 'content'] });
+  const slugBase = (data.slug || data.title)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
-app.put('/api/news/:id', (req, res) => {
+  const created = await prisma.newsPost.create({
+    data: {
+      id: `news-${crypto.randomUUID()}`,
+      title: data.title,
+      slug: `${slugBase || 'post'}-${Date.now().toString(36)}`,
+      excerpt: data.excerpt || '',
+      content: data.content,
+      thumbnail: data.thumbnail || '',
+      category: data.category || 'CLUB_EVENT',
+      authorId: req.user?.id ?? null,
+      authorName: data.authorName || req.user?.fullName || 'DVA',
+      authorRole: data.authorRole || 'Club Administration',
+      publishedAt: new Date().toISOString().split('T')[0],
+      readTimeMinutes: data.readTimeMinutes || 4,
+      featured: Boolean(data.featured),
+    },
+  });
+  res.status(201).json(toNewsDto(created));
+}));
+
+app.put('/api/news/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const index = newsPosts.findIndex(n => n.id === id || n.slug === id);
-  if (index === -1) {
+  const existing = await prisma.newsPost.findFirst({
+    where: { OR: [{ id }, { slug: id }] },
+  });
+  if (!existing) {
     return res.status(404).json({ error: 'News post not found' });
   }
-  newsPosts[index] = { ...newsPosts[index], ...req.body };
-  savePersisted('news.json', newsPosts);
-  res.json(newsPosts[index]);
-});
+  const data = sanitize(req.body, NEWS_SCHEMA, { partial: true });
+  const updated = await prisma.newsPost.update({
+    where: { id: existing.id },
+    data,
+  });
+  res.json(toNewsDto(updated));
+}));
 
-app.delete('/api/news/:id', (req, res) => {
-  newsPosts = newsPosts.filter(n => n.id !== req.params.id);
-  savePersisted('news.json', newsPosts);
+app.delete('/api/news/:id', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.newsPost.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'News post not found' });
+  await prisma.newsPost.delete({ where: { id } });
   res.json({ success: true, message: 'News post deleted' });
-});
+}));
 
-// 8. Google Sheets Multi-Tab Live Inspector & Sync API
-app.get('/api/sheets/config', (req, res) => {
-  res.json({ scriptUrl: appConfig.googleScriptUrl || '' });
-});
+// 8. Google Sheets Multi-Tab Live Inspector & Sync API (staff only; config is SUPERADMIN only)
+app.get('/api/sheets/config', ah(async (_req, res) => {
+  const scriptUrl = await getGoogleScriptUrl();
+  res.json({ scriptUrl });
+}));
 
-app.post('/api/sheets/config', (req, res) => {
-  const { scriptUrl } = req.body;
-  appConfig.googleScriptUrl = (scriptUrl || '').trim();
-  savePersisted('appConfig.json', appConfig);
-  console.log(`[Google Sheets] Updated Webhook URL to: ${appConfig.googleScriptUrl}`);
-  res.json({ success: true, scriptUrl: appConfig.googleScriptUrl });
-});
+app.post('/api/sheets/config', ah(async (req, res) => {
+  const scriptUrl = typeof req.body?.scriptUrl === 'string' ? req.body.scriptUrl.trim() : '';
+  if (scriptUrl && !isAllowedScriptUrl(scriptUrl)) {
+    return res.status(400).json({ error: 'URL must be a Google Apps Script web app URL (https://script.google.com/...).' });
+  }
+  const saved = await prisma.appConfig.upsert({
+    where: { id: 'default' },
+    update: { googleScriptUrl: scriptUrl },
+    create: { id: 'default', googleScriptUrl: scriptUrl },
+  });
+  console.log(`[Google Sheets] Webhook URL updated in PostgreSQL by ${req.user?.email}`);
+  res.json({ success: true, scriptUrl: saved.googleScriptUrl });
+}));
 
-app.get('/api/sheets/data', (req, res) => {
-  res.json(googleSheetsDB);
-});
+app.get('/api/sheets/data', ah(async (_req, res) => {
+  const [apps, bookingsList, regs] = await Promise.all([
+    prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.booking.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+  ]);
 
-app.post('/api/sheets/sync', async (req, res) => {
-  const { sheetName, tab, data, rowData } = req.body;
-  const targetTab = sheetName || tab || 'DatSan';
+  res.json({
+    spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || '1dVa-Volleyball-Club-Sync-Spreadsheet-2026',
+    spreadsheetTitle: 'DVA Volleyball Club - Master Data Sheet (PostgreSQL Live Sync)',
+    tabs: {
+      Member_Registrations: apps.map((a) => ({
+        Timestamp: a.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+        Application_ID: a.id,
+        Full_Name: a.fullName,
+        DOB: a.dob,
+        Position: a.position,
+        Level: a.level,
+        Height_cm: a.height,
+        Weight_kg: a.weight,
+        Spike_Reach_cm: a.spikeReach,
+        Block_Reach_cm: a.blockReach,
+        Gmail: a.gmail,
+        Zalo: a.zalo,
+        Instagram: a.instagram,
+        Rotation_Knowledge: fromRotationEnum(a.rotationKnowledge),
+        Status: a.status,
+      })),
+      Court_Bookings: bookingsList.map((b) => ({
+        Timestamp: b.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+        Booking_Code: b.bookingCode,
+        Court_Name: b.courtName,
+        Customer_Name: b.customerName,
+        Phone: b.customerPhone,
+        Email: b.customerEmail,
+        Date: b.bookingDate,
+        Time_Slot: `${b.startTime} - ${b.endTime}`,
+        Total_Hours: b.totalHours,
+        Total_VND: b.totalPrice,
+        Payment_Status:
+          b.paymentStatus === 'PENDING' && b.customerConfirmedAt
+            ? 'PENDING (Customer reported transfer)'
+            : b.paymentStatus,
+        Bank_Beneficiary: BANK_BENEFICIARY_LABEL,
+      })),
+      Training_Registrations: regs.map((r) => ({
+        Timestamp: r.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+        Course: r.courseTitle,
+        Full_Name: r.fullName,
+        Email: r.email,
+        Phone: r.phone,
+        Experience: r.experienceLevel,
+        Status: r.status,
+      })),
+    },
+  });
+}));
+
+app.post('/api/sheets/sync', ah(async (req, res) => {
+  const { sheetName, tab, data, rowData } = req.body ?? {};
+  const targetTab = String(sheetName || tab || 'DatSan');
   const targetData = data || rowData || {};
+  if (typeof targetData !== 'object' || Array.isArray(targetData)) {
+    return res.status(400).json({ error: 'data must be an object' });
+  }
 
-  if (targetTab && targetData && googleSheetsDB.tabs[targetTab as keyof GoogleSheetsDatabase['tabs']]) {
-    syncRowToGoogleSheets(targetTab as keyof GoogleSheetsDatabase['tabs'], targetData);
+  if (
+    targetTab === 'Member_Registrations' ||
+    targetTab === 'Court_Bookings' ||
+    targetTab === 'Training_Registrations'
+  ) {
+    await logGoogleSheetsSync(targetTab, targetData);
   }
 
   await forwardToGoogleSheetsWebhook(targetTab, targetData);
   return res.json({ success: true, message: `Dispatched to ${targetTab}` });
-});
+}));
 
-// 9. Free Cloud Media Storage: Cloudinary pre-signed upload simulation
+// 9. Cloudinary signed upload parameters (staff only). Real SHA-1 signature, no hardcoded credentials.
 app.post('/api/cloudinary/sign-upload', (req, res) => {
-  const { folder, timestamp } = req.body;
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dva-volleyball-club';
-  const apiKey = process.env.CLOUDINARY_API_KEY || '671521948123456';
-  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET || 'dva_unsigned_sports';
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) {
+    return res.status(501).json({ error: 'Cloudinary signing is not configured on the server.' });
+  }
+  const { folder } = sanitize(req.body ?? {}, { folder: S(100) });
+  const safeFolder = (folder || 'dva_assets').replace(/[^a-zA-Z0-9_\-/]/g, '');
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = crypto
+    .createHash('sha1')
+    .update(`folder=${safeFolder}&timestamp=${timestamp}${apiSecret}`)
+    .digest('hex');
 
-  // Returns pre-signed upload payload structure for client direct upload
   res.json({
     cloudName,
     apiKey,
-    uploadPreset,
     uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-    folder: folder || 'dva_assets',
-    signature: 'mock_sha256_cloudinary_signature_' + Date.now(),
-    timestamp: timestamp || Math.floor(Date.now() / 1000),
+    folder: safeFolder,
+    signature,
+    timestamp,
   });
 });
 
 // 10. VietQR Generation API
 app.post('/api/vietqr/generate', (req, res) => {
-  const { amount, bookingCode, description } = req.body;
-  const bankId = 'MB';
-  const accountNo = '0002090671521';
-  const accountName = 'HOANG QUOC DUY';
+  const { amount, bookingCode, description } = sanitize(
+    req.body,
+    { amount: N(1000, 1_000_000_000), bookingCode: S(60), description: S(200) },
+    { required: ['amount'] }
+  );
   const code = bookingCode || `DVA-TT-${Date.now().toString().slice(-4)}`;
-  
+
   // Real VietQR API endpoint image URL
-  const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(code)}&accountName=${encodeURIComponent(accountName)}`;
+  const qrUrl = `https://img.vietqr.io/image/${BANK.id}-${BANK.accountNo}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(code)}&accountName=${encodeURIComponent(BANK.accountName)}`;
 
   res.json({
-    bankId,
+    bankId: BANK.id,
     bankName: 'Ngân hàng Quân Đội (MB Bank)',
-    accountNo,
-    accountName,
+    accountNo: BANK.accountNo,
+    accountName: BANK.accountName,
     amount,
     bookingCode: code,
     description: description || `Thanh toán đặt sân ${code}`,
     qrUrl,
   });
+});
+
+// Unknown /api routes must answer with JSON (not the SPA index.html)
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
+// Central error handler: validation errors -> 4xx, everything else -> generic 500 (details only in server log)
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (res.headersSent) return next(err);
+  if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+  if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON body' });
+  if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'Request body too large' });
+  console.error('[Server Error]', err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // Vite Middleware Integration for Development & Production
@@ -975,13 +1449,23 @@ async function setupViteOrStatic() {
   }
 }
 
-setupViteOrStatic().then(() => {
-  app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`=================================================`);
-    console.log(`🏐 DVA Volleyball Club Platform Server Running`);
-    console.log(`⚡ Port: ${PORT}`);
-    console.log(`💳 MB Bank: 0002090671521 (HOANG QUOC DUY)`);
-    console.log(`📊 Google Sheets v4 API Sync: ONLINE`);
-    console.log(`=================================================`);
+ensurePostgreSQLSeeded()
+  .catch((err) => {
+    console.warn('[Database] Initial PostgreSQL connection/seed warning:', err?.message || err);
+  })
+  .then(() => setupViteOrStatic())
+  .then(() => {
+    app.listen(Number(PORT), '0.0.0.0', () => {
+      console.log(`=================================================`);
+      console.log(`🏐 DVA Volleyball Club Platform Server Running`);
+      console.log(`⚡ Port: ${PORT}`);
+      console.log(`🗄️  Database: PostgreSQL (Prisma ORM)`);
+      console.log(`💳 Bank: ${BANK.id} ${BANK.accountNo} (${BANK.accountName})`);
+      console.log(`📊 Google Sheets v4 API Sync: ONLINE`);
+      console.log(`=================================================`);
+    });
+  })
+  .catch((err) => {
+    console.error('[Server] Failed to start:', err);
+    process.exit(1);
   });
-});

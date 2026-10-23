@@ -48,7 +48,9 @@ import {
   User as UserType,
   VolleyballPosition,
   PlayerLevel,
-  ClosedSlot
+  ClosedSlot,
+  PLAYER_COUNTRIES,
+  countryCodeToFlagEmoji
 } from '../types';
 import { 
   bookingService, 
@@ -110,10 +112,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
     spikeTouch: 330,
     blockTouch: 315,
     hometownCountry: 'Hà Nội',
+    country: 'Vietnam',
     countryName: 'Vietnam',
     countryCode: 'VN',
     countryFlag: '🇻🇳',
     bornYear: 2005,
+    joined: 2025,
+    joinedYear: 2025,
     level: 'SENIOR',
     position: 'OH',
     bio: '',
@@ -324,14 +329,30 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   const handleSavePlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const resolvedCode = (playerForm.countryCode || 'VN').toUpperCase();
+      const matchedCountry = PLAYER_COUNTRIES.find((c) => c.code === resolvedCode);
+      const resolvedCountry = playerForm.country || playerForm.countryName || matchedCountry?.name || 'Vietnam';
+      const resolvedFlag = playerForm.countryFlag || matchedCountry?.flag || countryCodeToFlagEmoji(resolvedCode);
+      const resolvedJoinedYear = Number(playerForm.joined ?? playerForm.joinedYear ?? 2025) || 2025;
+
+      const payload: Partial<Player> = {
+        ...playerForm,
+        country: resolvedCountry,
+        countryName: resolvedCountry,
+        countryCode: resolvedCode,
+        countryFlag: resolvedFlag,
+        joined: resolvedJoinedYear,
+        joinedYear: resolvedJoinedYear,
+      };
+
       if (editingPlayer) {
-        const updated = await playerService.updatePlayer(editingPlayer.id, playerForm);
-        setPlayers((prev) => prev.map((p) => (p.id === editingPlayer.id ? { ...p, ...updated } : p)));
-        setFeedback(`Player ${playerForm.fullName} updated successfully.`);
+        const updated = await playerService.updatePlayer(editingPlayer.id, payload);
+        setPlayers((prev) => prev.map((p) => (p.id === editingPlayer.id ? { ...p, ...payload, ...updated } : p)));
+        setFeedback(`Player ${payload.fullName} updated successfully.`);
       } else {
-        const created = await playerService.addPlayer(playerForm);
-        setPlayers((prev) => [created, ...prev]);
-        setFeedback(`Athlete ${playerForm.fullName} added to DVA roster.`);
+        const created = await playerService.addPlayer(payload);
+        setPlayers((prev) => [{ ...payload, ...created } as Player, ...prev]);
+        setFeedback(`Athlete ${payload.fullName} added to DVA roster.`);
       }
       setIsPlayerModalOpen(false);
       setTimeout(() => setFeedback(null), 3000);
@@ -1058,10 +1079,19 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
 
                       <td className="py-3 px-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          b.paymentStatus === 'PAID' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-amber-950 text-amber-300 border border-amber-800'
+                          b.paymentStatus === 'PAID'
+                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                            : b.paymentStatus === 'CANCELLED'
+                            ? 'bg-slate-800 text-slate-400 border border-slate-700'
+                            : 'bg-amber-950 text-amber-300 border border-amber-800'
                         }`}>
                           {b.paymentStatus}
                         </span>
+                        {b.paymentStatus === 'PENDING' && b.customerConfirmedAt && (
+                          <span className="block mt-1 text-[10px] font-semibold text-cyan-300">
+                            ✓ Khách báo đã CK
+                          </span>
+                        )}
                       </td>
 
                       <td className="py-3 px-3 text-right">
@@ -1213,7 +1243,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
             const matchPos = p.position.toLowerCase().includes(q);
             const matchLevel = p.level.toLowerCase().includes(q);
             const matchHometown = (p.hometownCountry || '').toLowerCase().includes(q);
-            return matchName || matchJersey || matchPos || matchLevel || matchHometown;
+            const matchCountry = (p.country || p.countryName || '').toLowerCase().includes(q) || (p.countryCode || '').toLowerCase().includes(q);
+            const matchJoined = String(p.joined ?? p.joinedYear ?? '').includes(q);
+            return matchName || matchJersey || matchPos || matchLevel || matchHometown || matchCountry || matchJoined;
           });
 
           return (
@@ -1234,10 +1266,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                       spikeTouch: 330,
                       blockTouch: 315,
                       hometownCountry: 'Hà Nội',
+                      country: 'Vietnam',
                       countryName: 'Vietnam',
                       countryCode: 'VN',
                       countryFlag: '🇻🇳',
                       bornYear: 2005,
+                      joined: 2025,
+                      joinedYear: 2025,
                       level: 'SENIOR',
                       position: 'OH',
                       bio: '',
@@ -1298,7 +1333,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredPlayers.map((p) => (
+                  {filteredPlayers.map((p) => {
+                    const flagEmoji = p.countryFlag || countryCodeToFlagEmoji(p.countryCode || 'VN');
+                    const countryLabel = p.country || p.countryName || 'Vietnam';
+                    const joinedLabel = p.joined ?? p.joinedYear ?? 2025;
+                    return (
                     <div key={p.id} className="p-4 rounded-2xl border border-slate-800 bg-[#0E1524] flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-athletic font-black text-orange-400 text-lg">
@@ -1312,10 +1351,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                                 CAPTAIN
                               </span>
                             )}
-                            <span className="text-[10px] text-slate-400">{p.countryFlag || '🇻🇳'}</span>
+                            <span className="text-xs select-none" title={`${countryLabel} (${p.countryCode || 'VN'})`}>
+                              {flagEmoji}
+                            </span>
                           </div>
                           <div className="text-[11px] text-slate-400 mt-0.5">
-                            {p.position} · {p.level} · {p.height}cm · Reach {p.spikeTouch}cm
+                            {p.position} · {p.level} · {p.height}cm · Reach {p.spikeTouch}cm · Joined {joinedLabel}
                           </div>
                         </div>
                       </div>
@@ -1323,9 +1364,19 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => {
+                            const initCode = (p.countryCode || 'VN').toUpperCase();
+                            const initCountry = p.country || p.countryName || PLAYER_COUNTRIES.find((c) => c.code === initCode)?.name || 'Vietnam';
+                            const initFlag = p.countryFlag || countryCodeToFlagEmoji(initCode);
+                            const initJoined = Number(p.joined ?? p.joinedYear ?? 2025) || 2025;
                             setEditingPlayer(p);
                             setPlayerForm({ 
-                              ...p, 
+                              ...p,
+                              country: initCountry,
+                              countryName: initCountry,
+                              countryCode: initCode,
+                              countryFlag: initFlag,
+                              joined: initJoined,
+                              joinedYear: initJoined,
                               captain: Boolean(p.captain || p.isCaptain),
                               isCaptain: Boolean(p.captain || p.isCaptain)
                             });
@@ -1345,7 +1396,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                         </button>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
             </div>
@@ -1806,20 +1858,71 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                     setIsTestingSync(true);
                     setSyncTestMessage(null);
                     try {
-                      await googleScriptSyncService.syncToGoogleSheet('DatSan', {
-                        'Booking Code': 'TEST-' + Math.floor(Math.random() * 9000 + 1000),
-                        'Court': 'The Cong Court (Court 2)',
-                        'Date': new Date().toISOString().split('T')[0],
-                        'Time Slot': '19:00 - 20:30',
-                        'Total Hours': 1.5,
-                        'Customer Name': 'Admin Test Sync',
-                        'Phone': '0768299329',
-                        'Email': 'admin.test@dva.vn',
-                        'Total (VND)': 825000,
-                        'Status': 'TEST_SUCCESS',
-                        'Notes': 'Webhook verification dispatched from DVA Admin Portal',
-                      });
-                      setSyncTestMessage('Successfully dispatched 1 test row to "DatSan" tab! Please verify in your Google Spreadsheet.');
+                      // Đảm bảo lưu URL mới nhất lên server trước khi bắn test
+                      await googleScriptSyncService.setScriptUrl(googleScriptUrl);
+
+                      const rand = Math.floor(Math.random() * 9000 + 1000);
+                      const nowIso = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                      const todayDate = new Date().toISOString().split('T')[0];
+                      const nowVi = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+                      const nowEn = new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
+
+                      // Gửi đồng thời dữ liệu test chuẩn cho cả 4 sheet
+                      await Promise.all([
+                        googleScriptSyncService.testSync('DatSan', {
+                          'Mã đặt sân': `TEST-BK-${rand}`,
+                          'Tên sân': 'The Cong court',
+                          'Ngày đặt': todayDate,
+                          'Khung giờ': '19:00 - 20:30',
+                          'Tổng số giờ': 1.5,
+                          'Họ tên khách': 'Admin Test Sync',
+                          'Số điện thoại': '0768299329',
+                          'Email': 'admin.test@dva.vn',
+                          'Tổng tiền (VNĐ)': 750000,
+                          'Trạng thái': 'TEST_SUCCESS',
+                          'Ghi chú': 'Kiểm tra kết nối Webhook từ DVA Admin Portal',
+                        }),
+                        googleScriptSyncService.testSync('Training_Registrations', {
+                          Timestamp: nowIso,
+                          Manual_Trigger: 'Admin Console Test Sync',
+                          Status: 'TEST_SUCCESS',
+                        }),
+                        googleScriptSyncService.testSync('DangKyKhoaHoc', {
+                          'Mã đăng ký': `TEST-TR-${rand}`,
+                          'Gói tập / Khóa học': '1-on-1 Coaching from Basic',
+                          'Họ và tên học viên': 'Admin Test Sync',
+                          'Số điện thoại': '0768299329',
+                          'Email': 'admin.test@dva.vn',
+                          'Trình độ hiện tại': 'Beginner / Fundamental',
+                          'Khung giờ mong muốn': '19:00 - 21:30',
+                          'Mức học phí (VNĐ)': 1500000,
+                          'Nội dung chuyển khoản': `DVA TEST TR ${rand} 299329`,
+                          'Trạng thái': 'TEST_SUCCESS',
+                          'Ghi chú': 'Kiểm tra kết nối khóa học từ Admin Portal',
+                          'Thời gian đăng ký': nowVi,
+                        }),
+                        googleScriptSyncService.testSync('TuyenThanhVien', {
+                          'Họ và tên': 'Admin Test Athlete',
+                          'Ngày sinh': '2005-01-01',
+                          'Vị trí': 'OH',
+                          'Cấp độ': 'Junior (Intermediate)',
+                          'Số áo mong muốn': 15,
+                          'Chiều cao (cm)': 185,
+                          'Cân nặng (kg)': 75,
+                          'Bật đập (cm)': 330,
+                          'Bật chắn (cm)': 315,
+                          'Số Zalo': '0768299329',
+                          'Email': 'admin.test@dva.vn',
+                          'Instagram': '@dva.volleyball',
+                          'Chiến thuật 5-1': '5-1',
+                          'Quê quán': 'Hà Nội',
+                          'Thời gian gửi': nowEn,
+                        }),
+                      ]);
+
+                      setSyncTestMessage(
+                        'Đã gửi thành công dữ liệu test vào cả 4 sheet: DatSan, Training_Registrations, DangKyKhoaHoc và TuyenThanhVien!'
+                      );
                     } catch (err: any) {
                       setSyncTestMessage('Test dispatch error: ' + (err?.message || 'Could not connect'));
                     } finally {
@@ -1895,12 +1998,68 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                 <button
                   type="button"
                   onClick={() => {
-                    const code = `function doPost(e) {
+                    const code = `var STANDARD_HEADERS = {
+  DatSan: [
+    'Thời Gian Nhận',
+    'Mã đặt sân',
+    'Tên sân',
+    'Ngày đặt',
+    'Khung giờ',
+    'Tổng số giờ',
+    'Họ tên khách',
+    'Số điện thoại',
+    'Email',
+    'Tổng tiền (VNĐ)',
+    'Trạng thái',
+    'Ghi chú'
+  ],
+  Training_Registrations: [
+    'Thời Gian Nhận',
+    'Timestamp',
+    'Manual_Trigger',
+    'Status'
+  ],
+  DangKyKhoaHoc: [
+    'Thời Gian Nhận',
+    'Mã đăng ký',
+    'Gói tập / Khóa học',
+    'Họ và tên học viên',
+    'Số điện thoại',
+    'Email',
+    'Trình độ hiện tại',
+    'Khung giờ mong muốn',
+    'Mức học phí (VNĐ)',
+    'Nội dung chuyển khoản',
+    'Trạng thái',
+    'Ghi chú',
+    'Thời gian đăng ký'
+  ],
+  TuyenThanhVien: [
+    'Thời Gian Nhận',
+    'Họ và tên',
+    'Ngày sinh',
+    'Vị trí',
+    'Cấp độ',
+    'Số áo mong muốn',
+    'Chiều cao (cm)',
+    'Cân nặng (kg)',
+    'Bật đập (cm)',
+    'Bật chắn (cm)',
+    'Số Zalo',
+    'Email',
+    'Instagram',
+    'Chiến thuật 5-1',
+    'Quê quán',
+    'Thời gian gửi'
+  ]
+};
+
+function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.tryLock(15000);
-  
+
   try {
-    var payload;
+    var payload = {};
     if (e && e.postData && e.postData.contents) {
       try {
         payload = JSON.parse(e.postData.contents);
@@ -1909,71 +2068,135 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
       }
     } else if (e && e.parameter) {
       payload = e.parameter;
-    } else {
-      payload = {};
     }
 
-    var sheetName = payload.sheetName || 'DatSan';
+    var sheetName = String(payload.sheetName || 'DatSan').trim();
     var data = payload.data || payload;
     if (typeof data === 'string') {
-      try { data = JSON.parse(data); } catch (ex) {}
+      try { data = JSON.parse(data); } catch (ex) { data = {}; }
     }
 
-    var timestamp = payload.timestamp || new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
+    var timestamp = payload.timestamp || new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName(sheetName);
 
-    // Auto-create sheet tab if it doesn't exist
+    // 1. Tạo mới tab hoặc khởi tạo dòng tiêu đề chuẩn nếu sheet đang trống
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
-      var initialHeaders = ['Received_Timestamp'].concat(Object.keys(data));
-      sheet.appendRow(initialHeaders);
-      var headerRange = sheet.getRange(1, 1, 1, initialHeaders.length);
-      headerRange.setBackground('#B91C1C').setFontColor('#FFFFFF').setFontWeight('bold');
-      sheet.setFrozenRows(1);
     }
 
-    // Read current headers
-    var lastCol = Math.max(sheet.getLastColumn(), 1);
-    var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    var lastRow = sheet.getLastRow();
+    var lastCol = sheet.getLastColumn();
+    var headers = [];
 
-    // Expand headers dynamically if new properties arrive
-    var dataKeys = Object.keys(data);
-    for (var k = 0; k < dataKeys.length; k++) {
-      var key = dataKeys[k];
-      if (headers.indexOf(key) === -1) {
-        sheet.getRange(1, headers.length + 1).setValue(key)
-          .setBackground('#B91C1C').setFontColor('#FFFFFF').setFontWeight('bold');
-        headers.push(key);
+    if (lastRow === 0 || lastCol === 0) {
+      headers = STANDARD_HEADERS[sheetName] ? STANDARD_HEADERS[sheetName].slice() : ['Thời Gian Nhận'].concat(Object.keys(data));
+      sheet.appendRow(headers);
+      sheet.getRange(1, 1, 1, headers.length)
+        .setBackground('#B91C1C')
+        .setFontColor('#FFFFFF')
+        .setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    } else {
+      headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) {
+        return String(h || '').trim();
+      });
+    }
+
+    // 2. Chuẩn hóa key trong data (trim khoảng trắng) để khớp chính xác với tiêu đề cột
+    var normalizedData = {};
+    var rawKeys = Object.keys(data || {});
+    for (var i = 0; i < rawKeys.length; i++) {
+      var k = String(rawKeys[i]).trim();
+      normalizedData[k] = data[rawKeys[i]];
+    }
+
+    // 3. Đảm bảo toàn bộ các cột chuẩn của bảng (STANDARD_HEADERS) hoặc trường mới trong data đều có mặt trên dòng 1
+    var requiredCols = STANDARD_HEADERS[sheetName] || [];
+    for (var c = 0; c < requiredCols.length; c++) {
+      var stdCol = requiredCols[c];
+      if (headers.indexOf(stdCol) === -1) {
+        sheet.getRange(1, headers.length + 1)
+          .setValue(stdCol)
+          .setBackground('#B91C1C')
+          .setFontColor('#FFFFFF')
+          .setFontWeight('bold');
+        headers.push(stdCol);
       }
     }
 
-    // Populate row aligned with headers
+    for (var j = 0; j < rawKeys.length; j++) {
+      var cleanKey = String(rawKeys[j]).trim();
+      if (cleanKey && headers.indexOf(cleanKey) === -1) {
+        sheet.getRange(1, headers.length + 1)
+          .setValue(cleanKey)
+          .setBackground('#B91C1C')
+          .setFontColor('#FFFFFF')
+          .setFontWeight('bold');
+        headers.push(cleanKey);
+      }
+    }
+
+    // 4. Dựng dữ liệu dòng theo đúng thứ tự từng cột trên Sheet
     var rowValues = [];
     for (var h = 0; h < headers.length; h++) {
       var colName = headers[h];
-      if (colName === 'Received_Timestamp' || colName === 'Timestamp' || colName === 'Thời Gian Nhận') {
+      if (colName === 'Thời Gian Nhận' || colName === 'Received_Timestamp') {
         rowValues.push(timestamp);
+      } else if (colName === 'Timestamp') {
+        rowValues.push(normalizedData['Timestamp'] !== undefined ? normalizedData['Timestamp'] : timestamp);
+      } else if (colName === 'Thời gian đăng ký') {
+        rowValues.push(normalizedData['Thời gian đăng ký'] !== undefined ? normalizedData['Thời gian đăng ký'] : timestamp);
+      } else if (colName === 'Thời gian gửi') {
+        rowValues.push(normalizedData['Thời gian gửi'] !== undefined ? normalizedData['Thời gian gửi'] : timestamp);
       } else {
-        rowValues.push(data[colName] !== undefined ? data[colName] : '');
+        var val = normalizedData[colName];
+        rowValues.push(val !== undefined && val !== null ? val : '');
       }
     }
 
-    sheet.appendRow(rowValues);
+    // 5. Chống ghi đúp dòng (Idempotent Upsert theo 'Mã đặt sân' hoặc 'Mã đăng ký')
+    var idColIndex = headers.indexOf('Mã đặt sân');
+    if (idColIndex === -1) idColIndex = headers.indexOf('Mã đăng ký');
+    var recordId = idColIndex !== -1 ? String(rowValues[idColIndex] || '').trim() : '';
 
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', sheet: sheetName, row: rowValues }))
-      .setMimeType(ContentService.MimeType.JSON);
+    var updatedExistingRow = false;
+    if (recordId && sheet.getLastRow() > 1) {
+      var existingIds = sheet.getRange(2, idColIndex + 1, sheet.getLastRow() - 1, 1).getValues();
+      for (var r = 0; r < existingIds.length; r++) {
+        if (String(existingIds[r][0] || '').trim() === recordId) {
+          sheet.getRange(r + 2, 1, 1, rowValues.length).setValues([rowValues]);
+          updatedExistingRow = true;
+          break;
+        }
+      }
+    }
+
+    if (!updatedExistingRow) {
+      sheet.appendRow(rowValues);
+    }
+
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: 'success',
+        action: updatedExistingRow ? 'updated' : 'appended',
+        sheet: sheetName,
+        row: rowValues
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(
+      JSON.stringify({ status: 'error', error: err.toString() })
+    ).setMimeType(ContentService.MimeType.JSON);
   } finally {
     lock.releaseLock();
   }
 }
 
 function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({ status: 'active', message: 'DVA Google Apps Script Webhook is ready' }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(
+    JSON.stringify({ status: 'active', message: 'DVA Google Apps Script Webhook is ready' })
+  ).setMimeType(ContentService.MimeType.JSON);
 }`;
                     navigator.clipboard.writeText(code);
                     setScriptCopied(true);
@@ -2313,20 +2536,64 @@ function doGet(e) {
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Năm sinh</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Năm sinh (Born Year)</label>
                   <input
                     type="number"
-                    value={playerForm.bornYear}
+                    value={playerForm.bornYear ?? 2005}
                     onChange={(e) => setPlayerForm({ ...playerForm, bornYear: Number(e.target.value) })}
                     className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Quê quán / Tỉnh thành</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Năm gia nhập CLB (Joined) *</label>
+                  <input
+                    type="number"
+                    min={2010}
+                    max={2035}
+                    required
+                    value={playerForm.joined ?? playerForm.joinedYear ?? 2025}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setPlayerForm({ ...playerForm, joined: val, joinedYear: val });
+                    }}
+                    placeholder="e.g. 2025"
+                    className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono text-emerald-400 font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Quốc gia / Quốc tịch (Country & Flag) *</label>
+                  <select
+                    value={(playerForm.countryCode || 'VN').toUpperCase()}
+                    onChange={(e) => {
+                      const code = e.target.value.toUpperCase();
+                      const found = PLAYER_COUNTRIES.find((c) => c.code === code);
+                      const countryName = found?.name || code;
+                      const countryFlag = found?.flag || countryCodeToFlagEmoji(code);
+                      setPlayerForm({
+                        ...playerForm,
+                        country: countryName,
+                        countryName,
+                        countryCode: code,
+                        countryFlag,
+                      });
+                    }}
+                    className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+                  >
+                    {PLAYER_COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.name} ({c.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Quê quán / Tỉnh thành (Hometown)</label>
                   <input
                     type="text"
-                    value={playerForm.hometownCountry}
+                    value={playerForm.hometownCountry || ''}
                     onChange={(e) => setPlayerForm({ ...playerForm, hometownCountry: e.target.value })}
                     className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
                   />

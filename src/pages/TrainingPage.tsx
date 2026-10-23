@@ -19,12 +19,12 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { TrainingCourse, CoachProfile } from '../types';
-import { trainingService, googleScriptSyncService } from '../services/api';
+import { trainingService, coachService, googleScriptSyncService } from '../services/api';
 import { INITIAL_TRAINING_COURSES, INITIAL_COACHES } from '../data/mockData';
 
 export const TrainingPage: React.FC = () => {
   const [courses, setCourses] = useState<TrainingCourse[]>(INITIAL_TRAINING_COURSES);
-  const [coaches] = useState<CoachProfile[]>(INITIAL_COACHES);
+  const [coaches, setCoaches] = useState<CoachProfile[]>(INITIAL_COACHES);
   const [selectedCourse, setSelectedCourse] = useState<TrainingCourse | null>(null);
   
   // Checkout modal states (Multi-step VietQR payment flow)
@@ -50,7 +50,11 @@ export const TrainingPage: React.FC = () => {
 
   useEffect(() => {
     trainingService.getCourses().then((res) => {
-      if (res && res.length > 0) setCourses(res);
+      if (Array.isArray(res) && res.length > 0) setCourses(res);
+    }).catch(console.error);
+
+    coachService.getCoaches().then((res) => {
+      if (Array.isArray(res) && res.length > 0) setCoaches(res);
     }).catch(console.error);
   }, []);
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Calendar, 
@@ -12,13 +12,32 @@ import {
   Clock,
   Sparkles
 } from 'lucide-react';
+import { Court, Player, NewsPost } from '../types';
+import { courtService, playerService, newsService } from '../services/api';
 import { INITIAL_COURTS, INITIAL_PLAYERS, INITIAL_NEWS } from '../data/mockData';
 
 export const HomePage: React.FC = () => {
-  const courts = INITIAL_COURTS;
-  const seniorCaptain = INITIAL_PLAYERS.find(p => p.isCaptain) || INITIAL_PLAYERS[0];
-  const featuredPlayers = INITIAL_PLAYERS.slice(0, 3);
-  const latestNews = INITIAL_NEWS.slice(0, 3);
+  const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
+  const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
+  const [news, setNews] = useState<NewsPost[]>(INITIAL_NEWS);
+
+  useEffect(() => {
+    courtService.getCourts().then((res) => {
+      if (Array.isArray(res) && res.length > 0) setCourts(res);
+    }).catch(console.error);
+
+    playerService.getPlayers().then((res) => {
+      if (Array.isArray(res) && res.length > 0) setPlayers(res);
+    }).catch(console.error);
+
+    newsService.getNews().then((res) => {
+      if (Array.isArray(res) && res.length > 0) setNews(res);
+    }).catch(console.error);
+  }, []);
+
+  const seniorCaptain = players.find(p => p.isCaptain || (p as any).captain) || players[0] || INITIAL_PLAYERS[0];
+  const featuredPlayers = players.slice(0, 3);
+  const latestNews = news.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white">
@@ -604,7 +623,7 @@ export const HomePage: React.FC = () => {
                     </p>
 
                     <div className="space-y-2 border-t border-slate-800 pt-4 text-xs text-slate-400">
-                      {court.includes.slice(0, 3).map((item: string, idx: number) => (
+                      {(court.includes || []).slice(0, 3).map((item: string, idx: number) => (
                         <div key={idx} className="flex items-start gap-2">
                           <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                           <span>{item}</span>

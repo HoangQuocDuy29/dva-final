@@ -1,24 +1,3 @@
-/*
-  =============================================================================
-  CLUB CREDENTIALS BACKUP (FOR OWNER / DEVELOPER REFERENCE - NOT EXPOSED IN UI)
-  -----------------------------------------------------------------------------
-  1. SuperAdmin Account:
-     - Email: quocduyhoang42@gmail.com
-     - Password: dva@2025
-     - Role: SUPERADMIN (Full access to all modules, pricing, courts, configs)
-
-  2. Operations Admin Account:
-     - Email: admin.dva@gmail.com
-     - Password: dva@2025
-     - Role: ADMIN (Court bookings, schedule locking, roster management)
-
-  3. Registered Athlete Account:
-     - Email: player.hung@gmail.com
-     - Password: dva@123
-     - Role: PLAYER (Member portal, personal bookings, team bulletin)
-  =============================================================================
-*/
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Lock, Mail } from 'lucide-react';

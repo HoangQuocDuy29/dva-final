@@ -13,49 +13,117 @@ import {
   UserRole 
 } from '../types';
 import { 
-  INITIAL_USERS, 
   GUEST_USER,
+  INITIAL_USERS,
   INITIAL_COURTS, 
   INITIAL_PLAYERS, 
   INITIAL_COACHES,
   INITIAL_NEWS, 
   INITIAL_TRAINING_COURSES, 
-  INITIAL_BOOKINGS, 
   INITIAL_MEMBER_APPLICATIONS 
 } from '../data/mockData';
 
 const BASE_URL = '/api';
+const TOKEN_KEY = 'dva_token';
+const CURRENT_USER_KEY = 'dva_current_user';
 
-// Safe request wrapper that falls back cleanly to localStorage / mock memory if network error occurs
-async function request<T>(endpoint: string, options?: RequestInit, fallbackData?: T): Promise<T> {
-  try {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      ...options,
-    });
-    if (!res.ok) {
-      throw new Error(`HTTP Error: ${res.status}`);
-    }
-    return await res.json();
-  } catch (err) {
-    console.warn(`[API] Network request to ${endpoint} failed, utilizing local fallback.`, err);
-    if (fallbackData !== undefined) {
-      return fallbackData;
-    }
-    throw err;
+/** In-flight POST deduplication map to prevent duplicate submissions on rapid double-clicks. */
+const inflightSubmissions = new Map<string, Promise<any>>();
+
+function deduplicatedPost<T>(endpoint: string, payload: unknown, fallbackData?: T): Promise<T> {
+  const key = `${endpoint}:${JSON.stringify(payload ?? {})}`;
+  const existing = inflightSubmissions.get(key);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+  const promise = request<T>(
+    endpoint,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    fallbackData
+  ).finally(() => {
+    inflightSubmissions.delete(key);
+  });
+  inflightSubmissions.set(key, promise);
+  return promise;
+}
+
+const FALLBACK_CREDENTIALS: Record<string, string> = {
+  'quocduyhoang42@gmail.com': 'dva@2025',
+  'admin.dva@gmail.com': 'dva@2025',
+  'player.hung@gmail.com': 'dva@123',
+};
+
+/** Error carrying the HTTP status and the server's human readable message. */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
   }
 }
 
-// User state in localStorage for persistent session
-const CURRENT_USER_KEY = 'dva_current_user';
+function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(CURRENT_USER_KEY);
+}
+
+/**
+ * Request wrapper.
+ * - Attaches the JWT.
+ * - Throws ApiError for every failed response (409 slot conflicts, 400 validation, 401/403 auth...).
+ * - Falls back cleanly when the /api backend is unreachable or returns 404/5xx (e.g. standalone Vite or static hosting).
+ */
+async function request<T>(endpoint: string, options?: RequestInit, fallbackData?: T): Promise<T> {
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options?.headers,
+      },
+    });
+  } catch (err) {
+    if (fallbackData !== undefined) {
+      console.warn(`[API] Server unreachable for ${endpoint}, showing offline fallback.`, err);
+      return fallbackData;
+    }
+    throw new ApiError(0, 'Cannot reach the server. Please check your connection and try again.');
+  }
+
+  if (!res.ok) {
+    let message = `Request failed (HTTP ${res.status})`;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // non-JSON error body
+    }
+    if (res.status === 401 && token) {
+      clearSession();
+      window.dispatchEvent(new Event('dva:session-expired'));
+    }
+    if ((res.status === 404 || res.status >= 500) && fallbackData !== undefined) {
+      console.warn(`[API] ${endpoint} failed with ${res.status}, showing offline fallback.`);
+      return fallbackData;
+    }
+    throw new ApiError(res.status, message);
+  }
+  return await res.json();
+}
 
 export const authService = {
   getCurrentUser(): User {
     const saved = localStorage.getItem(CURRENT_USER_KEY);
-    if (saved) {
+    // A stored profile without a token is never trusted
+    if (saved && localStorage.getItem(TOKEN_KEY)) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.role) return parsed;
@@ -72,44 +140,48 @@ export const authService = {
   },
 
   logout(): User {
-    localStorage.removeItem(CURRENT_USER_KEY);
+    clearSession();
     return GUEST_USER;
   },
 
-  switchRole(role: UserRole): User {
-    const existing = INITIAL_USERS.find(u => u.role === role);
-    if (existing) {
-      this.setCurrentUser(existing);
-      return existing;
-    }
-    this.setCurrentUser(GUEST_USER);
-    return GUEST_USER;
+  /** Re-validates the stored session with the server and returns the fresh profile. */
+  async me(): Promise<User> {
+    const current = this.getCurrentUser();
+    const res = await request<{ user: User }>('/auth/me', {}, { user: current });
+    this.setCurrentUser(res.user);
+    return res.user;
   },
 
-  async login(email: string, password?: string): Promise<{ token: string; user: User }> {
-    return request<{ token: string; user: User }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }, {
-      token: 'demo-token-' + Date.now(),
-      user: INITIAL_USERS.find(u => u.email.toLowerCase() === email.toLowerCase()) || {
-        id: `user-${Date.now()}`,
-        email,
-        fullName: email.split('@')[0],
-        role: 'PLAYER',
-        createdAt: new Date().toISOString(),
+  async login(email: string, password: string): Promise<{ token: string; user: User }> {
+    const normalizedEmail = email.trim().toLowerCase();
+    try {
+      const res = await request<{ token: string; user: User }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: normalizedEmail, password }),
+      });
+      localStorage.setItem(TOKEN_KEY, res.token);
+      this.setCurrentUser(res.user);
+      return res;
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 0 || err.status === 404 || err.status >= 500)) {
+        const expectedPassword = FALLBACK_CREDENTIALS[normalizedEmail];
+        const matchedUser = INITIAL_USERS.find((u) => u.email.toLowerCase() === normalizedEmail);
+        if (!matchedUser || !expectedPassword || password !== expectedPassword) {
+          throw new ApiError(401, 'Invalid email or password.');
+        }
+        const token = `dva-local-token-${Date.now()}`;
+        localStorage.setItem(TOKEN_KEY, token);
+        this.setCurrentUser(matchedUser);
+        return { token, user: matchedUser };
       }
-    });
+      throw err;
+    }
   },
 
-  async forgotPassword(email: string): Promise<{ success: boolean; message: string; demoOtp?: string }> {
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
     return request('/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
-    }, {
-      success: true,
-      message: `A 6-digit OTP verification code has been dispatched to ${email}. (Test Demo OTP: 849201)`,
-      demoOtp: '849201',
     });
   },
 
@@ -117,9 +189,6 @@ export const authService = {
     return request('/auth/verify-otp', {
       method: 'POST',
       body: JSON.stringify({ email, otp, newPassword }),
-    }, {
-      success: true,
-      message: 'Your password has been successfully reset. You may now sign in.',
     });
   }
 };
@@ -202,85 +271,41 @@ export const courtService = {
 };
 
 export const bookingService = {
+  /** Public visitors receive anonymised availability only; staff receive full records. */
   async getBookings(params?: { date?: string; courtId?: string }): Promise<Booking[]> {
-    const saved = localStorage.getItem('dva_bookings');
-    const localFallback = saved ? JSON.parse(saved) : INITIAL_BOOKINGS;
     const query = new URLSearchParams(params as any).toString();
-    const res = await request<Booking[]>(`/bookings${query ? `?${query}` : ''}`, {}, localFallback);
-    if (res && res.length > 0) localStorage.setItem('dva_bookings', JSON.stringify(res));
-    return res;
+    return request<Booking[]>(`/bookings${query ? `?${query}` : ''}`, {}, []);
   },
 
+  /** Throws ApiError (e.g. 409 when the slot was just taken) - callers must show the message. */
   async createBooking(bookingData: Partial<Booking>): Promise<Booking> {
-    const newBooking: Booking = {
-      ...bookingData,
-      id: `b-${Date.now()}`,
-      bookingCode: `DVA-${Date.now().toString().slice(-6)}`,
-      paymentStatus: 'PENDING',
-      createdAt: new Date().toISOString(),
-    } as Booking;
-
-    const res = await request<Booking>('/bookings', {
-      method: 'POST',
-      body: JSON.stringify(bookingData),
-    }, newBooking);
-
-    const saved = localStorage.getItem('dva_bookings');
-    const currentList: Booking[] = saved ? JSON.parse(saved) : INITIAL_BOOKINGS;
-    localStorage.setItem('dva_bookings', JSON.stringify([res, ...currentList.filter(b => b.id !== res.id)]));
-    return res;
+    return deduplicatedPost<Booking>('/bookings', bookingData);
   },
 
   async updateBooking(id: string, updateData: Partial<Booking>): Promise<Booking> {
-    const res = await request<Booking>(`/bookings/${id}`, {
+    return request<Booking>(`/bookings/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updateData),
-    }, { id, ...updateData } as Booking);
-
-    const saved = localStorage.getItem('dva_bookings');
-    if (saved) {
-      const list: Booking[] = JSON.parse(saved);
-      localStorage.setItem('dva_bookings', JSON.stringify(list.map(b => b.id === id ? { ...b, ...res } : b)));
-    }
-    return res;
+    });
   },
 
   async deleteBooking(id: string): Promise<{ success: boolean }> {
-    const res = await request<{ success: boolean }>(`/bookings/${id}`, {
+    return request<{ success: boolean }>(`/bookings/${id}`, {
       method: 'DELETE',
-    }, { success: true });
-
-    const saved = localStorage.getItem('dva_bookings');
-    if (saved) {
-      const list: Booking[] = JSON.parse(saved);
-      localStorage.setItem('dva_bookings', JSON.stringify(list.filter(b => b.id !== id)));
-    }
-    return res;
+    });
   },
 
   async updateStatus(id: string, paymentStatus: 'PENDING' | 'PAID' | 'CANCELLED'): Promise<Booking> {
-    const res = await request<Booking>(`/bookings/${id}/status`, {
+    return request<Booking>(`/bookings/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ paymentStatus }),
-    }, {
-      id,
-      paymentStatus,
-    } as Booking);
-
-    const saved = localStorage.getItem('dva_bookings');
-    if (saved) {
-      const list: Booking[] = JSON.parse(saved);
-      localStorage.setItem('dva_bookings', JSON.stringify(list.map(b => b.id === id ? { ...b, paymentStatus } : b)));
-    }
-    return res;
+    });
   },
 
+  /** Customer reports a completed transfer. The booking stays PENDING until staff verify it. */
   async confirmPayment(id: string): Promise<{ success: boolean; booking: Booking }> {
     return request<{ success: boolean; booking: Booking }>(`/bookings/${id}/confirm-payment`, {
       method: 'POST',
-    }, {
-      success: true,
-      booking: { id, paymentStatus: 'PAID' } as Booking,
     });
   }
 };
@@ -347,10 +372,7 @@ export const trainingService = {
   },
 
   async register(data: Partial<TrainingRegistration>): Promise<TrainingRegistration> {
-    return request<TrainingRegistration>('/training/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }, {
+    return deduplicatedPost<TrainingRegistration>('/training/register', data, {
       ...data,
       id: `tr-${Date.now()}`,
       status: 'PENDING',
@@ -433,10 +455,7 @@ export const coachService = {
 
 export const memberService = {
   async register(applicationData: Partial<MemberApplication>): Promise<MemberApplication> {
-    return request<MemberApplication>('/members/register', {
-      method: 'POST',
-      body: JSON.stringify(applicationData),
-    }, {
+    return deduplicatedPost<MemberApplication>('/members/register', applicationData, {
       ...applicationData,
       id: `app-${Date.now()}`,
       status: 'PENDING',
@@ -558,68 +577,50 @@ export const googleScriptSyncService = {
   },
   async fetchConfig(): Promise<string> {
     try {
-      const res = await fetch('/api/sheets/config');
-      if (res.ok) {
-        const json = await res.json();
-        if (json.scriptUrl) {
-          localStorage.setItem('dva_google_script_url', json.scriptUrl);
-          return json.scriptUrl;
-        }
+      const json = await request<{ scriptUrl: string }>('/sheets/config');
+      if (json.scriptUrl) {
+        localStorage.setItem('dva_google_script_url', json.scriptUrl);
+        return json.scriptUrl;
       }
     } catch (e) {
-      // ignore
+      // not permitted / offline
     }
     return this.getScriptUrl();
   },
+  /** SUPERADMIN only. Throws if the server rejects the URL. */
   async setScriptUrl(url: string) {
     const cleanUrl = url.trim();
+    await request('/sheets/config', {
+      method: 'POST',
+      body: JSON.stringify({ scriptUrl: cleanUrl }),
+    });
     localStorage.setItem('dva_google_script_url', cleanUrl);
-    try {
-      await fetch('/api/sheets/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scriptUrl: cleanUrl }),
-      });
-    } catch (e) {
-      console.warn('Could not persist sheet config to backend:', e);
-    }
   },
+  /**
+   * Client-side direct Google Apps Script sync is strictly disabled (no-op).
+   * All form submissions must only go to internal Backend APIs (`/api/bookings`,
+   * `/api/training/register`, `/api/members/register`), where the Backend acts as
+   * the single source of truth to forward webhooks to Google Sheets without duplicates.
+   */
   async syncToGoogleSheet(
-    sheetName: 'DatSan' | 'TuyenThanhVien' | 'DangKyKhoaHoc' | 'LienHe',
+    _sheetName: 'DatSan' | 'TuyenThanhVien' | 'DangKyKhoaHoc' | 'LienHe',
+    _data: Record<string, any>
+  ): Promise<{ success: boolean; message?: string }> {
+    return {
+      success: true,
+      message: 'Client-side direct Google Sheets sync is disabled; handled exclusively by Backend.',
+    };
+  },
+
+  /** Admin-only: ask the server to push a test row to the configured Google Sheets webhook. */
+  async testSync(
+    sheetName: 'DatSan' | 'Training_Registrations' | 'TuyenThanhVien' | 'DangKyKhoaHoc' | 'LienHe',
     data: Record<string, any>
   ): Promise<{ success: boolean; message?: string }> {
-    // 1. Dispatch through server-side proxy so server can forward reliably without browser CORS
-    try {
-      fetch('/api/sheets/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetName, data }),
-      }).catch((e) => console.warn('Server sheets sync warning:', e));
-    } catch (e) {
-      // ignore
-    }
-
-    // 2. Direct client-side dispatch if script URL exists
-    const scriptUrl = this.getScriptUrl();
-    if (!scriptUrl) {
-      return { success: true, message: 'Dispatched to backend sync' };
-    }
-    try {
-      await fetch(scriptUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          sheetName,
-          data,
-          timestamp: new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
-        }),
-      });
-      return { success: true };
-    } catch (err: any) {
-      console.warn(`[Google Sheets Client Sync Notice]`, err);
-      return { success: false, message: err?.message };
-    }
+    return request('/sheets/sync', {
+      method: 'POST',
+      body: JSON.stringify({ sheetName, data }),
+    });
   },
 };
 

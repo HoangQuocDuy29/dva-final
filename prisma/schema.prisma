@@ -1,0 +1,356 @@
+// ============================================================================
+// DVA Volleyball Club - Prisma ORM Schema
+// Target Database: PostgreSQL (Supabase / Neon)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Nếu sử dụng Connection Pooler (PgBouncer / Supavisor trên Supabase hoặc Neon),
+  // hãy bỏ comment dòng dưới và khai báo thêm DIRECT_URL trong file .env để chạy migration:
+  // directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  PLAYER
+  GUEST
+}
+
+enum PlayerLevel {
+  KID
+  JUNIOR
+  SENIOR
+}
+
+enum VolleyballPosition {
+  OH // Outside Hitter (Chủ công)
+  OP // Opposite Hitter (Đối chuyền)
+  MB // Middle Blocker (Phụ công)
+  S  // Setter (Chuyền hai)
+  L  // Libero
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RotationKnowledge {
+  ROTATION_5_1 @map("5-1")
+  ROTATION_6_2 @map("6-2")
+  ROTATION_4_2 @map("4-2")
+  BEGINNER
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+/// Tài khoản người dùng và phân quyền quản trị (RBAC)
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  phoneNumber  String?
+  avatarUrl    String?
+  role         UserRole   @default(PLAYER)
+
+  // Relations
+  player       Player?
+  newsPosts    NewsPost[]
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([role])
+  @@map("users")
+}
+
+/// Hồ sơ vận động viên / cầu thủ thuộc CLB DVA
+model Player {
+  id              String             @id @default(uuid())
+  userId          String?            @unique
+  user            User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  fullName        String
+  jerseyNumber    Int
+  height          Float              // Chiều cao (cm)
+  weight          Float              // Cân nặng (kg)
+  spikeTouch      Float              // Tầm bật đà (cm)
+  blockTouch      Float              // Tầm bật chắn (cm)
+  hometownCountry String             // Quê quán / Thành phố (VD: "Hà Nội")
+  countryName     String?            @default("Vietnam")
+  countryCode     String             @default("VN")
+  countryFlag     String?            @default("🇻🇳")
+  bornYear        Int?
+  level           PlayerLevel        @default(JUNIOR)
+  position        VolleyballPosition @default(OH)
+  avatarUrl       String?
+  bio             String?            @db.Text
+  isCaptain       Boolean            @default(false)
+  joinedYear      Int                @default(2025)
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([level, position])
+  @@index([jerseyNumber])
+  @@map("players")
+}
+
+/// Sân bóng chuyền thuộc hệ thống DVA (BTL Thông Tin, Thể Công, Mỹ Đình)
+model Court {
+  id          String       @id @default(uuid())
+  code        String       @unique // VD: 'BTL_TT', 'THE_CONG', 'MY_DINH'
+  shortName   String?      // VD: 'BTL TT', 'THE CONG', 'MY DINH'
+  name        String
+  description String       @db.Text
+  floorType   String       // VD: 'Taraflex Pro Elite 7.5mm (Injury-Preventive)'
+  hourlyRate  Int          @default(500000) // Đơn giá theo giờ (VND)
+  minHours    Float        @default(1.5)
+  includes    String[]     // Danh sách tiện ích đi kèm
+  imageUrl    String
+  isAvailable Boolean      @default(true)
+
+  // Relations
+  bookings    Booking[]
+  closedSlots ClosedSlot[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("courts")
+}
+
+/// Các ca sân bị khóa thủ công bởi Admin (bảo trì, giao hữu nội bộ, khách thuê cố định)
+model ClosedSlot {
+  id        String   @id @default(uuid())
+  courtId   String
+  court     Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  courtName String
+  date      String   // Định dạng YYYY-MM-DD
+  slotLabel String   // Định dạng "HH:mm - HH:mm" (VD: "17:30 - 19:00")
+  reason    String?
+  closedBy  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([courtId, date, slotLabel])
+  @@index([courtId, date])
+  @@map("closed_slots")
+}
+
+/// Đơn đặt sân và theo dõi trạng thái thanh toán VietQR
+model Booking {
+  id                  String        @id @default(uuid())
+  bookingCode         String        @unique // VD: "DVA-BTL-20261023-3884"
+  courtId             String
+  court               Court         @relation(fields: [courtId], references: [id], onDelete: Restrict)
+  courtName           String
+
+  customerName        String
+  customerEmail       String
+  customerPhone       String
+
+  bookingDate         String        // Định dạng YYYY-MM-DD
+  startTime           String        // Định dạng HH:mm (VD: "17:30")
+  endTime             String        // Định dạng HH:mm (VD: "19:00")
+  totalHours          Float
+
+  courtPrice          Int           // Tiền thuê sân (VND)
+  addons              Json          // { mineralWaterBottles: Int, mikasaBallCrate: Boolean, certifiedReferee: Boolean }
+  addonsPrice         Int           @default(0) // Tiền dịch vụ cộng thêm (VND)
+  totalPrice          Int           // Tổng thanh toán (VND)
+
+  paymentStatus       PaymentStatus @default(PENDING)
+  transferContent     String?       // Nội dung chuyển khoản VietQR
+  notes               String?       @db.Text
+
+  customerConfirmedAt DateTime?     // Thời điểm khách bấm xác nhận đã chuyển khoản
+  holdExpiresAt       DateTime?     // Thời điểm hết hạn giữ chỗ tạm thời (15 phút)
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([courtId, bookingDate, paymentStatus])
+  @@index([paymentStatus, holdExpiresAt])
+  @@map("bookings")
+}
+
+/// Hồ sơ huấn luyện viên học viện DVA
+model CoachProfile {
+  id             String           @id @default(uuid())
+  name           String
+  role           String
+  experience     String
+  height         String
+  age            Int
+  bornYear       Int
+  avatarUrl      String
+  specialty      String
+  bio            String           @db.Text
+  certifications String[]
+
+  // Relations
+  courses        TrainingCourse[]
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@map("coaches")
+}
+
+/// Khóa học bóng chuyền & các ca ghép đội đấu tập (Scrimmage)
+model TrainingCourse {
+  id             String                 @id @default(uuid())
+  title          String
+  level          String
+  tag            String?
+  targetAudience String                 @db.Text
+  price          Int                    // Học phí / Phí tham gia (VND)
+  priceUnit      String?                // VD: "/ player / session"
+  schedule       String
+  duration       String
+
+  coachId        String?
+  coach          CoachProfile?          @relation(fields: [coachId], references: [id], onDelete: SetNull)
+  coachName      String
+  coachTitle     String
+
+  description    String                 @db.Text
+  benefits       String[]
+  curriculum     String[]
+  maxSlots       Int                    @default(16)
+  enrolledSlots  Int                    @default(0)
+  imageUrl       String?
+
+  // Relations
+  registrations  TrainingRegistration[]
+
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@map("training_courses")
+}
+
+/// Đơn đăng ký tham gia khóa học / ghép đội đấu tập
+model TrainingRegistration {
+  id                String             @id @default(uuid())
+  courseId          String
+  course            TrainingCourse     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseTitle       String
+
+  fullName          String
+  email             String
+  phone             String
+  experienceLevel   String
+  preferredTimeSlot String
+  notes             String?            @db.Text
+  status            RegistrationStatus @default(PENDING)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([courseId, status])
+  @@map("training_registrations")
+}
+
+/// Hồ sơ ứng tuyển thành viên CLB (Tryout Application)
+model MemberApplication {
+  id                  String             @id @default(uuid())
+  fullName            String
+  dob                 String             // Định dạng YYYY-MM-DD
+  position            VolleyballPosition
+  hometownCountry     String
+  desiredJerseyNumber Int
+  level               PlayerLevel
+  height              Float              // Chiều cao (cm)
+  weight              Float              // Cân nặng (kg)
+  spikeReach          Float              // Tầm bật đà (cm)
+  blockReach          Float              // Tầm bật chắn (cm)
+  gmail               String
+  instagram           String             @default("None")
+  zalo                String
+  rotationKnowledge   RotationKnowledge  @default(ROTATION_5_1)
+  status              ApplicationStatus  @default(PENDING)
+  reviewNotes         String?            @db.Text
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([status, level])
+  @@map("member_applications")
+}
+
+/// Bài viết tin tức, giải đấu và kiến thức kỹ thuật
+model NewsPost {
+  id              String   @id @default(uuid())
+  title           String
+  slug            String   @unique
+  excerpt         String   @db.Text
+  content         String   @db.Text
+  thumbnail       String   @default("")
+  category        String   // TOURNAMENT, CLUB_EVENT, TECHNIQUE, TRYOUT, ...
+
+  authorId        String?
+  author          User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorName      String
+  authorRole      String
+
+  publishedAt     String   // Định dạng YYYY-MM-DD hoặc ISO
+  readTimeMinutes Int      @default(4)
+  featured        Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([category, featured])
+  @@map("news_posts")
+}
+
+/// Cấu hình hệ thống (Webhook Google Apps Script, v.v.)
+model AppConfig {
+  id              String   @id @default("default")
+  googleScriptUrl String   @default("")
+  updatedAt       DateTime @updatedAt
+
+  @@map("app_config")
+}
+
+/// Nhật ký đồng bộ Google Sheets
+model GoogleSheetsSyncLog {
+  id        String   @id @default(uuid())
+  tabName   String   // Member_Registrations, Court_Bookings, Training_Registrations
+  action    String   @default("APPEND_ROW")
+  rowData   Json
+  status    String   @default("SUCCESS")
+  timestamp DateTime @default(now())
+
+  @@index([tabName, timestamp])
+  @@map("google_sheets_sync_logs")
+}

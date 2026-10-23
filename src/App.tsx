@@ -35,6 +35,20 @@ export default function App() {
     authService.setCurrentUser(user);
   };
 
+  // Re-validate the stored session with the server on load (the role shown in the UI must come from the server),
+  // and sign out automatically whenever the API reports an expired/invalid token.
+  useEffect(() => {
+    const handleExpired = () => setCurrentUser(authService.logout());
+    window.addEventListener('dva:session-expired', handleExpired);
+
+    if (authService.getCurrentUser().role !== 'GUEST') {
+      authService.me().then(setCurrentUser).catch(() => {
+        // 401 is handled via the session-expired event; keep the UI as-is on network errors
+      });
+    }
+    return () => window.removeEventListener('dva:session-expired', handleExpired);
+  }, []);
+
   return (
     <BrowserRouter>
       <ScrollToTop />

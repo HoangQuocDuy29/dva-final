@@ -21,8 +21,15 @@ import {
   MapPin
 } from 'lucide-react';
 import { Booking, Court, BookingAddons, ClosedSlot } from '../types';
-import { INITIAL_COURTS, INITIAL_BOOKINGS } from '../data/mockData';
-import { bookingService, courtService, googleScriptSyncService } from '../services/api';
+import { INITIAL_COURTS } from '../data/mockData';
+import {
+  ADDON_PRICES,
+  CourtTimeSlot,
+  getScheduleSlotsForCourtAndDate,
+  parseSlotLabel,
+  rangesOverlap,
+} from '../shared/schedule';
+import { bookingService, courtService } from '../services/api';
 import { VietQRModal } from '../components/common/VietQRModal';
 import { ContactBanner } from '../components/common/ContactBanner';
 
@@ -75,70 +82,9 @@ class CourtBookingErrorBoundary extends Component<ErrorBoundaryProps, ErrorBound
   }
 }
 
-// Interface for dynamic court schedule slot
-export interface CourtTimeSlot {
-  start: string;
-  end: string;
-  label: string;
-  durationHours: number;
-  period: string; // 'Morning' | 'Afternoon' | 'Evening'
-  courtId: string;
-}
-
-// Schedule calculation based on court and day of week
-export const getScheduleSlotsForCourtAndDate = (courtId: string, dateString: string): CourtTimeSlot[] => {
-  const [y, m, d] = dateString.split('-').map(Number);
-  const dateObj = new Date(y, m - 1, d);
-  const day = dateObj.getDay(); // 0 = Sunday, 1 = Mon, ..., 6 = Sat
-
-  // Court 1: BTL Thong Tin court ('court-btl')
-  if (courtId === 'court-btl') {
-    // Sunday (Chủ nhật): 10h-12h, 12h-14h, 14h-17h, 17h-19h
-    if (day === 0) {
-      return [
-        { courtId, start: '10:00', end: '12:00', label: '10:00 - 12:00', durationHours: 2.0, period: 'Morning' },
-        { courtId, start: '12:00', end: '14:00', label: '12:00 - 14:00', durationHours: 2.0, period: 'Afternoon' },
-        { courtId, start: '14:00', end: '17:00', label: '14:00 - 17:00', durationHours: 3.0, period: 'Afternoon' },
-        { courtId, start: '17:00', end: '19:00', label: '17:00 - 19:00', durationHours: 2.0, period: 'Evening' },
-      ];
-    }
-    // Saturday (Thứ bảy): 12h-21h30 divided into 1.5h - 2h slots
-    if (day === 6) {
-      return [
-        { courtId, start: '12:00', end: '14:00', label: '12:00 - 14:00', durationHours: 2.0, period: 'Afternoon' },
-        { courtId, start: '14:00', end: '16:00', label: '14:00 - 16:00', durationHours: 2.0, period: 'Afternoon' },
-        { courtId, start: '16:00', end: '18:00', label: '16:00 - 18:00', durationHours: 2.0, period: 'Evening' },
-        { courtId, start: '18:00', end: '19:30', label: '18:00 - 19:30', durationHours: 1.5, period: 'Evening' },
-        { courtId, start: '19:30', end: '21:30', label: '19:30 - 21:30', durationHours: 2.0, period: 'Evening' },
-      ];
-    }
-    // Monday to Friday (Thứ 2 đến Thứ 6): 17h30-19h và 19h-21h30
-    return [
-      { courtId, start: '17:30', end: '19:00', label: '17:30 - 19:00', durationHours: 1.5, period: 'Evening' },
-      { courtId, start: '19:00', end: '21:30', label: '19:00 - 21:30', durationHours: 2.5, period: 'Evening' },
-    ];
-  }
-
-  // Court 2: The Cong court ('court-thecong') & Court 3: My Dinh court ('court-mydinh')
-  // Saturday & Sunday: Open All Day
-  if (day === 0 || day === 6) {
-    return [
-      { courtId, start: '08:00', end: '10:00', label: '08:00 - 10:00', durationHours: 2.0, period: 'Morning' },
-      { courtId, start: '10:00', end: '12:00', label: '10:00 - 12:00', durationHours: 2.0, period: 'Morning' },
-      { courtId, start: '14:00', end: '16:00', label: '14:00 - 16:00', durationHours: 2.0, period: 'Afternoon' },
-      { courtId, start: '16:00', end: '18:00', label: '16:00 - 18:00', durationHours: 2.0, period: 'Afternoon' },
-      { courtId, start: '18:00', end: '20:00', label: '18:00 - 20:00', durationHours: 2.0, period: 'Evening' },
-      { courtId, start: '20:00', end: '22:00', label: '20:00 - 22:00', durationHours: 2.0, period: 'Evening' },
-    ];
-  }
-
-  // Monday to Friday: 19h - 22h
-  return [
-    { courtId, start: '19:00', end: '20:30', label: '19:00 - 20:30', durationHours: 1.5, period: 'Evening' },
-    { courtId, start: '20:30', end: '22:00', label: '20:30 - 22:00', durationHours: 1.5, period: 'Evening' },
-    { courtId, start: '19:00', end: '22:00', label: '19:00 - 22:00 (Full 3h Block)', durationHours: 3.0, period: 'Evening' },
-  ];
-};
+// Schedule rules & pricing constants are shared with the server (single source of truth)
+export type { CourtTimeSlot } from '../shared/schedule';
+export { getScheduleSlotsForCourtAndDate } from '../shared/schedule';
 
 const CourtBookingContent: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -186,7 +132,7 @@ const CourtBookingContent: React.FC = () => {
   );
 
   const [bookingDate, setBookingDate] = useState<string>(todayStr);
-  const [existingBookings, setExistingBookings] = useState<Booking[]>(INITIAL_BOOKINGS);
+  const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
   const [closedSlots, setClosedSlots] = useState<ClosedSlot[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -299,9 +245,9 @@ const CourtBookingContent: React.FC = () => {
   const hourlyRate = selectedCourt?.hourlyRate || 550000;
   const courtPrice = Math.round(hourlyRate * sessionHours);
 
-  const waterPrice = (addons?.mineralWaterBottles || 0) * 15000;
-  const ballCratePrice = addons?.mikasaBallCrate ? 100000 : 0;
-  const refereePrice = addons?.certifiedReferee ? 200000 : 0;
+  const waterPrice = (addons?.mineralWaterBottles || 0) * ADDON_PRICES.mineralWaterBottle;
+  const ballCratePrice = addons?.mikasaBallCrate ? ADDON_PRICES.mikasaBallCrate : 0;
+  const refereePrice = addons?.certifiedReferee ? ADDON_PRICES.certifiedReferee : 0;
   const addonsPrice = waterPrice + ballCratePrice + refereePrice;
   const totalPrice = courtPrice + addonsPrice;
 
@@ -316,35 +262,31 @@ const CourtBookingContent: React.FC = () => {
   }, [selectedCourt, selectedCourtId, selectedSlotObj, bookingDate]);
 
   const getSlotStatus = (slot: CourtTimeSlot): 'AVAILABLE' | 'HOLDING' | 'BOOKED' | 'CLOSED' => {
-    // 1. Check nếu Admin đã Lock/Close khung giờ này
-    const isClosedByAdmin = closedSlots.some(
-      cs => cs.courtId === selectedCourtId && cs.date === bookingDate && cs.slotLabel === slot.label
-    );
+    // 1. Check nếu Admin đã Lock/Close khung giờ này (overlap-aware, same rule as the server)
+    const isClosedByAdmin = closedSlots.some((cs) => {
+      if (cs.courtId !== selectedCourtId || cs.date !== bookingDate) return false;
+      const range = parseSlotLabel(cs.slotLabel);
+      return !!range && rangesOverlap(slot.start, slot.end, range.start, range.end);
+    });
     if (isClosedByAdmin) return 'CLOSED';
 
     if (!Array.isArray(existingBookings)) return 'AVAILABLE';
 
+    const overlapping = (status: Booking['paymentStatus']) =>
+      existingBookings.find(
+        (b) =>
+          b &&
+          b.courtId === selectedCourtId &&
+          b.bookingDate === bookingDate &&
+          b.paymentStatus === status &&
+          rangesOverlap(slot.start, slot.end, b.startTime, b.endTime)
+      );
+
     // 2. Check nếu ca đã thanh toán thành công (Màu xám BOOKED)
-    const paidBooking = existingBookings.find(
-      (b) =>
-        b &&
-        b.courtId === selectedCourtId &&
-        b.bookingDate === bookingDate &&
-        b.paymentStatus === 'PAID' &&
-        (b.startTime === slot.start || `${b.startTime} - ${b.endTime}` === slot.label)
-    );
-    if (paidBooking) return 'BOOKED';
+    if (overlapping('PAID')) return 'BOOKED';
 
     // 3. Check nếu ca đang chờ chuyển khoản VietQR (Màu vàng hổ phách HOLDING)
-    const holdingBooking = existingBookings.find(
-      (b) =>
-        b &&
-        b.courtId === selectedCourtId &&
-        b.bookingDate === bookingDate &&
-        b.paymentStatus === 'PENDING' &&
-        (b.startTime === slot.start || `${b.startTime} - ${b.endTime}` === slot.label)
-    );
-    if (holdingBooking) return 'HOLDING';
+    if (overlapping('PENDING')) return 'HOLDING';
 
     return 'AVAILABLE';
   };
@@ -373,52 +315,18 @@ const CourtBookingContent: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const courtTag = selectedCourt.id === 'court-btl' ? 'BTL' : (selectedCourt.id === 'court-thecong' ? 'TC' : 'MD');
-      const fallbackBooking: Booking = {
-        id: `b-${Date.now()}`,
+      // Only the customer's choices are sent - the server recomputes prices & validates the slot itself.
+      const finalBooking = await bookingService.createBooking({
         courtId: selectedCourt.id,
-        courtName: selectedCourt.name,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerEmail: customerEmail.trim(),
         bookingDate,
         startTime: selectedSlotObj.start,
         endTime: selectedSlotObj.end,
-        totalHours: sessionHours,
-        courtPrice,
         addons,
-        addonsPrice,
-        totalPrice,
-        paymentStatus: 'PENDING',
-        bookingCode: `DVA-${courtTag}-${bookingDate.replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`,
-        transferContent: generatedTransferContent,
         notes: notes.trim(),
-        createdAt: new Date().toISOString(),
-      };
-
-      let finalBooking: Booking;
-      try {
-        finalBooking = await bookingService.createBooking({
-          courtId: selectedCourt.id,
-          courtName: selectedCourt.name,
-          customerName: customerName.trim(),
-          customerPhone: customerPhone.trim(),
-          customerEmail: customerEmail.trim(),
-          bookingDate,
-          startTime: selectedSlotObj.start,
-          endTime: selectedSlotObj.end,
-          totalHours: sessionHours,
-          courtPrice,
-          addons,
-          addonsPrice,
-          totalPrice,
-          notes: notes.trim(),
-          transferContent: generatedTransferContent,
-        });
-      } catch (networkErr) {
-        console.warn('Utilizing instant fallback booking for QR generation:', networkErr);
-        finalBooking = fallbackBooking;
-      }
+      });
 
       setExistingBookings((prev) => [finalBooking, ...prev.filter(b => b.id !== finalBooking.id)]);
       setActiveBooking(finalBooking);
@@ -428,25 +336,12 @@ const CourtBookingContent: React.FC = () => {
       } catch {
         // ignore
       }
-
-      // Realtime Google Sheets Sync (Sheet: DatSan)
-      googleScriptSyncService.syncToGoogleSheet('DatSan', {
-        'Mã đặt sân': finalBooking.bookingCode,
-        'Tên sân': finalBooking.courtName,
-        'Ngày đặt': finalBooking.bookingDate,
-        'Khung giờ': `${finalBooking.startTime} - ${finalBooking.endTime}`,
-        'Tổng số giờ': finalBooking.totalHours,
-        'Họ tên khách': finalBooking.customerName,
-        'Số điện thoại': finalBooking.customerPhone,
-        'Email': finalBooking.customerEmail,
-        'Tổng tiền (VNĐ)': finalBooking.totalPrice,
-        'Trạng thái': finalBooking.paymentStatus,
-        'Nội dung CK': finalBooking.transferContent || '',
-        'Ghi chú': finalBooking.notes || 'None',
-        'Thời gian tạo': new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })
-      });
+      // Google Sheets sync is performed by the server when the booking is created.
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Error generating VietQR payment code. Please try again.');
+      // e.g. 409: someone else took the slot a moment ago - show the real reason and refresh availability
+      setErrorMessage(err?.message || 'Could not create the booking. Please try again.');
+      setSelectedSlotObj(null);
+      fetchRealtimeStatus();
     } finally {
       setIsSubmitting(false);
     }
@@ -463,23 +358,6 @@ const CourtBookingContent: React.FC = () => {
     setExistingBookings((prev) =>
       prev.map((b) => (b.id === updatedBooking.id ? updatedBooking : b))
     );
-
-    // Sync updated payment status to Google Sheets
-    googleScriptSyncService.syncToGoogleSheet('DatSan', {
-      'Mã đặt sân': updatedBooking.bookingCode,
-      'Tên sân': updatedBooking.courtName,
-      'Ngày đặt': updatedBooking.bookingDate,
-      'Khung giờ': `${updatedBooking.startTime} - ${updatedBooking.endTime}`,
-      'Tổng số giờ': updatedBooking.totalHours,
-      'Họ tên khách': updatedBooking.customerName,
-      'Số điện thoại': updatedBooking.customerPhone,
-      'Email': updatedBooking.customerEmail,
-      'Tổng tiền (VNĐ)': updatedBooking.totalPrice,
-      'Trạng thái': 'PAID (Đã thanh toán VietQR)',
-      'Nội dung CK': updatedBooking.transferContent || '',
-      'Ghi chú': 'Thanh toán tự động thành công qua VietQR MB Bank',
-      'Thời gian cập nhật': new Date().toLocaleString('vi-VN')
-    });
   };
 
   // Helper to format date display in English

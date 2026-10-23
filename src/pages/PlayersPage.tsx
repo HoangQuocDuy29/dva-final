@@ -11,7 +11,7 @@ import {
   Columns3,
   LayoutGrid
 } from 'lucide-react';
-import { Player, VolleyballPosition, User as UserType } from '../types';
+import { Player, VolleyballPosition, User as UserType, countryCodeToFlagEmoji } from '../types';
 import { playerService } from '../services/api';
 import { INITIAL_PLAYERS } from '../data/mockData';
 
@@ -101,7 +101,9 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             p.position.toLowerCase().includes(q) ||
             (p.bio && p.bio.toLowerCase().includes(q)) ||
             p.hometownCountry.toLowerCase().includes(q) ||
-            (p.countryName && p.countryName.toLowerCase().includes(q))
+            (p.country && p.country.toLowerCase().includes(q)) ||
+            (p.countryName && p.countryName.toLowerCase().includes(q)) ||
+            (p.countryCode && p.countryCode.toLowerCase().includes(q))
           );
         }
         return true;
@@ -135,6 +137,11 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
   const renderPlayerCard = (player: Player) => {
     const posMeta = getPositionBadgeStyle(player.position);
     const isTeamCaptain = Boolean(player.captain || player.isCaptain);
+    const resolvedCountryCode = (player.countryCode || 'VN').toUpperCase();
+    const resolvedCountryName = player.country || player.countryName || 'Vietnam';
+    const resolvedFlag = player.countryFlag || countryCodeToFlagEmoji(resolvedCountryCode);
+    const resolvedJoined = player.joined ?? player.joinedYear ?? 2025;
+
     return (
       <div
         key={player.id}
@@ -153,8 +160,12 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
           ) : (
             <div />
           )}
-          <div className="text-lg select-none" title={player.countryName || 'Vietnam'}>
-            {player.countryFlag || '🇻🇳'}
+          <div
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0c1017] border border-slate-800 text-xs select-none"
+            title={`${resolvedCountryName} (${resolvedCountryCode})`}
+          >
+            <span className="text-base leading-none">{resolvedFlag}</span>
+            <span className="font-mono font-bold text-[10px] text-slate-300">{resolvedCountryCode}</span>
           </div>
         </div>
 
@@ -175,9 +186,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             )}
           </div>
 
-          {/* Athlete Name */}
-          <h3 className="font-heading font-extrabold text-base sm:text-lg text-white text-center mt-3 tracking-wide">
-            {player.fullName}
+          {/* Athlete Name & Flag */}
+          <h3 className="font-heading font-extrabold text-base sm:text-lg text-white text-center mt-3 tracking-wide flex items-center justify-center gap-1.5">
+            <span>{player.fullName}</span>
+            <span className="text-sm select-none" title={resolvedCountryName}>{resolvedFlag}</span>
           </h3>
 
           {/* Position Pill Badge */}
@@ -199,7 +211,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             </div>
             <div className="bg-[#0c1017] rounded-xl p-2 text-center border border-[#1a2332]">
               <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">JOINED</span>
-              <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{player.joinedYear || 2025}</span>
+              <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{resolvedJoined}</span>
             </div>
             <div className="bg-[#0c1017] rounded-xl p-2 text-center border border-[#1a2332]">
               <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">BORN</span>
@@ -210,11 +222,14 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
           {/* Bottom Metadata Rows */}
           <div className="border-t border-[#1a2332] pt-2.5 space-y-1.5 text-xs">
             <div className="flex justify-between items-center text-slate-300">
-              <span className="text-slate-400 text-[11px]">Hometown / Origin</span>
-              <span className="font-semibold text-white text-[11px]">{player.hometownCountry}</span>
+              <span className="text-slate-400 text-[11px]">Country / Origin</span>
+              <span className="font-semibold text-white text-[11px] flex items-center gap-1">
+                <span>{resolvedFlag}</span>
+                <span>{player.hometownCountry ? `${player.hometownCountry}, ${resolvedCountryName}` : resolvedCountryName}</span>
+              </span>
             </div>
             <div className="flex justify-between items-center text-slate-300">
-              <span className="text-slate-400 text-[11px]">Jersey Number</span>
+              <span className="text-slate-400 text-[11px]">Joined: {resolvedJoined}</span>
               <span className="font-mono font-bold text-orange-400 text-xs">#{player.jerseyNumber}</span>
             </div>
           </div>

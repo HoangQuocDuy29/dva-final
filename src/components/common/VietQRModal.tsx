@@ -16,6 +16,7 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
   const [isConfirming, setIsConfirming] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(900); // 15 minutes hold
 
   useEffect(() => {
@@ -49,43 +50,24 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
     setTimeout(() => setter(false), 2000);
   };
 
-  // One-way explicit confirmation from the customer
+  // One-way explicit confirmation from the customer (reports transfer; Admin verifies & marks PAID)
   const handleConfirmTransfer = async () => {
     setIsConfirming(true);
-    let updated: Booking = { ...booking, paymentStatus: 'PAID' };
+    setConfirmError(null);
 
     try {
       const res = await bookingService.confirmPayment(booking.id);
-      if (res && res.booking) {
-        updated = res.booking;
-      }
-    } catch (err) {
-      console.warn('Backend update notice, utilizing local confirmation:', err);
+      const updated: Booking = res?.booking || {
+        ...booking,
+        customerConfirmedAt: new Date().toISOString(),
+      };
+      setConfirmedBooking(updated);
+      setIsSubmitted(true);
+    } catch (err: any) {
+      setConfirmError(err?.message || 'Unable to confirm transfer. Your 15-minute hold may have expired.');
+    } finally {
+      setIsConfirming(false);
     }
-
-    try {
-      // Sync to Google Sheets
-      await googleScriptSyncService.syncToGoogleSheet('DatSan', {
-        'Booking Code': updated.bookingCode,
-        'Court': updated.courtName,
-        'Customer Name': updated.customerName,
-        'Phone': updated.customerPhone,
-        'Email': updated.customerEmail,
-        'Date': updated.bookingDate,
-        'Time Slot': `${updated.startTime} - ${updated.endTime}`,
-        'Total (VND)': updated.totalPrice,
-        'Status': 'PAID (Customer Confirmed Transfer)',
-        'Transfer Content': updated.transferContent || updated.bookingCode,
-        'Notes': updated.notes || 'None',
-        'Timestamp': new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })
-      });
-    } catch (sheetErr) {
-      console.warn('Sheet sync notice:', sheetErr);
-    }
-
-    setConfirmedBooking(updated);
-    setIsConfirming(false);
-    setIsSubmitted(true);
   };
 
   const handleFinishAndClose = () => {
@@ -318,6 +300,12 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
 
               {/* One-Way Customer Confirmation Button */}
               <div className="pt-2">
+                {confirmError && (
+                  <div className="mb-3 p-3 rounded-xl bg-red-950/60 border border-red-700 text-red-200 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                    <span>{confirmError}</span>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={handleConfirmTransfer}

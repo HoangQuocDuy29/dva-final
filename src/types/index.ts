@@ -22,6 +22,47 @@ export const POSITION_LABELS: Record<VolleyballPosition, { code: VolleyballPosit
   L: { code: 'L', nameVi: 'Libero', nameEn: 'Libero' },
 };
 
+export interface CountryOption {
+  name: string;
+  code: string;
+  flag: string;
+}
+
+export const PLAYER_COUNTRIES: CountryOption[] = [
+  { name: 'Vietnam', code: 'VN', flag: '🇻🇳' },
+  { name: 'Australia', code: 'AU', flag: '🇦🇺' },
+  { name: 'Japan', code: 'JP', flag: '🇯🇵' },
+  { name: 'United States', code: 'US', flag: '🇺🇸' },
+  { name: 'Russia', code: 'RU', flag: '🇷🇺' },
+  { name: 'South Korea', code: 'KR', flag: '🇰🇷' },
+  { name: 'Thailand', code: 'TH', flag: '🇹🇭' },
+  { name: 'China', code: 'CN', flag: '🇨🇳' },
+  { name: 'Brazil', code: 'BR', flag: '🇧🇷' },
+  { name: 'Italy', code: 'IT', flag: '🇮🇹' },
+  { name: 'Poland', code: 'PL', flag: '🇵🇱' },
+  { name: 'France', code: 'FR', flag: '🇫🇷' },
+  { name: 'Canada', code: 'CA', flag: '🇨🇦' },
+  { name: 'Germany', code: 'DE', flag: '🇩🇪' },
+  { name: 'United Kingdom', code: 'GB', flag: '🇬🇧' },
+  { name: 'Philippines', code: 'PH', flag: '🇵🇭' },
+  { name: 'Indonesia', code: 'ID', flag: '🇮🇩' },
+  { name: 'Singapore', code: 'SG', flag: '🇸🇬' },
+  { name: 'Taiwan', code: 'TW', flag: '🇹🇼' },
+  { name: 'India', code: 'IN', flag: '🇮🇳' },
+  { name: 'Pakistan', code: 'PK', flag: '🇵🇰' },
+  { name: 'Serbia', code: 'RS', flag: '🇷🇸' },
+  { name: 'Turkey', code: 'TR', flag: '🇹🇷' },
+  { name: 'Argentina', code: 'AR', flag: '🇦🇷' },
+  { name: 'Cuba', code: 'CU', flag: '🇨🇺' },
+];
+
+export function countryCodeToFlagEmoji(countryCode?: string): string {
+  if (!countryCode || typeof countryCode !== 'string') return '🇻🇳';
+  const clean = countryCode.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(clean)) return '🇻🇳';
+  return String.fromCodePoint(...clean.split('').map((c) => 127397 + c.charCodeAt(0)));
+}
+
 export interface Player {
   id: string;
   userId?: string;
@@ -32,8 +73,9 @@ export interface Player {
   spikeTouch: number; // reach in cm
   blockTouch: number; // block touch in cm
   hometownCountry: string; // e.g. "Hà Nội"
+  country?: string; // e.g. "Vietnam", "Russia", "Japan", "United States"
   countryName?: string; // e.g. "Vietnam" or "Australia"
-  countryCode?: string; // e.g. "VN" or "AU"
+  countryCode?: string; // e.g. "VN", "RU", "JP", "US"
   countryFlag?: string; // e.g. "🇻🇳" or "🇦🇺"
   bornYear?: number; // e.g. 2006
   level: PlayerLevel;
@@ -42,6 +84,7 @@ export interface Player {
   bio?: string;
   isCaptain?: boolean;
   captain?: boolean;
+  joined?: string | number; // e.g. "2025", 2025
   joinedYear?: number;
 }
 
@@ -87,6 +130,10 @@ export interface Booking {
   transferContent?: string; // e.g. DVA BTL TT 17H30 19H00 20261020
   createdAt: string;
   notes?: string;
+  /** Set when the customer reports they transferred the money (staff still must verify before PAID). */
+  customerConfirmedAt?: string;
+  /** Online bookings auto-cancel at this time unless the customer reports payment. */
+  holdExpiresAt?: string;
 }
 
 export interface ClosedSlot {
