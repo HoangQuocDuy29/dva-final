@@ -175,7 +175,14 @@ const PUBLIC_RULES: Rule[] = [
   rule('POST', /^\/webhooks\/payment\/?$/),
 ];
 
-const SUPERADMIN_RULES: Rule[] = [rule('GET', /^\/sheets\/config\/?$/), rule('POST', /^\/sheets\/config\/?$/)];
+const SUPERADMIN_RULES: Rule[] = [
+  rule('GET', /^\/sheets\/config\/?$/),
+  rule('POST', /^\/sheets\/config\/?$/),
+  rule('GET', /^\/users\/?$/),
+  rule('POST', /^\/users\/?$/),
+  rule('PATCH', /^\/users\/[^/]+\/role\/?$/),
+  rule('DELETE', /^\/users\/[^/]+\/?$/),
+];
 
 const matches = (rules: Rule[], method: string, path: string) =>
   rules.some((r) => r.method === method && r.path.test(path));

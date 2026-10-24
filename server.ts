@@ -71,7 +71,7 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 assertSecurityConfig();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 
 // Required when running behind a reverse proxy (Render, Railway, Vercel...) so req.ip is the real client.
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
@@ -236,37 +236,48 @@ app.get('/api/auth/me', (req, res) => {
   res.json({ user: publicUser(req.user!) });
 });
 
-app.get('/api/users', ah(async (_req, res) => {
+// ---- User management (SUPERADMIN only; also enforced by apiAccessPolicy) ----
+const MANAGED_ROLES = ['ADMIN', 'STAFF', 'COACH', 'PLAYER'] as const;
+
+const requireSuperAdmin: express.RequestHandler = (req, res, next) => {
+  if (!req.user) return void res.status(401).json({ error: 'Authentication required.' });
+  if (req.user.role !== 'SUPERADMIN') {
+    return void res.status(403).json({ error: 'Only SUPERADMIN can manage user accounts.' });
+  }
+  next();
+};
+
+app.get('/api/users', requireSuperAdmin, ah(async (_req, res) => {
   const dbUsers = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+  // publicUser strips passwordHash
   res.json(dbUsers.map((u) => publicUser(toStoredUser(u))));
 }));
 
-app.post('/api/users', ah(async (req, res) => {
+app.post('/api/users', requireSuperAdmin, ah(async (req, res) => {
+  // Accept `name` as an alias of `fullName`
+  const body = req.body && typeof req.body === 'object' ? { ...req.body } : {};
+  if (body.fullName === undefined && body.name !== undefined) body.fullName = body.name;
+  delete body.name;
+
   const data = sanitize(
-    req.body,
+    body,
     {
       email: EM,
       password: S(200, 8),
       fullName: S(100, 2),
       phoneNumber: S(30),
       avatarUrl: S(500),
-      role: E(['SUPERADMIN', 'ADMIN', 'PLAYER'] as const),
+      role: E(MANAGED_ROLES),
     },
     { required: ['email', 'password', 'fullName'] }
   );
-
-  // Only SUPERADMIN may create ADMIN or SUPERADMIN accounts
-  const requestedRole = data.role || 'PLAYER';
-  if ((requestedRole === 'ADMIN' || requestedRole === 'SUPERADMIN') && req.user?.role !== 'SUPERADMIN') {
-    return res.status(403).json({ error: 'Only SUPERADMIN can create staff accounts.' });
-  }
 
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) {
     return res.status(409).json({ error: 'An account with this email already exists.' });
   }
 
-  const passwordHash = await hashPassword(data.password);
+  const passwordHash = await hashPassword(data.password); // bcrypt.hash(password, 10)
   const created = await prisma.user.create({
     data: {
       email: data.email,
@@ -274,11 +285,43 @@ app.post('/api/users', ah(async (req, res) => {
       fullName: data.fullName,
       phoneNumber: data.phoneNumber ?? null,
       avatarUrl: data.avatarUrl ?? null,
-      role: requestedRole,
+      role: data.role || 'PLAYER',
     },
   });
 
   res.status(201).json(publicUser(toStoredUser(created)));
+}));
+
+app.patch('/api/users/:id/role', requireSuperAdmin, ah(async (req, res) => {
+  const { id } = req.params;
+  const { role } = sanitize(req.body, { role: E(MANAGED_ROLES) }, { required: ['role'] });
+
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target) return res.status(404).json({ error: 'User not found.' });
+  if (target.id === req.user!.id || target.role === 'SUPERADMIN') {
+    return res.status(403).json({ error: 'SUPERADMIN accounts cannot be demoted.' });
+  }
+
+  const updated = await prisma.user.update({ where: { id }, data: { role } });
+  res.json(publicUser(toStoredUser(updated)));
+}));
+
+app.delete('/api/users/:id', requireSuperAdmin, ah(async (req, res) => {
+  const { id } = req.params;
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target) return res.status(404).json({ error: 'User not found.' });
+  if (target.id === req.user!.id || target.role === 'SUPERADMIN') {
+    return res.status(403).json({ error: 'SUPERADMIN accounts cannot be deleted.' });
+  }
+  try {
+    await prisma.user.delete({ where: { id } });
+  } catch (err: any) {
+    if (err?.code === 'P2003') {
+      return res.status(409).json({ error: 'Account is still referenced by other records and cannot be deleted.' });
+    }
+    throw err;
+  }
+  res.json({ success: true });
 }));
 
 // Password reset needs an email provider; until one is configured the endpoints neither leak nor fake OTPs.
@@ -461,7 +504,9 @@ app.post('/api/courts', ah(async (req, res) => {
               'Airflow cooling & locker rooms',
             ],
       imageUrl: data.imageUrl || '/courts/btl.png',
-      isAvailable: data.isAvailable !== false,
+      status: data.status === 'MAINTENANCE' || data.isMaintenance === true || data.isAvailable === false ? 'MAINTENANCE' : 'ACTIVE',
+      isMaintenance: Boolean(data.status === 'MAINTENANCE' || data.isMaintenance === true || data.isAvailable === false),
+      isAvailable: !(data.status === 'MAINTENANCE' || data.isMaintenance === true || data.isAvailable === false),
       isActive: true,
       weeklySchedule: resolvedSchedule as any,
     },
@@ -477,18 +522,73 @@ app.put('/api/courts/:id', ah(async (req, res) => {
     return res.status(404).json({ error: 'Court not found' });
   }
   const data = sanitize(req.body, COURT_SCHEMA, { partial: true });
-  const { weeklySchedule, ...rest } = data;
+  const { weeklySchedule, status, isMaintenance, isAvailable, ...rest } = data;
+
+  let nextMaintenance: boolean | undefined;
+  if (status !== undefined) {
+    nextMaintenance = status === 'MAINTENANCE';
+  } else if (isMaintenance !== undefined) {
+    nextMaintenance = Boolean(isMaintenance);
+  } else if (isAvailable !== undefined) {
+    nextMaintenance = !isAvailable;
+  }
+
   const updated = await prisma.court.update({
     where: { id },
     data: {
       ...rest,
       ...(rest.hourlyRate !== undefined ? { hourlyRate: Math.round(Number(rest.hourlyRate)) } : {}),
+      ...(nextMaintenance !== undefined
+        ? {
+            status: nextMaintenance ? 'MAINTENANCE' : 'ACTIVE',
+            isMaintenance: nextMaintenance,
+            isAvailable: !nextMaintenance,
+          }
+        : {}),
       ...(weeklySchedule !== undefined
         ? { weeklySchedule: normalizeWeeklySchedule(weeklySchedule, id) as any }
         : {}),
     },
   });
   res.json(toCourtDto(updated));
+}));
+
+app.patch('/api/courts/:id/toggle-maintenance', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.court.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Court not found' });
+  }
+
+  const rawBody = req.body && typeof req.body === 'object' ? req.body : {};
+  const currentlyMaintenance = Boolean(
+    existing.isMaintenance === true || existing.status === 'MAINTENANCE' || existing.isAvailable === false
+  );
+
+  let nextMaintenance: boolean;
+  if (rawBody.status === 'MAINTENANCE' || rawBody.status === 'ACTIVE') {
+    nextMaintenance = rawBody.status === 'MAINTENANCE';
+  } else if (typeof rawBody.isMaintenance === 'boolean') {
+    nextMaintenance = rawBody.isMaintenance;
+  } else {
+    nextMaintenance = !currentlyMaintenance;
+  }
+
+  const updated = await prisma.court.update({
+    where: { id },
+    data: {
+      status: nextMaintenance ? 'MAINTENANCE' : 'ACTIVE',
+      isMaintenance: nextMaintenance,
+      isAvailable: !nextMaintenance,
+    },
+  });
+
+  res.json({
+    success: true,
+    status: nextMaintenance ? 'MAINTENANCE' : 'ACTIVE',
+    isMaintenance: nextMaintenance,
+    court: toCourtDto(updated),
+  });
 }));
 
 app.delete('/api/courts/:id', ah(async (req, res) => {
@@ -713,7 +813,19 @@ app.post('/api/bookings', ah(async (req, res) => {
   // 1. Lookup actual Court in PostgreSQL via Prisma to get real hourlyRate (prevent Price Tampering)
   const targetCourt = await prisma.court.findUnique({ where: { id: courtId } });
   if (!targetCourt) return res.status(400).json({ error: 'Unknown court.' });
-  if ((targetCourt.isAvailable === false || targetCourt.isActive === false) && !staff) {
+  if (
+    targetCourt.status === 'MAINTENANCE' ||
+    targetCourt.isMaintenance === true ||
+    targetCourt.isAvailable === false
+  ) {
+    const maintenanceMsg = 'Sân hiện đang trong thời gian bảo trì, vui lòng chọn sân khác hoặc quay lại sau.';
+    return res.status(400).json({
+      success: false,
+      error: maintenanceMsg,
+      message: maintenanceMsg,
+    });
+  }
+  if (targetCourt.isActive === false && !staff) {
     return res.status(409).json({ error: 'This court is currently unavailable for booking.' });
   }
   if (toMinutes(endTime) <= toMinutes(startTime)) {
@@ -1856,7 +1968,7 @@ ensurePostgreSQLSeeded()
   })
   .then(() => setupViteOrStatic())
   .then(() => {
-    app.listen(Number(PORT), '0.0.0.0', () => {
+    const httpServer = app.listen(Number(PORT), '0.0.0.0', () => {
       console.log(`=================================================`);
       console.log(`🏐 DVA Volleyball Club Platform Server Running`);
       console.log(`⚡ Port: ${PORT}`);
@@ -1865,6 +1977,15 @@ ensurePostgreSQLSeeded()
       console.log(`📊 Google Sheets v4 API Sync: ONLINE`);
       console.log(`=================================================`);
     });
+
+    const shutdown = () => {
+      httpServer.close(() => {
+        void prisma.$disconnect().finally(() => process.exit(0));
+      });
+      setTimeout(() => process.exit(0), 1500).unref();
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
   })
   .catch((err) => {
     console.error('[Server] Failed to start:', err);

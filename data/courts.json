@@ -15,6 +15,8 @@
       "Complimentary chilled drinking water"
     ],
     "imageUrl": "/courts/btl.png",
+    "status": "ACTIVE",
+    "isMaintenance": false,
     "isAvailable": true
   },
   {
@@ -33,6 +35,8 @@
       "Dedicated spectator bench seating"
     ],
     "imageUrl": "/courts/thecong.png",
+    "status": "ACTIVE",
+    "isMaintenance": false,
     "isAvailable": true
   },
   {
@@ -51,6 +55,8 @@
       "Warmup conditioning area"
     ],
     "imageUrl": "/courts/mydinh.png",
+    "status": "ACTIVE",
+    "isMaintenance": false,
     "isAvailable": true
   }
 ]

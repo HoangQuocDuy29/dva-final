@@ -111,7 +111,10 @@ export function toPlayerDto(p: DbPlayer): Player {
   };
 }
 
-export function toCourtDto(c: DbCourt): Court {
+export function toCourtDto(c: DbCourt & { status?: string | null; isMaintenance?: boolean | null }): Court {
+  const isMaintenance = Boolean(
+    c.isMaintenance === true || c.status === 'MAINTENANCE' || c.isAvailable === false
+  );
   return {
     id: c.id,
     code: c.code,
@@ -124,7 +127,9 @@ export function toCourtDto(c: DbCourt): Court {
     minHours: c.minHours,
     includes: c.includes,
     imageUrl: c.imageUrl,
-    isAvailable: c.isAvailable,
+    status: isMaintenance ? 'MAINTENANCE' : 'ACTIVE',
+    isMaintenance,
+    isAvailable: !isMaintenance,
     isActive: c.isActive !== false,
     weeklySchedule: normalizeWeeklySchedule(c.weeklySchedule, c.id || c.code),
   };

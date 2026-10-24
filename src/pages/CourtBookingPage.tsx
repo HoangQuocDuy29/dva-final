@@ -138,6 +138,11 @@ const CourtBookingContent: React.FC = () => {
 
   const selectedCourt: Court = courts.find((c) => c.id === selectedCourtId) || courts[0] || INITIAL_COURTS[0];
 
+  const isCourtMaintenance = (court?: Court | null): boolean =>
+    Boolean(court && (court.status === 'MAINTENANCE' || court.isMaintenance === true || court.isAvailable === false));
+
+  const selectedCourtIsMaintenance = isCourtMaintenance(selectedCourt);
+
   // Compute dynamic slots based on court's weeklySchedule & selected date (Day of week)
   const availableSlots = useMemo(() => {
     return getScheduleSlotsForCourtAndDate(
@@ -159,6 +164,16 @@ const CourtBookingContent: React.FC = () => {
       }
     }
   }, [availableSlots]);
+
+  // If the currently selected court enters MAINTENANCE mode while the user is on the page, warn and clear slot
+  useEffect(() => {
+    if (selectedCourtIsMaintenance) {
+      setSelectedSlotObj(null);
+      setErrorMessage(
+        `⚠️ Sân "${selectedCourt?.name}" vừa chuyển sang chế độ bảo trì / tạm dừng phục vụ. Không thể tiến hành đặt tiếp trên sân này, vui lòng chọn sân khác!`
+      );
+    }
+  }, [selectedCourtIsMaintenance, selectedCourt?.id]);
 
   // Customer Form State
   const [customerName, setCustomerName] = useState('');
@@ -273,6 +288,9 @@ const CourtBookingContent: React.FC = () => {
   }, [selectedCourt, selectedCourtId, selectedSlotObj, bookingDate]);
 
   const getSlotStatus = (slot: CourtTimeSlot): 'AVAILABLE' | 'HOLDING' | 'BOOKED' | 'CLOSED' => {
+    // 0. Nếu toàn bộ sân đang trong chế độ bảo trì của Admin
+    if (selectedCourtIsMaintenance) return 'CLOSED';
+
     // 1. Check nếu Admin đã Lock/Close khung giờ này (overlap-aware, same rule as the server)
     const isClosedByAdmin = closedSlots.some((cs) => {
       if (cs.courtId !== selectedCourtId || cs.date !== bookingDate) return false;
@@ -305,6 +323,13 @@ const CourtBookingContent: React.FC = () => {
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (selectedCourtIsMaintenance) {
+      setErrorMessage('Sân hiện đang trong thời gian bảo trì, vui lòng chọn sân khác hoặc quay lại sau.');
+      setSelectedSlotObj(null);
+      fetchRealtimeStatus();
+      return;
+    }
 
     if (!customerName.trim() || !customerPhone.trim() || !customerEmail.trim()) {
       setErrorMessage('Please fill in your name, phone number, and email address.');
@@ -499,16 +524,24 @@ const CourtBookingContent: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {courts.map((court) => {
               const isSelected = court.id === selectedCourtId;
+              const isMaintenance = isCourtMaintenance(court);
 
               return (
                 <button
                   key={court.id}
                   type="button"
-                  onClick={() => setSelectedCourtId(court.id)}
-                  className={`text-left rounded-3xl border-2 overflow-hidden transition-all duration-300 flex flex-col justify-between cursor-pointer group ${
-                    isSelected
-                      ? 'border-red-500 bg-[#161F30] shadow-2xl ring-2 ring-red-500/30 scale-[1.02]'
-                      : 'border-slate-800 bg-[#121826] hover:border-slate-700 shadow-md hover:bg-[#151c2c]'
+                  disabled={isMaintenance}
+                  onClick={() => {
+                    if (isMaintenance) return;
+                    setSelectedCourtId(court.id);
+                    setErrorMessage(null);
+                  }}
+                  className={`text-left rounded-3xl border-2 overflow-hidden transition-all duration-300 flex flex-col justify-between relative group ${
+                    isMaintenance
+                      ? 'border-amber-700/60 bg-[#101520] opacity-65 cursor-not-allowed select-none'
+                      : isSelected
+                      ? 'border-red-500 bg-[#161F30] shadow-2xl ring-2 ring-red-500/30 scale-[1.02] cursor-pointer'
+                      : 'border-slate-800 bg-[#121826] hover:border-slate-700 shadow-md hover:bg-[#151c2c] cursor-pointer'
                   }`}
                 >
                   {/* Court Photograph Banner */}
@@ -517,25 +550,44 @@ const CourtBookingContent: React.FC = () => {
                       src={court.imageUrl}
                       alt={court.name}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className={`w-full h-full object-cover transition-transform duration-500 ${
+                        isMaintenance ? 'grayscale-[60%] brightness-50' : 'group-hover:scale-105'
+                      }`}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#121826] via-black/40 to-black/20" />
+
+                    {/* Maintenance Overlay Banner */}
+                    {isMaintenance && (
+                      <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4 z-10">
+                        <div className="px-3.5 py-2 rounded-2xl bg-amber-950/95 border-2 border-amber-500 text-amber-200 font-extrabold text-xs text-center shadow-2xl flex items-center gap-1.5">
+                          <span>🛠️ Đang bảo trì / Tạm dừng phục vụ</span>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Badges on Court Photo */}
-                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20">
                       <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                        isSelected ? 'bg-red-600 text-white shadow-lg' : 'bg-black/70 text-slate-200 backdrop-blur'
+                        isMaintenance
+                          ? 'bg-amber-900/90 text-amber-200 border border-amber-600'
+                          : isSelected
+                          ? 'bg-red-600 text-white shadow-lg'
+                          : 'bg-black/70 text-slate-200 backdrop-blur'
                       }`}>
                         {court.code}
                       </span>
-                      {isSelected && (
+                      {isMaintenance ? (
+                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-red-950/90 text-red-300 border border-red-700">
+                          Tạm ngưng
+                        </span>
+                      ) : isSelected ? (
                         <div className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg">
                           <Check className="w-4 h-4 stroke-[3]" />
                         </div>
-                      )}
+                      ) : null}
                     </div>
 
-                    <div className="absolute bottom-3 left-3 right-3">
+                    <div className="absolute bottom-3 left-3 right-3 z-20">
                       <h3 className="font-heading font-black text-xl text-white drop-shadow-md">
                         {court.name}
                       </h3>
@@ -553,7 +605,11 @@ const CourtBookingContent: React.FC = () => {
                     </p>
 
                     <div className="pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs">
-                      <span className="text-slate-400 font-medium">Taraflex Pro Flooring</span>
+                      {isMaintenance ? (
+                        <span className="text-amber-400 font-bold">🛠️ Đang bảo trì / Tạm dừng phục vụ</span>
+                      ) : (
+                        <span className="text-slate-400 font-medium">Taraflex Pro Flooring</span>
+                      )}
                       <span className="font-bold text-orange-400 font-mono text-sm">{court.hourlyRate.toLocaleString('vi-VN')} đ/h</span>
                     </div>
                   </div>
@@ -657,6 +713,34 @@ const CourtBookingContent: React.FC = () => {
                 {availableSlots.length} available sessions configured
               </span>
             </div>
+
+            {selectedCourtIsMaintenance && (
+              <div className="mb-4 p-4 rounded-2xl bg-amber-950/80 border-2 border-amber-500 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="font-extrabold text-sm text-amber-300">
+                    🛠️ Đang bảo trì / Tạm dừng phục vụ ({selectedCourt.name})
+                  </div>
+                  <p className="text-amber-100/90">
+                    Sân hiện đang trong thời gian bảo trì, vui lòng chọn sân khác hoặc quay lại sau. Toàn bộ khung giờ của sân này hiện đã bị khóa đặt chỗ.
+                  </p>
+                </div>
+                {courts.some((c) => !isCourtMaintenance(c)) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextActive = courts.find((c) => !isCourtMaintenance(c));
+                      if (nextActive) {
+                        setSelectedCourtId(nextActive.id);
+                        setErrorMessage(null);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shrink-0 cursor-pointer transition-colors"
+                  >
+                    Chuyển sang sân đang hoạt động
+                  </button>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
               {availableSlots.map((slot) => {
@@ -958,10 +1042,16 @@ const CourtBookingContent: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="w-full py-4 px-6 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 shadow-lg shadow-red-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isSubmitting || selectedCourtIsMaintenance}
+                className={`w-full py-4 px-6 rounded-2xl font-bold text-sm text-white transition-all flex items-center justify-center gap-2 ${
+                  selectedCourtIsMaintenance
+                    ? 'bg-slate-800 border border-amber-700/60 text-amber-300 cursor-not-allowed opacity-75'
+                    : 'bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 shadow-lg shadow-red-900/40 cursor-pointer'
+                }`}
               >
-                {isSubmitting ? (
+                {selectedCourtIsMaintenance ? (
+                  <span>🛠️ Sân đang bảo trì - Không thể đặt</span>
+                ) : isSubmitting ? (
                   <span>Generating VietQR code...</span>
                 ) : (
                   <>

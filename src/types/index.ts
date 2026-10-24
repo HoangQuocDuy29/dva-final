@@ -1,4 +1,8 @@
-export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'PLAYER' | 'GUEST';
+export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'STAFF' | 'COACH' | 'PLAYER' | 'GUEST';
+
+/** Roles a SUPERADMIN may assign to managed accounts. */
+export type ManagedUserRole = 'ADMIN' | 'STAFF' | 'COACH' | 'PLAYER';
+export const MANAGED_USER_ROLES: ManagedUserRole[] = ['ADMIN', 'STAFF', 'COACH', 'PLAYER'];
 
 export interface User {
   id: string;
@@ -102,6 +106,8 @@ export const DAYS_OF_WEEK: { key: DayOfWeekKey; labelVi: string; shortVi: string
   { key: 'sunday', labelVi: 'Chủ Nhật', shortVi: 'CN', labelEn: 'Sunday' },
 ];
 
+export type CourtStatus = 'ACTIVE' | 'MAINTENANCE';
+
 export interface Court {
   id: string;
   name: string;
@@ -114,6 +120,8 @@ export interface Court {
   minHours: number; // 1.5
   includes: string[];
   imageUrl: string;
+  status?: CourtStatus; // 'ACTIVE' | 'MAINTENANCE'
+  isMaintenance?: boolean;
   isAvailable: boolean;
   isActive?: boolean;
   weeklySchedule?: WeeklySchedule;

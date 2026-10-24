@@ -22,6 +22,8 @@ datasource db {
 enum UserRole {
   SUPERADMIN
   ADMIN
+  STAFF
+  COACH
   PLAYER
   GUEST
 }
@@ -135,6 +137,8 @@ model Court {
   minHours       Float        @default(1.5)
   includes       String[]     // Danh sách tiện ích đi kèm
   imageUrl       String
+  status         String       @default("ACTIVE") // 'ACTIVE' | 'MAINTENANCE'
+  isMaintenance  Boolean      @default(false)
   isAvailable    Boolean      @default(true)
   isActive       Boolean      @default(true) // Soft delete flag
   weeklySchedule Json?        // Cấu hình khung giờ 7 ngày: { monday: ["17:30 - 19:30", ...], ..., sunday: [...] }

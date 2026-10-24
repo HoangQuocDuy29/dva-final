@@ -10,7 +10,8 @@ import {
   CoachProfile,
   TrainingRegistration, 
   User, 
-  UserRole 
+  UserRole,
+  ManagedUserRole
 } from '../types';
 import { 
   GUEST_USER,
@@ -103,7 +104,8 @@ async function request<T>(endpoint: string, options?: RequestInit, fallbackData?
     let message = `Request failed (HTTP ${res.status})`;
     try {
       const body = await res.json();
-      if (body?.error) message = body.error;
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
     } catch {
       // non-JSON error body
     }
@@ -192,6 +194,30 @@ export const authService = {
       body: JSON.stringify({ email, otp, newPassword }),
     });
   }
+};
+
+export const userService = {
+  async getUsers(): Promise<User[]> {
+    return request<User[]>('/users');
+  },
+
+  async createUser(data: { name: string; email: string; password: string; role: ManagedUserRole }): Promise<User> {
+    return request<User>('/users', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, fullName: data.name }),
+    });
+  },
+
+  async updateUserRole(id: string, role: ManagedUserRole): Promise<User> {
+    return request<User>(`/users/${encodeURIComponent(id)}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  async deleteUser(id: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
 };
 
 export const playerService = {
@@ -304,6 +330,43 @@ export const courtService = {
       );
     }
     return res;
+  },
+
+  async toggleMaintenance(id: string, isMaintenance?: boolean): Promise<Court> {
+    const saved = localStorage.getItem('dva_courts');
+    const list: Court[] = saved ? JSON.parse(saved) : INITIAL_COURTS;
+    const current = list.find((c) => c.id === id);
+    const nextMaint =
+      typeof isMaintenance === 'boolean'
+        ? isMaintenance
+        : !(current?.isMaintenance === true || current?.status === 'MAINTENANCE' || current?.isAvailable === false);
+    const fallbackCourt: Court = {
+      ...(current || INITIAL_COURTS[0]),
+      id,
+      status: nextMaint ? 'MAINTENANCE' : 'ACTIVE',
+      isMaintenance: nextMaint,
+      isAvailable: !nextMaint,
+    };
+
+    const res = await request<{ success?: boolean; court?: Court } & Partial<Court>>(
+      `/courts/${id}/toggle-maintenance`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(
+          typeof isMaintenance === 'boolean'
+            ? { isMaintenance, status: isMaintenance ? 'MAINTENANCE' : 'ACTIVE' }
+            : {}
+        ),
+      },
+      { success: true, court: fallbackCourt }
+    );
+
+    const updatedCourt: Court = res?.court ? res.court : ({ ...fallbackCourt, ...res } as Court);
+    localStorage.setItem(
+      'dva_courts',
+      JSON.stringify(list.map((c) => (c.id === id ? { ...c, ...updatedCourt } : c)))
+    );
+    return updatedCourt;
   },
 
   async deleteCourt(id: string): Promise<{ success: boolean; softDeleted?: boolean; message?: string }> {

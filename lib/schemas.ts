@@ -53,6 +53,8 @@ const WEEKLY_SCHEDULE: Rule = (v, k) => {
   return out;
 };
 
+export const COURT_STATUSES = ['ACTIVE', 'MAINTENANCE'] as const;
+
 export const COURT_SCHEMA: Schema = {
   name: S(100, 2),
   code: S(40),
@@ -64,6 +66,8 @@ export const COURT_SCHEMA: Schema = {
   minHours: N(0.5, 12),
   includes: SA(20, 200),
   imageUrl: U,
+  status: E(COURT_STATUSES),
+  isMaintenance: B,
   isAvailable: B,
   isActive: B,
   weeklySchedule: WEEKLY_SCHEDULE,

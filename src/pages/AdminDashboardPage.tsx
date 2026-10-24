@@ -47,6 +47,8 @@ import {
   TrainingCourse,
   CoachProfile,
   User as UserType,
+  ManagedUserRole,
+  MANAGED_USER_ROLES,
   VolleyballPosition,
   PlayerLevel,
   ClosedSlot,
@@ -65,7 +67,8 @@ import {
   playerService, 
   newsService, 
   sheetsService,
-  googleScriptSyncService 
+  googleScriptSyncService,
+  userService
 } from '../services/api';
 import { INITIAL_PLAYERS, INITIAL_COURTS, INITIAL_COACHES, INITIAL_TRAINING_COURSES } from '../data/mockData';
 import {
@@ -86,13 +89,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Navigation modules with direct URL synchronization: ?tab=courts, ?tab=players, etc.
-  const validTabs = ['OVERVIEW', 'COURTS', 'BOOKINGS', 'APPLICATIONS', 'PLAYERS', 'TRAINING', 'COACHES', 'NEWS', 'SHEETS'] as const;
+  const validTabs = ['OVERVIEW', 'COURTS', 'BOOKINGS', 'APPLICATIONS', 'PLAYERS', 'TRAINING', 'COACHES', 'NEWS', 'SHEETS', 'USERS'] as const;
   type ModuleType = typeof validTabs[number];
 
   const currentTabParam = (searchParams.get('tab') || 'OVERVIEW').toUpperCase();
-  const activeModule: ModuleType = validTabs.includes(currentTabParam as any)
-    ? (currentTabParam as ModuleType)
-    : 'OVERVIEW';
+  const isSuperAdmin = currentUser.role === 'SUPERADMIN';
+  const activeModule: ModuleType =
+    validTabs.includes(currentTabParam as any) && (currentTabParam !== 'USERS' || isSuperAdmin)
+      ? (currentTabParam as ModuleType)
+      : 'OVERVIEW';
 
   const setActiveModule = (mod: ModuleType | string) => {
     setSearchParams({ tab: mod.toLowerCase() });
@@ -109,6 +114,95 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   const [newsList, setNewsList] = useState<NewsPost[]>([]);
   const [sheetsData, setSheetsData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  // User account management (SUPERADMIN only)
+  const [usersList, setUsersList] = useState<UserType[]>([]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isSavingUser, setIsSavingUser] = useState(false);
+  const [userFormError, setUserFormError] = useState<string | null>(null);
+  const [userForm, setUserForm] = useState<{ name: string; email: string; password: string; role: ManagedUserRole }>({
+    name: '',
+    email: '',
+    password: '',
+    role: 'STAFF',
+  });
+
+  const USER_ROLE_BADGE: Record<string, string> = {
+    SUPERADMIN: 'bg-red-950/80 text-red-300 border-red-500/60',
+    ADMIN: 'bg-orange-950/80 text-orange-300 border-orange-500/60',
+    STAFF: 'bg-sky-950/80 text-sky-300 border-sky-500/60',
+    COACH: 'bg-purple-950/80 text-purple-300 border-purple-500/60',
+    PLAYER: 'bg-emerald-950/80 text-emerald-300 border-emerald-500/60',
+    GUEST: 'bg-slate-800 text-slate-300 border-slate-600',
+  };
+
+  const loadUsers = async () => {
+    try {
+      setUsersList(await userService.getUsers());
+    } catch (err: any) {
+      setFeedback(err?.message || 'Không tải được danh sách tài khoản.');
+      setTimeout(() => setFeedback(null), 3500);
+    }
+  };
+
+  useEffect(() => {
+    if (isSuperAdmin && activeModule === 'USERS') loadUsers();
+  }, [isSuperAdmin, activeModule]);
+
+  const openCreateUserModal = () => {
+    setUserForm({ name: '', email: '', password: '', role: 'STAFF' });
+    setUserFormError(null);
+    setIsUserModalOpen(true);
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUserFormError(null);
+    if (userForm.name.trim().length < 2) return setUserFormError('Tên phải có ít nhất 2 ký tự.');
+    if (!/^\S+@\S+\.\S+$/.test(userForm.email.trim())) return setUserFormError('Email không hợp lệ.');
+    if (userForm.password.length < 8) return setUserFormError('Mật khẩu phải có ít nhất 8 ký tự.');
+    setIsSavingUser(true);
+    try {
+      const created = await userService.createUser({
+        name: userForm.name.trim(),
+        email: userForm.email.trim(),
+        password: userForm.password,
+        role: userForm.role,
+      });
+      setUsersList((prev) => [created, ...prev]);
+      setIsUserModalOpen(false);
+      setFeedback(`Đã tạo tài khoản ${created.email} (${created.role}).`);
+      setTimeout(() => setFeedback(null), 3500);
+    } catch (err: any) {
+      setUserFormError(err?.message || 'Không thể tạo tài khoản.');
+    } finally {
+      setIsSavingUser(false);
+    }
+  };
+
+  const handleChangeUserRole = async (user: UserType, role: ManagedUserRole) => {
+    if (role === user.role) return;
+    try {
+      const updated = await userService.updateUserRole(user.id, role);
+      setUsersList((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...updated } : u)));
+      setFeedback(`Đã đổi quyền ${user.email} thành ${role}.`);
+    } catch (err: any) {
+      setFeedback(err?.message || 'Không thể cập nhật quyền.');
+    }
+    setTimeout(() => setFeedback(null), 3500);
+  };
+
+  const handleDeleteUser = async (user: UserType) => {
+    if (!window.confirm(`Xóa tài khoản ${user.email}? Hành động này không thể hoàn tác.`)) return;
+    try {
+      await userService.deleteUser(user.id);
+      setUsersList((prev) => prev.filter((u) => u.id !== user.id));
+      setFeedback(`Đã xóa tài khoản ${user.email}.`);
+    } catch (err: any) {
+      setFeedback(err?.message || 'Không thể xóa tài khoản.');
+    }
+    setTimeout(() => setFeedback(null), 3500);
+  };
   const [feedback, setFeedback] = useState<string | null>(null);
 
   // Player CRUD modal state
@@ -221,6 +315,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   const [selectedScheduleDay, setSelectedScheduleDay] = useState<DayOfWeekKey>('monday');
   const [newSlotInput, setNewSlotInput] = useState<string>('18:00 - 20:00');
   const [isUploadingCourtImage, setIsUploadingCourtImage] = useState<boolean>(false);
+  const [togglingCourtId, setTogglingCourtId] = useState<string | null>(null);
   const [courtForm, setCourtForm] = useState<Partial<Court>>({
     name: '',
     code: '',
@@ -231,6 +326,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
     hourlyRate: 500000,
     minHours: 1.5,
     imageUrl: '/courts/btl.png',
+    status: 'ACTIVE',
+    isMaintenance: false,
     isAvailable: true,
     isActive: true,
     weeklySchedule: getDefaultWeeklyScheduleForCourt(),
@@ -634,6 +731,41 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
     }
   };
 
+  const handleToggleCourtMaintenance = async (court: Court) => {
+    const currentlyMaintenance = Boolean(
+      court.isMaintenance === true || court.status === 'MAINTENANCE' || court.isAvailable === false
+    );
+    const nextMaint = !currentlyMaintenance;
+    setTogglingCourtId(court.id);
+    try {
+      const updated = await courtService.toggleMaintenance(court.id, nextMaint);
+      setCourtsList((prev) =>
+        prev.map((c) =>
+          c.id === court.id
+            ? {
+                ...c,
+                ...updated,
+                status: nextMaint ? 'MAINTENANCE' : 'ACTIVE',
+                isMaintenance: nextMaint,
+                isAvailable: !nextMaint,
+                weeklySchedule: normalizeWeeklySchedule(updated.weeklySchedule ?? c.weeklySchedule, c.id),
+              }
+            : c
+        )
+      );
+      setFeedback(
+        nextMaint
+          ? `🛠️ Đã chuyển sân "${court.name}" sang chế độ Bảo trì / Tạm ngưng cho thuê.`
+          : `✅ Đã kích hoạt lại sân "${court.name}". Sân hiện đã sẵn sàng nhận khách đặt online!`
+      );
+      setTimeout(() => setFeedback(null), 3500);
+    } catch (err: any) {
+      alert(err?.message || 'Lỗi khi cập nhật trạng thái bảo trì sân');
+    } finally {
+      setTogglingCourtId(null);
+    }
+  };
+
   const handleAddSlotToDay = () => {
     const clean = newSlotInput.trim();
     if (!clean) return;
@@ -873,6 +1005,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
             },
             { id: 'NEWS', label: `News Articles (${newsList.length})` },
             { id: 'SHEETS', label: 'Google Sheets Live Sync' },
+            ...(isSuperAdmin ? [{ id: 'USERS', label: 'Quản lý Tài Khoản' }] : []),
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1051,11 +1184,19 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                     (acc, d) => acc + (schedule[d.key]?.length || 0),
                     0
                   );
+                  const isMaintenance = Boolean(
+                    court.isMaintenance === true || court.status === 'MAINTENANCE' || court.isAvailable === false
+                  );
+                  const isTogglingThis = togglingCourtId === court.id;
 
                   return (
                     <div
                       key={court.id}
-                      className="rounded-2xl border border-slate-800 bg-[#0E1524] overflow-hidden flex flex-col justify-between shadow-lg hover:border-slate-700 transition-all"
+                      className={`rounded-2xl border bg-[#0E1524] overflow-hidden flex flex-col justify-between shadow-lg transition-all ${
+                        isMaintenance
+                          ? 'border-amber-500/60 ring-1 ring-amber-500/20'
+                          : 'border-slate-800 hover:border-slate-700'
+                      }`}
                     >
                       <div>
                         <div className="relative h-36 w-full bg-slate-900 overflow-hidden">
@@ -1063,13 +1204,28 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                             src={court.imageUrl || '/courts/btl.png'}
                             alt={court.name}
                             referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover"
+                            className={`w-full h-full object-cover transition-all ${
+                              isMaintenance ? 'opacity-50 grayscale-[40%]' : ''
+                            }`}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-[#0E1524] via-black/40 to-transparent" />
-                          <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-red-600 text-white shadow">
-                              {court.code}
-                            </span>
+                          <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-red-600 text-white shadow">
+                                {court.code}
+                              </span>
+                              {isMaintenance ? (
+                                <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-amber-950/95 text-amber-300 border border-amber-500/70 shadow flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                  <span>Bảo trì / Tạm ngưng</span>
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-950/95 text-emerald-300 border border-emerald-500/60 shadow flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                  <span>Hoạt động</span>
+                                </span>
+                              )}
+                            </div>
                             <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-black/75 text-orange-400 border border-orange-500/30">
                               {Number(court.hourlyRate || 500000).toLocaleString('vi-VN')} đ/h
                             </span>
@@ -1086,6 +1242,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                         </div>
 
                         <div className="p-4 space-y-3 text-xs">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-400">Trạng thái vận hành:</span>
+                            {isMaintenance ? (
+                              <span className="font-bold text-amber-400">🛠️ Đang bảo trì (Ngừng nhận đơn)</span>
+                            ) : (
+                              <span className="font-bold text-emerald-400">✓ Sẵn sàng cho thuê</span>
+                            )}
+                          </div>
+
                           <div className="flex items-center justify-between text-[11px] text-slate-400">
                             <span>Tổng số ca / tuần:</span>
                             <strong className="font-mono text-emerald-400">{totalWeeklySlots} ca hoạt động</strong>
@@ -1113,6 +1278,35 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                               </span>
                             </div>
                           </div>
+
+                          {/* Quick Toggle Maintenance Button */}
+                          <button
+                            type="button"
+                            disabled={isTogglingThis}
+                            onClick={() => handleToggleCourtMaintenance(court)}
+                            className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                              isMaintenance
+                                ? 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border-emerald-500/50'
+                                : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
+                            } ${isTogglingThis ? 'opacity-60 cursor-wait' : ''}`}
+                          >
+                            {isTogglingThis ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>Đang cập nhật...</span>
+                              </>
+                            ) : isMaintenance ? (
+                              <>
+                                <Unlock className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Kích hoạt lại</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Tạm dừng sân (Bảo trì)</span>
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
 
@@ -2137,6 +2331,153 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* MODULE 8: USER ACCOUNT MANAGEMENT (SUPERADMIN only) */}
+        {activeModule === 'USERS' && isSuperAdmin && (
+          <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <h2 className="text-lg font-black text-white">Quản lý Tài Khoản ({usersList.length})</h2>
+                <p className="text-xs text-slate-400">Tạo, phân quyền và xóa tài khoản người dùng / nhân sự.</p>
+              </div>
+              <button
+                type="button"
+                onClick={openCreateUserModal}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tạo Tài Khoản Mới</span>
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                  <tr>
+                    <th className="py-2 pr-4">Tên</th>
+                    <th className="py-2 pr-4">Email</th>
+                    <th className="py-2 pr-4">Role</th>
+                    <th className="py-2 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/70">
+                  {usersList.map((u) => {
+                    const isProtected = u.role === 'SUPERADMIN' || u.id === currentUser.id;
+                    return (
+                      <tr key={u.id} className="text-slate-200">
+                        <td className="py-3 pr-4 font-semibold">{u.fullName}</td>
+                        <td className="py-3 pr-4 text-slate-400">{u.email}</td>
+                        <td className="py-3 pr-4">
+                          <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black border ${USER_ROLE_BADGE[u.role] || USER_ROLE_BADGE.GUEST}`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          {isProtected ? (
+                            <span className="text-[10px] text-slate-500 italic">Được bảo vệ</span>
+                          ) : (
+                            <div className="flex items-center justify-end gap-2">
+                              <select
+                                value={u.role}
+                                onChange={(e) => handleChangeUserRole(u, e.target.value as ManagedUserRole)}
+                                className="bg-[#0B1220] border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-white cursor-pointer"
+                              >
+                                {MANAGED_USER_ROLES.map((r) => (
+                                  <option key={r} value={r}>{r}</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(u)}
+                                className="p-1.5 rounded-lg bg-red-950/60 text-red-400 hover:bg-red-900/70 border border-red-500/40 cursor-pointer"
+                                title="Xóa tài khoản"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {usersList.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-slate-500">Chưa có tài khoản nào.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {isUserModalOpen && (
+              <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+                <form
+                  onSubmit={handleCreateUser}
+                  className="w-full max-w-md bg-[#0F1727] border border-slate-700 rounded-3xl p-6 space-y-4 shadow-2xl"
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-black text-white">Tạo Tài Khoản Mới</h3>
+                    <button type="button" onClick={() => setIsUserModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {userFormError && (
+                    <div className="bg-red-950/70 border border-red-500/60 text-red-200 text-xs px-3 py-2 rounded-xl">{userFormError}</div>
+                  )}
+
+                  {([
+                    { key: 'name', label: 'Tên', type: 'text' },
+                    { key: 'email', label: 'Email', type: 'email' },
+                    { key: 'password', label: 'Mật khẩu (tối thiểu 8 ký tự)', type: 'password' },
+                  ] as const).map((f) => (
+                    <label key={f.key} className="block space-y-1">
+                      <span className="text-[11px] font-bold text-slate-400">{f.label}</span>
+                      <input
+                        type={f.type}
+                        required
+                        value={userForm[f.key]}
+                        onChange={(e) => setUserForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                        autoComplete={f.key === 'password' ? 'new-password' : 'off'}
+                        className="w-full bg-[#0B1220] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                      />
+                    </label>
+                  ))}
+
+                  <label className="block space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400">Role</span>
+                    <select
+                      value={userForm.role}
+                      onChange={(e) => setUserForm((prev) => ({ ...prev, role: e.target.value as ManagedUserRole }))}
+                      className="w-full bg-[#0B1220] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white cursor-pointer"
+                    >
+                      {MANAGED_USER_ROLES.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsUserModalOpen(false)}
+                      className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold cursor-pointer"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingUser}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold disabled:opacity-60 cursor-pointer"
+                    >
+                      {isSavingUser ? 'Đang tạo...' : 'Tạo tài khoản'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         )}
 

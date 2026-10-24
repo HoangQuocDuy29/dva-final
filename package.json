@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch server.ts",
+    "server": "tsx server.ts",
+    "client": "vite",
+    "dev": "concurrently -k -n \"BACKEND,FRONTEND\" -c \"blue,green\" \"npm run server\" \"npm run client\"",
     "build": "vite build",
     "start": "node server.js",
     "preview": "vite preview",
@@ -41,6 +43,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^10.0.6",
     "prisma": "^5.22.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
