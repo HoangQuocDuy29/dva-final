@@ -3234,6 +3234,17 @@ function doGet(e) {
                 </div>
 
                 <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Tầm bật chắn (cm)</label>
+                  <input
+                    type="number"
+                    placeholder="270"
+                    value={playerForm.blockTouch ?? ''}
+                    onChange={(e) => setPlayerForm({ ...playerForm, blockTouch: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono text-orange-400 font-bold"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-slate-300 font-semibold mb-1">Năm sinh (Born Year)</label>
                   <input
                     type="number"

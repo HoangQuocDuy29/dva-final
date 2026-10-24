@@ -209,6 +209,12 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">REACH</span>
               <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{player.spikeTouch}cm</span>
             </div>
+            {player.blockTouch > 0 && (
+              <div className="bg-[#0c1017] rounded-xl p-2 text-center border border-[#1a2332]">
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">BLOCK</span>
+                <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{player.blockTouch}cm</span>
+              </div>
+            )}
             <div className="bg-[#0c1017] rounded-xl p-2 text-center border border-[#1a2332]">
               <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">JOINED</span>
               <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{resolvedJoined}</span>
