@@ -3,11 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Search, 
   User, 
-  Sparkles,
   ArrowRight,
   ChevronLeft,
   ChevronRight,
-  Shield,
   Columns3,
   LayoutGrid
 } from 'lucide-react';
@@ -35,7 +33,6 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedPosition, setSelectedPosition] = useState<string>('ALL');
-  const [selectedLetter, setSelectedLetter] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'SINGLE_TAB' | '3_COLUMNS'>('SINGLE_TAB');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 8; // 8 player cards per page for optimal grid layout
@@ -61,10 +58,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     fetchPlayers();
   }, []);
 
-  // Reset pagination when level, search, position, or alphabet changes
+  // Reset pagination when level, search, or position changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [resolvedLevel, search, selectedPosition, selectedLetter]);
+  }, [resolvedLevel, search, selectedPosition]);
 
   // Position badge styling
   const getPositionBadgeStyle = (pos: VolleyballPosition) => {
@@ -89,10 +86,6 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     return list
       .filter((p) => {
         if (selectedPosition !== 'ALL' && p.position !== selectedPosition) return false;
-        if (selectedLetter !== 'ALL') {
-          const firstChar = (p.fullName || '').trim().charAt(0).toUpperCase();
-          if (firstChar !== selectedLetter) return false;
-        }
         if (search.trim()) {
           const q = search.toLowerCase();
           return (
@@ -112,9 +105,9 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
   };
 
   // Squad counts (alphabetically sorted)
-  const seniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'SENIOR')), [players, search, selectedPosition, selectedLetter]);
-  const juniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'JUNIOR')), [players, search, selectedPosition, selectedLetter]);
-  const youthPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'YOUTH')), [players, search, selectedPosition, selectedLetter]);
+  const seniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'SENIOR')), [players, search, selectedPosition]);
+  const juniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'JUNIOR')), [players, search, selectedPosition]);
+  const youthPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'YOUTH')), [players, search, selectedPosition]);
 
   // Active level list for Single Tab
   const activeLevelPlayers = useMemo(() => {
@@ -129,6 +122,14 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     const startIndex = (currentPage - 1) * pageSize;
     return activeLevelPlayers.slice(startIndex, startIndex + pageSize);
   }, [activeLevelPlayers, currentPage, pageSize]);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    const targetElement = document.getElementById('players-grid-top');
+    if (targetElement) {
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   const handleSelectLevel = (level: 'JUNIOR' | 'SENIOR' | 'YOUTH') => {
     navigate(`/players/${level.toLowerCase()}`);
@@ -491,48 +492,12 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               </button>
             ))}
           </div>
-
-          {/* Alphabetical A-Z Filter Bar */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/80">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Sort & Filter (A - Z):</span>
-            {['ALL', 'A', 'B', 'C', 'D', 'E', 'G', 'H', 'K', 'L', 'M', 'N', 'P', 'Q', 'S', 'T', 'V', 'X', 'Y'].map((letter) => (
-              <button
-                key={letter}
-                type="button"
-                onClick={() => setSelectedLetter(letter)}
-                className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center justify-center ${
-                  selectedLetter === letter
-                    ? 'bg-amber-500 text-black font-black shadow'
-                    : 'bg-[#161F30] text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
-                }`}
-              >
-                {letter}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* PRIMARY VIEW: SINGLE LEVEL ROSTER GRID (Default, spacious and uncrowded) */}
         {viewMode === 'SINGLE_TAB' ? (
-          <div className="space-y-6">
-            
-            {/* Squad Status Sub-Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#121826] px-6 py-4 rounded-2xl border border-slate-800 text-xs">
-              <div className="flex items-center gap-2.5">
-                <span className={`w-3 h-3 rounded-full ${
-                  resolvedLevel === 'SENIOR' ? 'bg-red-500' : resolvedLevel === 'YOUTH' ? 'bg-emerald-400' : 'bg-cyan-400'
-                }`} />
-                <span className="font-heading font-black text-white text-base">
-                  {resolvedLevel === 'SENIOR' ? 'Senior Squad Lineup' : resolvedLevel === 'YOUTH' ? 'Youth Squad Lineup' : 'Junior Squad Lineup'}
-                </span>
-                <span className="text-slate-400 font-mono">
-                  ({activeLevelPlayers.length} total players matching criteria)
-                </span>
-              </div>
-              <div className="text-slate-400 text-xs font-medium">
-                Page <strong className="text-white">{currentPage}</strong> of <strong className="text-white">{totalPages}</strong>
-              </div>
-            </div>
+          <div>
+            <div id="players-grid-top" className="scroll-mt-24" />
 
             {/* Empty state */}
             {paginatedPlayers.length === 0 ? (
@@ -558,47 +523,41 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
 
             {/* PAGINATION CONTROLS */}
             {totalPages > 1 && (
-              <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-800">
-                <span className="text-xs text-slate-400 font-medium">
-                  Showing <strong className="text-white">{((currentPage - 1) * pageSize) + 1}</strong> – <strong className="text-white">{Math.min(currentPage * pageSize, activeLevelPlayers.length)}</strong> of <strong className="text-white">{activeLevelPlayers.length}</strong> {resolvedLevel.toLowerCase()} athletes
-                </span>
+              <div className="flex justify-center items-center gap-2 mt-8 mb-4">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className="p-2.5 rounded-xl border border-slate-800 bg-[#121826] text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
 
-                <div className="flex items-center gap-1.5">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
                   <button
+                    key={pg}
                     type="button"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    className="p-2 rounded-xl border border-slate-800 bg-[#121826] text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                    aria-label="Previous page"
+                    onClick={() => handlePageChange(pg)}
+                    className={`w-10 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
+                      currentPage === pg
+                        ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-lg shadow-red-950/50 font-extrabold ring-1 ring-red-400/50'
+                        : 'bg-[#121826] border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    {pg}
                   </button>
+                ))}
 
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
-                    <button
-                      key={pg}
-                      type="button"
-                      onClick={() => setCurrentPage(pg)}
-                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        currentPage === pg
-                          ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-md'
-                          : 'bg-[#121826] border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
-                      }`}
-                    >
-                      {pg}
-                    </button>
-                  ))}
-
-                  <button
-                    type="button"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    className="p-2 rounded-xl border border-slate-800 bg-[#121826] text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                    aria-label="Next page"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className="p-2.5 rounded-xl border border-slate-800 bg-[#121826] text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             )}
 
