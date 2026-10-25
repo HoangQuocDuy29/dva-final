@@ -560,7 +560,7 @@ const CourtBookingContent: React.FC = () => {
             <span className="text-xs font-mono text-orange-400 font-semibold">Rates: From 500,000 VND/h (The Cong & My Dinh: 500k/h · BTL: 550k/h)</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {courts.map((court) => {
               const isSelected = court.id === selectedCourtId;
               const isMaintenance = isCourtMaintenance(court);
@@ -692,7 +692,7 @@ const CourtBookingContent: React.FC = () => {
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
               Quick Date Select (Present to Future):
             </span>
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+            <div className="flex flex-nowrap overflow-x-auto scrollbar-none gap-2 py-2 touch-pan-x -mx-2 px-2 sm:mx-0 sm:px-0">
               {upcomingDays.map((day) => {
                 const isDaySelected = day.dateStr === bookingDate;
                 return (
@@ -700,13 +700,13 @@ const CourtBookingContent: React.FC = () => {
                     key={day.dateStr}
                     type="button"
                     onClick={() => setBookingDate(day.dateStr)}
-                    className={`px-3.5 py-2.5 rounded-2xl flex flex-col items-center justify-center min-w-[85px] transition-all cursor-pointer border ${
+                    className={`px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-2xl flex flex-col items-center justify-center min-w-[76px] sm:min-w-[85px] transition-all cursor-pointer border shrink-0 ${
                       isDaySelected
                         ? 'border-red-500 bg-gradient-to-b from-red-600 to-orange-600 text-white shadow-lg ring-2 ring-red-400/40'
                         : 'border-slate-800 bg-[#0E1524] hover:bg-slate-800 text-slate-300'
                     }`}
                   >
-                    <span className={`text-[10px] font-black uppercase tracking-wider ${isDaySelected ? 'text-red-100' : day.isWeekend ? 'text-orange-400' : 'text-slate-400'}`}>
+                    <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${isDaySelected ? 'text-red-100' : day.isWeekend ? 'text-orange-400' : 'text-slate-400'}`}>
                       {day.dayName}
                     </span>
                     <span className="text-xs font-mono font-extrabold mt-0.5">
@@ -760,8 +760,8 @@ const CourtBookingContent: React.FC = () => {
                 </span>
               </div>
 
-              {/* Sub-court Tabs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+              {/* Sub-court Tabs (Mobile: flex-col or compact grid; Tablet/Laptop: 2 tabs) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 w-full sm:max-w-xl">
                 {subCourts.map((sc) => {
                   const isTabSelected = selectedSubCourt === sc;
                   const currentDay = getDayOfWeekKey(bookingDate);
@@ -789,15 +789,15 @@ const CourtBookingContent: React.FC = () => {
                           }
                         }
                       }}
-                      className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
+                      className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer gap-2 ${
                         isTabSelected
                           ? 'border-red-500 bg-gradient-to-r from-red-950/70 via-[#182338] to-[#121826] text-white ring-2 ring-red-500/50 shadow-xl'
                           : 'border-slate-800 bg-[#0E1524] text-slate-300 hover:border-slate-700 hover:bg-[#131c2e]'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                         <div
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
                             isTabSelected
                               ? 'bg-gradient-to-br from-red-600 to-orange-500 text-white shadow'
                               : 'bg-slate-800 text-slate-400'
@@ -805,22 +805,22 @@ const CourtBookingContent: React.FC = () => {
                         >
                           {sc.replace('Sân ', '')}
                         </div>
-                        <div className="text-left">
-                          <span className="font-heading font-black text-sm block text-white flex items-center gap-1.5">
+                        <div className="text-left truncate">
+                          <span className="font-heading font-black text-sm block text-white flex items-center gap-1.5 truncate">
                             <span>{sc}</span>
                             <span className="text-[10px] text-slate-400 font-normal">
                               ({sc === 'Sân A' ? 'Court A' : 'Court B'})
                             </span>
                           </span>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-slate-400 block truncate">
                             Sân độc lập tiêu chuẩn
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-end">
+                      <div className="flex flex-col items-end shrink-0">
                         <span
-                          className={`text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider ${
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider whitespace-nowrap shrink-0 ${
                             availableCount > 0
                               ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/80'
                               : 'bg-red-950/80 text-red-400 border-red-800/80'
@@ -875,7 +875,8 @@ const CourtBookingContent: React.FC = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+            {/* Lưới danh sách khung giờ trống (Available Sessions Grid: Mobile 1-2 cols, Tablet 2-3 cols, Desktop 4-5 cols) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3 lg:gap-4">
               {availableSlots.map((slot) => {
                 const status = getSlotStatus(slot);
                 const isSelected = selectedSlotObj?.label === slot.label && (!hasSubCourts || selectedSlotObj?.subCourt === selectedSubCourt);
@@ -895,7 +896,7 @@ const CourtBookingContent: React.FC = () => {
                           : { ...slot, subCourt: hasSubCourts ? selectedSubCourt : undefined }
                       );
                     }}
-                    className={`p-4 rounded-2xl border text-left transition-all relative ${
+                    className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative ${
                       isSelected
                         ? 'border-red-500 bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-xl ring-2 ring-red-400/40 cursor-pointer scale-[1.02]'
                         : isAvailable
@@ -907,14 +908,14 @@ const CourtBookingContent: React.FC = () => {
                         : 'border-slate-800 bg-slate-900/60 text-slate-500 cursor-not-allowed opacity-50'
                     }`}
                   >
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <Clock className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
-                        <span className="font-mono font-bold text-sm tracking-tight">
+                    <div className="flex justify-between items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                        <Clock className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+                        <span className="font-mono font-bold text-xs sm:text-sm tracking-tight truncate">
                           {slot.label}
                         </span>
                         {hasSubCourts && (
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider ${
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-black tracking-wider shrink-0 ${
                             isSelected
                               ? 'bg-white/20 text-white'
                               : 'bg-orange-950/80 text-orange-300 border border-orange-800/80'
@@ -924,7 +925,7 @@ const CourtBookingContent: React.FC = () => {
                         )}
                       </div>
 
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
+                      <span className={`text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded uppercase tracking-wider shrink-0 ${
                         isSelected 
                           ? 'bg-white text-red-600' 
                           : isAvailable
@@ -939,9 +940,9 @@ const CourtBookingContent: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/10 text-[11px]">
+                    <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/10 text-[10px] sm:text-[11px]">
                       <span className={isSelected ? 'text-red-100' : 'text-slate-400'}>
-                        {slot.durationHours} Hours Session
+                        {slot.durationHours}h Session
                       </span>
                       <span className={`font-mono font-bold ${isSelected ? 'text-white' : 'text-orange-400'}`}>
                         {calculatedPrice.toLocaleString('vi-VN')} đ

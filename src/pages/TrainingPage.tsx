@@ -556,22 +556,22 @@ export const TrainingPage: React.FC = () => {
 
       {/* REGISTRATION & VIETQR PAYMENT MODAL (No Login Required) */}
       {isModalOpen && selectedCourse && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#121826] rounded-3xl max-w-xl w-full border border-slate-700 shadow-2xl text-white overflow-hidden max-h-[92vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-[95%] sm:w-full max-w-xl md:max-w-2xl bg-[#121826] rounded-2xl sm:rounded-3xl border border-slate-700 shadow-2xl text-white overflow-hidden max-h-[90vh] flex flex-col">
             
             {/* Modal Header */}
-            <div className="bg-[#0B0F19] px-6 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center font-black text-black text-sm">
+            <div className="bg-[#0B0F19] px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center font-black text-black text-sm shrink-0">
                   DVA
                 </div>
-                <div>
-                  <h3 className="font-heading font-black text-base text-white">
+                <div className="truncate">
+                  <h3 className="font-heading font-black text-sm sm:text-base text-white truncate">
                     {modalStep === 'FORM' && `Enroll: ${selectedCourse.title}`}
                     {modalStep === 'PAYMENT_QR' && 'Scan VietQR to Complete Enrollment'}
                     {modalStep === 'RECEIPT' && 'Official Enrollment Confirmed!'}
                   </h3>
-                  <p className="text-xs text-amber-400 font-mono">
+                  <p className="text-[11px] sm:text-xs text-amber-400 font-mono truncate">
                     {selectedCourse.price.toLocaleString('vi-VN')} đ {getPriceUnitLabel(selectedCourse)}
                   </p>
                 </div>
@@ -580,14 +580,14 @@ export const TrainingPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCloseModal}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-5 text-xs">
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 text-xs">
               
               {/* STEP 1: ATHLETE REGISTRATION FORM */}
               {modalStep === 'FORM' && (

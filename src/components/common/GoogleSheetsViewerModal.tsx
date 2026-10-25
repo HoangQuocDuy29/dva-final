@@ -55,8 +55,8 @@ export const GoogleSheetsViewerModal: React.FC<GoogleSheetsViewerModalProps> = (
   const columnKeys = currentRows.length > 0 ? Object.keys(currentRows[0]) : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in">
-      <div className="bg-[#161F30] rounded-3xl max-w-5xl w-full shadow-2xl border border-slate-700 overflow-hidden text-white flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+      <div className="w-[95%] sm:w-full max-w-5xl bg-[#161F30] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-700 overflow-hidden text-white flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="bg-emerald-950 px-6 py-4.5 border-b border-emerald-800 flex items-center justify-between">

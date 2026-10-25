@@ -1215,7 +1215,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
         </div>
 
         {/* Dedicated Admin Module Navigation Tabs */}
-        <div className="max-w-7xl mx-auto mt-4 pt-2 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto text-xs font-bold">
+        <div className="max-w-7xl mx-auto mt-4 pt-2 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto text-xs font-bold scrollbar-none touch-pan-x -mx-2 px-2 sm:mx-0 sm:px-0 py-1">
           {[
             { id: 'OVERVIEW', label: 'Overview & Metrics' },
             { id: 'COURTS', label: 'Court Schedule & Slots' },
@@ -1520,7 +1520,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                             type="button"
                             disabled={isTogglingThis}
                             onClick={() => handleToggleCourtMaintenance(court)}
-                            className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                            className={`w-full min-h-[40px] py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
                               isMaintenance
                                 ? 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border-emerald-500/50'
                                 : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
@@ -1550,7 +1550,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                         <button
                           type="button"
                           onClick={() => handleOpenEditCourtModal(court)}
-                          className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                          className="flex-1 min-h-[40px] py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                         >
                           <Edit3 className="w-3.5 h-3.5 text-orange-400" />
                           <span>Sửa Sân & Lịch Tuần</span>
@@ -1558,7 +1558,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                         <button
                           type="button"
                           onClick={() => handleDeleteCourt(court)}
-                          className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-950 text-slate-400 hover:text-red-300 border border-slate-700/80 hover:border-red-800 cursor-pointer transition-colors"
+                          className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-slate-800/80 hover:bg-red-950 text-slate-400 hover:text-red-300 border border-slate-700/80 hover:border-red-800 flex items-center justify-center cursor-pointer transition-colors"
                           title="Xóa sân"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1867,8 +1867,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full min-w-[720px] text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-[#0E1524] text-slate-400 font-bold border-b border-slate-800">
                     <th className="py-3 px-3">Booking Code / Date</th>
@@ -1939,14 +1939,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                               <button
                                 type="button"
                                 onClick={() => handleUpdateBookingStatus(b.id, 'PAID')}
-                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg transition-colors cursor-pointer"
+                                className="min-h-[40px] px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-xl transition-colors cursor-pointer"
                               >
                                 Approve Paid
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleUpdateBookingStatus(b.id, 'CANCELLED')}
-                                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded-lg transition-colors cursor-pointer"
+                                className="min-h-[40px] px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded-xl transition-colors cursor-pointer"
                               >
                                 Cancel
                               </button>
@@ -1959,18 +1959,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                               setBookingForm(b);
                               setIsBookingModalOpen(true);
                             }}
-                            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+                            className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-300 hover:text-white rounded-xl bg-slate-800/80 hover:bg-slate-700 cursor-pointer transition-colors"
                             title="Chỉnh sửa thông tin đặt sân"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="w-4 h-4 text-orange-400" />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteBooking(b.id, b.bookingCode)}
-                            className="p-1.5 text-slate-400 hover:text-red-400 rounded-lg hover:bg-slate-800 cursor-pointer"
+                            className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer transition-colors"
                             title="Xóa đơn đặt sân"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -1994,8 +1994,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full min-w-[720px] text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-[#0E1524] text-slate-400 font-bold border-b border-slate-800">
                     <th className="py-3 px-3">Candidate / Position</th>
@@ -2039,13 +2039,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                             <>
                               <button
                                 onClick={() => handleUpdateApplicationStatus(app.id, 'APPROVED')}
-                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg transition-colors cursor-pointer"
+                                className="min-h-[40px] px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-xl transition-colors cursor-pointer"
                               >
                                 Approve & Promote
                               </button>
                               <button
                                 onClick={() => handleUpdateApplicationStatus(app.id, 'REJECTED')}
-                                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 text-[11px] rounded-lg transition-colors cursor-pointer"
+                                className="min-h-[40px] px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded-xl transition-colors cursor-pointer"
                               >
                                 Reject
                               </button>
@@ -2056,10 +2056,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                           <button
                             type="button"
                             onClick={() => handleDeleteApplication(app.id, app.fullName)}
-                            className="p-1 text-slate-500 hover:text-red-400 rounded hover:bg-slate-800 cursor-pointer"
+                            className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer transition-colors"
                             title="Xóa hồ sơ ứng viên"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -2220,17 +2220,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                             });
                             setIsPlayerModalOpen(true);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+                          className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-300 hover:text-white rounded-xl bg-slate-800/80 hover:bg-slate-700 cursor-pointer transition-colors"
                           title="Edit athlete profile"
                         >
-                          <Edit3 className="w-3.5 h-3.5" />
+                          <Edit3 className="w-4 h-4 text-orange-400" />
                         </button>
                         <button
                           onClick={() => handleDeletePlayer(p.id, p.fullName)}
-                          className="p-1.5 text-slate-400 hover:text-red-400 rounded-lg hover:bg-slate-800 cursor-pointer"
+                          className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer transition-colors"
                           title="Delete athlete"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -2254,8 +2254,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse">
+              <div className="overflow-x-auto scrollbar-thin">
+                <table className="w-full min-w-[700px] text-xs text-left border-collapse">
                   <thead>
                     <tr className="bg-[#0E1524] text-slate-400 font-bold border-b border-slate-800">
                       <th className="py-3 px-3">Trainee / Contact</th>
@@ -2304,14 +2304,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                                   <button
                                     type="button"
                                     onClick={() => handleUpdateTrainingStatus(reg.id, 'CONFIRMED')}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg transition-colors cursor-pointer"
+                                    className="min-h-[40px] px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-xl transition-colors cursor-pointer"
                                   >
                                     Confirm
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleUpdateTrainingStatus(reg.id, 'CANCELLED')}
-                                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 text-[11px] rounded-lg transition-colors cursor-pointer"
+                                    className="min-h-[40px] px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded-xl transition-colors cursor-pointer"
                                   >
                                     Cancel
                                   </button>
@@ -2322,10 +2322,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                               <button
                                 type="button"
                                 onClick={() => handleDeleteRegistration(reg.id, reg.fullName)}
-                                className="p-1 text-slate-500 hover:text-red-400 rounded hover:bg-slate-800 cursor-pointer ml-1"
+                                className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer ml-1 transition-colors"
                                 title="Xóa lượt đăng ký"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -2407,7 +2407,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                           setCourseForm(course);
                           setIsCourseModalOpen(true);
                         }}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                        className="min-h-[40px] px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
                         <Edit3 className="w-3.5 h-3.5 text-orange-400" />
                         <span>Sửa</span>
@@ -2415,7 +2415,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                       <button
                         type="button"
                         onClick={() => handleDeleteCourse(course.id, course.title)}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 text-xs font-semibold rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                        className="min-h-[40px] px-3.5 py-2 bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>Xóa</span>
@@ -2515,7 +2515,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                         setCoachForm(coach);
                         setIsCoachModalOpen(true);
                       }}
-                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                      className="min-h-[40px] px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Edit3 className="w-3.5 h-3.5 text-orange-400" />
                       <span>Sửa</span>
@@ -2523,7 +2523,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                     <button
                       type="button"
                       onClick={() => handleDeleteCoach(coach.id, coach.name)}
-                      className="px-3 py-1.5 bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 text-xs font-semibold rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                      className="min-h-[40px] px-3.5 py-2 bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>Xóa</span>
@@ -2624,18 +2624,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                           setNewsAuthorRole(story.authorRole || 'Club Administration');
                           setIsNewsModalOpen(true);
                         }}
-                        className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 cursor-pointer"
+                        className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-300 hover:text-white rounded-xl bg-slate-800/80 hover:bg-slate-700 cursor-pointer transition-colors"
                         title="Chỉnh sửa bài viết"
                       >
-                        <Edit3 className="w-3.5 h-3.5" />
+                        <Edit3 className="w-4 h-4 text-orange-400" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteNews(story.id, story.title)}
-                        className="p-1 text-slate-500 hover:text-red-400 rounded hover:bg-slate-800 cursor-pointer"
+                        className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer transition-colors"
                         title="Delete story"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -2663,14 +2663,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
               </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full min-w-[560px] text-xs text-left">
                 <thead className="text-slate-400 uppercase text-[10px] border-b border-slate-800">
                   <tr>
-                    <th className="py-2 pr-4">Tên</th>
-                    <th className="py-2 pr-4">Email</th>
-                    <th className="py-2 pr-4">Role</th>
-                    <th className="py-2 text-right">Thao tác</th>
+                    <th className="py-3 pr-4">Tên</th>
+                    <th className="py-3 pr-4">Email</th>
+                    <th className="py-3 pr-4">Role</th>
+                    <th className="py-3 text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/70">
@@ -2693,7 +2693,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                               <select
                                 value={u.role}
                                 onChange={(e) => handleChangeUserRole(u, e.target.value as ManagedUserRole)}
-                                className="bg-[#0B1220] border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-white cursor-pointer"
+                                className="bg-[#0B1220] border border-slate-700 rounded-xl px-2.5 min-h-[40px] text-[11px] text-white cursor-pointer"
                               >
                                 {MANAGED_USER_ROLES.map((r) => (
                                   <option key={r} value={r}>{r}</option>
@@ -2702,10 +2702,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                               <button
                                 type="button"
                                 onClick={() => handleDeleteUser(u)}
-                                className="p-1.5 rounded-lg bg-red-950/60 text-red-400 hover:bg-red-900/70 border border-red-500/40 cursor-pointer"
+                                className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl bg-red-950/60 text-red-400 hover:bg-red-900/70 border border-red-500/40 cursor-pointer transition-colors"
                                 title="Xóa tài khoản"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           )}
@@ -2723,14 +2723,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
             </div>
 
             {isUserModalOpen && (
-              <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
                 <form
                   onSubmit={handleCreateUser}
-                  className="w-full max-w-md bg-[#0F1727] border border-slate-700 rounded-3xl p-6 space-y-4 shadow-2xl"
+                  className="w-[95%] sm:w-full max-w-md bg-[#0F1727] border border-slate-700 rounded-2xl sm:rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                     <h3 className="text-base font-black text-white">Tạo Tài Khoản Mới</h3>
-                    <button type="button" onClick={() => setIsUserModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={() => setIsUserModalOpen(false)}
+                      className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition-colors"
+                    >
                       <X className="w-5 h-5" />
                     </button>
                   </div>
@@ -3467,15 +3471,15 @@ function doGet(e) {
 
       {/* ATHLETE CREATE / EDIT MODAL */}
       {isPlayerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#161F30] rounded-3xl max-w-lg w-full border border-slate-700 p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-[95%] sm:w-full max-w-lg md:max-w-2xl bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-700 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="font-bold text-base">
                 {editingPlayer ? `Edit Athlete: ${editingPlayer.fullName}` : 'Add New Athlete'}
               </h3>
               <button
                 onClick={() => setIsPlayerModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3620,7 +3624,7 @@ function doGet(e) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Số áo thi đấu (#)</label>
                   <input
@@ -3780,8 +3784,8 @@ function doGet(e) {
 
       {/* NEWS STORY PUBLISH MODAL (Required by user) */}
       {isNewsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#161F30] rounded-3xl max-w-xl w-full border border-slate-700 p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-[95%] sm:w-full max-w-xl md:max-w-2xl bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-700 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div>
                 <h3 className="font-heading font-black text-lg text-white">
@@ -3797,7 +3801,7 @@ function doGet(e) {
                   setIsNewsModalOpen(false);
                   setEditingNews(null);
                 }}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3990,8 +3994,8 @@ function doGet(e) {
 
       {/* BOOKING MANUAL CREATE / EDIT MODAL */}
       {isBookingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#161F30] rounded-3xl max-w-lg w-full border border-slate-700 p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-[95%] sm:w-full max-w-lg md:max-w-2xl bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-700 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div>
                 <h3 className="font-heading font-black text-lg text-white">
@@ -4007,7 +4011,7 @@ function doGet(e) {
                   setIsBookingModalOpen(false);
                   setEditingBooking(null);
                 }}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -4190,8 +4194,8 @@ function doGet(e) {
 
       {/* TRAINING COURSE CREATE / EDIT MODAL */}
       {isCourseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#161F30] rounded-3xl max-w-lg w-full border border-slate-700 p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-[95%] sm:w-full max-w-lg md:max-w-2xl bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-700 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div>
                 <h3 className="font-heading font-black text-lg text-white">
@@ -4207,7 +4211,7 @@ function doGet(e) {
                   setIsCourseModalOpen(false);
                   setEditingCourse(null);
                 }}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -4412,8 +4416,8 @@ function doGet(e) {
 
       {/* COACH CREATE / EDIT MODAL */}
       {isCoachModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="bg-[#161F30] rounded-3xl max-w-lg w-full border border-slate-700 p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-[95%] sm:w-full max-w-lg md:max-w-2xl bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-700 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div>
                 <h3 className="font-heading font-black text-lg text-white">
@@ -4429,7 +4433,7 @@ function doGet(e) {
                   setIsCoachModalOpen(false);
                   setEditingCoach(null);
                 }}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -4647,8 +4651,8 @@ function doGet(e) {
 
       {/* COURT CREATE / EDIT & WEEKLY SCHEDULE MODAL */}
       {isCourtModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#0F1623] border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+          <div className="w-[95%] sm:w-full max-w-2xl md:max-w-3xl bg-[#0F1623] border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-lg font-black text-white">
@@ -4663,7 +4667,7 @@ function doGet(e) {
                   setIsCourtModalOpen(false);
                   setEditingCourt(null);
                 }}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

@@ -98,8 +98,8 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser }) => {
           </div>
         </div>
 
-        {/* News Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* News Grid (Responsive: 1 col on mobile, 2 cols on tablet, 3 cols on desktop) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredNews.map((article) => (
             <article
               key={article.id}

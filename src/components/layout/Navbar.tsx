@@ -63,11 +63,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0B0F19]/95 backdrop-blur-md border-b border-slate-800 text-white shadow-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-2 sm:gap-4 md:gap-3 lg:gap-8">
         
         {/* Brand Wordmark & Dynamic Logo Slot */}
-        <Link to="/" className="flex items-center gap-3 text-white group whitespace-nowrap shrink-0">
-          <div className="w-10 h-10 rounded-2xl overflow-hidden bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg shadow-red-900/30 group-hover:scale-105 transition-transform shrink-0 relative">
+        <Link to="/" className="flex items-center gap-2.5 sm:gap-3 text-white group whitespace-nowrap shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl overflow-hidden bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg shadow-red-900/30 group-hover:scale-105 transition-transform shrink-0 relative">
             <img
               src="/logo.png"
               alt="DVA Logo"
@@ -90,15 +90,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
           <div className="flex flex-col">
-            <span className="font-heading font-black text-xl tracking-tight text-white flex items-center gap-1.5">
+            <span className="font-heading font-black text-lg sm:text-xl tracking-tight text-white flex items-center gap-1">
               DVA <span className="text-orange-500">VOLLEYBALL</span>
             </span>
-            <span className="text-[10px] tracking-widest text-slate-400 uppercase font-bold"> Sports Arena</span>
+            <span className="text-[9px] sm:text-[10px] tracking-widest text-slate-400 uppercase font-bold"> Sports Arena</span>
           </div>
         </Link>
 
-        {/* Public Nav Links (Clean, No script/ggsheet buttons) */}
-        <nav className="hidden lg:flex items-center gap-7 text-sm font-semibold">
+        {/* Public Nav Links (Tablet & Desktop: responsive gap & font size) */}
+        <nav className="hidden md:flex items-center gap-2.5 lg:gap-6 xl:gap-7 text-xs lg:text-sm font-semibold">
           {navLinks.map((link) => (
             <Link
               key={link.path}
@@ -118,14 +118,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Action Area */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           
-          {/* User Account / Role Pill */}
+          {/* User Account / Role Pill (Desktop & Tablet) */}
           <div ref={dropdownRef} className="relative">
             {currentUser.role === 'GUEST' ? (
               <button
                 onClick={onOpenAuth}
-                className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-700 bg-[#161F30] text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-700 bg-[#161F30] text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <User className="w-3.5 h-3.5 text-slate-400" />
                 <span>Sign In</span>
@@ -133,13 +133,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors cursor-pointer shadow-sm ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 text-xs font-semibold rounded-xl border transition-colors cursor-pointer shadow-sm ${
                   isAdmin 
                     ? 'border-red-800 bg-red-950/40 text-red-200 hover:bg-red-950/70' 
                     : 'border-slate-700 bg-[#161F30] text-slate-200 hover:bg-slate-800'
                 }`}
               >
-                <span className={`px-2 py-0.5 text-[10px] rounded uppercase font-bold font-mono border ${
+                <span className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] rounded uppercase font-bold font-mono border ${
                   currentUser.role === 'SUPERADMIN' 
                     ? 'bg-red-900 text-red-200 border-red-700'
                     : currentUser.role === 'ADMIN'
@@ -148,13 +148,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}>
                   {currentUser.role}
                 </span>
-                <span className="max-w-[110px] truncate text-white">{currentUser.fullName.split(' ').slice(-1)[0]}</span>
+                <span className="max-w-[70px] sm:max-w-[110px] truncate text-white">{currentUser.fullName.split(' ').slice(-1)[0]}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
             )}
 
             {userDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-[#121826] border border-slate-700 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-in fade-in">
+              <div className="absolute right-0 mt-2 w-64 sm:w-72 bg-[#121826] border border-slate-700 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-in fade-in">
                 <div className="px-4 py-2.5 border-b border-slate-800">
                   <div className="text-[11px] text-slate-400 font-medium">Logged in as:</div>
                   <div className="font-bold text-white text-sm">{currentUser.fullName}</div>
@@ -195,60 +195,119 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* Primary CTA Button: Join DVA */}
+          {/* Primary CTA Button: Join DVA (Hidden on mobile < 640px to leave space for hamburger) */}
           <Link
             to="/register"
-            className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-orange-500 rounded-xl hover:brightness-110 shadow-lg shadow-red-900/30 hover:scale-[1.02] transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            className="hidden sm:inline-flex px-3.5 sm:px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-red-600 to-orange-500 rounded-xl hover:brightness-110 shadow-lg shadow-red-900/30 hover:scale-[1.02] transition-all whitespace-nowrap shrink-0 items-center gap-1.5"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>Join DVA</span>
           </Link>
 
-          {/* Mobile hamburger */}
+          {/* Mobile hamburger button (< 768px: md:hidden) */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 text-slate-400 hover:text-white"
+            aria-label="Toggle Navigation Menu"
+            className="md:hidden w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-[#161F30] border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Drawer Menu (Mobile Sheet trượt xuống/trượt ngang) */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#121826] border-t border-slate-800 px-4 pt-3 pb-6 space-y-2">
-          {navLinks.map((link) => (
-            <Link
-              key={link.path}
-              to={link.path}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`block px-3 py-2.5 rounded-xl text-sm font-semibold ${
-                isActive(link.path)
-                  ? 'bg-red-950/80 text-white font-bold'
-                  : 'text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+        <div className="md:hidden bg-[#0F1420]/98 backdrop-blur-xl border-t border-slate-800 px-4 pt-4 pb-6 space-y-3 shadow-2xl animate-in slide-in-from-top-3 duration-200">
+          
+          {/* User status in mobile drawer if logged in */}
+          {currentUser.role !== 'GUEST' ? (
+            <div className="p-3 bg-[#161F30] rounded-2xl border border-slate-800 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] text-slate-400 font-medium">Logged in as:</div>
+                <div className="font-bold text-white text-xs">{currentUser.fullName}</div>
+                <div className="text-[10px] text-slate-400">{currentUser.email}</div>
+              </div>
+              <span className={`px-2 py-0.5 text-[10px] rounded uppercase font-bold font-mono border ${
+                currentUser.role === 'SUPERADMIN' 
+                  ? 'bg-red-900 text-red-200 border-red-700'
+                  : currentUser.role === 'ADMIN'
+                  ? 'bg-amber-900 text-amber-200 border-amber-700'
+                  : 'bg-blue-900 text-blue-200 border-blue-700'
+              }`}>
+                {currentUser.role}
+              </span>
+            </div>
+          ) : (
+            <div className="pb-1">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAuth();
+                }}
+                className="w-full py-2.5 px-4 text-xs font-bold text-center text-slate-200 bg-[#161F30] border border-slate-700 hover:bg-slate-800 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow"
+              >
+                <User className="w-4 h-4 text-orange-400" />
+                <span>Sign In to Member Portal</span>
+              </button>
+            </div>
+          )}
 
+          {/* Navigation Links list */}
+          <div className="space-y-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                  isActive(link.path)
+                    ? 'bg-gradient-to-r from-red-950/90 to-orange-950/70 text-white font-bold border-l-4 border-red-500'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Admin Dashboard shortcut if admin */}
           {isAdmin && (
             <div className="pt-2">
               <Link
                 to="/admin/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2.5 px-4 text-xs font-bold text-center text-white bg-red-900 border border-red-700 rounded-xl block shadow"
+                className="w-full py-2.5 px-4 text-xs font-bold text-center text-white bg-red-950/90 hover:bg-red-900 border border-red-700 rounded-xl flex items-center justify-center gap-2 shadow"
               >
-                Go to Admin Dashboard
+                <LayoutDashboard className="w-4 h-4 text-red-400" />
+                <span>Go to Admin Dashboard</span>
               </Link>
             </div>
           )}
 
+          {/* Sign out button in drawer if logged in */}
+          {currentUser.role !== 'GUEST' && (
+            <div>
+              <button
+                onClick={() => {
+                  const guest = authService.logout();
+                  onUserChange(guest);
+                  setMobileMenuOpen(false);
+                  navigate('/');
+                }}
+                className="w-full py-2 px-3 text-xs font-semibold text-red-400 hover:bg-red-950/40 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
+
+          {/* Primary CTA in drawer */}
           <div className="pt-2 border-t border-slate-800">
             <Link
               to="/register"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-3 px-4 text-xs font-bold text-center text-white bg-gradient-to-r from-red-600 to-orange-500 rounded-xl block shadow"
+              className="w-full py-3 px-4 text-xs font-bold text-center text-white bg-gradient-to-r from-red-600 to-orange-500 rounded-xl block shadow-lg shadow-red-900/30"
             >
               Apply for DVA Squad Tryouts
             </Link>

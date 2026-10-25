@@ -50,11 +50,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-      <div className="bg-[#161F30] rounded-3xl max-w-md w-full shadow-2xl border border-slate-700 overflow-hidden text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+      <div className="w-[95%] sm:w-full max-w-md bg-[#161F30] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-700 overflow-hidden text-white max-h-[90vh] flex flex-col">
         
         {/* Header */}
-        <div className="bg-[#0E1524] px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+        <div className="bg-[#0E1524] px-5 sm:px-6 py-4 sm:py-5 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center font-bold text-white text-sm shadow">
               DVA
@@ -67,7 +67,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           <button
             onClick={onClose}
             aria-label="Close"
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition-colors"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -75,12 +75,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
         {/* Message notification */}
         {message && (
-          <div className="bg-amber-950/80 border-b border-amber-700 p-3 text-xs text-amber-200 font-medium">
+          <div className="bg-amber-950/80 border-b border-amber-700 p-3 text-xs text-amber-200 font-medium shrink-0">
             {message}
           </div>
         )}
 
-        <div className="p-6">
+        <div className="p-5 sm:p-6 overflow-y-auto">
           <form onSubmit={handleLogin} className="space-y-4 text-xs">
             <div>
               <label className="block font-semibold text-slate-300 mb-1.5">

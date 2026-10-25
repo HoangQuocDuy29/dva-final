@@ -52,7 +52,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <div className="min-h-screen flex flex-col bg-[#0B0F19] text-white font-sans selection:bg-red-600 selection:text-white">
+      <div className="min-h-screen flex flex-col bg-[#0B0F19] text-white font-sans selection:bg-red-600 selection:text-white overflow-x-hidden w-full max-w-full">
         
         {/* Navbar (Clean international sports club navigation, no internal scripts/sheets buttons) */}
         <Navbar

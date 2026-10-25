@@ -105,20 +105,20 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
-      <div className="bg-[#121826] rounded-3xl max-w-xl w-full shadow-2xl border border-slate-700 overflow-hidden text-white flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+      <div className="w-[95%] sm:w-full max-w-xl md:max-w-2xl bg-[#121826] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-700 overflow-hidden text-white flex flex-col max-h-[90vh]">
         
         {/* Modal Header */}
-        <div className="bg-[#0B0F19] px-6 py-5 border-b border-slate-800 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center font-black text-white text-sm shadow">
+        <div className="bg-[#0B0F19] px-4 sm:px-6 py-3.5 sm:py-5 border-b border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center font-black text-white text-sm shadow shrink-0">
               QR
             </div>
-            <div>
-              <h3 className="text-base font-heading font-black text-white">
+            <div className="truncate">
+              <h3 className="text-sm sm:text-base font-heading font-black text-white truncate">
                 {isSubmitted ? 'Payment Confirmation Submitted' : `VietQR Payment · ${booking.courtName}${booking.subCourt ? ` (${booking.subCourt})` : ''}`}
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
                 MB Bank · 0002090671521 · HOANG QUOC DUY
               </p>
             </div>
@@ -126,14 +126,14 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
           <button
             onClick={handleFinishAndClose}
             aria-label="Close"
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition-colors"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition-colors shrink-0 ml-2"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-5 text-xs">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 text-xs">
 
           {/* VIEW STATE 2: ONE-WAY CONFIRMATION SCREEN (NO TIMEOUT AUTO-CLOSE) */}
           {isSubmitted ? (

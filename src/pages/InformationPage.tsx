@@ -171,16 +171,99 @@ export const InformationPage: React.FC = () => {
 
         {/* SECTION 2: WEEKLY ARENA SCHEDULE */}
         <section className="space-y-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-red-500" />
-            <h2 className="text-xl font-black text-white font-heading">
-              2. Weekly Arena Schedule & Squad Training Matrix
-            </h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-red-500" />
+              <h2 className="text-xl font-black text-white font-heading">
+                2. Weekly Arena Schedule & Squad Training Matrix
+              </h2>
+            </div>
+            <span className="hidden sm:inline-block text-[11px] font-mono text-orange-400 bg-orange-950/40 border border-orange-800/60 px-2.5 py-1 rounded-lg">
+              Official Club Matrix
+            </span>
           </div>
 
-          <div className="border border-slate-800 rounded-3xl overflow-hidden bg-[#161F30] shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
+          {/* Mobile Vertical Cards View (< 768px: md:hidden) */}
+          <div className="md:hidden space-y-3">
+            {/* Card 1: Senior Squad */}
+            <div className="bg-[#161F30] border border-red-900/60 rounded-2xl p-4 shadow-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-800 uppercase">
+                  SENIOR
+                </span>
+                <span className="font-mono text-xs font-bold text-orange-400">
+                  Mon · Wed · Sat
+                </span>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                  <span>Official DVA Senior Squad Training & Scrimmage</span>
+                </h3>
+                <p className="text-[11px] text-slate-400 font-mono mt-1">19:00 – 21:30</p>
+              </div>
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <span>Court Allocation:</span>
+                <strong className="text-slate-300">BTL Thong Tin · Court A</strong>
+              </div>
+            </div>
+
+            {/* Card 2: Junior Squad */}
+            <div className="bg-[#161F30] border border-blue-900/60 rounded-2xl p-4 shadow-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800 uppercase">
+                  JUNIOR
+                </span>
+                <span className="font-mono text-xs font-bold text-cyan-400">
+                  Friday Evening
+                </span>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                  <span>DVA Junior Squad Training & Scrimmage</span>
+                </h3>
+                <p className="text-[11px] text-slate-400 font-mono mt-1">19:00 – 21:30</p>
+              </div>
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <span>Court Allocation:</span>
+                <strong className="text-slate-300">BTL Thong Tin · Court A</strong>
+              </div>
+            </div>
+
+            {/* Card 3: Junior & Youth Matchplay */}
+            <div className="bg-[#161F30] border border-emerald-900/60 rounded-2xl p-4 shadow-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800 uppercase">
+                    JUNIOR
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 uppercase">
+                    YOUTH
+                  </span>
+                </div>
+                <span className="font-mono text-xs font-bold text-emerald-400">
+                  Sunday Afternoon
+                </span>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>DVA Junior & Youth Matchplay</span>
+                </h3>
+                <p className="text-[11px] text-slate-400 font-mono mt-1">14:00 – 16:30</p>
+              </div>
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <span>Court Allocation:</span>
+                <strong className="text-slate-300">BTL Thong Tin · Court A & B</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop & Tablet Table View (>= 768px: hidden md:block) with independent scroll indicator */}
+          <div className="hidden md:block border border-slate-800 rounded-3xl overflow-hidden bg-[#161F30] shadow-xl">
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full min-w-[620px] text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-[#0E1524] text-white font-bold border-b border-slate-800">
                     <th className="py-4 px-5">Session / Day</th>
@@ -193,52 +276,52 @@ export const InformationPage: React.FC = () => {
                   
                   {/* Row 1: Mon - Wed - Sat Evening (Senior) */}
                   <tr className="hover:bg-slate-800/40 bg-red-950/15">
-                    <td className="py-4 px-5 font-mono font-bold text-orange-400">
+                    <td className="py-4 px-5 font-mono font-bold text-orange-400 whitespace-nowrap">
                       Mon · Wed · Sat (19:00 – 21:30)
                     </td>
                     <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
                       <span>Official DVA Senior Squad Training & Scrimmage</span>
                     </td>
-                    <td className="py-4 px-5">
+                    <td className="py-4 px-5 whitespace-nowrap">
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-800">
                         SENIOR
                       </span>
                     </td>
-                    <td className="py-4 px-5 text-right font-mono text-slate-400">
+                    <td className="py-4 px-5 text-right font-mono text-slate-400 whitespace-nowrap">
                       BTL Thong Tin Court · Court A
                     </td>
                   </tr>
 
                   {/* Row 2: Friday Evening (Junior) */}
                   <tr className="hover:bg-slate-800/40 bg-blue-950/15">
-                    <td className="py-4 px-5 font-mono font-bold text-cyan-400">
+                    <td className="py-4 px-5 font-mono font-bold text-cyan-400 whitespace-nowrap">
                       Friday Evening (19:00 – 21:30)
                     </td>
                     <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
                       <span>DVA Junior Squad Training & Scrimmage</span>
                     </td>
-                    <td className="py-4 px-5">
+                    <td className="py-4 px-5 whitespace-nowrap">
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
                         JUNIOR
                       </span>
                     </td>
-                    <td className="py-4 px-5 text-right font-mono text-slate-400">
+                    <td className="py-4 px-5 text-right font-mono text-slate-400 whitespace-nowrap">
                       BTL Thong Tin Court · Court A
                     </td>
                   </tr>
 
                   {/* Row 3: Sunday Afternoon (Junior & Youth) */}
                   <tr className="hover:bg-slate-800/40 bg-emerald-950/15">
-                    <td className="py-4 px-5 font-mono font-bold text-emerald-400">
+                    <td className="py-4 px-5 font-mono font-bold text-emerald-400 whitespace-nowrap">
                       Sunday Afternoon (14:00 – 16:30)
                     </td>
                     <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
                       <span>DVA Junior & Youth Matchplay</span>
                     </td>
-                    <td className="py-4 px-5">
+                    <td className="py-4 px-5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
                           JUNIOR
@@ -248,7 +331,7 @@ export const InformationPage: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-5 text-right font-mono text-slate-400">
+                    <td className="py-4 px-5 text-right font-mono text-slate-400 whitespace-nowrap">
                       BTL Thong Tin Court · Court A & B 
                     </td>
                   </tr>
@@ -268,14 +351,15 @@ export const InformationPage: React.FC = () => {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Responsive Criteria Cards: 1 col on mobile, 2 cols on tablet, 3 cols on laptop/desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             
-            <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl space-y-3">
+            <div className="bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="font-heading font-black text-lg text-white">Senior Team</h3>
+                <h3 className="font-heading font-black text-base sm:text-lg text-white">Senior Team</h3>
                 <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200 uppercase">SENIOR</span>
               </div>
-              <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3">
+              <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3 leading-relaxed">
                 <li>• <strong>Height:</strong> ≥ 155 cm</li>
                 <li>• <strong>Spike Reach:</strong> Minimum ≥ 280 cm</li>
                 <li>• <strong>Block Reach:</strong> Minimum ≥ 270 cm</li>
@@ -286,12 +370,12 @@ export const InformationPage: React.FC = () => {
               </ul>
             </div>
 
-            <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl space-y-3">
+            <div className="bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="font-heading font-black text-lg text-white">Junior Squad</h3>
+                <h3 className="font-heading font-black text-base sm:text-lg text-white">Junior Squad</h3>
                 <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-orange-900 text-orange-200 uppercase">JUNIOR</span>
               </div>
-              <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3">
+              <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3 leading-relaxed">
                 <li>• <strong>Height:</strong> ≥ 155 cm</li>
                 <li>• <strong>Spike Reach:</strong> Minimum ≥ 250 cm</li>
                 <li>• <strong>Block Reach:</strong> Minimum ≥ 240 cm</li>
@@ -302,12 +386,12 @@ export const InformationPage: React.FC = () => {
               </ul>
             </div>
 
-            <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl space-y-3">
+            <div className="bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-3 md:col-span-2 lg:col-span-1">
               <div className="flex justify-between items-center">
-                <h3 className="font-heading font-black text-lg text-white">Youth</h3>
+                <h3 className="font-heading font-black text-base sm:text-lg text-white">Youth</h3>
                 <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 uppercase">Youth</span>
               </div>
-              <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3">
+              <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3 leading-relaxed">
                 <li>• <strong>Height:</strong> ≥ 155 cm</li>
                 <li>• <strong>Spike Reach:</strong> Minimum ≥ 250 cm</li>
                 <li>• <strong>Tactics:</strong> Basic understanding and execution of 4-2 rotation</li>

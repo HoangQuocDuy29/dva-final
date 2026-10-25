@@ -93,7 +93,7 @@ export const HomePage: React.FC = () => {
               </div>
 
               {/* Guarantee highlights */}
-              <div className="pt-4 grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs text-slate-400 border-t border-slate-800/80">
+              <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs text-slate-400 border-t border-slate-800/80">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>550,000 VND / Hour (Min 1.5h)</span>
@@ -241,7 +241,7 @@ export const HomePage: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
           {/* TEAM 1: SENIOR SQUAD */}
           <div className="bg-[#131822] rounded-3xl border border-red-900/40 p-6 sm:p-7 shadow-2xl flex flex-col justify-between hover:border-red-500/70 transition-all duration-300 relative group">
@@ -584,7 +584,7 @@ export const HomePage: React.FC = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courts.map((court) => (
               <div
                 key={court.id}
@@ -665,7 +665,7 @@ export const HomePage: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {latestNews.map((news) => (
             <article
               key={news.id}
