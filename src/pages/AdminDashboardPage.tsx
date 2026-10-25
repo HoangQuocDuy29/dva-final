@@ -301,6 +301,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
 
   // Court Schedule & Slot Lock Control state
   const [selectedManageCourtId, setSelectedManageCourtId] = useState<string>('court-btl');
+  const [adminSelectedSubCourt, setAdminSelectedSubCourt] = useState<string>('Sân A');
   const [selectedManageDate, setSelectedManageDate] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -385,41 +386,48 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
 
   const handleToggleSlotLock = async (slotLabel: string) => {
     setIsTogglingSlot(true);
+    const targetCourt = courtsList.find(c => c.id === selectedManageCourtId);
+    const hasSubs = (targetCourt?.subCourts && targetCourt.subCourts.length > 0) || selectedManageCourtId === 'court-btl' || targetCourt?.code === 'BTL_TT';
+    const effectiveSubCourt = hasSubs ? adminSelectedSubCourt : undefined;
     try {
       const res = await courtService.toggleClosedSlot({
         courtId: selectedManageCourtId,
         date: selectedManageDate,
         slotLabel,
+        subCourt: effectiveSubCourt,
         reason: lockReason,
         closedBy: currentUser.fullName,
       });
 
       if (res.action === 'CLOSED') {
         setClosedSlots(prev => [...prev, res.slot]);
-        setFeedback(`Slot "${slotLabel}" has been CLOSED/LOCKED. Customers cannot book this slot.`);
+        setFeedback(`Slot "${slotLabel}" ${effectiveSubCourt ? `(${effectiveSubCourt}) ` : ''}đã được KHÓA BẢO TRÌ.`);
       } else {
         setClosedSlots(prev => prev.filter(
-          cs => !(cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && cs.slotLabel === slotLabel)
+          cs => !(cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && cs.slotLabel === slotLabel && (cs.subCourt || '') === (effectiveSubCourt || ''))
         ));
-        setFeedback(`Slot "${slotLabel}" has been RE-OPENED for online booking.`);
+        setFeedback(`Slot "${slotLabel}" ${effectiveSubCourt ? `(${effectiveSubCourt}) ` : ''}đã được MỞ LẠI cho khách đặt.`);
       }
       setTimeout(() => setFeedback(null), 3500);
     } catch (err) {
-      setFeedback('Error updating court slot availability.');
+      setFeedback('Lỗi khi cập nhật trạng thái khung giờ.');
     } finally {
       setIsTogglingSlot(false);
     }
   };
 
-  const handleReleaseBookingSlot = async (bookingId: string, slotLabel: string) => {
+  const handleReleaseBookingSlot = async (bookingId: string, slotLabel: string, bookingSubCourt?: string) => {
     setIsTogglingSlot(true);
+    const targetCourt = courtsList.find(c => c.id === selectedManageCourtId);
+    const hasSubs = (targetCourt?.subCourts && targetCourt.subCourts.length > 0) || selectedManageCourtId === 'court-btl' || targetCourt?.code === 'BTL_TT';
+    const effectiveSubCourt = bookingSubCourt || (hasSubs ? adminSelectedSubCourt : undefined);
     try {
       await bookingService.updateStatus(bookingId, 'CANCELLED');
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, paymentStatus: 'CANCELLED' } : b));
       setClosedSlots(prev => prev.filter(
-        cs => !(cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && cs.slotLabel === slotLabel)
+        cs => !(cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && cs.slotLabel === slotLabel && (!effectiveSubCourt || (cs.subCourt || '') === effectiveSubCourt))
       ));
-      setFeedback(`Đã hủy đặt chỗ ca "${slotLabel}" và mở lại thành công! Khung giờ hiện đã sẵn sàng cho khách đặt online.`);
+      setFeedback(`Đã hủy đặt chỗ ca "${slotLabel}" ${effectiveSubCourt ? `(${effectiveSubCourt}) ` : ''}và mở lại thành công! Khung giờ hiện đã sẵn sàng cho khách đặt online.`);
       setTimeout(() => setFeedback(null), 3500);
     } catch (err) {
       setFeedback('Lỗi khi mở lại ca đặt.');
@@ -1406,121 +1414,183 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
               {/* Slot Grid for the chosen Court & Date */}
               {(() => {
                 const selectedManageCourt = courtsList.find((c) => c.id === selectedManageCourtId);
+                const manageCourtSubCourts = selectedManageCourt?.subCourts?.length
+                  ? selectedManageCourt.subCourts
+                  : (selectedManageCourtId === 'court-btl' || selectedManageCourt?.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []);
+                const manageCourtHasSubCourts = manageCourtSubCourts.length > 0;
+
                 const slots = getScheduleSlotsForCourtAndDate(
                   selectedManageCourtId,
                   selectedManageDate,
                   selectedManageCourt?.weeklySchedule
                 );
+
                 return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                    {slots.map((slot) => {
-                      const isClosed = closedSlots.find(
-                        cs => cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && cs.slotLabel === slot.label
-                      );
-                      const bookingMatch = bookings.find(
-                        b => b.courtId === selectedManageCourtId && b.bookingDate === selectedManageDate && b.paymentStatus !== 'CANCELLED' &&
-                        (b.startTime === slot.start || `${b.startTime} - ${b.endTime}` === slot.label)
-                      );
-
-                      return (
-                        <div
-                          key={slot.label}
-                          className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
-                            isClosed
-                              ? 'bg-red-950/30 border-red-800/80'
-                              : bookingMatch
-                              ? 'bg-blue-950/30 border-blue-800/80'
-                              : 'bg-[#0E1524] border-slate-800'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="font-mono font-bold text-sm text-white flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5 text-orange-400" />
-                                <span>{slot.label}</span>
-                              </div>
-                              <span className="text-[10px] text-slate-400">{slot.period} · {slot.durationHours} hours</span>
-                            </div>
-
-                            {isClosed ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200 border border-red-700 flex items-center gap-1">
-                                <Lock className="w-2.5 h-2.5" />
-                                <span>CLOSED</span>
-                              </span>
-                            ) : bookingMatch ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 border border-blue-700">
-                                {bookingMatch.paymentStatus === 'PAID' ? 'BOOKED' : 'HOLDING'}
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                                OPEN
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs gap-2">
-                            <div className="text-[11px] text-slate-400 truncate">
-                              {isClosed ? (
-                                <span className="text-red-400 font-semibold">Đã khóa: {isClosed.reason || 'Bảo trì'}</span>
-                              ) : bookingMatch ? (
-                                <span>
-                                  <strong className="text-white">{bookingMatch.customerName}</strong>
-                                  <span className="text-slate-500 ml-1">({bookingMatch.customerPhone})</span>
-                                </span>
-                              ) : (
-                                <span className="text-emerald-400 font-semibold">Ca trống (Sẵn sàng cho thuê)</span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {bookingMatch && (
-                                <button
-                                  type="button"
-                                  disabled={isTogglingSlot}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    handleReleaseBookingSlot(bookingMatch.id, slot.label);
-                                  }}
-                                  className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 flex items-center gap-1 transition-all cursor-pointer shadow"
-                                  title="Hủy đặt chỗ của khách và giải phóng ca này ngay lập tức"
-                                >
-                                  <Unlock className="w-3.5 h-3.5 text-emerald-400" />
-                                  <span>Mở lại ca này</span>
-                                </button>
-                              )}
-
-                              {isClosed ? (
-                                <button
-                                  type="button"
-                                  disabled={isTogglingSlot}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    handleToggleSlotLock(slot.label);
-                                  }}
-                                  className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 transition-all cursor-pointer"
-                                >
-                                  <Unlock className="w-3.5 h-3.5 text-emerald-400" />
-                                  <span>Mở lại ca</span>
-                                </button>
-                              ) : !bookingMatch ? (
-                                <button
-                                  type="button"
-                                  disabled={isTogglingSlot}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    handleToggleSlotLock(slot.label);
-                                  }}
-                                  className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-red-950 hover:bg-red-900 text-red-300 border border-red-800 flex items-center gap-1 transition-all cursor-pointer"
-                                >
-                                  <Lock className="w-3.5 h-3.5 text-red-400" />
-                                  <span>Khóa ca</span>
-                                </button>
-                              ) : null}
-                            </div>
+                  <div className="space-y-4">
+                    {/* Sub-Court Selector for Court Clusters (BTL Thông Tin) */}
+                    {manageCourtHasSubCourts && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0B0F19] p-3.5 rounded-2xl border border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
+                          <div>
+                            <span className="text-xs font-bold text-white uppercase tracking-wider block">
+                              Quản lý theo Sân Con (Sub-Courts) - {selectedManageCourt?.name}:
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              Đóng/mở bảo trì riêng từng sân độc lập. Trạng thái không bị ảnh hưởng chéo giữa các sân con.
+                            </span>
                           </div>
                         </div>
-                      );
-                    })}
+
+                        <div className="flex items-center gap-2">
+                          {manageCourtSubCourts.map((sc) => {
+                            const isSubSelected = adminSelectedSubCourt === sc;
+                            const closedCount = closedSlots.filter(
+                              cs => cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && (cs.subCourt || '') === sc
+                            ).length;
+                            const bookedCount = bookings.filter(
+                              b => b.courtId === selectedManageCourtId && b.bookingDate === selectedManageDate && b.paymentStatus !== 'CANCELLED' && (b.subCourt || 'Sân A') === sc
+                            ).length;
+
+                            return (
+                              <button
+                                key={sc}
+                                type="button"
+                                onClick={() => setAdminSelectedSubCourt(sc)}
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                                  isSubSelected
+                                    ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-md shadow-red-950/40 ring-1 ring-red-400'
+                                    : 'bg-[#121826] text-slate-400 hover:text-white border border-slate-700'
+                                }`}
+                              >
+                                <span>{sc}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isSubSelected ? 'bg-black/40 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                                  {closedCount > 0 ? `${closedCount} khóa` : bookedCount > 0 ? `${bookedCount} đã đặt` : 'Trống'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                      {slots.map((slot) => {
+                        const isClosed = closedSlots.find(
+                          cs => cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && cs.slotLabel === slot.label &&
+                          (!manageCourtHasSubCourts || (cs.subCourt || '') === adminSelectedSubCourt || !cs.subCourt)
+                        );
+                        const bookingMatch = bookings.find(
+                          b => b.courtId === selectedManageCourtId && b.bookingDate === selectedManageDate && b.paymentStatus !== 'CANCELLED' &&
+                          (b.startTime === slot.start || `${b.startTime} - ${b.endTime}` === slot.label) &&
+                          (!manageCourtHasSubCourts || (b.subCourt || 'Sân A') === adminSelectedSubCourt)
+                        );
+
+                        return (
+                          <div
+                            key={slot.label}
+                            className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                              isClosed
+                                ? 'bg-red-950/30 border-red-800/80'
+                                : bookingMatch
+                                ? 'bg-blue-950/30 border-blue-800/80'
+                                : 'bg-[#0E1524] border-slate-800'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-mono font-bold text-sm text-white flex items-center gap-1.5">
+                                  <Clock className="w-3.5 h-3.5 text-orange-400" />
+                                  <span>{slot.label}</span>
+                                  {manageCourtHasSubCourts && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-orange-950 text-orange-300 border border-orange-800">
+                                      {adminSelectedSubCourt}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-slate-400">{slot.period} · {slot.durationHours} hours</span>
+                              </div>
+
+                              {isClosed ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200 border border-red-700 flex items-center gap-1">
+                                  <Lock className="w-2.5 h-2.5" />
+                                  <span>CLOSED</span>
+                                </span>
+                              ) : bookingMatch ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 border border-blue-700">
+                                  {bookingMatch.paymentStatus === 'PAID' ? 'BOOKED' : 'HOLDING'}
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                                  OPEN
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs gap-2">
+                              <div className="text-[11px] text-slate-400 truncate">
+                                {isClosed ? (
+                                  <span className="text-red-400 font-semibold">Đã khóa: {isClosed.reason || 'Bảo trì'}</span>
+                                ) : bookingMatch ? (
+                                  <span>
+                                    <strong className="text-white">{bookingMatch.customerName}</strong>
+                                    <span className="text-slate-500 ml-1">({bookingMatch.customerPhone})</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-400 font-semibold">Ca trống (Sẵn sàng cho thuê)</span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {bookingMatch && (
+                                  <button
+                                    type="button"
+                                    disabled={isTogglingSlot}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleReleaseBookingSlot(bookingMatch.id, slot.label, bookingMatch.subCourt || adminSelectedSubCourt);
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 flex items-center gap-1 transition-all cursor-pointer shadow"
+                                    title="Hủy đặt chỗ của khách và giải phóng ca này ngay lập tức"
+                                  >
+                                    <Unlock className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>Mở lại ca này</span>
+                                  </button>
+                                )}
+
+                                {isClosed ? (
+                                  <button
+                                    type="button"
+                                    disabled={isTogglingSlot}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleToggleSlotLock(slot.label);
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 transition-all cursor-pointer"
+                                  >
+                                    <Unlock className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>Mở lại ca</span>
+                                  </button>
+                                ) : !bookingMatch ? (
+                                  <button
+                                    type="button"
+                                    disabled={isTogglingSlot}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleToggleSlotLock(slot.label);
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-red-950 hover:bg-red-900 text-red-300 border border-red-800 flex items-center gap-1 transition-all cursor-pointer"
+                                  >
+                                    <Lock className="w-3.5 h-3.5 text-red-400" />
+                                    <span>Khóa ca</span>
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })()}
@@ -1555,7 +1625,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                       customerPhone: '',
                       customerEmail: '',
                       courtId: selectedManageCourtId,
-                      courtName: INITIAL_COURTS.find(c => c.id === selectedManageCourtId)?.name || 'Sân Thể Công (Court 1)',
+                      courtName: courtsList.find(c => c.id === selectedManageCourtId)?.name || 'BTL Thong Tin court',
+                      subCourt: selectedManageCourtId === 'court-btl' ? adminSelectedSubCourt : undefined,
                       bookingDate: selectedManageDate,
                       startTime: '17:30',
                       endTime: '19:30',
@@ -1595,7 +1666,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                       </td>
 
                       <td className="py-3 px-3">
-                        <span className="font-bold text-white block">{b.courtName}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-white block">{b.courtName}</span>
+                          {b.subCourt && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-orange-950 text-orange-300 border border-orange-800">
+                              {b.subCourt}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[11px] text-slate-400">{b.startTime} - {b.endTime} ({b.totalHours}h)</span>
                       </td>
 
@@ -3630,10 +3708,12 @@ function doGet(e) {
                     onChange={(e) => {
                       const courtId = e.target.value;
                       const court = courtsList.find(c => c.id === courtId);
+                      const hasSubs = (court?.subCourts && court.subCourts.length > 0) || courtId === 'court-btl' || court?.code === 'BTL_TT';
                       setBookingForm({
                         ...bookingForm,
                         courtId,
                         courtName: court?.name || 'Sân Bóng Chuyền',
+                        subCourt: hasSubs ? (bookingForm.subCourt || 'Sân A') : undefined,
                       });
                     }}
                     className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
@@ -3645,6 +3725,20 @@ function doGet(e) {
                     ))}
                   </select>
                 </div>
+
+                {((bookingForm.courtId === 'court-btl') || courtsList.find(c => c.id === bookingForm.courtId)?.subCourts?.length) && (
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Sân Con (Sub-court) *</label>
+                    <select
+                      value={bookingForm.subCourt || 'Sân A'}
+                      onChange={(e) => setBookingForm({ ...bookingForm, subCourt: e.target.value })}
+                      className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+                    >
+                      <option value="Sân A">Sân A (Court A)</option>
+                      <option value="Sân B">Sân B (Court B)</option>
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Ngày Thuê (YYYY-MM-DD) *</label>

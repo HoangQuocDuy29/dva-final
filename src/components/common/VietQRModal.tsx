@@ -116,7 +116,7 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
             </div>
             <div>
               <h3 className="text-base font-heading font-black text-white">
-                {isSubmitted ? 'Payment Confirmation Submitted' : 'VietQR Payment & Court Reservation'}
+                {isSubmitted ? 'Payment Confirmation Submitted' : `VietQR Payment · ${booking.courtName}${booking.subCourt ? ` (${booking.subCourt})` : ''}`}
               </h3>
               <p className="text-xs text-slate-400">
                 MB Bank · 0002090671521 · HOANG QUOC DUY
@@ -159,7 +159,7 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
                   <span className="text-slate-400">Court:</span>
-                  <span className="font-bold text-orange-400">{booking.courtName}</span>
+                  <span className="font-bold text-orange-400">{booking.courtName}{booking.subCourt ? ` - ${booking.subCourt}` : ''}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
                   <span className="text-slate-400">Session & Date:</span>

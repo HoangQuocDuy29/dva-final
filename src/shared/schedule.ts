@@ -12,6 +12,7 @@ export interface CourtTimeSlot {
   durationHours: number;
   period: string; // 'Morning' | 'Afternoon' | 'Evening'
   courtId: string;
+  subCourt?: string; // 'Sân A' | 'Sân B'
 }
 
 export const ADDON_PRICES = {

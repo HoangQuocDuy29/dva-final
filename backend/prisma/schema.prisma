@@ -98,6 +98,7 @@ model Court {
   minHours    Float     @default(1.5)
   isAvailable Boolean   @default(true)
   imageUrl    String?
+  subCourts   String[]  @default([])
   bookings    Booking[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -109,6 +110,7 @@ model Booking {
   id            String        @id @default(uuid())
   courtId       String
   court         Court         @relation(fields: [courtId], references: [id])
+  subCourt      String?
   customerName  String
   customerEmail String
   customerPhone String

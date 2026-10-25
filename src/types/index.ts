@@ -125,6 +125,7 @@ export interface Court {
   isAvailable: boolean;
   isActive?: boolean;
   weeklySchedule?: WeeklySchedule;
+  subCourts?: string[]; // e.g. ['Sân A', 'Sân B']
 }
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'CANCELLED';
@@ -139,6 +140,7 @@ export interface Booking {
   id: string;
   courtId: string;
   courtName: string;
+  subCourt?: string; // 'Sân A' | 'Sân B'
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -165,6 +167,7 @@ export interface ClosedSlot {
   id: string;
   courtId: string;
   courtName: string;
+  subCourt?: string; // 'Sân A' | 'Sân B'
   date: string; // YYYY-MM-DD
   slotLabel: string; // e.g. "17:30 - 19:00"
   reason?: string;

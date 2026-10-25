@@ -44,6 +44,7 @@ export interface BookingEmailPayload {
   bookingCode: string;
   courtId?: string;
   courtName?: string;
+  subCourt?: string | null;
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
@@ -159,7 +160,8 @@ export async function sendBookingConfirmationEmail(
       process.env.CLUB_HOTLINE ||
       '0768 299 329';
 
-    const courtName = court?.name || booking.courtName || 'Sân bóng chuyền DVA';
+    const baseCourtName = court?.name || booking.courtName || 'Sân bóng chuyền DVA';
+    const courtName = booking.subCourt ? `${baseCourtName} - ${booking.subCourt}` : baseCourtName;
     const courtAddress =
       court?.address ||
       process.env.CLUB_ADDRESS ||
@@ -172,7 +174,7 @@ export async function sendBookingConfirmationEmail(
       /^DVA-BTL-/i.test(booking.bookingCode || '');
     const resolvedCourtKey = isBtlCourt ? 'court-btl' : rawCourtId;
 
-    const mapsQuery = encodeURIComponent(`${courtName} ${courtAddress}`);
+    const mapsQuery = encodeURIComponent(`${baseCourtName} ${courtAddress}`);
     const mapsUrl =
       (resolvedCourtKey && EMAIL_CUSTOM_CONFIG.courtMapsUrls[resolvedCourtKey]) ||
       process.env.CLUB_MAPS_URL ||
@@ -209,7 +211,7 @@ export async function sendBookingConfirmationEmail(
       `
       : '';
 
-    const subject = `[DVA Volleyball] Xác nhận đặt sân thành công - Mã đơn: ${booking.bookingCode}`;
+    const subject = `[DVA Volleyball] Xác nhận đặt sân thành công: ${courtName} (${resolvedTimeSlot}) - Mã đơn: ${booking.bookingCode}`;
 
     const html = `
 <!DOCTYPE html>

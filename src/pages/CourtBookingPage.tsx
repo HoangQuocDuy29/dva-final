@@ -138,6 +138,28 @@ const CourtBookingContent: React.FC = () => {
 
   const selectedCourt: Court = courts.find((c) => c.id === selectedCourtId) || courts[0] || INITIAL_COURTS[0];
 
+  const subCourts = useMemo(() => {
+    if (selectedCourt?.subCourts && selectedCourt.subCourts.length > 0) {
+      return selectedCourt.subCourts;
+    }
+    if (selectedCourt?.id === 'court-btl' || selectedCourt?.code === 'BTL_TT') {
+      return ['Sân A', 'Sân B'];
+    }
+    return [];
+  }, [selectedCourt]);
+
+  const hasSubCourts = subCourts.length > 0;
+  const [selectedSubCourt, setSelectedSubCourt] = useState<string>('Sân A');
+
+  // Synchronize default subCourt when court changes
+  useEffect(() => {
+    if (hasSubCourts) {
+      if (!subCourts.includes(selectedSubCourt)) {
+        setSelectedSubCourt(subCourts[0]);
+      }
+    }
+  }, [hasSubCourts, subCourts, selectedCourtId]);
+
   const isCourtMaintenance = (court?: Court | null): boolean =>
     Boolean(court && (court.status === 'MAINTENANCE' || court.isMaintenance === true || court.isAvailable === false));
 
@@ -281,19 +303,26 @@ const CourtBookingContent: React.FC = () => {
   // Must include: which time slot/ca, and court name!
   const generatedTransferContent = useMemo(() => {
     const courtTag = selectedCourt?.shortName || (selectedCourtId === 'court-btl' ? 'BTL TT' : (selectedCourtId === 'court-thecong' ? 'THE CONG' : 'MY DINH'));
+    const subMemo = hasSubCourts && selectedSubCourt ? ` ${selectedSubCourt.toUpperCase()}` : '';
     const startClean = (selectedSlotObj?.start || '18:00').replace(':', 'H');
     const endClean = (selectedSlotObj?.end || '19:30').replace(':', 'H');
     const dateNum = (bookingDate || '20261020').replace(/-/g, '');
-    return `DVA ${courtTag} ${startClean} ${endClean} ${dateNum}`.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase();
-  }, [selectedCourt, selectedCourtId, selectedSlotObj, bookingDate]);
+    return `DVA ${courtTag}${subMemo} ${startClean} ${endClean} ${dateNum}`.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase();
+  }, [selectedCourt, selectedCourtId, selectedSlotObj, bookingDate, hasSubCourts, selectedSubCourt]);
 
-  const getSlotStatus = (slot: CourtTimeSlot): 'AVAILABLE' | 'HOLDING' | 'BOOKED' | 'CLOSED' => {
+  const getSlotStatus = (slot: CourtTimeSlot, subCourtTarget?: string): 'AVAILABLE' | 'HOLDING' | 'BOOKED' | 'CLOSED' => {
     // 0. Nếu toàn bộ sân đang trong chế độ bảo trì của Admin
     if (selectedCourtIsMaintenance) return 'CLOSED';
+
+    const effectiveSubCourt = subCourtTarget !== undefined ? subCourtTarget : (hasSubCourts ? selectedSubCourt : undefined);
 
     // 1. Check nếu Admin đã Lock/Close khung giờ này (overlap-aware, same rule as the server)
     const isClosedByAdmin = closedSlots.some((cs) => {
       if (cs.courtId !== selectedCourtId || cs.date !== bookingDate) return false;
+      // If closed slot specifies a subCourt, it only applies to that subCourt!
+      if (effectiveSubCourt && cs.subCourt && cs.subCourt !== effectiveSubCourt) {
+        return false;
+      }
       const range = parseSlotLabel(cs.slotLabel);
       return !!range && rangesOverlap(slot.start, slot.end, range.start, range.end);
     });
@@ -302,14 +331,18 @@ const CourtBookingContent: React.FC = () => {
     if (!Array.isArray(existingBookings)) return 'AVAILABLE';
 
     const overlapping = (status: Booking['paymentStatus']) =>
-      existingBookings.find(
-        (b) =>
-          b &&
-          b.courtId === selectedCourtId &&
-          b.bookingDate === bookingDate &&
-          b.paymentStatus === status &&
-          rangesOverlap(slot.start, slot.end, b.startTime, b.endTime)
-      );
+      existingBookings.find((b) => {
+        if (!b) return false;
+        if (b.courtId !== selectedCourtId || b.bookingDate !== bookingDate || b.paymentStatus !== status) {
+          return false;
+        }
+        // Sub-court isolation:
+        // If effectiveSubCourt is specified (e.g. "Sân A"), bookings for a DIFFERENT subCourt (e.g. "Sân B") do not overlap!
+        if (effectiveSubCourt && b.subCourt && b.subCourt !== effectiveSubCourt) {
+          return false;
+        }
+        return rangesOverlap(slot.start, slot.end, b.startTime, b.endTime);
+      });
 
     // 2. Check nếu ca đã thanh toán thành công (Màu xám BOOKED)
     if (overlapping('PAID')) return 'BOOKED';
@@ -354,6 +387,7 @@ const CourtBookingContent: React.FC = () => {
       // Only the customer's choices are sent - the server recomputes prices & validates the slot itself.
       const finalBooking = await bookingService.createBooking({
         courtId: selectedCourt.id,
+        subCourt: hasSubCourts ? selectedSubCourt : undefined,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerEmail: customerEmail.trim(),
@@ -475,7 +509,9 @@ const CourtBookingContent: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#0B0F19] p-4 rounded-2xl border border-emerald-800/80 text-xs">
               <div>
                 <span className="text-slate-400 block text-[11px]">Court:</span>
-                <span className="font-bold text-white text-sm">{successReceipt.courtName}</span>
+                <span className="font-bold text-white text-sm">
+                  {successReceipt.courtName}{successReceipt.subCourt ? ` - ${successReceipt.subCourt}` : ''}
+                </span>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Date & Session:</span>
@@ -703,11 +739,97 @@ const CourtBookingContent: React.FC = () => {
             </div>
           </div>
 
+          {/* Sub-Court Tab Switcher for clusters like BTL Thong Tin */}
+          {hasSubCourts && (
+            <div className="pt-2 border-t border-slate-800/80 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                    <span>Chọn Sân Con (Sub-Courts) - {selectedCourt.name}:</span>
+                  </span>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Trong cùng 1 khung giờ có 2 sân thi đấu độc lập. Trạng thái đặt chỗ giữa Sân A và Sân B hoàn toàn riêng biệt.
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 shrink-0">
+                  Đang chọn: <strong className="text-orange-400">{selectedSubCourt}</strong>
+                </span>
+              </div>
+
+              {/* Sub-court Tabs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+                {subCourts.map((sc) => {
+                  const isTabSelected = selectedSubCourt === sc;
+                  const availableCount = availableSlots.filter((s) => getSlotStatus(s, sc) === 'AVAILABLE').length;
+
+                  return (
+                    <button
+                      key={sc}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSubCourt(sc);
+                        if (selectedSlotObj && selectedSlotObj.subCourt && selectedSlotObj.subCourt !== sc) {
+                          const sameSlot = availableSlots.find((s) => s.label === selectedSlotObj.label);
+                          if (sameSlot && getSlotStatus(sameSlot, sc) === 'AVAILABLE') {
+                            setSelectedSlotObj({ ...sameSlot, subCourt: sc });
+                          } else {
+                            setSelectedSlotObj(null);
+                          }
+                        }
+                      }}
+                      className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
+                        isTabSelected
+                          ? 'border-red-500 bg-gradient-to-r from-red-950/70 via-[#182338] to-[#121826] text-white ring-2 ring-red-500/50 shadow-xl'
+                          : 'border-slate-800 bg-[#0E1524] text-slate-300 hover:border-slate-700 hover:bg-[#131c2e]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
+                            isTabSelected
+                              ? 'bg-gradient-to-br from-red-600 to-orange-500 text-white shadow'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}
+                        >
+                          {sc.replace('Sân ', '')}
+                        </div>
+                        <div className="text-left">
+                          <span className="font-heading font-black text-sm block text-white flex items-center gap-1.5">
+                            <span>{sc}</span>
+                            <span className="text-[10px] text-slate-400 font-normal">
+                              ({sc === 'Sân A' ? 'Court A' : 'Court B'})
+                            </span>
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Sân độc lập tiêu chuẩn FIVB
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end">
+                        <span
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider ${
+                            availableCount > 0
+                              ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/80'
+                              : 'bg-red-950/80 text-red-400 border-red-800/80'
+                          }`}
+                        >
+                          {availableCount} ca trống
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Dynamic Slot Grid based on court rules */}
           <div>
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Available Sessions for {selectedCourt.name}:
+                Available Sessions for {selectedCourt.name}{hasSubCourts ? ` (${selectedSubCourt})` : ''}:
               </span>
               <span className="text-[11px] text-slate-400">
                 {availableSlots.length} available sessions configured
@@ -745,7 +867,7 @@ const CourtBookingContent: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
               {availableSlots.map((slot) => {
                 const status = getSlotStatus(slot);
-                const isSelected = selectedSlotObj?.label === slot.label;
+                const isSelected = selectedSlotObj?.label === slot.label && (!hasSubCourts || selectedSlotObj?.subCourt === selectedSubCourt);
                 const isAvailable = status === 'AVAILABLE';
                 const calculatedPrice = Math.round(hourlyRate * slot.durationHours);
 
@@ -756,7 +878,11 @@ const CourtBookingContent: React.FC = () => {
                     disabled={!isAvailable && !isSelected}
                     onClick={() => {
                       if (!isAvailable && !isSelected) return;
-                      setSelectedSlotObj(prev => (prev?.label === slot.label ? null : slot));
+                      setSelectedSlotObj(prev =>
+                        prev?.label === slot.label && (!hasSubCourts || prev?.subCourt === selectedSubCourt)
+                          ? null
+                          : { ...slot, subCourt: hasSubCourts ? selectedSubCourt : undefined }
+                      );
                     }}
                     className={`p-4 rounded-2xl border text-left transition-all relative ${
                       isSelected
@@ -776,6 +902,15 @@ const CourtBookingContent: React.FC = () => {
                         <span className="font-mono font-bold text-sm tracking-tight">
                           {slot.label}
                         </span>
+                        {hasSubCourts && (
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider ${
+                            isSelected
+                              ? 'bg-white/20 text-white'
+                              : 'bg-orange-950/80 text-orange-300 border border-orange-800/80'
+                          }`}>
+                            {selectedSubCourt.toUpperCase()}
+                          </span>
+                        )}
                       </div>
 
                       <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
@@ -974,7 +1109,9 @@ const CourtBookingContent: React.FC = () => {
                 
                 <div className="flex justify-between text-slate-400">
                   <span>Selected Court:</span>
-                  <span className="font-bold text-white">{selectedCourt?.name}</span>
+                  <span className="font-bold text-white text-right">
+                    {selectedCourt?.name}{hasSubCourts ? ` - ${selectedSubCourt}` : ''}
+                  </span>
                 </div>
 
                 <div className="flex justify-between text-slate-400">

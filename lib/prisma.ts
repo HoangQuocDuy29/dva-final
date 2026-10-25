@@ -137,6 +137,9 @@ export function toCourtDto(c: DbCourt & { status?: string | null; isMaintenance?
     isMaintenance,
     isAvailable: !isMaintenance,
     isActive: c.isActive !== false,
+    subCourts: Array.isArray(c.subCourts) && c.subCourts.length > 0
+      ? c.subCourts
+      : (c.id === 'court-btl' || c.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : undefined),
     weeklySchedule: normalizeWeeklySchedule(c.weeklySchedule, c.id || c.code),
   };
 }
@@ -146,6 +149,7 @@ export function toClosedSlotDto(cs: DbClosedSlot): ClosedSlot {
     id: cs.id,
     courtId: cs.courtId,
     courtName: cs.courtName,
+    subCourt: cs.subCourt || undefined,
     date: cs.date,
     slotLabel: cs.slotLabel,
     reason: cs.reason ?? undefined,
@@ -166,6 +170,7 @@ export function toBookingDto(b: DbBooking): Booking {
     id: b.id,
     courtId: b.courtId,
     courtName: b.courtName,
+    subCourt: b.subCourt ?? undefined,
     customerName: b.customerName,
     customerEmail: b.customerEmail,
     customerPhone: b.customerPhone,
@@ -468,6 +473,7 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           imageUrl: c.imageUrl || '',
           isAvailable: c.isAvailable !== false,
           isActive: c.isActive !== false,
+          subCourts: c.subCourts ?? (c.id === 'court-btl' || c.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []),
           weeklySchedule: (c.weeklySchedule ?? getDefaultWeeklyScheduleForCourt(c.id)) as any,
         },
       });
@@ -476,7 +482,7 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
     // Backfill weeklySchedule or address for any existing court records that do not have them yet
     const existingCourts = await prisma.court.findMany();
     for (const ec of existingCourts) {
-      if (!ec.weeklySchedule || !ec.address) {
+      if (!ec.weeklySchedule || !ec.address || !ec.subCourts || ec.subCourts.length === 0) {
         const initMatch = INITIAL_COURTS.find((ic) => ic.id === ec.id || ic.code === ec.code);
         await prisma.court.update({
           where: { id: ec.id },
@@ -485,6 +491,9 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
               ? {}
               : { weeklySchedule: (initMatch?.weeklySchedule ?? getDefaultWeeklyScheduleForCourt(ec.id)) as any }),
             ...(ec.address ? {} : { address: initMatch?.address ?? 'DVA Sports Center, Hà Nội' }),
+            ...((!ec.subCourts || ec.subCourts.length === 0) && (initMatch?.subCourts && initMatch.subCourts.length > 0)
+              ? { subCourts: initMatch.subCourts }
+              : {}),
           },
         });
       }
@@ -590,6 +599,7 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           bookingCode: b.bookingCode,
           courtId: b.courtId,
           courtName: b.courtName,
+          subCourt: b.subCourt ?? null,
           customerName: b.customerName,
           customerEmail: b.customerEmail,
           customerPhone: b.customerPhone,
@@ -619,10 +629,11 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
       if (!courtExists) continue;
       await prisma.closedSlot.upsert({
         where: {
-          courtId_date_slotLabel: {
+          courtId_date_slotLabel_subCourt: {
             courtId: cs.courtId,
             date: cs.date,
             slotLabel: cs.slotLabel,
+            subCourt: cs.subCourt || '',
           },
         },
         update: {},
@@ -630,6 +641,7 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           id: cs.id,
           courtId: cs.courtId,
           courtName: cs.courtName,
+          subCourt: cs.subCourt || '',
           date: cs.date,
           slotLabel: cs.slotLabel,
           reason: cs.reason ?? null,

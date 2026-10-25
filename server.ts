@@ -627,10 +627,12 @@ app.delete('/api/courts/:id', ah(async (req, res) => {
 app.get('/api/courts/closed-slots', ah(async (req, res) => {
   const courtId = typeof req.query.courtId === 'string' ? req.query.courtId : undefined;
   const date = typeof req.query.date === 'string' ? req.query.date : undefined;
+  const subCourt = typeof req.query.subCourt === 'string' ? req.query.subCourt : undefined;
   const dbSlots = await prisma.closedSlot.findMany({
     where: {
       ...(courtId ? { courtId } : {}),
       ...(date ? { date } : {}),
+      ...(subCourt ? { subCourt } : {}),
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -638,9 +640,9 @@ app.get('/api/courts/closed-slots', ah(async (req, res) => {
 }));
 
 app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
-  const { courtId, date, slotLabel, reason } = sanitize(
+  const { courtId, date, slotLabel, reason, subCourt } = sanitize(
     req.body,
-    { courtId: S(50, 1), date: D, slotLabel: S(60, 3), reason: S(200) },
+    { courtId: S(50, 1), date: D, slotLabel: S(60, 3), reason: S(200), subCourt: S(50) },
     { required: ['courtId', 'date', 'slotLabel'] }
   );
   const closedBy = req.user?.fullName || 'Admin';
@@ -652,9 +654,15 @@ app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
     return res.status(400).json({ error: 'slotLabel must contain a "HH:mm - HH:mm" range' });
   }
 
+  const resolvedSubCourt = subCourt || '';
   const existing = await prisma.closedSlot.findUnique({
     where: {
-      courtId_date_slotLabel: { courtId, date, slotLabel },
+      courtId_date_slotLabel_subCourt: {
+        courtId,
+        date,
+        slotLabel,
+        subCourt: resolvedSubCourt,
+      },
     },
   });
 
@@ -667,9 +675,10 @@ app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
         id: `cs-${crypto.randomUUID()}`,
         courtId,
         courtName: targetCourt.name,
+        subCourt: resolvedSubCourt,
         date,
         slotLabel,
-        reason: reason || 'Reserved / Maintenance by Admin',
+        reason: reason || (resolvedSubCourt ? `Reserved / Maintenance (${resolvedSubCourt}) by Admin` : 'Reserved / Maintenance by Admin'),
         closedBy,
       },
     });
@@ -713,6 +722,7 @@ async function hasBookingConflict(
   date: string,
   start: string,
   end: string,
+  subCourt?: string | null,
   ignoreId?: string
 ): Promise<boolean> {
   const now = new Date();
@@ -732,9 +742,13 @@ async function hasBookingConflict(
         },
       ],
     },
-    select: { startTime: true, endTime: true, paymentStatus: true, holdExpiresAt: true },
+    select: { startTime: true, endTime: true, paymentStatus: true, holdExpiresAt: true, subCourt: true },
   });
   return activeBookings.some((b) => {
+    // If checking a specific sub-court (e.g. Sân A), bookings for a different sub-court (e.g. Sân B) do NOT conflict
+    if (subCourt && b.subCourt && b.subCourt !== subCourt) {
+      return false;
+    }
     const status = String(b.paymentStatus).toUpperCase();
     const isBookedOrHolding =
       status === 'PAID' ||
@@ -744,12 +758,22 @@ async function hasBookingConflict(
   });
 }
 
-async function hasClosedSlotConflict(courtId: string, date: string, start: string, end: string): Promise<boolean> {
+async function hasClosedSlotConflict(
+  courtId: string,
+  date: string,
+  start: string,
+  end: string,
+  subCourt?: string | null
+): Promise<boolean> {
   const slots = await prisma.closedSlot.findMany({
     where: { courtId, date },
-    select: { slotLabel: true },
+    select: { slotLabel: true, subCourt: true },
   });
   return slots.some((cs) => {
+    // If closed slot specifies a subCourt, it only affects that specific sub-court
+    if (subCourt && cs.subCourt && cs.subCourt !== subCourt) {
+      return false;
+    }
     const range = parseSlotLabel(cs.slotLabel);
     return !!range && rangesOverlap(start, end, range.start, range.end);
   });
@@ -773,9 +797,10 @@ app.get('/api/bookings', ah(async (req, res) => {
     return res.json(
       dbBookings
         .filter((b) => b.paymentStatus !== 'CANCELLED')
-        .map(({ id, courtId: cId, bookingDate, startTime, endTime, paymentStatus }) => ({
+        .map(({ id, courtId: cId, subCourt, bookingDate, startTime, endTime, paymentStatus }) => ({
           id,
           courtId: cId,
+          subCourt,
           bookingDate,
           startTime,
           endTime,
@@ -795,6 +820,7 @@ app.post('/api/bookings', ah(async (req, res) => {
   const parsedTimeSlot = typeof rawBody.timeSlot === 'string' ? parseSlotLabel(rawBody.timeSlot) : null;
   const sanitizedInput = {
     courtId: rawBody.courtId,
+    subCourt: rawBody.subCourt,
     customerName: rawBody.customerName,
     customerEmail: rawBody.customerEmail,
     customerPhone: rawBody.customerPhone,
@@ -832,6 +858,12 @@ app.post('/api/bookings', ah(async (req, res) => {
     return res.status(400).json({ error: 'End time must be after start time.' });
   }
 
+  // Resolve sub-court for court clusters like BTL Thông Tin
+  const courtHasSubCourts = (Array.isArray(targetCourt.subCourts) && targetCourt.subCourts.length > 0) ||
+    courtId === 'court-btl' ||
+    targetCourt.code === 'BTL_TT';
+  const resolvedSubCourt = data.subCourt || (courtHasSubCourts ? 'Sân A' : undefined);
+
   if (!staff) {
     const today = todayVN();
     if (bookingDate < today || (bookingDate === today && toMinutes(endTime) <= nowMinutesVN())) {
@@ -848,17 +880,17 @@ app.post('/api/bookings', ah(async (req, res) => {
     return res.status(400).json({ error: 'The selected time is not an available session for this court and date.' });
   }
 
-  // 2. Double Booking Prevention: check PostgreSQL for PAID, CONFIRMED, or active HOLDING/PENDING
-  if (await hasBookingConflict(courtId, bookingDate, startTime, endTime)) {
+  // 2. Double Booking Prevention: check PostgreSQL for PAID, CONFIRMED, or active HOLDING/PENDING on this subCourt
+  if (await hasBookingConflict(courtId, bookingDate, startTime, endTime, resolvedSubCourt)) {
     return res.status(409).json({
       success: false,
-      message: 'Ca sân này vừa có người giữ chỗ hoặc đã được đặt!',
+      message: `Ca sân ${resolvedSubCourt ? `(${resolvedSubCourt}) ` : ''}này vừa có người giữ chỗ hoặc đã được đặt!`,
     });
   }
-  if (await hasClosedSlotConflict(courtId, bookingDate, startTime, endTime)) {
+  if (await hasClosedSlotConflict(courtId, bookingDate, startTime, endTime, resolvedSubCourt)) {
     return res.status(409).json({
       success: false,
-      message: 'Ca sân này vừa có người giữ chỗ hoặc đã được đặt!',
+      message: `Ca sân ${resolvedSubCourt ? `(${resolvedSubCourt}) ` : ''}này hiện đang đóng hoặc bảo trì!`,
     });
   }
 
@@ -878,13 +910,15 @@ app.post('/api/bookings', ah(async (req, res) => {
   const slotClean = `${startTime.replace(':', 'H')} ${endTime.replace(':', 'H')}`.toUpperCase();
   const dateNum = bookingDate.replace(/-/g, '');
 
-  const courtTag = courtId === 'court-btl' ? 'BTL' : courtId === 'court-thecong' ? 'TC' : 'MD';
+  const subTag = resolvedSubCourt ? (resolvedSubCourt.toUpperCase().includes('B') ? 'B' : 'A') : '';
+  const courtTag = courtId === 'court-btl' ? (subTag ? `BTL-${subTag}` : 'BTL') : courtId === 'court-thecong' ? 'TC' : 'MD';
   let bookingCode = '';
   do {
     bookingCode = `DVA-${courtTag}-${dateNum}-${crypto.randomInt(1000, 10000)}`;
   } while (await prisma.booking.findUnique({ where: { bookingCode } }));
 
-  const transferContent = `${bookingCode} ${courtShort} ${slotClean}`.toUpperCase();
+  const subMemo = resolvedSubCourt ? ` ${resolvedSubCourt.replace(/\s+/g, ' ').toUpperCase()}` : '';
+  const transferContent = `${bookingCode} ${courtShort}${subMemo} ${slotClean}`.toUpperCase();
 
   // 3. Assign 15-minute hold expiration and HOLDING (PENDING) status
   const paymentStatus = 'PENDING';
@@ -896,6 +930,7 @@ app.post('/api/bookings', ah(async (req, res) => {
       bookingCode,
       courtId,
       courtName: targetCourt.name,
+      subCourt: resolvedSubCourt ?? null,
       customerName: data.customerName,
       customerEmail: data.customerEmail,
       customerPhone: data.customerPhone,
@@ -932,13 +967,14 @@ app.post('/api/bookings', ah(async (req, res) => {
     addons: addonsList,
   };
   const courtName = targetCourt.name;
+  const courtDisplayName = resolvedSubCourt ? `${courtName} - ${resolvedSubCourt}` : courtName;
 
   // Chuẩn hóa payload khớp chính xác với tiêu đề cột tiếng Việt trên Google Sheet tab 'DatSan'
   const sheetPayload = {
     sheetName: 'DatSan',
     data: {
       'Mã đặt sân': booking.bookingCode || booking.id,
-      'Tên sân': courtName, // Tên hiển thị thực tế của sân
+      'Tên sân': courtDisplayName, // Tên hiển thị thực tế của sân kèm sân con
       'Ngày đặt': booking.date,
       'Khung giờ': booking.timeSlot,
       'Tổng số giờ': totalHours || 1.5,
@@ -1047,13 +1083,14 @@ app.put('/api/bookings/:id', ah(async (req, res) => {
   const nextStart = data.startTime ?? existing.startTime;
   const nextEnd = data.endTime ?? existing.endTime;
   const nextStatus = data.paymentStatus ?? existing.paymentStatus;
+  const nextSubCourt = data.subCourt !== undefined ? data.subCourt : existing.subCourt;
 
   if (toMinutes(nextEnd) <= toMinutes(nextStart)) {
     return res.status(400).json({ error: 'End time must be after start time.' });
   }
   if (
     nextStatus !== 'CANCELLED' &&
-    (await hasBookingConflict(nextCourtId, nextDate, nextStart, nextEnd, existing.id))
+    (await hasBookingConflict(nextCourtId, nextDate, nextStart, nextEnd, nextSubCourt, existing.id))
   ) {
     return res.status(409).json({ error: 'This court session slot overlaps with another booking.' });
   }

@@ -17,8 +17,9 @@
     "imageUrl": "/courts/btl.png",
     "status": "ACTIVE",
     "isMaintenance": false,
-    "isAvailable": true
-},
+    "isAvailable": true,
+    "subCourts": ["Sân A", "Sân B"]
+  },
   {
     "id": "court-thecong",
     "code": "THE_CONG",

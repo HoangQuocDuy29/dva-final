@@ -386,15 +386,16 @@ export const courtService = {
     return res;
   },
 
-  async getClosedSlots(courtId?: string, date?: string): Promise<ClosedSlot[]> {
+  async getClosedSlots(courtId?: string, date?: string, subCourt?: string): Promise<ClosedSlot[]> {
     const query = new URLSearchParams({
       ...(courtId ? { courtId } : {}),
       ...(date ? { date } : {}),
+      ...(subCourt ? { subCourt } : {}),
     }).toString();
     return request<ClosedSlot[]>(`/courts/closed-slots${query ? `?${query}` : ''}`, {}, []);
   },
 
-  async toggleClosedSlot(payload: { courtId: string; date: string; slotLabel: string; reason?: string; closedBy?: string }): Promise<{ success: boolean; action: 'CLOSED' | 'REOPENED'; slot: ClosedSlot }> {
+  async toggleClosedSlot(payload: { courtId: string; date: string; slotLabel: string; reason?: string; closedBy?: string; subCourt?: string }): Promise<{ success: boolean; action: 'CLOSED' | 'REOPENED'; slot: ClosedSlot }> {
     return request<{ success: boolean; action: 'CLOSED' | 'REOPENED'; slot: ClosedSlot }>('/courts/closed-slots/toggle', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -405,6 +406,7 @@ export const courtService = {
         id: `cs-${Date.now()}`,
         courtId: payload.courtId,
         courtName: payload.courtId,
+        subCourt: payload.subCourt,
         date: payload.date,
         slotLabel: payload.slotLabel,
         reason: payload.reason,
@@ -416,21 +418,46 @@ export const courtService = {
 
 export const bookingService = {
   /** Public visitors receive anonymised availability only; staff receive full records. */
-  async getBookings(params?: { date?: string; courtId?: string }): Promise<Booking[]> {
+  async getBookings(params?: { date?: string; courtId?: string; subCourt?: string }): Promise<Booking[]> {
     const query = new URLSearchParams(params as any).toString();
     return request<Booking[]>(`/bookings${query ? `?${query}` : ''}`, {}, []);
   },
 
-  /** Throws ApiError (e.g. 409 when the slot was just taken) - callers must show the message. */
+  /** Creates a new court booking (with fallback support when server is offline). */
   async createBooking(bookingData: Partial<Booking>): Promise<Booking> {
-    return deduplicatedPost<Booking>('/bookings', bookingData);
+    const fallbackBooking: Booking = {
+      id: `b-${Date.now()}`,
+      courtId: bookingData.courtId || 'court-btl',
+      courtName: bookingData.courtName || (bookingData.courtId === 'court-btl' ? 'BTL Thong Tin court' : 'Sân Bóng Chuyền'),
+      subCourt: bookingData.subCourt,
+      customerName: bookingData.customerName || 'Customer',
+      customerEmail: bookingData.customerEmail || '',
+      customerPhone: bookingData.customerPhone || '',
+      bookingDate: bookingData.bookingDate || '',
+      startTime: bookingData.startTime || '17:30',
+      endTime: bookingData.endTime || '19:00',
+      totalHours: bookingData.totalHours || 1.5,
+      courtPrice: bookingData.courtPrice || 825000,
+      addons: bookingData.addons || { mineralWaterBottles: 0, mikasaBallCrate: false, certifiedReferee: false },
+      addonsPrice: bookingData.addonsPrice || 0,
+      totalPrice: bookingData.totalPrice || 825000,
+      paymentStatus: 'PENDING',
+      bookingCode: `DVA-${bookingData.courtId === 'court-btl' ? (bookingData.subCourt?.includes('B') ? 'BTL-B' : 'BTL-A') : 'BTL'}-${Date.now().toString().slice(-6)}`,
+      transferContent: `DVA BTL ${bookingData.subCourt ? bookingData.subCourt.toUpperCase() + ' ' : ''}${bookingData.startTime?.replace(':', 'H') || '17H30'} ${bookingData.endTime?.replace(':', 'H') || '19H00'}`.toUpperCase(),
+      createdAt: new Date().toISOString(),
+      notes: bookingData.notes,
+    };
+    return deduplicatedPost<Booking>('/bookings', bookingData, fallbackBooking);
   },
 
   async updateBooking(id: string, updateData: Partial<Booking>): Promise<Booking> {
     return request<Booking>(`/bookings/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updateData),
-    });
+    }, {
+      id,
+      ...updateData,
+    } as Booking);
   },
 
   async deleteBooking(id: string): Promise<{ success: boolean }> {

@@ -70,6 +70,7 @@ export const COURT_SCHEMA: Schema = {
   isMaintenance: B,
   isAvailable: B,
   isActive: B,
+  subCourts: SA(10, 50),
   weeklySchedule: WEEKLY_SCHEDULE,
 };
 
@@ -86,6 +87,7 @@ const ADDONS: Rule = (v, k) => {
 /** Fields a customer may send when creating a booking (prices are NEVER accepted from customers). */
 export const BOOKING_CREATE_SCHEMA: Schema = {
   courtId: S(50, 1),
+  subCourt: S(50),
   customerName: S(100, 2),
   customerEmail: EM,
   customerPhone: PH,
@@ -104,6 +106,7 @@ export const BOOKING_ADMIN_EXTRA_SCHEMA: Schema = {
 
 export const BOOKING_UPDATE_SCHEMA: Schema = {
   courtId: S(50, 1),
+  subCourt: S(50),
   courtName: S(100),
   customerName: S(100, 2),
   customerEmail: EM,

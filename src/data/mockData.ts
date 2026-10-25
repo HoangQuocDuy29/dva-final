@@ -58,6 +58,7 @@ export const INITIAL_COURTS: Court[] = [
     isMaintenance: false,
     isAvailable: true,
     isActive: true,
+    subCourts: ['Sân A', 'Sân B'],
     weeklySchedule: getDefaultWeeklyScheduleForCourt('court-btl'),
   },
   {
