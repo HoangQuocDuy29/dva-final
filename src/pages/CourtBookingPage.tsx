@@ -422,7 +422,7 @@ const CourtBookingContent: React.FC = () => {
               DVA Real-Time Court Reservation
             </span>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white font-heading mt-3">
-              Book Court Online & Instant VietQR Reconciliation
+              Book Court Online
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-3xl leading-relaxed">
               Real-time court availability with automated banking transfer syntax · 550,000 VND / hour · Includes 1 Free Official Mikasa V200W Olympic Match Ball.
@@ -861,7 +861,7 @@ const CourtBookingContent: React.FC = () => {
                     <Flame className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs text-white">Extra Mikasa 5-Ball Training Crate</h4>
+                    <h4 className="font-bold text-xs text-white">Extra Mikasa 1-Ball Training Crate</h4>
                     <p className="text-[11px] text-slate-400">+100,000 VND / Session (Ideal for team spiking drills)</p>
                   </div>
                 </div>
@@ -881,7 +881,7 @@ const CourtBookingContent: React.FC = () => {
                     <UserCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs text-white">Certified Official Referee (FIVB Standard)</h4>
+                    <h4 className="font-bold text-xs text-white">Certified Official Referee</h4>
                     <p className="text-[11px] text-slate-400">+200,000 VND / Match (Match officiating & whistle)</p>
                   </div>
                 </div>

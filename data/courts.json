@@ -4,21 +4,21 @@
     "code": "BTL_TT",
     "shortName": "BTL TT",
     "name": "BTL Thong Tin court",
-    "description": "Premier FIVB standard competition court equipped with Taraflex Pro Elite 7.5mm shock-absorption flooring, 1200 Lux glare-free arena LED lighting, and 200-seat grandstand.",
-    "floorType": "Taraflex Pro Elite 7.5mm (Injury-Preventive)",
+    "description": "Standard indoor volleyball court with quality vinyl flooring and bright lighting, suitable for friendly matches and regular team training.",
+    "floorType": "Indoor Vinyl Mat",
     "hourlyRate": 550000,
     "minHours": 1.5,
     "includes": [
-      "1 Free Official Mikasa V200W Olympic Match Ball",
-      "Electronic scoreboard & referee high-chair",
-      "Air-conditioned locker rooms & hot showers",
-      "Complimentary chilled drinking water"
+      "1 Free Official Mikasa V200W match ball",
+      "Standard net & referee stand",
+      "Ceiling fans & changing area",
+      "Free motorcycle parking & drinking water"
     ],
     "imageUrl": "/courts/btl.png",
     "status": "ACTIVE",
     "isMaintenance": false,
     "isAvailable": true
-  },
+},
   {
     "id": "court-thecong",
     "code": "THE_CONG",

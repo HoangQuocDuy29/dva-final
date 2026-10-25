@@ -37,7 +37,7 @@ export const Footer: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Official FIVB-grade Taraflex sports arena and professional coaching academy. Home of elite regional championship squads and aspiring youth volleyball athletes.
+              Hanoi volleyball community hub and training academy. Connecting local passion with international players, from weekly friendly games to youth squad development.
             </p>
 
             <div className="space-y-2 text-xs text-slate-400 pt-1">
@@ -119,7 +119,7 @@ export const Footer: React.FC = () => {
             </div>
 
             <div className="pt-2 text-[11px] text-slate-500 leading-relaxed border-t border-slate-800/80">
-              Equipped with 3 tournament-grade Taraflex courts, air-conditioned locker rooms, electronic scoreboards, and spectator stands.
+              Offering quality indoor courts with standard vinyl flooring, bright lighting, dedicated changing areas, and courtside seating.
             </div>
           </div>
 
@@ -166,7 +166,6 @@ export const Footer: React.FC = () => {
             © {new Date().getFullYear()} DVA Volleyball Club. All Rights Reserved.
           </div>
           <div className="flex items-center gap-4 text-xs">
-            <span>FIVB Competition Standards</span>
             <span>·</span>
             <span>Taraflex Pro Elite</span>
             <span>·</span>

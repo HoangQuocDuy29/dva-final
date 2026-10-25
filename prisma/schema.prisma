@@ -9,10 +9,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-  // Nếu sử dụng Connection Pooler (PgBouncer / Supavisor trên Supabase hoặc Neon),
-  // hãy bỏ comment dòng dưới và khai báo thêm DIRECT_URL trong file .env để chạy migration:
-  // directUrl = env("DIRECT_URL")
+  // Prisma 7: connection URL được cấu hình trong prisma.config.ts (migrate)
+  // và adapter (@prisma/adapter-pg) trong lib/prisma.ts (runtime).
 }
 
 // ============================================================================

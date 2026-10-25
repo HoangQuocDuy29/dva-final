@@ -70,7 +70,7 @@ export const HomePage: React.FC = () => {
               </h1>
 
               <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
-                Featuring 3 tournament-grade <strong>Taraflex Pro Elite</strong> indoor volleyball courts, 100% official Olympic <strong>Mikasa V200W</strong> match balls, and national-tier coaching staff executing professional 5-1 rotational systems.
+                Connecting Hanoi's vibrant volleyball community with <strong>international players</strong>, offering comprehensive local volleyball services—from high-energy open sessions on tournament-grade <strong>Taraflex courts</strong> to official <strong>Mikasa V200W</strong> match play and professional <strong>5-1 rotational coaching</strong>.
               </p>
 
               {/* Primary CTAs */}
@@ -188,7 +188,7 @@ export const HomePage: React.FC = () => {
 
             <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800">
               <div className="font-heading font-black text-3xl sm:text-4xl text-orange-400 tabular-nums">
-                120+
+                400+
               </div>
               <div className="text-xs font-bold text-slate-300 mt-1 uppercase tracking-wide">
                 Active Club Athletes
@@ -208,7 +208,7 @@ export const HomePage: React.FC = () => {
 
             <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800">
               <div className="font-heading font-black text-3xl sm:text-4xl text-red-500 tabular-nums">
-                1,500+
+                270+
               </div>
               <div className="text-xs font-bold text-slate-300 mt-1 uppercase tracking-wide">
                 Matches / Year
@@ -432,10 +432,10 @@ export const HomePage: React.FC = () => {
           <div>
             <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Leadership & Operations</span>
             <h2 className="text-3xl font-black text-white font-heading mt-1">
-              Club Leadership, Coaching Staff & Media Team
+              Club Leadership, Technical & Media Team
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-              The passionate professionals managing coaching methodology, sports arena operations, and digital media at DVA Volleyball Club.
+              The core team managing club operations, system infrastructure, youth player activities, and community communications at DVA Volleyball Club.
             </p>
           </div>
 
@@ -443,123 +443,123 @@ export const HomePage: React.FC = () => {
             
             {/* Card 1: Founder & Head Coach */}
             <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-red-500/50 transition-all shadow-xl group">
-              <div className="space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-                  <img
-                    src="/coaches/duy.png"
-                    alt="Hoang Quoc Duy"
-                    className="w-full h-full object-cover relative z-10"
-                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                  />
-                  <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">DUY</span>
-                </div>
-                <div className="text-center space-y-1">
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-red-950 text-red-400 border border-red-800 inline-block">
-                    Founder & Head Coach
-                  </span>
-                  <h3 className="font-heading font-black text-lg text-white">
-                    Hoang Quoc Duy
-                  </h3>
-                  <p className="text-[11px] text-orange-400 font-semibold">Club Director</p>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed text-center">
-                  National Grade 1 Athlete with over 10 years of competitive and coaching experience. Directs squad tactical systems and oversees all club operations.
-                </p>
-              </div>
-              <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-                Direct Line: 0768.299.329
-              </div>
-            </div>
+  <div className="space-y-4">
+    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
+      <img
+        src="https://res.cloudinary.com/dsezvx7xf/image/upload/v1792859772/88fd036d-168d-4c9b-b74d-48448e5808da.png"
+        alt="Hoang Quoc Duy"
+        className="w-full h-full object-cover relative z-10"
+        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+      />
+      <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">DUY</span>
+    </div>
+    <div className="text-center space-y-1">
+      <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-red-950 text-red-400 border border-red-800 inline-block">
+        Founder & Club Manager
+      </span>
+      <h3 className="font-heading font-black text-lg text-white">
+        Hoang Quoc Duy
+      </h3>
+      <p className="text-[11px] text-orange-400 font-semibold">Operations & Community Lead</p>
+    </div>
+    <p className="text-xs text-slate-400 leading-relaxed text-center">
+      Founder and manager of DVA Volleyball Club. Oversees match scheduling, court coordination, and community activities to maintain an accessible, organized playing environment for all members.
+    </p>
+  </div>
+  <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
+    Direct Line: 0768.299.329
+  </div>
+</div>
 
             {/* Card 2: Technical Leader */}
             <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-blue-500/50 transition-all shadow-xl group">
-              <div className="space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-700 to-cyan-600 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-                  <img
-                    src="/coaches/nam.png"
-                    alt="Nguyen Thanh Nam"
-                    className="w-full h-full object-cover relative z-10"
-                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                  />
-                  <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">NAM</span>
-                </div>
-                <div className="text-center space-y-1">
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-950 text-blue-300 border border-blue-800 inline-block">
-                    Technical Director
-                  </span>
-                  <h3 className="font-heading font-black text-lg text-white">
-                    Nguyen Thanh Nam
-                  </h3>
-                  <p className="text-[11px] text-blue-400 font-semibold">Setter & Tactical Specialist</p>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed text-center">
-                  Former national youth squad player. Expert in 120fps motion analysis, approach kinetic chain, wrist-snap angles, and 5-1 offensive tempos.
-                </p>
-              </div>
-              <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-                Specialty: 5-1 & 6-2 Systems
-              </div>
-            </div>
+  <div className="space-y-4">
+    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-700 to-cyan-600 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
+      <img
+        src="https://res.cloudinary.com/dsezvx7xf/image/upload/v1792859693/dedfed66-f2fc-44ad-b4d8-e8b4bb66ef24.png"
+        alt="Hoang Manh Kien"
+        className="w-full h-full object-cover relative z-10"
+        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+      />
+      <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">NAM</span>
+    </div>
+    <div className="text-center space-y-1">
+      <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-950 text-blue-300 border border-blue-800 inline-block">
+        Technical & System Manager
+      </span>
+      <h3 className="font-heading font-black text-lg text-white">
+        Hoang Manh Kien
+      </h3>
+      <p className="text-[11px] text-blue-400 font-semibold">Information Technology</p>
+    </div>
+    <p className="text-xs text-slate-400 leading-relaxed text-center">
+      Manages the technical infrastructure and digital platforms of DVA. Responsible for system stability, match data tracking, and coordinating technical support during events.
+    </p>
+  </div>
+  <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
+    Focus: System Operations 
+  </div>
+</div>
 
             {/* Card 3: Operations Manager */}
             <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-amber-500/50 transition-all shadow-xl group">
-              <div className="space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-600 to-yellow-500 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-                  <img
-                    src="/leadership/thao.png"
-                    alt="Le Thu Thao"
-                    className="w-full h-full object-cover relative z-10"
-                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                  />
-                  <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">THAO</span>
-                </div>
-                <div className="text-center space-y-1">
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-950 text-amber-300 border border-amber-800 inline-block">
-                    Operations & Facilities
-                  </span>
-                  <h3 className="font-heading font-black text-lg text-white">
-                    Le Thu Thao
-                  </h3>
-                  <p className="text-[11px] text-amber-400 font-semibold">Operations Manager</p>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed text-center">
-                  Coordinates schedule across 3 sports arenas, manages community scrimmage sessions, friendly matches, and athlete registration onboarding.
-                </p>
-              </div>
-              <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-                Court & Member Operations
-              </div>
-            </div>
+  <div className="space-y-4">
+    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-600 to-yellow-500 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
+      <img
+        src="https://res.cloudinary.com/dsezvx7xf/image/upload/v1792864125/46219df4-39ee-4418-a31d-3c0d69cbf589.png"
+        alt="Luong The Phong"
+        className="w-full h-full object-cover relative z-10"
+        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+      />
+      <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">THAO</span>
+    </div>
+    <div className="text-center space-y-1">
+      <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-950 text-amber-300 border border-amber-800 inline-block">
+        Junior Team Captain
+      </span>
+      <h3 className="font-heading font-black text-lg text-white">
+        Luong The Phong
+      </h3>
+      <p className="text-[11px] text-amber-400 font-semibold">Squad Leader & Match Support</p>
+    </div>
+    <p className="text-xs text-slate-400 leading-relaxed text-center">
+      Captain of the DVA Junior Team. Leads training drills on the court, supports match organization, and helps connect younger members with club activities.
+    </p>
+  </div>
+  <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
+    Role: Junior Squad Captain
+  </div>
+</div>
 
             {/* Card 4: Media & Content Creator */}
             <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-orange-500/50 transition-all shadow-xl group">
-              <div className="space-y-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-pink-600 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-                  <img
-                    src="/leadership/khang.png"
-                    alt="Tran Minh Khang"
-                    className="w-full h-full object-cover relative z-10"
-                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                  />
-                  <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">KHANG</span>
-                </div>
-                <div className="text-center space-y-1">
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-orange-950 text-orange-300 border border-orange-800 inline-block">
-                    Media & Video Production
-                  </span>
-                  <h3 className="font-heading font-black text-lg text-white">
-                    Tran Minh Khang
-                  </h3>
-                  <p className="text-[11px] text-orange-400 font-semibold">Content Creator Lead</p>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed text-center">
-                  Captures dynamic scrimmage video highlights, tournament live broadcasts, and educational volleyball drill tutorials across TikTok and Reels.
-                </p>
-              </div>
-              <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-                TikTok / Reels Media Hub
-              </div>
-            </div>
+  <div className="space-y-4">
+    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-pink-600 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
+      <img
+        src="https://res.cloudinary.com/dsezvx7xf/image/upload/v1792919620/6d3b1902-b8d9-4097-b65e-fca87ecff4aa.png"
+        alt="Hoang Minh Hieu"
+        className="w-full h-full object-cover relative z-10"
+        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+      />
+      <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">KHANG</span>
+    </div>
+    <div className="text-center space-y-1">
+      <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-orange-950 text-orange-300 border border-orange-800 inline-block">
+        Social Media & Communications
+      </span>
+      <h3 className="font-heading font-black text-lg text-white">
+        Hoang Minh Hieu
+      </h3>
+      <p className="text-[11px] text-orange-400 font-semibold">Media & Community Channels</p>
+    </div>
+    <p className="text-xs text-slate-400 leading-relaxed text-center">
+      Manages social media channels and communications for DVA. Captures match photos, posts game schedules, and keeps members updated across club platforms.
+    </p>
+  </div>
+  <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
+    Role: Social Media & Communications
+  </div>
+</div>
 
           </div>
         </div>
@@ -572,7 +572,7 @@ export const HomePage: React.FC = () => {
             <div>
               <span className="text-xs font-bold text-red-500 tracking-wider uppercase">Facility Highlights</span>
               <h2 className="text-3xl font-black text-white font-heading mt-1">
-                FIVB Regulation Indoor Courts
+                Indoor Courts
               </h2>
             </div>
             <Link

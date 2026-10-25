@@ -190,13 +190,13 @@ export const TrainingPage: React.FC = () => {
         {/* Page Header */}
         <div className="border-b border-slate-800 pb-8 text-center sm:text-left space-y-3">
           <span className="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-950/60 border border-red-800 px-3 py-1 rounded-full inline-block">
-            DVA Scrimmage & Coaching Academy
+            DVA Scrimmage & Coaching
           </span>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white font-heading tracking-tight">
             Scrimmage Matchplay & Technical Training Programs
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-3xl leading-relaxed">
-            From recreational open scrimmage matchplay to intensive 1-on-1 private mechanical refinement with senior coaches. 100% played on FIVB Taraflex sports flooring with official Mikasa V200W Olympic balls. No login required to enroll.
+            From open social scrimmages to focused skill-training sessions. Played on standard indoor mat courts with official Mikasa V200W balls. Quick and easy sign-up—no login required.
           </p>
         </div>
 
@@ -229,19 +229,25 @@ export const TrainingPage: React.FC = () => {
                   <div className="space-y-5">
                     
                     {/* Top Row: Tag + Target Audience */}
-                    <div className="flex items-start justify-between gap-3">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm shrink-0 ${
-                        isPrivate1on1
-                          ? 'border-amber-500 bg-amber-500 text-black font-extrabold'
-                          : 'border-amber-600/70 bg-amber-950/40 text-amber-300'
-                      }`}>
-                        {course.tag || course.level}
-                      </span>
-                      <div className="flex items-center gap-1.5 text-slate-300 text-xs text-right">
-                        <Users className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-                        <span className="line-clamp-2 text-[11px]">{course.targetAudience}</span>
+                    {(course.tag || course.targetAudience) && (
+                      <div className="flex items-start justify-between gap-3">
+                        {course.tag ? (
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm shrink-0 ${
+                            isPrivate1on1
+                              ? 'border-amber-500 bg-amber-500 text-black font-extrabold'
+                              : 'border-amber-600/70 bg-amber-950/40 text-amber-300'
+                          }`}>
+                            {course.tag}
+                          </span>
+                        ) : <span />}
+                        {course.targetAudience && (
+                          <div className="flex items-center gap-1.5 text-slate-300 text-xs text-right">
+                            <Users className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                            <span className="line-clamp-2 text-[11px]">{course.targetAudience}</span>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    )}
 
                     {/* Package Title */}
                     <h3 className="font-heading font-black text-xl sm:text-2xl text-amber-400 tracking-tight leading-snug">
@@ -254,12 +260,13 @@ export const TrainingPage: React.FC = () => {
                     </p>
 
                     {/* Benefits Section */}
+                    {(course.benefits || course.curriculum || []).length > 0 && (
                     <div className="space-y-2.5 pt-3 border-t border-slate-800/80">
                       <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">
                         PACKAGE INCLUSIONS:
                       </span>
                       <div className="space-y-2">
-                        {(course.benefits || course.curriculum || []).slice(0, 4).map((b, idx) => (
+                        {(course.benefits || course.curriculum || []).map((b, idx) => (
                           <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-200">
                             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                             <span className="leading-snug">{b}</span>
@@ -267,6 +274,7 @@ export const TrainingPage: React.FC = () => {
                         ))}
                       </div>
                     </div>
+                    )}
 
                     {/* Schedule Box */}
                     <div className="bg-[#0B0F19] rounded-2xl p-3.5 border border-slate-800 flex items-start gap-2.5 text-xs text-slate-300">

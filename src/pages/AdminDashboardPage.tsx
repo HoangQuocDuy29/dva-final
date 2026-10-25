@@ -821,12 +821,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   const handleSaveCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload: Partial<TrainingCourse> = {
+        ...courseForm,
+        tag: courseForm.tag?.trim() || '',
+        targetAudience: courseForm.targetAudience?.trim() || '',
+        benefits: (courseForm.benefits || []).map(b => b.trim()).filter(Boolean),
+      };
       if (editingCourse) {
-        const updated = await trainingService.updateCourse(editingCourse.id, courseForm);
+        const updated = await trainingService.updateCourse(editingCourse.id, payload);
         setCoursesList(prev => prev.map(c => c.id === editingCourse.id ? { ...c, ...updated } : c));
         setFeedback(`Đã cập nhật khóa học "${courseForm.title}"!`);
       } else {
-        const created = await trainingService.createCourse(courseForm);
+        const created = await trainingService.createCourse(payload);
         setCoursesList(prev => [created, ...prev]);
         setFeedback(`Đã tạo khóa học mới "${courseForm.title}"!`);
       }
@@ -2137,6 +2143,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                     name: '',
                     role: 'Chuyên Gia Tấn Công Biên',
                     experience: '5 năm kinh nghiệm',
+                    height: '',
+                    bornYear: undefined,
+                    age: undefined,
+                    specialty: '',
                     bio: '',
                     avatarUrl: '/coaches/duy.png',
                     certifications: ['FIVB Level 1 Certified', 'Cựu VĐV Quốc Gia'],
@@ -3760,6 +3770,29 @@ function doGet(e) {
             </div>
 
             <form onSubmit={handleSaveCourse} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Nhãn nổi bật (Badge)</label>
+                  <input
+                    type="text"
+                    value={courseForm.tag || ''}
+                    onChange={(e) => setCourseForm({ ...courseForm, tag: e.target.value })}
+                    placeholder="VD: MOST POPULAR, POPULAR CHOICE..."
+                    className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Đối tượng học viên (Target Audience)</label>
+                  <input
+                    type="text"
+                    value={courseForm.targetAudience || ''}
+                    onChange={(e) => setCourseForm({ ...courseForm, targetAudience: e.target.value })}
+                    placeholder="VD: Dành cho người mới tập, VĐV phong trào..."
+                    className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">Tên khóa học / Chương trình *</label>
                 <input
@@ -3875,6 +3908,18 @@ function doGet(e) {
                 />
               </div>
 
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Đặc quyền / Quyền lợi gói tập (Package Inclusions)</label>
+                <textarea
+                  rows={5}
+                  value={(courseForm.benefits || []).join('\n')}
+                  onChange={(e) => setCourseForm({ ...courseForm, benefits: e.target.value.split('\n') })}
+                  placeholder={'Mỗi quyền lợi một dòng, VD:\nÁo đấu DVA chính hãng\nPhân tích video kỹ thuật'}
+                  className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Mỗi dòng là một mục có tick xanh ngoài trang Public.</p>
+              </div>
+
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
@@ -3958,6 +4003,57 @@ function doGet(e) {
                     className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Chiều cao (cm)</label>
+                  <input
+                    type="text"
+                    value={coachForm.height || ''}
+                    onChange={(e) => setCoachForm({ ...coachForm, height: e.target.value })}
+                    placeholder="VD: 168 cm"
+                    className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Năm sinh</label>
+                  <input
+                    type="number"
+                    value={coachForm.bornYear ?? ''}
+                    onChange={(e) => {
+                      const year = e.target.value === '' ? undefined : Number(e.target.value);
+                      setCoachForm({
+                        ...coachForm,
+                        bornYear: year,
+                        ...(year && year >= 1930 && year <= 2030 ? { age: new Date().getFullYear() - year } : {}),
+                      });
+                    }}
+                    placeholder="VD: 2010"
+                    className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Tuổi</label>
+                  <input
+                    type="number"
+                    value={coachForm.age ?? ''}
+                    onChange={(e) => setCoachForm({ ...coachForm, age: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    placeholder="Tự tính từ năm sinh"
+                    className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Sở trường kỹ thuật (Specialty)</label>
+                <input
+                  type="text"
+                  value={coachForm.specialty || ''}
+                  onChange={(e) => setCoachForm({ ...coachForm, specialty: e.target.value })}
+                  placeholder="VD: Youth Skill Development, Setting Fundamentals & Bilingual Coaching"
+                  className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                />
               </div>
 
               {/* PHOTO UPLOAD / URL */}
