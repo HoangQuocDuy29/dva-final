@@ -229,18 +229,18 @@ export const InformationPage: React.FC = () => {
                     </td>
                   </tr>
 
-                  {/* Row 3: Sunday Afternoon (Junior & Kid) */}
+                  {/* Row 3: Sunday Afternoon (Junior & Youth) */}
                   <tr className="hover:bg-slate-800/40 bg-emerald-950/15">
                     <td className="py-4 px-5 font-mono font-bold text-emerald-400">
                       Sunday Afternoon (14:00 – 16:30)
                     </td>
                     <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-                      <span>DVA Junior & Kid Academy (Youth Fundamentals)</span>
+                      <span>DVA Junior & Youth (Fundamentals)</span>
                     </td>
                     <td className="py-4 px-5">
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                        JUNIOR & KID (&lt; Mix)
+                        JUNIOR & YOUTH
                       </span>
                     </td>
                     <td className="py-4 px-5 text-right font-mono text-slate-400">
@@ -309,8 +309,8 @@ export const InformationPage: React.FC = () => {
 
             <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="font-heading font-black text-lg text-white">Kid Academy</h3>
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 uppercase">U10 - U14</span>
+                <h3 className="font-heading font-black text-lg text-white">Youth</h3>
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 uppercase">Youth</span>
               </div>
               <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3">
                 <li>• <strong>Age:</strong> Boys & girls ages 9 through 14.</li>

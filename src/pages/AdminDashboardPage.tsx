@@ -1091,7 +1091,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                 <div className="font-mono font-black text-2xl text-emerald-400 tabular-nums">
                   {players.length} Athletes
                 </div>
-                <span className="text-[10px] text-slate-500 block">Senior, Junior & Kid divisions</span>
+                <span className="text-[10px] text-slate-500 block">Senior, Junior & Youth divisions</span>
               </div>
             </div>
 
@@ -3144,7 +3144,7 @@ function doGet(e) {
                 />
               </div>
 
-              {/* LEVEL SELECTION: SENIOR / JUNIOR / KID (Required by user) */}
+              {/* LEVEL SELECTION: SENIOR / JUNIOR / YOUTH (Required by user) */}
               <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-red-900/60 space-y-2">
                 <label className="block text-slate-200 font-bold">
                   Phân Cấp Độ / Đội Tuyển (Level) *
@@ -3156,7 +3156,7 @@ function doGet(e) {
                 >
                   <option value="SENIOR">SENIOR — Người chơi tốt, trên 3 năm kinh nghiệm</option>
                   <option value="JUNIOR">JUNIOR — Người chơi trung bình (Intermediate)</option>
-                  <option value="KID">KID — Dưới 15 tuổi (Học viện trẻ)</option>
+                  <option value="YOUTH">Youth</option>
                 </select>
                 <p className="text-[10px] text-slate-400">
                   Sau khi lưu, VĐV sẽ xuất hiện ngay lập tức trong cột tương ứng ({playerForm.level}) trên danh sách Roster của CLB.
@@ -3909,7 +3909,7 @@ function doGet(e) {
                   >
                     <option value="SENIOR">SENIOR (Nâng cao & Chiến thuật)</option>
                     <option value="JUNIOR">JUNIOR (Trung cấp & Kỹ năng nền tảng)</option>
-                    <option value="KID">KID (Thiếu nhi & Trẻ em dưới 15t)</option>
+                    <option value="YOUTH">Youth</option>
                   </select>
                 </div>
 

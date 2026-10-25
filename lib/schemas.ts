@@ -1,7 +1,17 @@
 import { B, D, E, EM, HttpError, I, N, PH, S, SA, T, U, Rule, Schema } from './validation';
 import { DAY_KEYS_BY_JS_DAY, parseSlotLabel } from '../src/shared/schedule';
 
-export const LEVELS = ['KID', 'JUNIOR', 'SENIOR'] as const;
+export const LEVELS = ['SENIOR', 'JUNIOR', 'YOUTH'] as const;
+export const VALID_LEVELS = ['senior', 'junior', 'youth', 'SENIOR', 'JUNIOR', 'YOUTH'] as const;
+
+export const LEVEL_RULE: Rule = (v, k) => {
+  if (typeof v !== 'string') throw new HttpError(400, `${k} must be one of: senior, junior, youth`);
+  const normalized = v.trim().toUpperCase();
+  if (normalized !== 'SENIOR' && normalized !== 'JUNIOR' && normalized !== 'YOUTH') {
+    throw new HttpError(400, `${k} must be one of: senior, junior, youth`);
+  }
+  return normalized;
+};
 export const POSITIONS = ['OH', 'OP', 'MB', 'S', 'L'] as const;
 export const PAYMENT_STATUSES = ['PENDING', 'PAID', 'CANCELLED'] as const;
 export const REGISTRATION_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED'] as const;
@@ -21,7 +31,7 @@ export const PLAYER_SCHEMA: Schema = {
   countryCode: S(5),
   countryFlag: S(10),
   bornYear: I(1950, 2030),
-  level: E(LEVELS),
+  level: LEVEL_RULE,
   position: E(POSITIONS),
   avatarUrl: U,
   bio: S(1000),
@@ -186,7 +196,7 @@ export const MEMBER_REGISTER_SCHEMA: Schema = {
   position: E(POSITIONS),
   hometownCountry: S(100, 1),
   desiredJerseyNumber: I(0, 99),
-  level: E(LEVELS),
+  level: LEVEL_RULE,
   height: N(100, 250),
   weight: N(20, 200),
   spikeReach: N(150, 420),

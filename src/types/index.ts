@@ -14,7 +14,7 @@ export interface User {
   createdAt: string;
 }
 
-export type PlayerLevel = 'SENIOR' | 'JUNIOR' | 'KID';
+export type PlayerLevel = 'SENIOR' | 'JUNIOR' | 'YOUTH';
 
 export type VolleyballPosition = 'OH' | 'OP' | 'MB' | 'S' | 'L';
 

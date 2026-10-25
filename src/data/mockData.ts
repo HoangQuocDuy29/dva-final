@@ -296,10 +296,10 @@ export const INITIAL_PLAYERS: Player[] = [
     countryCode: 'VN',
     countryFlag: '🇻🇳',
     bornYear: 2011,
-    level: 'KID',
+    level: 'YOUTH',
     position: 'OH',
     avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80',
-    bio: 'DVA Kid Academy prospect with clean overhand passing and approach mechanics.',
+    bio: 'DVA Youth Academy prospect with clean overhand passing and approach mechanics.',
     joinedYear: 2025,
   },
 ];
@@ -346,11 +346,11 @@ Key biomechanical tips:
     id: 'news-3',
     title: 'DVA Academy Season 2026: Youth & Junior Tryout Admissions Open',
     slug: 'dva-academy-season-2026-tryouts',
-    excerpt: 'Official tryout registrations now open for U14 (Kid Academy) and U21 (Junior Team). Full scholarship and official kit sponsorship available.',
+    excerpt: 'Official tryout registrations now open for U14 (Youth Academy) and U21 (Junior Team). Full scholarship and official kit sponsorship available.',
     content: `DVA Volleyball Club is scouting talented athletes for our competitive development pipeline.
 
 Admissions Requirements:
-- U14 Kid Academy (Ages 10-14): Athletic enthusiasm and quick motor reflexes.
+- U14 Youth Academy (Ages 10-14): Athletic enthusiasm and quick motor reflexes.
 - U21 Junior Squad (Ages 15-20): Minimum height requirement Men 180cm, Women 165cm.
 - Benefits: FIVB coaching, Taraflex sports center access, sponsored competition kits, and national league exposure.`,
     imageUrl: 'https://images.unsplash.com/photo-1547347298-4074fc3086f0?auto=format&fit=crop&w=1200&q=80',
@@ -682,7 +682,7 @@ export const INITIAL_MEMBER_APPLICATIONS: MemberApplication[] = [
     position: 'S',
     hometownCountry: 'Hà Nội, VN',
     desiredJerseyNumber: 6,
-    level: 'KID',
+    level: 'YOUTH',
     height: 171,
     weight: 56,
     spikeReach: 288,

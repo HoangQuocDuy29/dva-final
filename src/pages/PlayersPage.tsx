@@ -24,10 +24,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
   const navigate = useNavigate();
 
   // Resolve level from URL: default is JUNIOR as requested
-  const resolvedLevel = useMemo<'JUNIOR' | 'SENIOR' | 'KID'>(() => {
+  const resolvedLevel = useMemo<'JUNIOR' | 'SENIOR' | 'YOUTH'>(() => {
     const p = (levelParam || '').toLowerCase();
     if (p === 'senior') return 'SENIOR';
-    if (p === 'kid') return 'KID';
+    if (p === 'youth' || p === 'kid') return 'YOUTH';
     return 'JUNIOR'; // Default level
   }, [levelParam]);
 
@@ -114,14 +114,14 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
   // Squad counts (alphabetically sorted)
   const seniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'SENIOR')), [players, search, selectedPosition, selectedLetter]);
   const juniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'JUNIOR')), [players, search, selectedPosition, selectedLetter]);
-  const kidPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'KID')), [players, search, selectedPosition, selectedLetter]);
+  const youthPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'YOUTH')), [players, search, selectedPosition, selectedLetter]);
 
   // Active level list for Single Tab
   const activeLevelPlayers = useMemo(() => {
     if (resolvedLevel === 'SENIOR') return seniorPlayers;
-    if (resolvedLevel === 'KID') return kidPlayers;
+    if (resolvedLevel === 'YOUTH') return youthPlayers;
     return juniorPlayers;
-  }, [resolvedLevel, seniorPlayers, juniorPlayers, kidPlayers]);
+  }, [resolvedLevel, seniorPlayers, juniorPlayers, youthPlayers]);
 
   // Pagination calculation
   const totalPages = Math.max(1, Math.ceil(activeLevelPlayers.length / pageSize));
@@ -130,7 +130,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     return activeLevelPlayers.slice(startIndex, startIndex + pageSize);
   }, [activeLevelPlayers, currentPage, pageSize]);
 
-  const handleSelectLevel = (level: 'JUNIOR' | 'SENIOR' | 'KID') => {
+  const handleSelectLevel = (level: 'JUNIOR' | 'SENIOR' | 'YOUTH') => {
     navigate(`/players/${level.toLowerCase()}`);
   };
 
@@ -367,12 +367,12 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             </div>
           </button>
 
-          {/* Level 3: Kid */}
+          {/* Level 3: Youth */}
           <button
             type="button"
-            onClick={() => handleSelectLevel('KID')}
+            onClick={() => handleSelectLevel('YOUTH')}
             className={`p-5 sm:p-6 rounded-3xl text-left transition-all duration-300 cursor-pointer relative overflow-hidden flex flex-col justify-between border-2 ${
-              resolvedLevel === 'KID'
+              resolvedLevel === 'YOUTH'
                 ? 'bg-gradient-to-br from-emerald-950/80 via-[#13241e] to-[#0E1524] border-emerald-400 shadow-2xl shadow-emerald-950/60 ring-2 ring-emerald-500/30 scale-[1.02]'
                 : 'bg-[#121826] border-slate-800 hover:border-slate-700 hover:bg-[#131f1c]'
             }`}
@@ -380,20 +380,20 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                  resolvedLevel === 'KID'
+                  resolvedLevel === 'YOUTH'
                     ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
                     : 'bg-slate-800 text-slate-400 border-slate-700'
                 }`}>
-                  Youth Pipeline (&lt; 15 Years)
+                  Youth
                 </span>
                 <h3 className="font-heading font-black text-xl sm:text-2xl text-white mt-2">
-                  Kid Academy
+                  Youth
                 </h3>
               </div>
               <span className={`px-2.5 py-1 rounded-xl font-mono font-bold text-xs ${
-                resolvedLevel === 'KID' ? 'bg-emerald-400 text-black' : 'bg-slate-800 text-slate-300'
+                resolvedLevel === 'YOUTH' ? 'bg-emerald-400 text-black' : 'bg-slate-800 text-slate-300'
               }`}>
-                {kidPlayers.length} Athletes
+                {youthPlayers.length} Athletes
               </span>
             </div>
 
@@ -402,10 +402,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             </p>
 
             <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-bold">
-              <span className={resolvedLevel === 'KID' ? 'text-emerald-400' : 'text-slate-400'}>
-                {resolvedLevel === 'KID' ? '● Currently Active Squad' : 'Click to View Kid Academy'}
+              <span className={resolvedLevel === 'YOUTH' ? 'text-emerald-400' : 'text-slate-400'}>
+                {resolvedLevel === 'YOUTH' ? '● Currently Active Squad' : 'Click to View Youth'}
               </span>
-              <span className="text-slate-500 font-mono text-[10px]">/players/kid</span>
+              <span className="text-slate-500 font-mono text-[10px]">/players/youth</span>
             </div>
           </button>
 
@@ -520,10 +520,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#121826] px-6 py-4 rounded-2xl border border-slate-800 text-xs">
               <div className="flex items-center gap-2.5">
                 <span className={`w-3 h-3 rounded-full ${
-                  resolvedLevel === 'SENIOR' ? 'bg-red-500' : resolvedLevel === 'KID' ? 'bg-emerald-400' : 'bg-cyan-400'
+                  resolvedLevel === 'SENIOR' ? 'bg-red-500' : resolvedLevel === 'YOUTH' ? 'bg-emerald-400' : 'bg-cyan-400'
                 }`} />
                 <span className="font-heading font-black text-white text-base">
-                  {resolvedLevel === 'SENIOR' ? 'Senior Squad Lineup' : resolvedLevel === 'KID' ? 'Kid Academy Lineup' : 'Junior Squad Lineup'}
+                  {resolvedLevel === 'SENIOR' ? 'Senior Squad Lineup' : resolvedLevel === 'YOUTH' ? 'Youth Squad Lineup' : 'Junior Squad Lineup'}
                 </span>
                 <span className="text-slate-400 font-mono">
                   ({activeLevelPlayers.length} total players matching criteria)
@@ -663,30 +663,30 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               )}
             </div>
 
-            {/* COLUMN 3: KID */}
+            {/* COLUMN 3: YOUTH */}
             <div className="bg-[#0E1524] rounded-3xl border border-emerald-950/70 p-5 space-y-4">
               <div className="bg-[#131822] p-4 rounded-2xl border border-emerald-900/50 flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                    <h2 className="font-heading font-black text-lg text-white">Kid Academy</h2>
+                    <h2 className="font-heading font-black text-lg text-white">Youth</h2>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                      {kidPlayers.length}
+                      {youthPlayers.length}
                     </span>
                   </div>
                   <p className="text-[11px] text-emerald-300/80 mt-1">
-                    Youth talents under 15 years old (&lt; 15 years)
+                    Youth athletic fundamentals & skill development
                   </p>
                 </div>
               </div>
 
-              {kidPlayers.length === 0 ? (
+              {youthPlayers.length === 0 ? (
                 <div className="text-center py-10 text-slate-500 text-xs bg-[#131822]/60 rounded-2xl border border-dashed border-slate-800">
-                  No kid academy trainees found
+                  No youth athletes found
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {kidPlayers.map((p) => renderPlayerCard(p))}
+                  {youthPlayers.map((p) => renderPlayerCard(p))}
                 </div>
               )}
             </div>

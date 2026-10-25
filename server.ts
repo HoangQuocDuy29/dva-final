@@ -28,6 +28,7 @@ import {
   COURSE_SCHEMA,
   COURT_SCHEMA,
   LEVELS,
+  LEVEL_RULE,
   MEMBER_REGISTER_SCHEMA,
   NEWS_SCHEMA,
   PAYMENT_STATUSES,
@@ -478,10 +479,10 @@ app.delete('/api/players/:id', ah(async (req, res) => {
   res.json({ success: true, message: 'Player deleted' });
 }));
 
-// Quick level promote/demote (kid <-> junior <-> senior)
+// Quick level promote/demote (youth <-> junior <-> senior)
 app.patch('/api/players/:id/level', ah(async (req, res) => {
   const { id } = req.params;
-  const { level } = sanitize(req.body, { level: E(LEVELS) }, { required: ['level'] });
+  const { level } = sanitize(req.body, { level: LEVEL_RULE }, { required: ['level'] });
   const existing = await prisma.player.findUnique({ where: { id } });
   if (!existing) {
     return res.status(404).json({ error: 'Player not found' });
@@ -1503,7 +1504,7 @@ app.post('/api/members/register', ah(async (req, res) => {
         ? 'Senior (Advanced, 3+ yrs)'
         : dto.level === 'JUNIOR'
         ? 'Junior (Intermediate)'
-        : 'Kid (Youth < 15)',
+        : 'Youth',
     'Số áo mong muốn': dto.desiredJerseyNumber,
     'Chiều cao (cm)': dto.height,
     'Cân nặng (kg)': dto.weight,

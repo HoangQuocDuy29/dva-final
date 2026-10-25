@@ -193,7 +193,7 @@ export const HomePage: React.FC = () => {
               <div className="text-xs font-bold text-slate-300 mt-1 uppercase tracking-wide">
                 Active Club Athletes
               </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Senior, Junior & Kid Squads</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Senior, Junior & Youth Squads</div>
             </div>
 
             <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800">
@@ -220,7 +220,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 3 REPRESENTATIVE TEAMS (Senior, Junior, Kid - as requested by admin) */}
+      {/* 3 REPRESENTATIVE TEAMS (Senior, Junior, Youth - as requested by admin) */}
       <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
@@ -229,7 +229,7 @@ export const HomePage: React.FC = () => {
               3 Representative Club Squads
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Structured across 3 distinct competitive tiers: Senior (3+ Years Comp Exp), Junior (Intermediate Development), and Kid (Youth Under 15).
+              Structured across 3 distinct competitive tiers: Senior (3+ Years Comp Exp), Junior (Intermediate Development), and Youth.
             </p>
           </div>
           <Link
@@ -363,40 +363,40 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* TEAM 3: KID SQUAD */}
+          {/* TEAM 3: YOUTH SQUAD */}
           <div className="bg-[#131822] rounded-3xl border border-emerald-900/40 p-6 sm:p-7 shadow-2xl flex flex-col justify-between hover:border-emerald-500/70 transition-all duration-300 relative group">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-700">
-                  TIER: KID
+                  TIER: YOUTH
                 </span>
                 <span className="text-xs font-mono font-bold text-emerald-400">30+ Youth Trainees</span>
               </div>
 
               <div className="h-40 rounded-2xl overflow-hidden relative bg-gradient-to-br from-emerald-950 via-slate-900 to-black p-4 flex flex-col justify-between border border-emerald-900/30">
                 <img
-                  src="/teams/kid.png"
-                  alt="DVA Kid Academy"
+                  src="/teams/youth.png"
+                  alt="DVA Youth"
                   className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500 pointer-events-none"
                   onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                 />
                 <div className="relative z-10 text-3xl">🌱</div>
                 <div className="relative z-10">
                   <h3 className="font-heading font-black text-2xl text-white">
-                    DVA Kid Academy
+                    DVA Youth
                   </h3>
-                  <p className="text-xs text-emerald-300 font-medium">Youth Pipeline (&lt; 15 Years Old)</p>
+                  <p className="text-xs text-emerald-300 font-medium">Youth</p>
                 </div>
               </div>
 
               <p className="text-xs text-slate-300 leading-relaxed">
-                Nurturing young talents <strong>under 15 years old</strong>. Developing athletic motor skills, platform fundamentals, quick court reflexes, and teamwork spirit.
+                Nurturing young talents. Developing athletic motor skills, platform fundamentals, quick court reflexes, and teamwork spirit.
               </p>
 
               <div className="grid grid-cols-2 gap-2 text-[11px] bg-[#0c1017] p-3 rounded-2xl border border-slate-800">
                 <div>
-                  <span className="text-slate-500 block">Age Bracket:</span>
-                  <span className="font-bold text-emerald-400">&lt; 15 Years</span>
+                  <span className="text-slate-500 block">Tier:</span>
+                  <span className="font-bold text-emerald-400">Youth</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Coaching:</span>
@@ -415,10 +415,10 @@ export const HomePage: React.FC = () => {
 
             <div className="pt-5 mt-5 border-t border-slate-800">
               <Link
-                to="/players/kid"
+                to="/players/youth"
                 className="w-full py-3 px-4 rounded-xl font-bold text-xs text-center block text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 transition-all shadow-md"
               >
-                View Kid Academy Roster
+                View Youth Roster
               </Link>
             </div>
           </div>

@@ -73,7 +73,7 @@ export const MemberRegisterPage: React.FC = () => {
         'Họ và tên': formData.fullName,
         'Ngày sinh': formData.dob,
         'Vị trí': formData.position,
-        'Cấp độ': formData.level === 'SENIOR' ? 'Senior (Advanced, 3+ yrs)' : formData.level === 'JUNIOR' ? 'Junior (Intermediate)' : 'Kid (Youth < 15)',
+        'Cấp độ': formData.level === 'SENIOR' ? 'Senior (Advanced, 3+ yrs)' : formData.level === 'JUNIOR' ? 'Junior (Intermediate)' : 'Youth',
         'Số áo mong muốn': formData.desiredJerseyNumber,
         'Chiều cao (cm)': formData.height,
         'Cân nặng (kg)': formData.weight,
@@ -305,7 +305,7 @@ export const MemberRegisterPage: React.FC = () => {
                   >
                     <option value="SENIOR">SENIOR (Người chơi tốt, trên 3 năm kinh nghiệm)</option>
                     <option value="JUNIOR">JUNIOR (Người chơi trung bình - Intermediate)</option>
-                    <option value="KID">KID (Dưới 15 tuổi)</option>
+                    <option value="YOUTH">Youth</option>
                   </select>
                 </div>
 

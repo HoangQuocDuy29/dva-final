@@ -27,9 +27,9 @@ enum UserRole {
 }
 
 enum PlayerLevel {
-  KID
-  JUNIOR
   SENIOR
+  JUNIOR
+  YOUTH
 }
 
 enum VolleyballPosition {

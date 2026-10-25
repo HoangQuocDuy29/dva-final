@@ -71,7 +71,8 @@ export default function App() {
             <Route path="/players/:levelParam" element={<PlayersPage currentUser={currentUser} />} />
             <Route path="/senior" element={<Navigate to="/players/senior" replace />} />
             <Route path="/junior" element={<Navigate to="/players/junior" replace />} />
-            <Route path="/kid" element={<Navigate to="/players/kid" replace />} />
+            <Route path="/youth" element={<Navigate to="/players/youth" replace />} />
+            <Route path="/kid" element={<Navigate to="/players/youth" replace />} />
 
             {/* Module 3: Information */}
             <Route path="/information" element={<InformationPage />} />
