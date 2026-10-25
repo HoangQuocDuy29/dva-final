@@ -467,7 +467,7 @@ export const HomePage: React.FC = () => {
     </p>
   </div>
   <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-    Direct Line: 0768.299.329
+    Role : Senior Squad Captain
   </div>
 </div>
 
@@ -497,7 +497,7 @@ export const HomePage: React.FC = () => {
     </p>
   </div>
   <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-    Focus: System Operations 
+    Role : System Technical
   </div>
 </div>
 

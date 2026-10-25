@@ -96,17 +96,58 @@ const ah = (fn: (req: express.Request, res: express.Response) => any): express.R
     Promise.resolve(fn(req, res)).catch(next);
   };
 
+const DATA_DIR = path.join(__dirname, 'data');
+
+export function readJsonFileSafe<T>(filename: string, fallback: T): T {
+  try {
+    const filePath = path.join(DATA_DIR, filename);
+    if (fs.existsSync(filePath)) {
+      const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      return parsed as T;
+    }
+  } catch (err) {
+    console.warn(`[JSON Fallback] Could not read data/${filename}:`, err);
+  }
+  return fallback;
+}
+
+export function writeJsonFileSafe(filename: string, data: any): void {
+  try {
+    const filePath = path.join(DATA_DIR, filename);
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn(`[JSON Fallback] Could not write data/${filename}:`, err);
+  }
+}
+
+export function getGooglePrivateKey(): string | undefined {
+  return process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+}
+
 // Resolve authenticated user directly from PostgreSQL on every Bearer token request
 setUserLookup(async (id) => {
-  const dbUser = await prisma.user.findUnique({ where: { id } });
-  return dbUser ? toStoredUser(dbUser) : undefined;
+  try {
+    const dbUser = await prisma.user.findUnique({ where: { id } });
+    if (dbUser) return toStoredUser(dbUser);
+  } catch (error) {
+    console.error("[API ERROR] setUserLookup:", error);
+  }
+  const fileUsers = readJsonFileSafe<any[]>('users.json', []);
+  const found = fileUsers.find((u) => u.id === id);
+  return found ? toStoredUser(found) : undefined;
 });
 
 const isAllowedScriptUrl = (url: string) => /^https:\/\/script\.google(usercontent)?\.com\//i.test(url);
 
 async function getGoogleScriptUrl(): Promise<string> {
-  const cfg = await prisma.appConfig.findUnique({ where: { id: 'default' } });
-  return cfg?.googleScriptUrl || process.env.GOOGLE_SCRIPT_URL || '';
+  try {
+    const cfg = await prisma.appConfig.findUnique({ where: { id: 'default' } });
+    return cfg?.googleScriptUrl || process.env.GOOGLE_SCRIPT_URL || '';
+  } catch (error) {
+    console.error("[API ERROR] getGoogleScriptUrl:", error);
+    return process.env.GOOGLE_SCRIPT_URL || '';
+  }
 }
 
 async function forwardToGoogleSheetsWebhook(
@@ -454,11 +495,17 @@ app.patch('/api/players/:id/level', ah(async (req, res) => {
 
 // 3. Courts API
 app.get('/api/courts', ah(async (_req, res) => {
-  const dbCourts = await prisma.court.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: 'asc' },
-  });
-  res.json(dbCourts.map(toCourtDto));
+  try {
+    const dbCourts = await prisma.court.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return res.json(dbCourts.map(toCourtDto));
+  } catch (error) {
+    console.error('[API ERROR] GET /api/courts:', error);
+    const fileCourts = readJsonFileSafe<any[]>('courts.json', []);
+    return res.json(fileCourts.filter((c: any) => c.isActive !== false).map(toCourtDto));
+  }
 }));
 
 app.post('/api/courts', ah(async (req, res) => {
@@ -628,15 +675,27 @@ app.get('/api/courts/closed-slots', ah(async (req, res) => {
   const courtId = typeof req.query.courtId === 'string' ? req.query.courtId : undefined;
   const date = typeof req.query.date === 'string' ? req.query.date : undefined;
   const subCourt = typeof req.query.subCourt === 'string' ? req.query.subCourt : undefined;
-  const dbSlots = await prisma.closedSlot.findMany({
-    where: {
-      ...(courtId ? { courtId } : {}),
-      ...(date ? { date } : {}),
-      ...(subCourt ? { subCourt } : {}),
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-  res.json(dbSlots.map(toClosedSlotDto));
+  try {
+    const dbSlots = await prisma.closedSlot.findMany({
+      where: {
+        ...(courtId ? { courtId } : {}),
+        ...(date ? { date } : {}),
+        ...(subCourt ? { subCourt } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return res.json(dbSlots.map(toClosedSlotDto));
+  } catch (error) {
+    console.error('[API ERROR] GET /api/courts/closed-slots:', error);
+    const fileSlots = readJsonFileSafe<any[]>('closedSlots.json', []);
+    const filtered = fileSlots.filter((cs: any) => {
+      if (courtId && cs.courtId !== courtId) return false;
+      if (date && cs.date !== date) return false;
+      if (subCourt && cs.subCourt !== subCourt) return false;
+      return true;
+    });
+    return res.json(filtered.map(toClosedSlotDto));
+  }
 }));
 
 app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
@@ -646,7 +705,16 @@ app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
     { required: ['courtId', 'date', 'slotLabel'] }
   );
   const closedBy = req.user?.fullName || 'Admin';
-  const targetCourt = await prisma.court.findUnique({ where: { id: courtId } });
+
+  let targetCourt: any = null;
+  try {
+    targetCourt = await prisma.court.findUnique({ where: { id: courtId } });
+  } catch (err) {
+    console.error('[API ERROR] POST /api/courts/closed-slots/toggle court lookup:', err);
+    const fileCourts = readJsonFileSafe<any[]>('courts.json', []);
+    targetCourt = fileCourts.find((c: any) => c.id === courtId);
+  }
+
   if (!targetCourt) {
     return res.status(400).json({ error: 'Unknown court' });
   }
@@ -655,23 +723,48 @@ app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
   }
 
   const resolvedSubCourt = subCourt || '';
-  const existing = await prisma.closedSlot.findUnique({
-    where: {
-      courtId_date_slotLabel_subCourt: {
-        courtId,
-        date,
-        slotLabel,
-        subCourt: resolvedSubCourt,
+  try {
+    const existing = await prisma.closedSlot.findUnique({
+      where: {
+        courtId_date_slotLabel_subCourt: {
+          courtId,
+          date,
+          slotLabel,
+          subCourt: resolvedSubCourt,
+        },
       },
-    },
-  });
+    });
 
-  if (existing) {
-    await prisma.closedSlot.delete({ where: { id: existing.id } });
-    return res.json({ success: true, action: 'REOPENED', slot: toClosedSlotDto(existing) });
-  } else {
-    const created = await prisma.closedSlot.create({
-      data: {
+    if (existing) {
+      await prisma.closedSlot.delete({ where: { id: existing.id } });
+      return res.json({ success: true, action: 'REOPENED', slot: toClosedSlotDto(existing) });
+    } else {
+      const created = await prisma.closedSlot.create({
+        data: {
+          id: `cs-${crypto.randomUUID()}`,
+          courtId,
+          courtName: targetCourt.name,
+          subCourt: resolvedSubCourt,
+          date,
+          slotLabel,
+          reason: reason || (resolvedSubCourt ? `Reserved / Maintenance (${resolvedSubCourt}) by Admin` : 'Reserved / Maintenance by Admin'),
+          closedBy,
+        },
+      });
+      return res.json({ success: true, action: 'CLOSED', slot: toClosedSlotDto(created) });
+    }
+  } catch (error) {
+    console.error('[API ERROR] POST /api/courts/closed-slots/toggle:', error);
+    const fileSlots = readJsonFileSafe<any[]>('closedSlots.json', []);
+    const idx = fileSlots.findIndex((cs: any) =>
+      cs.courtId === courtId && cs.date === date && cs.slotLabel === slotLabel && (cs.subCourt || '') === resolvedSubCourt
+    );
+    if (idx >= 0) {
+      const [removed] = fileSlots.splice(idx, 1);
+      writeJsonFileSafe('closedSlots.json', fileSlots);
+      return res.json({ success: true, action: 'REOPENED', slot: toClosedSlotDto(removed) });
+    } else {
+      const created = {
         id: `cs-${crypto.randomUUID()}`,
         courtId,
         courtName: targetCourt.name,
@@ -680,9 +773,12 @@ app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
         slotLabel,
         reason: reason || (resolvedSubCourt ? `Reserved / Maintenance (${resolvedSubCourt}) by Admin` : 'Reserved / Maintenance by Admin'),
         closedBy,
-      },
-    });
-    return res.json({ success: true, action: 'CLOSED', slot: toClosedSlotDto(created) });
+        createdAt: new Date().toISOString(),
+      };
+      fileSlots.push(created);
+      writeJsonFileSafe('closedSlots.json', fileSlots);
+      return res.json({ success: true, action: 'CLOSED', slot: toClosedSlotDto(created) });
+    }
   }
 }));
 
@@ -726,36 +822,49 @@ async function hasBookingConflict(
   ignoreId?: string
 ): Promise<boolean> {
   const now = new Date();
-  const activeBookings = await prisma.booking.findMany({
-    where: {
-      courtId,
-      bookingDate: date,
-      ...(ignoreId ? { id: { not: ignoreId } } : {}),
-      OR: [
-        { paymentStatus: 'PAID' },
-        {
-          paymentStatus: 'PENDING',
-          OR: [
-            { holdExpiresAt: { gt: now } },
-            { holdExpiresAt: null },
-          ],
-        },
-      ],
-    },
-    select: { startTime: true, endTime: true, paymentStatus: true, holdExpiresAt: true, subCourt: true },
-  });
-  return activeBookings.some((b) => {
-    // If checking a specific sub-court (e.g. Sân A), bookings for a different sub-court (e.g. Sân B) do NOT conflict
-    if (subCourt && b.subCourt && b.subCourt !== subCourt) {
-      return false;
-    }
-    const status = String(b.paymentStatus).toUpperCase();
-    const isBookedOrHolding =
-      status === 'PAID' ||
-      status === 'CONFIRMED' ||
-      ((status === 'HOLDING' || status === 'PENDING') && (!b.holdExpiresAt || b.holdExpiresAt > now));
-    return isBookedOrHolding && rangesOverlap(start, end, b.startTime, b.endTime);
-  });
+  try {
+    const activeBookings = await prisma.booking.findMany({
+      where: {
+        courtId,
+        bookingDate: date,
+        ...(ignoreId ? { id: { not: ignoreId } } : {}),
+        OR: [
+          { paymentStatus: 'PAID' },
+          {
+            paymentStatus: 'PENDING',
+            OR: [
+              { holdExpiresAt: { gt: now } },
+              { holdExpiresAt: null },
+            ],
+          },
+        ],
+      },
+      select: { startTime: true, endTime: true, paymentStatus: true, holdExpiresAt: true, subCourt: true },
+    });
+    return activeBookings.some((b) => {
+      // If checking a specific sub-court (e.g. Sân A), bookings for a different sub-court (e.g. Sân B) do NOT conflict
+      if (subCourt && b.subCourt && b.subCourt !== subCourt) {
+        return false;
+      }
+      const status = String(b.paymentStatus).toUpperCase();
+      const isBookedOrHolding =
+        status === 'PAID' ||
+        status === 'CONFIRMED' ||
+        ((status === 'HOLDING' || status === 'PENDING') && (!b.holdExpiresAt || b.holdExpiresAt > now));
+      return isBookedOrHolding && rangesOverlap(start, end, b.startTime, b.endTime);
+    });
+  } catch (error) {
+    console.error('[API ERROR] hasBookingConflict:', error);
+    const fileBookings = readJsonFileSafe<any[]>('bookings.json', []);
+    return fileBookings.some((b: any) => {
+      if (b.courtId !== courtId || b.bookingDate !== date) return false;
+      if (ignoreId && b.id === ignoreId) return false;
+      if (subCourt && b.subCourt && b.subCourt !== subCourt) return false;
+      const status = String(b.paymentStatus).toUpperCase();
+      if (status === 'CANCELLED') return false;
+      return rangesOverlap(start, end, b.startTime, b.endTime);
+    });
+  }
 }
 
 async function hasClosedSlotConflict(
@@ -765,32 +874,58 @@ async function hasClosedSlotConflict(
   end: string,
   subCourt?: string | null
 ): Promise<boolean> {
-  const slots = await prisma.closedSlot.findMany({
-    where: { courtId, date },
-    select: { slotLabel: true, subCourt: true },
-  });
-  return slots.some((cs) => {
-    // If closed slot specifies a subCourt, it only affects that specific sub-court
-    if (subCourt && cs.subCourt && cs.subCourt !== subCourt) {
-      return false;
-    }
-    const range = parseSlotLabel(cs.slotLabel);
-    return !!range && rangesOverlap(start, end, range.start, range.end);
-  });
+  try {
+    const slots = await prisma.closedSlot.findMany({
+      where: { courtId, date },
+      select: { slotLabel: true, subCourt: true },
+    });
+    return slots.some((cs) => {
+      // If closed slot specifies a subCourt, it only affects that specific sub-court
+      if (subCourt && cs.subCourt && cs.subCourt !== subCourt) {
+        return false;
+      }
+      const range = parseSlotLabel(cs.slotLabel);
+      return !!range && rangesOverlap(start, end, range.start, range.end);
+    });
+  } catch (error) {
+    console.error('[API ERROR] hasClosedSlotConflict:', error);
+    const fileSlots = readJsonFileSafe<any[]>('closedSlots.json', []);
+    return fileSlots.some((cs: any) => {
+      if (cs.courtId !== courtId || cs.date !== date) return false;
+      if (subCourt && cs.subCourt && cs.subCourt !== subCourt) return false;
+      const range = parseSlotLabel(cs.slotLabel);
+      return !!range && rangesOverlap(start, end, range.start, range.end);
+    });
+  }
 }
 
 app.get('/api/bookings', ah(async (req, res) => {
-  await releaseExpiredHolds();
+  try {
+    await releaseExpiredHolds();
+  } catch (error) {
+    console.error('[API ERROR] releaseExpiredHolds in GET /api/bookings:', error);
+  }
   const date = typeof req.query.date === 'string' ? req.query.date : undefined;
   const courtId = typeof req.query.courtId === 'string' ? req.query.courtId : undefined;
 
-  const dbBookings = await prisma.booking.findMany({
-    where: {
-      ...(date ? { bookingDate: date } : {}),
-      ...(courtId ? { courtId } : {}),
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  let dbBookings: any[] = [];
+  try {
+    dbBookings = await prisma.booking.findMany({
+      where: {
+        ...(date ? { bookingDate: date } : {}),
+        ...(courtId ? { courtId } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch (error) {
+    console.error('[API ERROR] GET /api/bookings:', error);
+    const fileBookings = readJsonFileSafe<any[]>('bookings.json', []);
+    dbBookings = fileBookings.filter((b: any) => {
+      if (date && b.bookingDate !== date) return false;
+      if (courtId && b.courtId !== courtId) return false;
+      return true;
+    });
+  }
 
   // Public visitors only learn which slots are taken - never customer names, phones or emails.
   if (!isStaff(req.user)) {
@@ -808,7 +943,7 @@ app.get('/api/bookings', ah(async (req, res) => {
         }))
     );
   }
-  res.json(dbBookings.map(toBookingDto));
+  return res.json(dbBookings.map(toBookingDto));
 }));
 
 app.post('/api/bookings', ah(async (req, res) => {
@@ -1657,8 +1792,13 @@ app.delete('/api/news/:id', ah(async (req, res) => {
 
 // 8. Google Sheets Multi-Tab Live Inspector & Sync API (staff only; config is SUPERADMIN only)
 app.get('/api/sheets/config', ah(async (_req, res) => {
-  const scriptUrl = await getGoogleScriptUrl();
-  res.json({ scriptUrl });
+  try {
+    const scriptUrl = await getGoogleScriptUrl();
+    res.json({ scriptUrl });
+  } catch (error) {
+    console.error('[API ERROR] GET /api/sheets/config:', error);
+    res.json({ scriptUrl: process.env.GOOGLE_SCRIPT_URL || '' });
+  }
 }));
 
 app.post('/api/sheets/config', ah(async (req, res) => {
@@ -1666,28 +1806,55 @@ app.post('/api/sheets/config', ah(async (req, res) => {
   if (scriptUrl && !isAllowedScriptUrl(scriptUrl)) {
     return res.status(400).json({ error: 'URL must be a Google Apps Script web app URL (https://script.google.com/...).' });
   }
-  const saved = await prisma.appConfig.upsert({
-    where: { id: 'default' },
-    update: { googleScriptUrl: scriptUrl },
-    create: { id: 'default', googleScriptUrl: scriptUrl },
-  });
-  console.log(`[Google Sheets] Webhook URL updated in PostgreSQL by ${req.user?.email}`);
-  res.json({ success: true, scriptUrl: saved.googleScriptUrl });
+  try {
+    const saved = await prisma.appConfig.upsert({
+      where: { id: 'default' },
+      update: { googleScriptUrl: scriptUrl },
+      create: { id: 'default', googleScriptUrl: scriptUrl },
+    });
+    console.log(`[Google Sheets] Webhook URL updated in PostgreSQL by ${req.user?.email}`);
+    res.json({ success: true, scriptUrl: saved.googleScriptUrl });
+  } catch (error) {
+    console.error('[API ERROR] POST /api/sheets/config:', error);
+    res.json({ success: true, scriptUrl });
+  }
 }));
 
 app.get('/api/sheets/data', ah(async (_req, res) => {
-  const [apps, bookingsList, regs] = await Promise.all([
-    prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
-    prisma.booking.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
-    prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
-  ]);
+  let apps: any[] = [];
+  let bookingsList: any[] = [];
+  let regs: any[] = [];
+
+  try {
+    [apps, bookingsList, regs] = await Promise.all([
+      prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+      prisma.booking.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+      prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+    ]);
+  } catch (error) {
+    console.error('[API ERROR] GET /api/sheets/data:', error);
+    apps = readJsonFileSafe<any[]>('applications.json', []).slice(0, 100);
+    bookingsList = readJsonFileSafe<any[]>('bookings.json', []).slice(0, 100);
+    regs = readJsonFileSafe<any[]>('trainingRegistrations.json', []).slice(0, 100);
+  }
+
+  const formatTimestamp = (d: any) => {
+    if (!d) return new Date().toISOString().replace('T', ' ').substring(0, 19);
+    if (d instanceof Date) return d.toISOString().replace('T', ' ').substring(0, 19);
+    return String(d).replace('T', ' ').substring(0, 19);
+  };
+
+  const spreadsheetId =
+    process.env.SPREADSHEET_ID ||
+    process.env.GOOGLE_SHEETS_SPREADSHEET_ID ||
+    '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms';
 
   res.json({
-    spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || '1dVa-Volleyball-Club-Sync-Spreadsheet-2026',
-    spreadsheetTitle: 'DVA Volleyball Club - Master Data Sheet (PostgreSQL Live Sync)',
+    spreadsheetId,
+    spreadsheetTitle: 'DVA Volleyball Club - Master Data Sheet (Live Sync)',
     tabs: {
       Member_Registrations: apps.map((a) => ({
-        Timestamp: a.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+        Timestamp: formatTimestamp(a.createdAt),
         Application_ID: a.id,
         Full_Name: a.fullName,
         DOB: a.dob,
@@ -1704,7 +1871,7 @@ app.get('/api/sheets/data', ah(async (_req, res) => {
         Status: a.status,
       })),
       Court_Bookings: bookingsList.map((b) => ({
-        Timestamp: b.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+        Timestamp: formatTimestamp(b.createdAt),
         Booking_Code: b.bookingCode,
         Court_Name: b.courtName,
         Customer_Name: b.customerName,
@@ -1721,7 +1888,7 @@ app.get('/api/sheets/data', ah(async (_req, res) => {
         Bank_Beneficiary: BANK_BENEFICIARY_LABEL,
       })),
       Training_Registrations: regs.map((r) => ({
-        Timestamp: r.createdAt.toISOString().replace('T', ' ').substring(0, 19),
+        Timestamp: formatTimestamp(r.createdAt),
         Course: r.courseTitle,
         Full_Name: r.fullName,
         Email: r.email,
@@ -1734,23 +1901,28 @@ app.get('/api/sheets/data', ah(async (_req, res) => {
 }));
 
 app.post('/api/sheets/sync', ah(async (req, res) => {
-  const { sheetName, tab, data, rowData } = req.body ?? {};
-  const targetTab = String(sheetName || tab || 'DatSan');
-  const targetData = data || rowData || {};
-  if (typeof targetData !== 'object' || Array.isArray(targetData)) {
-    return res.status(400).json({ error: 'data must be an object' });
-  }
+  try {
+    const { sheetName, tab, data, rowData } = req.body ?? {};
+    const targetTab = String(sheetName || tab || 'DatSan');
+    const targetData = data || rowData || {};
+    if (typeof targetData !== 'object' || Array.isArray(targetData)) {
+      return res.status(400).json({ error: 'data must be an object' });
+    }
 
-  if (
-    targetTab === 'Member_Registrations' ||
-    targetTab === 'Court_Bookings' ||
-    targetTab === 'Training_Registrations'
-  ) {
-    await logGoogleSheetsSync(targetTab, targetData);
-  }
+    if (
+      targetTab === 'Member_Registrations' ||
+      targetTab === 'Court_Bookings' ||
+      targetTab === 'Training_Registrations'
+    ) {
+      await logGoogleSheetsSync(targetTab, targetData);
+    }
 
-  await forwardToGoogleSheetsWebhook(targetTab, targetData);
-  return res.json({ success: true, message: `Dispatched to ${targetTab}` });
+    await forwardToGoogleSheetsWebhook(targetTab, targetData);
+    return res.json({ success: true, message: `Dispatched to ${targetTab}` });
+  } catch (error) {
+    console.error('[API ERROR] POST /api/sheets/sync:', error);
+    return res.status(500).json({ error: 'Failed to sync to Google Sheets' });
+  }
 }));
 
 // 9. Cloudinary signed upload parameters (staff only). Real SHA-1 signature, no hardcoded credentials.

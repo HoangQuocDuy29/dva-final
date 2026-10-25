@@ -73,7 +73,19 @@ if (process.env.NODE_ENV !== 'production') {
 // DTO MAPPERS (Prisma Record <-> API / Frontend Types)
 // ============================================================================
 
-export function toStoredUser(u: DbUser): StoredUser {
+export function safeIsoString(val: any): string {
+  if (!val) return new Date().toISOString();
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === 'string') return val;
+  try {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
+export function toStoredUser(u: DbUser | any): StoredUser {
   return {
     id: u.id,
     email: u.email,
@@ -81,7 +93,7 @@ export function toStoredUser(u: DbUser): StoredUser {
     role: u.role,
     phoneNumber: u.phoneNumber ?? undefined,
     avatarUrl: u.avatarUrl ?? undefined,
-    createdAt: u.createdAt.toISOString(),
+    createdAt: safeIsoString(u.createdAt),
     passwordHash: u.passwordHash,
   };
 }
@@ -144,7 +156,7 @@ export function toCourtDto(c: DbCourt & { status?: string | null; isMaintenance?
   };
 }
 
-export function toClosedSlotDto(cs: DbClosedSlot): ClosedSlot {
+export function toClosedSlotDto(cs: DbClosedSlot | any): ClosedSlot {
   return {
     id: cs.id,
     courtId: cs.courtId,
@@ -154,11 +166,11 @@ export function toClosedSlotDto(cs: DbClosedSlot): ClosedSlot {
     slotLabel: cs.slotLabel,
     reason: cs.reason ?? undefined,
     closedBy: cs.closedBy ?? undefined,
-    createdAt: cs.createdAt.toISOString(),
+    createdAt: safeIsoString(cs.createdAt),
   };
 }
 
-export function toBookingDto(b: DbBooking): Booking {
+export function toBookingDto(b: DbBooking | any): Booking {
   const rawAddons = (b.addons && typeof b.addons === 'object' && !Array.isArray(b.addons) ? b.addons : {}) as Record<string, any>;
   const addons: BookingAddons = {
     mineralWaterBottles: Number(rawAddons.mineralWaterBottles) || 0,
@@ -185,10 +197,10 @@ export function toBookingDto(b: DbBooking): Booking {
     paymentStatus: b.paymentStatus,
     bookingCode: b.bookingCode,
     transferContent: b.transferContent ?? undefined,
-    createdAt: b.createdAt.toISOString(),
+    createdAt: safeIsoString(b.createdAt),
     notes: b.notes ?? undefined,
-    ...(b.customerConfirmedAt ? { customerConfirmedAt: b.customerConfirmedAt.toISOString() } : {}),
-    ...(b.holdExpiresAt ? { holdExpiresAt: b.holdExpiresAt.toISOString() } : {}),
+    ...(b.customerConfirmedAt ? { customerConfirmedAt: safeIsoString(b.customerConfirmedAt) } : {}),
+    ...(b.holdExpiresAt ? { holdExpiresAt: safeIsoString(b.holdExpiresAt) } : {}),
   };
 }
 
@@ -214,7 +226,7 @@ export function toCourseDto(c: DbTrainingCourse): TrainingCourse {
   };
 }
 
-export function toRegistrationDto(r: DbTrainingRegistration): TrainingRegistration {
+export function toRegistrationDto(r: DbTrainingRegistration | any): TrainingRegistration {
   return {
     id: r.id,
     courseId: r.courseId,
@@ -226,7 +238,7 @@ export function toRegistrationDto(r: DbTrainingRegistration): TrainingRegistrati
     preferredTimeSlot: r.preferredTimeSlot,
     notes: r.notes ?? undefined,
     status: r.status,
-    createdAt: r.createdAt.toISOString(),
+    createdAt: safeIsoString(r.createdAt),
   };
 }
 
@@ -275,7 +287,7 @@ export function fromRotationEnum(val: PrismaRotation): RotationKnowledge {
   }
 }
 
-export function toApplicationDto(a: DbMemberApplication): MemberApplication {
+export function toApplicationDto(a: DbMemberApplication | any): MemberApplication {
   return {
     id: a.id,
     fullName: a.fullName,
@@ -294,7 +306,7 @@ export function toApplicationDto(a: DbMemberApplication): MemberApplication {
     rotationKnowledge: fromRotationEnum(a.rotationKnowledge),
     status: a.status,
     reviewNotes: a.reviewNotes ?? undefined,
-    createdAt: a.createdAt.toISOString(),
+    createdAt: safeIsoString(a.createdAt),
   };
 }
 
@@ -322,7 +334,7 @@ export function toNewsDto(n: DbNewsPost & { imageUrl?: string | null; image?: st
 // ONE-TIME INITIAL SEEDING (JSON / MockData -> PostgreSQL)
 // ============================================================================
 
-function readLegacyJsonIfExists<T>(filename: string, fallback: T): T {
+export function readLegacyJsonIfExists<T>(filename: string, fallback: T): T {
   const filePath = path.join(ROOT_DIR, 'data', filename);
   try {
     if (fs.existsSync(filePath)) {
@@ -480,22 +492,31 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
     }
   } else {
     // Backfill weeklySchedule or address for any existing court records that do not have them yet
-    const existingCourts = await prisma.court.findMany();
-    for (const ec of existingCourts) {
-      if (!ec.weeklySchedule || !ec.address || !ec.subCourts || ec.subCourts.length === 0) {
-        const initMatch = INITIAL_COURTS.find((ic) => ic.id === ec.id || ic.code === ec.code);
-        await prisma.court.update({
-          where: { id: ec.id },
-          data: {
-            ...(ec.weeklySchedule
-              ? {}
-              : { weeklySchedule: (initMatch?.weeklySchedule ?? getDefaultWeeklyScheduleForCourt(ec.id)) as any }),
-            ...(ec.address ? {} : { address: initMatch?.address ?? 'DVA Sports Center, Hà Nội' }),
-            ...((!ec.subCourts || ec.subCourts.length === 0) && (initMatch?.subCourts && initMatch.subCourts.length > 0)
-              ? { subCourts: initMatch.subCourts }
-              : {}),
-          },
-        });
+    try {
+      const existingCourts = await prisma.court.findMany();
+      for (const ec of existingCourts) {
+        if (!ec.weeklySchedule || !ec.address || !ec.subCourts || ec.subCourts.length === 0) {
+          const initMatch = INITIAL_COURTS.find((ic) => ic.id === ec.id || ic.code === ec.code);
+          await prisma.court.update({
+            where: { id: ec.id },
+            data: {
+              ...(ec.weeklySchedule
+                ? {}
+                : { weeklySchedule: (initMatch?.weeklySchedule ?? getDefaultWeeklyScheduleForCourt(ec.id)) as any }),
+              ...(ec.address ? {} : { address: initMatch?.address ?? 'DVA Sports Center, Hà Nội' }),
+              ...((!ec.subCourts || ec.subCourts.length === 0) && (initMatch?.subCourts && initMatch.subCourts.length > 0)
+                ? { subCourts: initMatch.subCourts }
+                : {}),
+            },
+          });
+        }
+      }
+    } catch (err: any) {
+      const msg = String(err?.message || '');
+      if (err?.code === 'P2021' || err?.code === 'P2022' || /does not exist/i.test(msg)) {
+        console.warn("[Prisma Warning] DB schema out of sync. Please run 'npx prisma db push'");
+      } else {
+        throw err;
       }
     }
   }
