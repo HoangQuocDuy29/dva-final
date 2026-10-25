@@ -1381,35 +1381,77 @@ app.get('/api/training/registrations', ah(async (_req, res) => {
 }));
 
 app.post('/api/training/register', ah(async (req, res) => {
-  const data = sanitize(req.body, TRAINING_REGISTER_SCHEMA, { required: ['courseId', 'fullName', 'email', 'phone'] });
-  const { courseId, fullName, email, phone, notes } = data;
+  const data = sanitize(req.body, TRAINING_REGISTER_SCHEMA, { required: ['courseId', 'fullName', 'phone'] });
+  const { courseId, fullName, phone, notes } = data;
+  const email = (typeof data.email === 'string' ? data.email.trim() : (typeof req.body.email === 'string' ? req.body.email.trim() : '')) || '';
   let course = await prisma.trainingCourse.findUnique({ where: { id: courseId } });
   if (!course) {
     course = await prisma.trainingCourse.findFirst({ orderBy: { createdAt: 'asc' } });
   }
 
-  const courseTitle =
-    typeof req.body.courseTitle === 'string' && req.body.courseTitle.trim()
-      ? req.body.courseTitle.trim().slice(0, 200)
-      : course?.title || 'Khóa học bóng chuyền DVA';
-  const coursePrice =
-    typeof req.body.price === 'number' && Number.isFinite(req.body.price)
-      ? Math.round(req.body.price)
-      : course?.price ?? 1500000;
-  const experienceLevel = data.experienceLevel || 'Cơ bản';
-  const preferredTimeSlot = data.preferredTimeSlot || 'Buổi tối';
+  const packageName =
+    (typeof req.body.packageName === 'string' && req.body.packageName.trim()) ||
+    (typeof req.body.courseTitle === 'string' && req.body.courseTitle.trim()) ||
+    (typeof data.packageName === 'string' && data.packageName.trim()) ||
+    (typeof data.courseTitle === 'string' && data.courseTitle.trim()) ||
+    course?.title ||
+    '';
 
+  const amount =
+    Number(req.body.amount) ||
+    Number(req.body.price) ||
+    Number(data.amount) ||
+    Number(data.price) ||
+    Number(course?.price) ||
+    0;
+
+  // Determine standard Level / Team: "Senior", "Junior", hoặc "Youth"
+  const rawLevel =
+    (typeof req.body.level === 'string' && req.body.level.trim()) ||
+    (typeof data.level === 'string' && data.level.trim()) ||
+    data.experienceLevel ||
+    '';
+  let level = 'Junior';
+  const upperLevel = rawLevel.toUpperCase();
+  if (upperLevel.includes('SENIOR')) {
+    level = 'Senior';
+  } else if (upperLevel.includes('YOUTH')) {
+    level = 'Youth';
+  } else if (upperLevel.includes('JUNIOR')) {
+    level = 'Junior';
+  } else if (rawLevel) {
+    level = rawLevel;
+  }
+
+  const targetSkill =
+    (typeof req.body.targetSkill === 'string' && req.body.targetSkill.trim()) ||
+    (typeof data.targetSkill === 'string' && data.targetSkill.trim()) ||
+    '';
+
+  const position =
+    (typeof req.body.position === 'string' && req.body.position.trim()) ||
+    (typeof data.position === 'string' && data.position.trim()) ||
+    '';
+
+  const preferredTime =
+    (typeof req.body.preferredTime === 'string' && req.body.preferredTime.trim()) ||
+    (typeof req.body.preferredTimeSlot === 'string' && req.body.preferredTimeSlot.trim()) ||
+    (typeof data.preferredTime === 'string' && data.preferredTime.trim()) ||
+    (typeof data.preferredTimeSlot === 'string' && data.preferredTimeSlot.trim()) ||
+    '';
+
+  // 1. Lưu đơn vào database PostgreSQL trước
   const created = course
     ? await prisma.trainingRegistration.create({
         data: {
           id: `tr-${crypto.randomUUID()}`,
           courseId: course.id,
-          courseTitle,
-          fullName,
-          email,
-          phone,
-          experienceLevel,
-          preferredTimeSlot,
+          courseTitle: packageName || 'Khóa học bóng chuyền DVA',
+          fullName: fullName || '',
+          email: email || '',
+          phone: phone || '',
+          experienceLevel: level,
+          preferredTimeSlot: preferredTime || 'Tối Thứ 2 (19:00 - 21:30)',
           notes: notes ?? null,
           status: 'PENDING',
         },
@@ -1417,47 +1459,103 @@ app.post('/api/training/register', ah(async (req, res) => {
     : {
         id: `tr-${crypto.randomUUID()}`,
         courseId,
-        courseTitle,
-        fullName,
-        email,
-        phone,
-        experienceLevel,
-        preferredTimeSlot,
+        courseTitle: packageName || 'Khóa học bóng chuyền DVA',
+        fullName: fullName || '',
+        email: email || '',
+        phone: phone || '',
+        experienceLevel: level,
+        preferredTimeSlot: preferredTime || 'Tối Thứ 2 (19:00 - 21:30)',
         notes: notes ?? null,
         status: 'PENDING' as const,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-  // Auto Sync to Google Sheets Tab "DangKyKhoaHoc" (fire-and-forget, non-blocking)
-  const coursePrefix = (courseId || 'TC').replace('tc-', '').toUpperCase().slice(0, 8);
-  const regCode =
-    typeof req.body.registrationCode === 'string' && req.body.registrationCode.trim()
-      ? req.body.registrationCode.trim()
-      : `DVA-TR-${coursePrefix}-${crypto.randomInt(1000, 10000)}`;
-  const cleanPhone = phone.replace(/\D/g, '');
-  const trainingTransferContent =
-    typeof req.body.transferContent === 'string' && req.body.transferContent.trim()
-      ? req.body.transferContent.trim()
-      : `DVA ${regCode} ${cleanPhone.slice(-6)}`;
+  // 2. Chuẩn hóa Mã đăng ký & Cú pháp chuyển khoản: DVA [MÃ_GÓI] [SỐ_ĐIỆN_THOẠI]
+  const cleanPhone = (phone || '').replace(/\D/g, '');
+  const code =
+    (typeof req.body.code === 'string' && req.body.code.trim()) ||
+    (typeof req.body.registrationCode === 'string' && req.body.registrationCode.trim()) ||
+    (typeof data.code === 'string' && data.code.trim()) ||
+    (typeof data.registrationCode === 'string' && data.registrationCode.trim()) ||
+    `TR-${Date.now().toString().slice(-6)}`;
 
-  const trainingSheetPayload = {
-    'Mã đăng ký': regCode,
-    'Gói tập / Khóa học': courseTitle,
-    'Họ và tên học viên': fullName,
-    'Số điện thoại': phone,
+  // Quy chuẩn mã gói ngắn gọn: SCRIM, YOUTH, JUNIOR, SENIOR, SKILL...
+  let packageCode = 'SCRIM';
+  const checkLevel = level.toUpperCase();
+  const checkTitle = packageName.toUpperCase();
+  const checkId = (courseId || '').toLowerCase();
+
+  if (checkLevel.includes('YOUTH') || checkTitle.includes('YOUTH') || checkId.includes('youth')) {
+    packageCode = 'YOUTH';
+  } else if (checkLevel.includes('JUNIOR') || checkTitle.includes('JUNIOR') || checkId.includes('junior')) {
+    packageCode = 'JUNIOR';
+  } else if (checkLevel.includes('SENIOR') || checkTitle.includes('SENIOR') || checkId.includes('senior')) {
+    packageCode = 'SENIOR';
+  } else if (
+    checkId.includes('1on1') ||
+    checkId.includes('custom') ||
+    checkTitle.includes('1-1') ||
+    checkTitle.includes('KÈM') ||
+    checkTitle.includes('MASTERCLASS') ||
+    targetSkill
+  ) {
+    packageCode = 'SKILL';
+  } else if (
+    checkId.includes('scrimmage') ||
+    checkTitle.includes('SCRIMMAGE') ||
+    checkTitle.includes('MATCHPLAY') ||
+    checkTitle.includes('DROPIN') ||
+    checkTitle.includes('DROP-IN')
+  ) {
+    packageCode = 'SCRIM';
+  }
+
+  const transferContent =
+    (typeof req.body.transferContent === 'string' && req.body.transferContent.trim()) ||
+    (typeof data.transferContent === 'string' && data.transferContent.trim()) ||
+    `DVA ${packageCode} ${cleanPhone}`.trim().toUpperCase();
+
+  // 3. Chuẩn bị payload gửi sang Google Apps Script với sheetName = 'DangKyKhoaHoc' khớp 100% với STANDARD_HEADERS.DangKyKhoaHoc
+  const payloadData = {
+    'Mã đăng ký': code || `TR-${Date.now().toString().slice(-6)}`,
+    'Gói tập / Khóa học': packageName || '',
+    'Cấp độ / Đội': level || '',
+    'Họ và tên học viên': fullName || '',
+    'Số điện thoại': phone || '',
     'Email': email || '',
-    'Trình độ hiện tại': experienceLevel,
-    'Khung giờ mong muốn': preferredTimeSlot,
-    'Mức học phí (VNĐ)': coursePrice,
-    'Nội dung chuyển khoản': trainingTransferContent,
-    'Trạng thái': 'CHỜ THANH TOÁN (PENDING)',
-    'Ghi chú': notes || 'Không có',
-    'Thời gian đăng ký': new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
+    'Vị trí thi đấu / Mục tiêu tập': targetSkill || position || '',
+    'Khung giờ mong muốn': preferredTime || '',
+    'Mức học phí (VNĐ)': Number(amount) || 0,
+    'Nội dung chuyển khoản': transferContent || '',
+    'Trạng thái': 'Pending',
+    'Ghi chú': notes || '',
+    'Thời gian đăng ký': new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
   };
-  dispatchGoogleSheetsWebhookAsync('Training_Registrations', 'DangKyKhoaHoc', trainingSheetPayload);
 
-  res.status(201).json(toRegistrationDto(created));
+  // In log kiểm tra trước khi bắn sang Apps Script theo yêu cầu Phần 3
+  console.log('[Training Submit Payload to Google Sheets]:', payloadData);
+
+  const sheetPayload = {
+    sheetName: 'DangKyKhoaHoc',
+    data: payloadData
+  };
+
+  // Safe Fallback: Đảm bảo gọi sang Google Apps Script trong khối try ... catch.
+  // Nếu gọi Apps Script bị lỗi hoặc quá thời gian (timeout), việc lưu đơn vào database PostgreSQL
+  // vẫn phải thành công và trả về mã 200 cho client, không làm sập form của người dùng.
+  try {
+    dispatchGoogleSheetsWebhookAsync('Training_Registrations', 'DangKyKhoaHoc', sheetPayload);
+  } catch (sheetErr: any) {
+    console.warn('[Training Registration] Safe Fallback Notice - Google Sheets sync error:', sheetErr?.message || sheetErr);
+  }
+
+  return res.status(200).json({
+    ...toRegistrationDto(created),
+    code,
+    registrationCode: code,
+    transferContent,
+  });
 }));
 
 app.patch('/api/training/registrations/:id/status', ah(async (req, res) => {

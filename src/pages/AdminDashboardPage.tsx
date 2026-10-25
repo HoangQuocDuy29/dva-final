@@ -2894,16 +2894,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                           Status: 'TEST_SUCCESS',
                         }),
                         googleScriptSyncService.testSync('DangKyKhoaHoc', {
-                          'Mã đăng ký': `TEST-TR-${rand}`,
-                          'Gói tập / Khóa học': '1-on-1 Coaching from Basic',
+                          'Mã đăng ký': `TR-${rand}`,
+                          'Gói tập / Khóa học': 'Học 1-1 với coach kèm từ cơ bản',
+                          'Cấp độ / Đội': 'Junior',
                           'Họ và tên học viên': 'Admin Test Sync',
                           'Số điện thoại': '0768299329',
                           'Email': 'admin.test@dva.vn',
-                          'Trình độ hiện tại': 'Beginner / Fundamental',
-                          'Khung giờ mong muốn': '19:00 - 21:30',
+                          'Vị trí thi đấu / Mục tiêu tập': 'Tấn công & Bật đà',
+                          'Khung giờ mong muốn': 'Tối T2 - T4 - T6 (19:00 - 21:30)',
                           'Mức học phí (VNĐ)': 1500000,
-                          'Nội dung chuyển khoản': `DVA TEST TR ${rand} 299329`,
-                          'Trạng thái': 'TEST_SUCCESS',
+                          'Nội dung chuyển khoản': 'DVA SKILL 0768299329',
+                          'Trạng thái': 'Pending',
                           'Ghi chú': 'Kiểm tra kết nối khóa học từ Admin Portal',
                           'Thời gian đăng ký': nowVi,
                         }),
@@ -3029,10 +3030,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
     'Thời Gian Nhận',
     'Mã đăng ký',
     'Gói tập / Khóa học',
+    'Cấp độ / Đội',
     'Họ và tên học viên',
     'Số điện thoại',
     'Email',
-    'Trình độ hiện tại',
+    'Vị trí thi đấu / Mục tiêu tập',
     'Khung giờ mong muốn',
     'Mức học phí (VNĐ)',
     'Nội dung chuyển khoản',
@@ -3253,13 +3255,70 @@ function doGet(e) {
               </div>
 
               {/* Readonly script snippet */}
-              <pre className="p-3.5 bg-[#080C14] rounded-xl border border-slate-800 text-[10px] font-mono text-slate-300 max-h-40 overflow-y-auto leading-relaxed">
-{`function doPost(e) {
+              <pre className="p-3.5 bg-[#080C14] rounded-xl border border-slate-800 text-[10px] font-mono text-slate-300 max-h-52 overflow-y-auto leading-relaxed">
+{`var STANDARD_HEADERS = {
+  DatSan: [
+    'Thời Gian Nhận',
+    'Mã đặt sân',
+    'Tên sân',
+    'Ngày đặt',
+    'Khung giờ',
+    'Tổng số giờ',
+    'Họ tên khách',
+    'Số điện thoại',
+    'Email',
+    'Tổng tiền (VNĐ)',
+    'Trạng thái',
+    'Ghi chú'
+  ],
+  Training_Registrations: [
+    'Thời Gian Nhận',
+    'Timestamp',
+    'Manual_Trigger',
+    'Status'
+  ],
+  DangKyKhoaHoc: [
+    'Thời Gian Nhận',
+    'Mã đăng ký',
+    'Gói tập / Khóa học',
+    'Cấp độ / Đội',
+    'Họ và tên học viên',
+    'Số điện thoại',
+    'Email',
+    'Vị trí thi đấu / Mục tiêu tập',
+    'Khung giờ mong muốn',
+    'Mức học phí (VNĐ)',
+    'Nội dung chuyển khoản',
+    'Trạng thái',
+    'Ghi chú',
+    'Thời gian đăng ký'
+  ],
+  TuyenThanhVien: [
+    'Thời Gian Nhận',
+    'Họ và tên',
+    'Ngày sinh',
+    'Vị trí',
+    'Cấp độ',
+    'Số áo mong muốn',
+    'Chiều cao (cm)',
+    'Cân nặng (kg)',
+    'Bật đập (cm)',
+    'Bật chắn (cm)',
+    'Số Zalo',
+    'Email',
+    'Instagram',
+    'Chiến thuật 5-1',
+    'Quê quán',
+    'Thời gian gửi'
+  ]
+};
+
+function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.tryLock(15000);
-  
+
   try {
-    var payload;
+    var payload = {};
     if (e && e.postData && e.postData.contents) {
       try {
         payload = JSON.parse(e.postData.contents);
@@ -3268,67 +3327,135 @@ function doGet(e) {
       }
     } else if (e && e.parameter) {
       payload = e.parameter;
-    } else {
-      payload = {};
     }
 
-    var sheetName = payload.sheetName || 'DatSan';
+    var sheetName = String(payload.sheetName || 'DatSan').trim();
     var data = payload.data || payload;
     if (typeof data === 'string') {
-      try { data = JSON.parse(data); } catch (ex) {}
+      try { data = JSON.parse(data); } catch (ex) { data = {}; }
     }
 
-    var timestamp = payload.timestamp || new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
+    var timestamp = payload.timestamp || new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName(sheetName);
 
+    // 1. Tạo mới tab hoặc khởi tạo dòng tiêu đề chuẩn nếu sheet đang trống
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
-      var initialHeaders = ['Received_Timestamp'].concat(Object.keys(data));
-      sheet.appendRow(initialHeaders);
-      var headerRange = sheet.getRange(1, 1, 1, initialHeaders.length);
-      headerRange.setBackground('#B91C1C').setFontColor('#FFFFFF').setFontWeight('bold');
-      sheet.setFrozenRows(1);
     }
 
-    var lastCol = Math.max(sheet.getLastColumn(), 1);
-    var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    var lastRow = sheet.getLastRow();
+    var lastCol = sheet.getLastColumn();
+    var headers = [];
 
-    var dataKeys = Object.keys(data);
-    for (var k = 0; k < dataKeys.length; k++) {
-      var key = dataKeys[k];
-      if (headers.indexOf(key) === -1) {
-        sheet.getRange(1, headers.length + 1).setValue(key)
-          .setBackground('#B91C1C').setFontColor('#FFFFFF').setFontWeight('bold');
-        headers.push(key);
+    if (lastRow === 0 || lastCol === 0) {
+      headers = STANDARD_HEADERS[sheetName] ? STANDARD_HEADERS[sheetName].slice() : ['Thời Gian Nhận'].concat(Object.keys(data));
+      sheet.appendRow(headers);
+      sheet.getRange(1, 1, 1, headers.length)
+        .setBackground('#B91C1C')
+        .setFontColor('#FFFFFF')
+        .setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    } else {
+      headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) {
+        return String(h || '').trim();
+      });
+    }
+
+    // 2. Chuẩn hóa key trong data (trim khoảng trắng) để khớp chính xác với tiêu đề cột
+    var normalizedData = {};
+    var rawKeys = Object.keys(data || {});
+    for (var i = 0; i < rawKeys.length; i++) {
+      var k = String(rawKeys[i]).trim();
+      normalizedData[k] = data[rawKeys[i]];
+    }
+
+    // 3. Đảm bảo toàn bộ các cột chuẩn của bảng (STANDARD_HEADERS) hoặc trường mới trong data đều có mặt trên dòng 1
+    var requiredCols = STANDARD_HEADERS[sheetName] || [];
+    for (var c = 0; c < requiredCols.length; c++) {
+      var stdCol = requiredCols[c];
+      if (headers.indexOf(stdCol) === -1) {
+        sheet.getRange(1, headers.length + 1)
+          .setValue(stdCol)
+          .setBackground('#B91C1C')
+          .setFontColor('#FFFFFF')
+          .setFontWeight('bold');
+        headers.push(stdCol);
       }
     }
 
+    for (var j = 0; j < rawKeys.length; j++) {
+      var cleanKey = String(rawKeys[j]).trim();
+      if (cleanKey && headers.indexOf(cleanKey) === -1) {
+        sheet.getRange(1, headers.length + 1)
+          .setValue(cleanKey)
+          .setBackground('#B91C1C')
+          .setFontColor('#FFFFFF')
+          .setFontWeight('bold');
+        headers.push(cleanKey);
+      }
+    }
+
+    // 4. Dựng dữ liệu dòng theo đúng thứ tự từng cột trên Sheet
     var rowValues = [];
     for (var h = 0; h < headers.length; h++) {
       var colName = headers[h];
-      if (colName === 'Received_Timestamp' || colName === 'Timestamp' || colName === 'Thời Gian Nhận') {
+      if (colName === 'Thời Gian Nhận' || colName === 'Received_Timestamp') {
         rowValues.push(timestamp);
+      } else if (colName === 'Timestamp') {
+        rowValues.push(normalizedData['Timestamp'] !== undefined ? normalizedData['Timestamp'] : timestamp);
+      } else if (colName === 'Thời gian đăng ký') {
+        rowValues.push(normalizedData['Thời gian đăng ký'] !== undefined ? normalizedData['Thời gian đăng ký'] : timestamp);
+      } else if (colName === 'Thời gian gửi') {
+        rowValues.push(normalizedData['Thời gian gửi'] !== undefined ? normalizedData['Thời gian gửi'] : timestamp);
       } else {
-        rowValues.push(data[colName] !== undefined ? data[colName] : '');
+        var val = normalizedData[colName];
+        rowValues.push(val !== undefined && val !== null ? val : '');
       }
     }
 
-    sheet.appendRow(rowValues);
+    // 5. Chống ghi đúp dòng (Idempotent Upsert theo 'Mã đặt sân' hoặc 'Mã đăng ký')
+    var idColIndex = headers.indexOf('Mã đặt sân');
+    if (idColIndex === -1) idColIndex = headers.indexOf('Mã đăng ký');
+    var recordId = idColIndex !== -1 ? String(rowValues[idColIndex] || '').trim() : '';
 
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', sheet: sheetName, row: rowValues }))
-      .setMimeType(ContentService.MimeType.JSON);
+    var updatedExistingRow = false;
+    if (recordId && sheet.getLastRow() > 1) {
+      var existingIds = sheet.getRange(2, idColIndex + 1, sheet.getLastRow() - 1, 1).getValues();
+      for (var r = 0; r < existingIds.length; r++) {
+        if (String(existingIds[r][0] || '').trim() === recordId) {
+          sheet.getRange(r + 2, 1, 1, rowValues.length).setValues([rowValues]);
+          updatedExistingRow = true;
+          break;
+        }
+      }
+    }
+
+    if (!updatedExistingRow) {
+      sheet.appendRow(rowValues);
+    }
+
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: 'success',
+        action: updatedExistingRow ? 'updated' : 'appended',
+        sheet: sheetName,
+        row: rowValues
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(
+      JSON.stringify({ status: 'error', error: err.toString() })
+    ).setMimeType(ContentService.MimeType.JSON);
   } finally {
     lock.releaseLock();
   }
 }
 
 function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({ status: 'active', message: 'DVA Google Apps Script Webhook is ready' }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(
+    JSON.stringify({ status: 'active', message: 'DVA Google Apps Script Webhook is ready' })
+  ).setMimeType(ContentService.MimeType.JSON);
 }`}
               </pre>
             </div>

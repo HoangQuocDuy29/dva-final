@@ -205,14 +205,32 @@ export const NEWS_SCHEMA: Schema = {
   featured: B,
 };
 
+export const OPTIONAL_EMAIL: Rule = (v, k) => {
+  if (v === undefined || v === null) return '';
+  if (typeof v === 'string' && v.trim() === '') return '';
+  return EM(v, k);
+};
+
 export const TRAINING_REGISTER_SCHEMA: Schema = {
   courseId: S(50, 1),
   fullName: S(100, 2),
-  email: EM,
+  email: OPTIONAL_EMAIL,
   phone: PH,
   experienceLevel: S(100),
   preferredTimeSlot: S(200),
   notes: S(1000),
+  level: S(100),
+  packageName: S(200),
+  courseTitle: S(200),
+  targetSkill: S(200),
+  position: S(100),
+  preferredTime: S(200),
+  selectedSlots: S(200),
+  code: S(100),
+  registrationCode: S(100),
+  transferContent: S(200),
+  amount: N(0, 100000000),
+  price: N(0, 100000000),
 };
 
 export const MEMBER_REGISTER_SCHEMA: Schema = {

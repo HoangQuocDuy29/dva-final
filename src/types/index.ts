@@ -225,6 +225,18 @@ export interface TrainingRegistration {
   notes?: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
   createdAt: string;
+  // Standardized fields for Training & Scrimmage workflow
+  code?: string;
+  registrationCode?: string;
+  packageName?: string;
+  level?: string;
+  targetSkill?: string;
+  position?: string;
+  preferredTime?: string;
+  selectedSlots?: string;
+  amount?: number;
+  price?: number;
+  transferContent?: string;
 }
 
 export type RotationKnowledge = '5-1' | '6-2' | '4-2' | 'BEGINNER';
