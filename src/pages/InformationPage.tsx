@@ -50,7 +50,7 @@ export const InformationPage: React.FC = () => {
                 </span>
                 <div className="mt-4">
                   <div className="flex items-baseline gap-1">
-                    <span className="font-heading font-black text-3xl text-white">500,000</span>
+                    <span className="font-heading font-black text-3xl text-white">550,000</span>
                     <span className="text-xs font-bold text-slate-400">VND / Hour</span>
                   </div>
                   <p className="text-xs text-slate-400 mt-1">The Cong & My Dinh: 500k/h · BTL Thong Tin: 550k/h</p>
@@ -59,15 +59,15 @@ export const InformationPage: React.FC = () => {
                 <div className="mt-6 space-y-2.5 border-t border-slate-800 pt-4 text-xs text-slate-300">
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>FIVB tournament-certified 7.5mm Taraflex flooring across 3 arenas.</span>
+                    <span>Free borrow of 1 official Mikasa V200W match ball.</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="font-bold text-orange-400">Includes 1 Free Official Mikasa V200W Match Ball.</span>
+                    <span className="font-bold text-orange-400">Full court lighting system for day and night games.</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Scoreboard, referee whistle, air-conditioned locker rooms & hot showers.</span>
+                    <span>Adequate court-side cooling fans for play sessions.</span>
                   </div>
                 </div>
               </div>
@@ -97,21 +97,21 @@ export const InformationPage: React.FC = () => {
                     <span className="font-heading font-black text-3xl text-orange-400">100,000</span>
                     <span className="text-xs font-bold text-slate-400">VND / Person</span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">Per Session Drop-in Pass & Booking Rights</p>
+                  <p className="text-xs text-slate-400 mt-1">Per-Session Pass & Advanced Booking Access</p>
                 </div>
 
                 <div className="mt-6 space-y-2.5 border-t border-slate-800 pt-4 text-xs text-slate-300">
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span className="font-bold text-white">Full right to reserve & select future play dates in advance.</span>
+                    <span className="font-bold text-white">Full access to view club schedule and reserve slots for upcoming play sessions</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Direct access to official DVA scrimmage matchmaking lobbies.</span>
+                    <span>Priority placement into official DVA scrimmage and game lobbies.</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Free use of court amenities, ball carts, and recovery gear.</span>
+                    <span>Seamless check-in and court management via the DVA platform.</span>
                   </div>
                 </div>
               </div>
@@ -202,11 +202,11 @@ export const InformationPage: React.FC = () => {
                     </td>
                     <td className="py-4 px-5">
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-800">
-                        SENIOR (Experienced Players &gt; 3 Years)
+                        SENIOR
                       </span>
                     </td>
                     <td className="py-4 px-5 text-right font-mono text-slate-400">
-                      BTL Thong Tin Arena · Courts 1 & 2
+                      BTL Thong Tin Court · Court A
                     </td>
                   </tr>
 
@@ -217,15 +217,15 @@ export const InformationPage: React.FC = () => {
                     </td>
                     <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
-                      <span>DVA Junior Squad Tactical & 5-1 Formation Matchplay</span>
+                      <span>DVA Junior Squad Training & Scrimmage</span>
                     </td>
                     <td className="py-4 px-5">
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
-                        JUNIOR (Intermediate Recreational Players)
+                        JUNIOR
                       </span>
                     </td>
                     <td className="py-4 px-5 text-right font-mono text-slate-400">
-                      The Cong Arena · Court 1
+                      BTL Thong Tin Court · Court A
                     </td>
                   </tr>
 
@@ -236,31 +236,20 @@ export const InformationPage: React.FC = () => {
                     </td>
                     <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-                      <span>DVA Junior & Youth (Fundamentals)</span>
+                      <span>DVA Junior & Youth Matchplay</span>
                     </td>
                     <td className="py-4 px-5">
-                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                        JUNIOR & YOUTH
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
+                          JUNIOR
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                          YOUTH
+                        </span>
+                      </div>
                     </td>
                     <td className="py-4 px-5 text-right font-mono text-slate-400">
-                      My Dinh Arena · Central Court
-                    </td>
-                  </tr>
-
-                  {/* Row 4: Daily Daytime Open Hours */}
-                  <tr className="hover:bg-slate-800/40 text-slate-400">
-                    <td className="py-3.5 px-5 font-mono text-slate-400">
-                      Daily (06:00 – 18:30)
-                    </td>
-                    <td className="py-3.5 px-5">
-                      Open Court Public Reservations & 1-on-1 Private Coaching
-                    </td>
-                    <td className="py-3.5 px-5">
-                      Open to All Members, Teams & Public Visitors
-                    </td>
-                    <td className="py-3.5 px-5 text-right font-mono text-slate-500">
-                      All 3 Arenas (Real-Time Availability)
+                      BTL Thong Tin Court · Court A & B 
                     </td>
                   </tr>
 
@@ -284,26 +273,32 @@ export const InformationPage: React.FC = () => {
             <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className="font-heading font-black text-lg text-white">Senior Team</h3>
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200 uppercase">Division 1</span>
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200 uppercase">SENIOR</span>
               </div>
               <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3">
-                <li>• <strong>Height:</strong> Men ≥ 185cm, Women ≥ 170cm</li>
-                <li>• <strong>Spike Reach:</strong> Men ≥ 335cm, Women ≥ 295cm</li>
-                <li>• <strong>Block Reach:</strong> Men ≥ 320cm, Women ≥ 285cm</li>
-                <li>• <strong>Tactics:</strong> Fluid mastery of 5-1 rotational mechanics.</li>
+                <li>• <strong>Height:</strong> ≥ 155 cm</li>
+                <li>• <strong>Spike Reach:</strong> Minimum ≥ 280 cm</li>
+                <li>• <strong>Block Reach:</strong> Minimum ≥ 270 cm</li>
+                <li>• <strong>Tactics:</strong> Proficient in 5-1 and 6-2 rotation systems</li>
+                <li>• <strong>Versatility:</strong> Capable of playing multiple court positions</li>
+                <li>• <strong>Experience:</strong> 3+ years of playing experience</li>
+                <li>• <strong>Age:</strong> 17 years and older</li>
               </ul>
             </div>
 
             <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className="font-heading font-black text-lg text-white">Junior Squad</h3>
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-orange-900 text-orange-200 uppercase">U19 - U21</span>
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-orange-900 text-orange-200 uppercase">JUNIOR</span>
               </div>
               <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3">
-                <li>• <strong>Height:</strong> Men ≥ 180cm, Women ≥ 165cm</li>
-                <li>• <strong>Spike Reach:</strong> Men ≥ 315cm, Women ≥ 280cm</li>
-                <li>• <strong>Conditioning:</strong> Agility, rapid deceleration, high coachability.</li>
-                <li>• <strong>Tactics:</strong> Basic comprehension of 4-2 or 5-1 rotations.</li>
+                <li>• <strong>Height:</strong> ≥ 155 cm</li>
+                <li>• <strong>Spike Reach:</strong> Minimum ≥ 250 cm</li>
+                <li>• <strong>Block Reach:</strong> Minimum ≥ 240 cm</li>
+                <li>• <strong>Tactics:</strong> Proficient in 4-2 and 5-1 rotation systems</li>
+                <li>• <strong>Versatility:</strong> Capable of playing at least 2 distinct positions</li>
+                <li>• <strong>Experience:</strong> 1+ year of playing experience</li>
+                <li>• <strong>Age:</strong> 15 years and older</li>
               </ul>
             </div>
 
@@ -313,10 +308,12 @@ export const InformationPage: React.FC = () => {
                 <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 uppercase">Youth</span>
               </div>
               <ul className="text-xs text-slate-300 space-y-2 border-t border-slate-800 pt-3">
-                <li>• <strong>Age:</strong> Boys & girls ages 9 through 14.</li>
-                <li>• <strong>Requirements:</strong> Passion for sport and team spirit.</li>
-                <li>• <strong>Entrance Evaluation:</strong> Vertec vertical test & agility obstacle.</li>
-                <li>• Beginners welcome; comprehensive training from scratch.</li>
+                <li>• <strong>Height:</strong> ≥ 155 cm</li>
+                <li>• <strong>Spike Reach:</strong> Minimum ≥ 250 cm</li>
+                <li>• <strong>Tactics:</strong> Basic understanding and execution of 4-2 rotation</li>
+                <li>• <strong>Skill Level:</strong> Fundamental volleyball skills rated at least 5/10</li>
+                <li>• <strong>Experience:</strong> 6+ months of playing experience</li>
+                <li>• <strong>Age:</strong> 13 years and older</li>
               </ul>
             </div>
 
