@@ -28,13 +28,14 @@ import {
   MemberApplication,
   NewsPost,
   Player,
+  PlayerLevel,
   RotationKnowledge,
   TrainingCourse,
   TrainingRegistration,
   countryCodeToFlagEmoji,
 } from '../src/types';
 import { StoredUser, hashPassword, isBcryptHash, verifyPassword } from './security';
-import { getDefaultWeeklyScheduleForCourt, normalizeWeeklySchedule } from '../src/shared/schedule';
+import { getDefaultWeeklyScheduleForCourt, normalizeWeeklySchedule, normalizeCourtWeeklySchedule } from '../src/shared/schedule';
 import {
   INITIAL_BOOKINGS,
   INITIAL_COACHES,
@@ -98,32 +99,46 @@ export function toStoredUser(u: DbUser | any): StoredUser {
   };
 }
 
-export function toPlayerDto(p: DbPlayer): Player {
-  const resolvedCountry = p.countryName || 'Vietnam';
+export { INITIAL_PLAYERS, INITIAL_MEMBER_APPLICATIONS };
+
+export const normalizeSquad = (squad?: any): 'Youth' | 'Junior' | 'Senior' => {
+  if (!squad) return 'Youth';
+  const s = String(squad).trim().toUpperCase();
+  if (s === 'KID' || s === 'YOUTH') return 'Youth';
+  if (s === 'JUNIOR') return 'Junior';
+  return 'Senior';
+};
+
+export function toPlayerDto(p: DbPlayer | any): Player {
+  const resolvedCountry = p.countryName || p.country || 'Vietnam';
   const resolvedCode = (p.countryCode || 'VN').toUpperCase();
   const resolvedFlag = p.countryFlag || countryCodeToFlagEmoji(resolvedCode);
-  const resolvedJoined = p.joinedYear || 2025;
+  const resolvedJoined = Number(p.joinedYear ?? p.joined) || 2025;
+  const rawSquad = (p as any).squad || (p as any).category || (p as any).team || p.level;
+  const normalizedSquad = normalizeSquad(rawSquad);
+  const normalizedLevel = normalizedSquad.toUpperCase() as PlayerLevel;
+
   return {
     id: p.id,
     userId: p.userId ?? undefined,
     fullName: p.fullName,
-    jerseyNumber: p.jerseyNumber,
-    height: p.height,
-    weight: p.weight,
-    spikeTouch: p.spikeTouch,
-    blockTouch: p.blockTouch,
-    hometownCountry: p.hometownCountry,
+    jerseyNumber: Number(p.jerseyNumber) || 0,
+    height: Number(p.height) || 180,
+    weight: Number(p.weight) || 70,
+    spikeTouch: Number(p.spikeTouch) || 300,
+    blockTouch: Number(p.blockTouch) || 290,
+    hometownCountry: p.hometownCountry || 'Việt Nam',
     country: resolvedCountry,
     countryName: resolvedCountry,
     countryCode: resolvedCode,
     countryFlag: resolvedFlag,
     bornYear: p.bornYear ?? undefined,
-    level: p.level,
-    position: p.position,
+    level: normalizedLevel,
+    position: p.position || 'OH',
     avatarUrl: p.avatarUrl ?? '',
     bio: p.bio ?? '',
-    isCaptain: p.isCaptain,
-    captain: p.isCaptain,
+    isCaptain: Boolean(p.isCaptain ?? p.captain),
+    captain: Boolean(p.isCaptain ?? p.captain),
     joined: resolvedJoined,
     joinedYear: resolvedJoined,
   };
@@ -133,6 +148,9 @@ export function toCourtDto(c: DbCourt & { status?: string | null; isMaintenance?
   const isMaintenance = Boolean(
     c.isMaintenance === true || c.status === 'MAINTENANCE' || c.isAvailable === false
   );
+  const subCourts = Array.isArray(c.subCourts) && c.subCourts.length > 0
+    ? c.subCourts
+    : (c.id === 'court-btl' || c.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : undefined);
   return {
     id: c.id,
     code: c.code,
@@ -149,10 +167,8 @@ export function toCourtDto(c: DbCourt & { status?: string | null; isMaintenance?
     isMaintenance,
     isAvailable: !isMaintenance,
     isActive: c.isActive !== false,
-    subCourts: Array.isArray(c.subCourts) && c.subCourts.length > 0
-      ? c.subCourts
-      : (c.id === 'court-btl' || c.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : undefined),
-    weeklySchedule: normalizeWeeklySchedule(c.weeklySchedule, c.id || c.code),
+    subCourts,
+    weeklySchedule: normalizeCourtWeeklySchedule(c.weeklySchedule, c.id || c.code, subCourts),
   };
 }
 
@@ -288,6 +304,9 @@ export function fromRotationEnum(val: PrismaRotation): RotationKnowledge {
 }
 
 export function toApplicationDto(a: DbMemberApplication | any): MemberApplication {
+  const rawSquad = (a as any).squad || (a as any).category || (a as any).team || a.level;
+  const normalizedLevel = (normalizeSquad(rawSquad).toUpperCase() as PlayerLevel) || 'YOUTH';
+
   return {
     id: a.id,
     fullName: a.fullName,
@@ -295,7 +314,7 @@ export function toApplicationDto(a: DbMemberApplication | any): MemberApplicatio
     position: a.position,
     hometownCountry: a.hometownCountry,
     desiredJerseyNumber: a.desiredJerseyNumber,
-    level: a.level,
+    level: normalizedLevel,
     height: a.height,
     weight: a.weight,
     spikeReach: a.spikeReach,
@@ -486,7 +505,11 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           isAvailable: c.isAvailable !== false,
           isActive: c.isActive !== false,
           subCourts: c.subCourts ?? (c.id === 'court-btl' || c.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []),
-          weeklySchedule: (c.weeklySchedule ?? getDefaultWeeklyScheduleForCourt(c.id)) as any,
+          weeklySchedule: normalizeCourtWeeklySchedule(
+            c.weeklySchedule ?? getDefaultWeeklyScheduleForCourt(c.id),
+            c.id,
+            c.subCourts ?? (c.id === 'court-btl' || c.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : [])
+          ) as any,
         },
       });
     }
@@ -525,6 +548,8 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
   if ((await prisma.player.count()) === 0) {
     const legacyPlayers = readLegacyJsonIfExists<Player[]>('players.json', INITIAL_PLAYERS);
     for (const p of legacyPlayers) {
+      const rawSquad = (p as any).squad || (p as any).category || (p as any).team || p.level;
+      const normalizedLevel = normalizeSquad(rawSquad).toUpperCase() as 'SENIOR' | 'JUNIOR' | 'YOUTH';
       await prisma.player.upsert({
         where: { id: p.id },
         update: {},
@@ -541,8 +566,8 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           countryCode: (p.countryCode || 'VN').toUpperCase(),
           countryFlag: p.countryFlag ?? countryCodeToFlagEmoji(p.countryCode || 'VN'),
           bornYear: p.bornYear ?? null,
-          level: p.level,
-          position: p.position,
+          level: normalizedLevel,
+          position: p.position || 'OH',
           avatarUrl: p.avatarUrl ?? '',
           bio: p.bio ?? '',
           isCaptain: Boolean(p.isCaptain ?? p.captain),

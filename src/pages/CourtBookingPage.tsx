@@ -26,6 +26,8 @@ import {
   ADDON_PRICES,
   CourtTimeSlot,
   getScheduleSlotsForCourtAndDate,
+  getSlotsForSubCourt,
+  getDayOfWeekKey,
   parseSlotLabel,
   rangesOverlap,
 } from '../shared/schedule';
@@ -170,9 +172,10 @@ const CourtBookingContent: React.FC = () => {
     return getScheduleSlotsForCourtAndDate(
       selectedCourt?.id || selectedCourtId,
       bookingDate,
-      selectedCourt?.weeklySchedule
+      selectedCourt?.weeklySchedule,
+      hasSubCourts ? selectedSubCourt : undefined
     );
-  }, [selectedCourt, selectedCourtId, bookingDate]);
+  }, [selectedCourt, selectedCourtId, bookingDate, hasSubCourts, selectedSubCourt]);
 
   // Selected Slot State: null by default so user picks deliberately
   const [selectedSlotObj, setSelectedSlotObj] = useState<CourtTimeSlot | null>(null);
@@ -761,7 +764,15 @@ const CourtBookingContent: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
                 {subCourts.map((sc) => {
                   const isTabSelected = selectedSubCourt === sc;
-                  const availableCount = availableSlots.filter((s) => getSlotStatus(s, sc) === 'AVAILABLE').length;
+                  const currentDay = getDayOfWeekKey(bookingDate);
+                  const configuredLabels = getSlotsForSubCourt(selectedCourt?.weeklySchedule, currentDay, sc);
+                  const scSlots = getScheduleSlotsForCourtAndDate(
+                    selectedCourt?.id || selectedCourtId,
+                    bookingDate,
+                    selectedCourt?.weeklySchedule,
+                    sc
+                  );
+                  const availableCount = scSlots.filter((s) => getSlotStatus(s, sc) === 'AVAILABLE').length;
 
                   return (
                     <button
@@ -770,7 +781,7 @@ const CourtBookingContent: React.FC = () => {
                       onClick={() => {
                         setSelectedSubCourt(sc);
                         if (selectedSlotObj && selectedSlotObj.subCourt && selectedSlotObj.subCourt !== sc) {
-                          const sameSlot = availableSlots.find((s) => s.label === selectedSlotObj.label);
+                          const sameSlot = scSlots.find((s) => s.label === selectedSlotObj.label);
                           if (sameSlot && getSlotStatus(sameSlot, sc) === 'AVAILABLE') {
                             setSelectedSlotObj({ ...sameSlot, subCourt: sc });
                           } else {

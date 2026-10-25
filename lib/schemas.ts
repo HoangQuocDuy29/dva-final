@@ -7,6 +7,7 @@ export const VALID_LEVELS = ['senior', 'junior', 'youth', 'SENIOR', 'JUNIOR', 'Y
 export const LEVEL_RULE: Rule = (v, k) => {
   if (typeof v !== 'string') throw new HttpError(400, `${k} must be one of: senior, junior, youth`);
   const normalized = v.trim().toUpperCase();
+  if (normalized === 'KID') return 'YOUTH';
   if (normalized !== 'SENIOR' && normalized !== 'JUNIOR' && normalized !== 'YOUTH') {
     throw new HttpError(400, `${k} must be one of: senior, junior, youth`);
   }
@@ -32,6 +33,9 @@ export const PLAYER_SCHEMA: Schema = {
   countryFlag: S(10),
   bornYear: I(1950, 2030),
   level: LEVEL_RULE,
+  squad: S(50),
+  category: S(50),
+  team: S(50),
   position: E(POSITIONS),
   avatarUrl: U,
   bio: S(1000),
@@ -41,11 +45,7 @@ export const PLAYER_SCHEMA: Schema = {
   joinedYear: I(1990, 2100),
 };
 
-const WEEKLY_SCHEDULE: Rule = (v, k) => {
-  if (v === null || typeof v !== 'object' || Array.isArray(v)) {
-    throw new HttpError(400, `${k} must be an object mapping days of week to slot arrays`);
-  }
-  const src = v as Record<string, unknown>;
+const validateDaySchedule = (src: Record<string, unknown>, path: string): Record<string, string[]> => {
   const out: Record<string, string[]> = {};
   for (const dayKey of DAY_KEYS_BY_JS_DAY) {
     const val = src[dayKey];
@@ -54,13 +54,38 @@ const WEEKLY_SCHEDULE: Rule = (v, k) => {
       continue;
     }
     if (!Array.isArray(val)) {
-      throw new HttpError(400, `${k}.${dayKey} must be an array of slot strings`);
+      throw new HttpError(400, `${path}.${dayKey} must be an array of slot strings`);
     }
     out[dayKey] = val
-      .map((item) => S(80, 3)(item, `${k}.${dayKey}`))
+      .map((item) => S(80, 3)(item, `${path}.${dayKey}`))
       .filter((slotStr) => Boolean(parseSlotLabel(slotStr)));
   }
   return out;
+};
+
+const WEEKLY_SCHEDULE: Rule = (v, k) => {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+    throw new HttpError(400, `${k} must be an object mapping days of week or sub-courts to schedules`);
+  }
+  const src = v as Record<string, unknown>;
+  const keys = Object.keys(src);
+  if (keys.length === 0) {
+    return validateDaySchedule({}, k);
+  }
+  const hasDayKeys = keys.some((dayKey) => (DAY_KEYS_BY_JS_DAY as string[]).includes(dayKey));
+  if (hasDayKeys) {
+    return validateDaySchedule(src, k);
+  }
+  // Nested sub-courts: { "Sân A": { monday: [...] }, "Sân B": { ... } }
+  const nestedOut: Record<string, Record<string, string[]>> = {};
+  for (const subCourtKey of keys) {
+    const subVal = src[subCourtKey];
+    if (subVal === null || typeof subVal !== 'object' || Array.isArray(subVal)) {
+      throw new HttpError(400, `${k}.${subCourtKey} must be a schedule object`);
+    }
+    nestedOut[subCourtKey] = validateDaySchedule(subVal as Record<string, unknown>, `${k}.${subCourtKey}`);
+  }
+  return nestedOut;
 };
 
 export const COURT_STATUSES = ['ACTIVE', 'MAINTENANCE'] as const;

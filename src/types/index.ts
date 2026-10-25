@@ -96,6 +96,10 @@ export type DayOfWeekKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'fr
 
 export type WeeklySchedule = Record<DayOfWeekKey, string[]>;
 
+export type SubCourtWeeklySchedule = Record<string, WeeklySchedule>;
+
+export type CourtWeeklySchedule = WeeklySchedule | SubCourtWeeklySchedule;
+
 export const DAYS_OF_WEEK: { key: DayOfWeekKey; labelVi: string; shortVi: string; labelEn: string }[] = [
   { key: 'monday', labelVi: 'Thứ 2', shortVi: 'T2', labelEn: 'Monday' },
   { key: 'tuesday', labelVi: 'Thứ 3', shortVi: 'T3', labelEn: 'Tuesday' },
@@ -124,7 +128,7 @@ export interface Court {
   isMaintenance?: boolean;
   isAvailable: boolean;
   isActive?: boolean;
-  weeklySchedule?: WeeklySchedule;
+  weeklySchedule?: CourtWeeklySchedule;
   subCourts?: string[]; // e.g. ['Sân A', 'Sân B']
 }
 

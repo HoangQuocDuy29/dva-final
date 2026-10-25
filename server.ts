@@ -42,13 +42,17 @@ import {
   getDefaultWeeklyScheduleForCourt,
   getScheduleSlotsForCourtAndDate,
   normalizeWeeklySchedule,
+  normalizeCourtWeeklySchedule,
   parseSlotLabel,
   rangesOverlap,
   toMinutes,
 } from './src/shared/schedule';
 import {
+  INITIAL_MEMBER_APPLICATIONS,
+  INITIAL_PLAYERS,
   ensurePostgreSQLSeeded,
   fromRotationEnum,
+  normalizeSquad,
   prisma,
   toApplicationDto,
   toBookingDto,
@@ -71,7 +75,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 assertSecurityConfig();
 
-const app = express();
+export const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Required when running behind a reverse proxy (Render, Railway, Vercel...) so req.ip is the real client.
@@ -380,62 +384,105 @@ app.post('/api/auth/verify-otp', (_req, res) => {
 
 // 2. Players API
 app.get('/api/players', ah(async (req, res) => {
-  const { level, position, search } = req.query;
-  const where: Record<string, any> = {};
+  try {
+    const { level, position, search } = req.query;
+    const where: Record<string, any> = {};
 
-  if (typeof level === 'string' && LEVELS.includes(level.toUpperCase() as any)) {
-    where.level = level.toUpperCase();
-  }
-  if (typeof position === 'string' && POSITIONS.includes(position.toUpperCase() as any)) {
-    where.position = position.toUpperCase();
-  }
-  if (typeof search === 'string' && search.trim()) {
-    const q = search.trim();
-    const num = Number(q);
-    where.OR = [
-      { fullName: { contains: q, mode: 'insensitive' } },
-      { hometownCountry: { contains: q, mode: 'insensitive' } },
-      ...(Number.isInteger(num) ? [{ jerseyNumber: num }] : []),
-    ];
-  }
+    if (typeof level === 'string') {
+      const normalizedLevel = normalizeSquad(level).toUpperCase();
+      if (LEVELS.includes(normalizedLevel as any)) {
+        where.level = normalizedLevel;
+      }
+    }
+    if (typeof position === 'string' && POSITIONS.includes(position.toUpperCase() as any)) {
+      where.position = position.toUpperCase();
+    }
+    if (typeof search === 'string' && search.trim()) {
+      const q = search.trim();
+      const num = Number(q);
+      where.OR = [
+        { fullName: { contains: q, mode: 'insensitive' } },
+        { hometownCountry: { contains: q, mode: 'insensitive' } },
+        ...(Number.isInteger(num) ? [{ jerseyNumber: num }] : []),
+      ];
+    }
 
-  const dbPlayers = await prisma.player.findMany({
-    where,
-    orderBy: [{ level: 'asc' }, { jerseyNumber: 'asc' }],
-  });
-  res.json(dbPlayers.map(toPlayerDto));
+    const dbPlayers = await prisma.player.findMany({
+      where,
+      orderBy: [{ level: 'asc' }, { jerseyNumber: 'asc' }],
+    });
+    return res.json(dbPlayers.map(toPlayerDto));
+  } catch (error) {
+    console.error('[API /players Error]:', error);
+    let fallbackPlayers = readJsonFileSafe<any[]>('players.json', INITIAL_PLAYERS);
+    if (!Array.isArray(fallbackPlayers) || fallbackPlayers.length === 0) {
+      fallbackPlayers = INITIAL_PLAYERS;
+    }
+    let mapped = fallbackPlayers.map(toPlayerDto);
+
+    const { level, position, search } = req.query;
+    if (typeof level === 'string') {
+      const targetLevel = normalizeSquad(level).toUpperCase();
+      mapped = mapped.filter((p) => p.level === targetLevel);
+    }
+    if (typeof position === 'string' && POSITIONS.includes(position.toUpperCase() as any)) {
+      const targetPos = position.toUpperCase();
+      mapped = mapped.filter((p) => p.position === targetPos);
+    }
+    if (typeof search === 'string' && search.trim()) {
+      const q = search.trim().toLowerCase();
+      mapped = mapped.filter(
+        (p) =>
+          p.fullName.toLowerCase().includes(q) ||
+          p.hometownCountry.toLowerCase().includes(q) ||
+          String(p.jerseyNumber) === q
+      );
+    }
+    return res.json(mapped);
+  }
 }));
 
 app.post('/api/players', ah(async (req, res) => {
-  const data = sanitize(req.body, PLAYER_SCHEMA, { required: ['fullName', 'jerseyNumber', 'level', 'position'] });
-  const resolvedCountryName = data.country ?? data.countryName ?? 'Vietnam';
-  const resolvedCountryCode = (data.countryCode || 'VN').toUpperCase();
-  const resolvedCountryFlag = data.countryFlag || countryCodeToFlagEmoji(resolvedCountryCode);
-  const resolvedJoinedYear = data.joined ?? data.joinedYear ?? new Date().getFullYear();
+  try {
+    const rawBody = req.body && typeof req.body === 'object' ? { ...req.body } : {};
+    if (rawBody.level) {
+      rawBody.level = normalizeSquad(rawBody.level).toUpperCase();
+    } else if (rawBody.squad || rawBody.category || rawBody.team) {
+      rawBody.level = normalizeSquad(rawBody.squad || rawBody.category || rawBody.team).toUpperCase();
+    }
+    const data = sanitize(rawBody, PLAYER_SCHEMA, { required: ['fullName', 'jerseyNumber', 'level', 'position'] });
+    const resolvedCountryName = data.country ?? data.countryName ?? 'Vietnam';
+    const resolvedCountryCode = (data.countryCode || 'VN').toUpperCase();
+    const resolvedCountryFlag = data.countryFlag || countryCodeToFlagEmoji(resolvedCountryCode);
+    const resolvedJoinedYear = data.joined ?? data.joinedYear ?? new Date().getFullYear();
 
-  const created = await prisma.player.create({
-    data: {
-      id: `p-${crypto.randomUUID()}`,
-      fullName: data.fullName,
-      jerseyNumber: data.jerseyNumber,
-      height: data.height ?? 185,
-      weight: data.weight ?? 75,
-      spikeTouch: data.spikeTouch ?? 325,
-      blockTouch: data.blockTouch ?? 310,
-      hometownCountry: data.hometownCountry || 'Việt Nam',
-      countryName: resolvedCountryName,
-      countryCode: resolvedCountryCode,
-      countryFlag: resolvedCountryFlag,
-      bornYear: data.bornYear ?? null,
-      level: data.level,
-      position: data.position,
-      avatarUrl: data.avatarUrl || '',
-      bio: data.bio || '',
-      isCaptain: Boolean(data.isCaptain ?? data.captain),
-      joinedYear: Number(resolvedJoinedYear) || new Date().getFullYear(),
-    },
-  });
-  res.status(201).json(toPlayerDto(created));
+    const created = await prisma.player.create({
+      data: {
+        id: `p-${crypto.randomUUID()}`,
+        fullName: data.fullName,
+        jerseyNumber: data.jerseyNumber,
+        height: data.height ?? 185,
+        weight: data.weight ?? 75,
+        spikeTouch: data.spikeTouch ?? 325,
+        blockTouch: data.blockTouch ?? 310,
+        hometownCountry: data.hometownCountry || 'Việt Nam',
+        countryName: resolvedCountryName,
+        countryCode: resolvedCountryCode,
+        countryFlag: resolvedCountryFlag,
+        bornYear: data.bornYear ?? null,
+        level: data.level,
+        position: data.position,
+        avatarUrl: data.avatarUrl || '',
+        bio: data.bio || '',
+        isCaptain: Boolean(data.isCaptain ?? data.captain),
+        joinedYear: Number(resolvedJoinedYear) || new Date().getFullYear(),
+      },
+    });
+    return res.status(201).json(toPlayerDto(created));
+  } catch (error) {
+    console.error('[API /players Error] POST:', error);
+    throw error;
+  }
 }));
 
 const handleUpdatePlayer = ah(async (req, res) => {
@@ -444,8 +491,14 @@ const handleUpdatePlayer = ah(async (req, res) => {
   if (!existing) {
     return res.status(404).json({ error: 'Player not found' });
   }
-  const data = sanitize(req.body, PLAYER_SCHEMA, { partial: true });
-  const { captain, country, joined, ...rest } = data;
+  const rawBody = req.body && typeof req.body === 'object' ? { ...req.body } : {};
+  if (rawBody.level) {
+    rawBody.level = normalizeSquad(rawBody.level).toUpperCase();
+  } else if (rawBody.squad || rawBody.category || rawBody.team) {
+    rawBody.level = normalizeSquad(rawBody.squad || rawBody.category || rawBody.team).toUpperCase();
+  }
+  const data = sanitize(rawBody, PLAYER_SCHEMA, { partial: true });
+  const { captain, country, joined, squad, category, team, ...rest } = data;
   const resolvedCountryName = rest.countryName ?? country;
   const resolvedCountryCode = rest.countryCode ? rest.countryCode.toUpperCase() : undefined;
   const resolvedCountryFlag =
@@ -482,7 +535,13 @@ app.delete('/api/players/:id', ah(async (req, res) => {
 // Quick level promote/demote (youth <-> junior <-> senior)
 app.patch('/api/players/:id/level', ah(async (req, res) => {
   const { id } = req.params;
-  const { level } = sanitize(req.body, { level: LEVEL_RULE }, { required: ['level'] });
+  const rawBody = req.body && typeof req.body === 'object' ? { ...req.body } : {};
+  if (rawBody.level) {
+    rawBody.level = normalizeSquad(rawBody.level).toUpperCase();
+  } else if (rawBody.squad || rawBody.category || rawBody.team) {
+    rawBody.level = normalizeSquad(rawBody.squad || rawBody.category || rawBody.team).toUpperCase();
+  }
+  const { level } = sanitize(rawBody, { level: LEVEL_RULE }, { required: ['level'] });
   const existing = await prisma.player.findUnique({ where: { id } });
   if (!existing) {
     return res.status(404).json({ error: 'Player not found' });
@@ -525,10 +584,13 @@ app.post('/api/courts', ah(async (req, res) => {
     uniqueCode = `${rawCode || 'COURT'}_${crypto.randomInt(100, 999)}`;
   }
 
+  const rawSubCourts = Array.isArray(data.subCourts) ? data.subCourts : undefined;
   const defaultSchedule = getDefaultWeeklyScheduleForCourt(courtId);
   const resolvedSchedule = data.weeklySchedule
-    ? normalizeWeeklySchedule(data.weeklySchedule, courtId)
-    : defaultSchedule;
+    ? normalizeCourtWeeklySchedule(data.weeklySchedule, courtId, rawSubCourts)
+    : (rawSubCourts && rawSubCourts.length > 1
+        ? normalizeCourtWeeklySchedule(defaultSchedule, courtId, rawSubCourts)
+        : defaultSchedule);
 
   const created = await prisma.court.create({
     data: {
@@ -556,6 +618,7 @@ app.post('/api/courts', ah(async (req, res) => {
       isMaintenance: Boolean(data.status === 'MAINTENANCE' || data.isMaintenance === true || data.isAvailable === false),
       isAvailable: !(data.status === 'MAINTENANCE' || data.isMaintenance === true || data.isAvailable === false),
       isActive: true,
+      subCourts: rawSubCourts || [],
       weeklySchedule: resolvedSchedule as any,
     },
   });
@@ -594,7 +657,7 @@ app.put('/api/courts/:id', ah(async (req, res) => {
           }
         : {}),
       ...(weeklySchedule !== undefined
-        ? { weeklySchedule: normalizeWeeklySchedule(weeklySchedule, id) as any }
+        ? { weeklySchedule: normalizeCourtWeeklySchedule(weeklySchedule, id, rest.subCourts ?? existing.subCourts) as any }
         : {}),
     },
   });
@@ -1008,8 +1071,13 @@ app.post('/api/bookings', ah(async (req, res) => {
   }
 
   // The slot must be one the club actually offers (customers cannot invent time ranges)
-  const courtSchedule = normalizeWeeklySchedule(targetCourt.weeklySchedule, targetCourt.id || targetCourt.code);
-  const scheduleSlot = getScheduleSlotsForCourtAndDate(courtId, bookingDate, courtSchedule).find(
+  const scheduleSlots = getScheduleSlotsForCourtAndDate(
+    courtId,
+    bookingDate,
+    targetCourt.weeklySchedule as any,
+    resolvedSubCourt
+  );
+  const scheduleSlot = scheduleSlots.find(
     (s) => s.start === startTime && s.end === endTime
   );
   if (!scheduleSlot && !staff) {
@@ -1462,8 +1530,17 @@ app.delete('/api/coaches/:id', ah(async (req, res) => {
 
 // 6. Member Application & Auto-Player Promotion
 app.get('/api/members/applications', ah(async (_req, res) => {
-  const dbApps = await prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' } });
-  res.json(dbApps.map(toApplicationDto));
+  try {
+    const dbApps = await prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' } });
+    return res.json(dbApps.map(toApplicationDto));
+  } catch (error) {
+    console.error('[API /members/applications Error]:', error);
+    let fallbackApps = readJsonFileSafe<any[]>('applications.json', INITIAL_MEMBER_APPLICATIONS);
+    if (!Array.isArray(fallbackApps) || fallbackApps.length === 0) {
+      fallbackApps = INITIAL_MEMBER_APPLICATIONS;
+    }
+    return res.json(fallbackApps.map(toApplicationDto));
+  }
 }));
 
 app.post('/api/members/register', ah(async (req, res) => {
@@ -1834,7 +1911,7 @@ app.get('/api/sheets/data', ah(async (_req, res) => {
     ]);
   } catch (error) {
     console.error('[API ERROR] GET /api/sheets/data:', error);
-    apps = readJsonFileSafe<any[]>('applications.json', []).slice(0, 100);
+    apps = readJsonFileSafe<any[]>('applications.json', INITIAL_MEMBER_APPLICATIONS).slice(0, 100);
     bookingsList = readJsonFileSafe<any[]>('bookings.json', []).slice(0, 100);
     regs = readJsonFileSafe<any[]>('trainingRegistrations.json', []).slice(0, 100);
   }
@@ -1860,7 +1937,7 @@ app.get('/api/sheets/data', ah(async (_req, res) => {
         Full_Name: a.fullName,
         DOB: a.dob,
         Position: a.position,
-        Level: a.level,
+        Level: normalizeSquad(a.level).toUpperCase(),
         Height_cm: a.height,
         Weight_kg: a.weight,
         Spike_Reach_cm: a.spikeReach,

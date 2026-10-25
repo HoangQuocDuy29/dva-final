@@ -59,7 +59,26 @@ export const INITIAL_COURTS: Court[] = [
     isAvailable: true,
     isActive: true,
     subCourts: ['Sân A', 'Sân B'],
-    weeklySchedule: getDefaultWeeklyScheduleForCourt('court-btl'),
+    weeklySchedule: {
+      'Sân A': {
+        monday: ['17:30 - 19:00', '19:00 - 21:30'],
+        tuesday: ['17:30 - 19:00'],
+        wednesday: ['17:30 - 19:00', '19:00 - 21:30'],
+        thursday: ['17:30 - 19:00'],
+        friday: ['17:30 - 19:00', '19:00 - 21:30'],
+        saturday: ['17:30 - 19:00', '19:00 - 21:30'],
+        sunday: ['10:00 - 12:00', '14:00 - 17:00'],
+      },
+      'Sân B': {
+        monday: ['18:00 - 20:00', '20:00 - 22:00'],
+        tuesday: ['18:00 - 20:00'],
+        wednesday: ['18:00 - 20:00', '20:00 - 22:00'],
+        thursday: ['18:00 - 20:00'],
+        friday: ['18:00 - 20:00', '20:00 - 22:00'],
+        saturday: ['18:00 - 20:00', '20:00 - 22:00'],
+        sunday: ['12:00 - 14:00', '17:00 - 19:00'],
+      },
+    },
   },
   {
     id: 'court-thecong',

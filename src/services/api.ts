@@ -23,7 +23,7 @@ import {
   INITIAL_TRAINING_COURSES, 
   INITIAL_MEMBER_APPLICATIONS 
 } from '../data/mockData';
-import { getDefaultWeeklyScheduleForCourt } from '../shared/schedule';
+import { getDefaultWeeklyScheduleForCourt, normalizeCourtWeeklySchedule } from '../shared/schedule';
 
 const BASE_URL = '/api';
 const TOKEN_KEY = 'dva_token';
@@ -267,12 +267,35 @@ export const playerService = {
 export const courtService = {
   async getCourts(): Promise<Court[]> {
     const saved = localStorage.getItem('dva_courts');
-    const fallback = saved ? JSON.parse(saved) : INITIAL_COURTS;
-    const res = await request<Court[]>('/courts', {}, fallback);
-    if (Array.isArray(res) && res.length > 0) {
-      localStorage.setItem('dva_courts', JSON.stringify(res));
+    let fallback = INITIAL_COURTS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          fallback = parsed;
+        }
+      } catch {
+        fallback = INITIAL_COURTS;
+      }
     }
-    return res;
+    const res = await request<Court[]>('/courts', {}, fallback);
+    const cleaned = (Array.isArray(res) && res.length > 0 ? res : fallback).map((c) => {
+      const subs = c.subCourts?.length
+        ? c.subCourts
+        : (c.id === 'court-btl' || c.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []);
+      const initMatch = INITIAL_COURTS.find((ic) => ic.id === c.id);
+      return {
+        ...c,
+        subCourts: subs.length > 0 ? subs : undefined,
+        weeklySchedule: normalizeCourtWeeklySchedule(
+          c.weeklySchedule || initMatch?.weeklySchedule,
+          c.id,
+          subs
+        ),
+      };
+    });
+    localStorage.setItem('dva_courts', JSON.stringify(cleaned));
+    return cleaned;
   },
 
   async createCourt(courtData: Partial<Court>): Promise<Court> {
@@ -293,7 +316,10 @@ export const courtService = {
       imageUrl: courtData.imageUrl || '/courts/btl.png',
       isAvailable: courtData.isAvailable !== false,
       isActive: true,
-      weeklySchedule: courtData.weeklySchedule || getDefaultWeeklyScheduleForCourt(id),
+      subCourts: courtData.subCourts,
+      weeklySchedule: courtData.weeklySchedule || (courtData.subCourts && courtData.subCourts.length > 1
+        ? normalizeCourtWeeklySchedule(getDefaultWeeklyScheduleForCourt(id), id, courtData.subCourts)
+        : getDefaultWeeklyScheduleForCourt(id)),
     };
 
     const res = await request<Court>(

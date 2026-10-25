@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Shield, 
@@ -54,6 +54,7 @@ import {
   ClosedSlot,
   DayOfWeekKey,
   WeeklySchedule,
+  CourtWeeklySchedule,
   DAYS_OF_WEEK,
   PLAYER_COUNTRIES,
   countryCodeToFlagEmoji
@@ -75,6 +76,9 @@ import {
   getDefaultWeeklyScheduleForCourt,
   getScheduleSlotsForCourtAndDate,
   normalizeWeeklySchedule,
+  normalizeCourtWeeklySchedule,
+  isMultiCourtWeeklySchedule,
+  getSlotsForSubCourt,
   parseSlotLabel,
 } from '../shared/schedule';
 import { uploadToCloudinary, buildCloudinaryFolder } from '../utils/cloudinary';
@@ -314,6 +318,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   const [isCourtModalOpen, setIsCourtModalOpen] = useState<boolean>(false);
   const [editingCourt, setEditingCourt] = useState<Court | null>(null);
   const [selectedScheduleDay, setSelectedScheduleDay] = useState<DayOfWeekKey>('monday');
+  const [modalSubCourtTab, setModalSubCourtTab] = useState<string>('Sân A');
+  const [subCourtsInput, setSubCourtsInput] = useState<string>('');
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [newSlotInput, setNewSlotInput] = useState<string>('18:00 - 20:00');
   const [isUploadingCourtImage, setIsUploadingCourtImage] = useState<boolean>(false);
   const [togglingCourtId, setTogglingCourtId] = useState<string | null>(null);
@@ -331,6 +338,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
     isMaintenance: false,
     isAvailable: true,
     isActive: true,
+    subCourts: [],
     weeklySchedule: getDefaultWeeklyScheduleForCourt(),
   });
 
@@ -363,16 +371,21 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
           .filter((fc) => fc.isActive !== false)
           .map((fc) => {
             const local = INITIAL_COURTS.find((ic) => ic.id === fc.id);
+            const subs = (fc.subCourts && fc.subCourts.length > 0)
+              ? fc.subCourts
+              : (local?.subCourts && local.subCourts.length > 0 ? local.subCourts : (fc.id === 'court-btl' || fc.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []));
             return local
               ? {
                   ...local,
                   ...fc,
+                  subCourts: subs,
                   imageUrl: fc.imageUrl || local.imageUrl,
-                  weeklySchedule: normalizeWeeklySchedule(fc.weeklySchedule ?? local.weeklySchedule, fc.id),
+                  weeklySchedule: normalizeCourtWeeklySchedule(fc.weeklySchedule ?? local.weeklySchedule, fc.id, subs),
                 }
               : {
                   ...fc,
-                  weeklySchedule: normalizeWeeklySchedule(fc.weeklySchedule, fc.id),
+                  subCourts: subs,
+                  weeklySchedule: normalizeCourtWeeklySchedule(fc.weeklySchedule, fc.id, subs),
                 };
           });
         setCourtsList(activeCourts);
@@ -636,10 +649,29 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   };
 
   // Court CRUD & Weekly Schedule handlers
+  const modalSubCourts: string[] = React.useMemo(() => {
+    if (courtForm.subCourts && courtForm.subCourts.length > 0) {
+      return courtForm.subCourts;
+    }
+    if (
+      courtForm.id === 'court-btl' ||
+      courtForm.code === 'BTL_TT' ||
+      editingCourt?.id === 'court-btl' ||
+      editingCourt?.code === 'BTL_TT'
+    ) {
+      return ['Sân A', 'Sân B'];
+    }
+    return [];
+  }, [courtForm.subCourts, courtForm.id, courtForm.code, editingCourt]);
+
+  const hasMultipleSubCourts = modalSubCourts.length > 1;
+
   const handleOpenAddCourtModal = () => {
     setEditingCourt(null);
     setSelectedScheduleDay('monday');
     setNewSlotInput('17:30 - 19:30');
+    setSubCourtsInput('');
+    setCopyFeedback(null);
     setCourtForm({
       name: '',
       code: '',
@@ -652,8 +684,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
       imageUrl: '/courts/btl.png',
       isAvailable: true,
       isActive: true,
+      subCourts: [],
       weeklySchedule: getDefaultWeeklyScheduleForCourt(),
     });
+    setModalSubCourtTab('');
     setIsCourtModalOpen(true);
   };
 
@@ -661,29 +695,83 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
     setEditingCourt(court);
     setSelectedScheduleDay('monday');
     setNewSlotInput('18:00 - 20:00');
+    setCopyFeedback(null);
+    const courtSubCourts = (court.subCourts && court.subCourts.length > 0)
+      ? court.subCourts
+      : (court.id === 'court-btl' || court.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []);
+    setSubCourtsInput(courtSubCourts.join(', '));
+
+    // Backward compatibility: If court has multiple subCourts, map schedule into nested format
+    const normalizedSchedule = normalizeCourtWeeklySchedule(court.weeklySchedule, court.id, courtSubCourts);
+
     setCourtForm({
       ...court,
+      subCourts: courtSubCourts,
       address: court.address || 'DVA Sports Center, Hà Nội',
       hourlyRate: Number(court.hourlyRate) || 500000,
-      weeklySchedule: normalizeWeeklySchedule(court.weeklySchedule, court.id),
+      weeklySchedule: normalizedSchedule,
     });
+    setModalSubCourtTab(courtSubCourts.length > 1 ? courtSubCourts[0] : '');
     setIsCourtModalOpen(true);
+  };
+
+  const handleSubCourtsInputChange = (val: string) => {
+    setSubCourtsInput(val);
+    const parsed = val.split(',').map((s) => s.trim()).filter(Boolean);
+    const updatedSubCourts = parsed;
+    const reNormalized = normalizeCourtWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id, updatedSubCourts);
+    setCourtForm((prev) => ({
+      ...prev,
+      subCourts: updatedSubCourts,
+      weeklySchedule: reNormalized,
+    }));
+    if (updatedSubCourts.length > 1) {
+      if (!updatedSubCourts.includes(modalSubCourtTab) && modalSubCourtTab !== '__ALL__') {
+        setModalSubCourtTab(updatedSubCourts[0]);
+      }
+    } else {
+      setModalSubCourtTab('');
+    }
   };
 
   const handleSaveCourt = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!courtForm.name?.trim()) return;
     try {
+      const resolvedSubs = modalSubCourts.length > 0 ? modalSubCourts : undefined;
+
+      // Merge state of all sub-courts carefully so inactive sub-court is never dropped or cleared
+      let finalSchedule: CourtWeeklySchedule;
+      if (modalSubCourts.length > 1) {
+        const existingSchedule = (editingCourt?.weeklySchedule && typeof editingCourt.weeklySchedule === 'object')
+          ? editingCourt.weeklySchedule as Record<string, any>
+          : {};
+        const formSchedule = (courtForm.weeklySchedule && typeof courtForm.weeklySchedule === 'object')
+          ? courtForm.weeklySchedule as Record<string, any>
+          : {};
+
+        const merged: Record<string, WeeklySchedule> = {};
+        for (const sc of modalSubCourts) {
+          const scSched = formSchedule[sc] || existingSchedule[sc] || getDefaultWeeklyScheduleForCourt(editingCourt?.id, sc);
+          merged[sc] = normalizeWeeklySchedule(scSched, editingCourt?.id, sc);
+        }
+        finalSchedule = merged;
+      } else {
+        finalSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
+      }
+
       const payload: Partial<Court> = {
         ...courtForm,
         name: courtForm.name.trim(),
         address: (courtForm.address || 'DVA Sports Center, Hà Nội').trim(),
         hourlyRate: Math.round(Number(courtForm.hourlyRate) || 500000),
-        weeklySchedule: normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id),
+        subCourts: resolvedSubs,
+        weeklySchedule: finalSchedule,
       };
 
       if (editingCourt) {
         const updated = await courtService.updateCourt(editingCourt.id, payload);
+        const nextSubs = payload.subCourts || [];
         setCourtsList((prev) =>
           prev.map((c) =>
             c.id === editingCourt.id
@@ -691,7 +779,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                   ...c,
                   ...payload,
                   ...updated,
-                  weeklySchedule: normalizeWeeklySchedule(updated.weeklySchedule ?? payload.weeklySchedule, c.id),
+                  subCourts: nextSubs,
+                  weeklySchedule: normalizeCourtWeeklySchedule(updated.weeklySchedule ?? payload.weeklySchedule, c.id, nextSubs),
                 }
               : c
           )
@@ -699,9 +788,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
         setFeedback(`Đã cập nhật sân "${payload.name}" và lịch hoạt động hàng tuần!`);
       } else {
         const created = await courtService.createCourt(payload);
+        const nextSubs = payload.subCourts || [];
         const normalizedCreated: Court = {
           ...created,
-          weeklySchedule: normalizeWeeklySchedule(created.weeklySchedule ?? payload.weeklySchedule, created.id),
+          subCourts: nextSubs,
+          weeklySchedule: normalizeCourtWeeklySchedule(created.weeklySchedule ?? payload.weeklySchedule, created.id, nextSubs),
         };
         setCourtsList((prev) => [...prev, normalizedCreated]);
         setSelectedManageCourtId(normalizedCreated.id);
@@ -756,7 +847,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                 status: nextMaint ? 'MAINTENANCE' : 'ACTIVE',
                 isMaintenance: nextMaint,
                 isAvailable: !nextMaint,
-                weeklySchedule: normalizeWeeklySchedule(updated.weeklySchedule ?? c.weeklySchedule, c.id),
+                weeklySchedule: normalizeCourtWeeklySchedule(updated.weeklySchedule ?? c.weeklySchedule, c.id, c.subCourts),
               }
             : c
         )
@@ -774,6 +865,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
     }
   };
 
+  const getModalDaySlots = (dayKey: DayOfWeekKey): string[] => {
+    if (hasMultipleSubCourts) {
+      const activeSc = modalSubCourtTab === '__ALL__' ? modalSubCourts[0] : (modalSubCourtTab || modalSubCourts[0]);
+      return getSlotsForSubCourt(courtForm.weeklySchedule, dayKey, activeSc);
+    }
+    return getSlotsForSubCourt(courtForm.weeklySchedule, dayKey);
+  };
+
   const handleAddSlotToDay = () => {
     const clean = newSlotInput.trim();
     if (!clean) return;
@@ -781,48 +880,164 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
       alert('Vui lòng nhập đúng định dạng khung giờ "HH:mm - HH:mm" (Ví dụ: 17:30 - 19:30 hoặc 18:00 - 20:00).');
       return;
     }
-    const currentSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
-    const daySlots = currentSchedule[selectedScheduleDay] || [];
-    if (daySlots.includes(clean)) {
-      alert('Khung giờ này đã tồn tại trong ngày đã chọn.');
-      return;
+    if (hasMultipleSubCourts) {
+      const prevNested = (courtForm.weeklySchedule || {}) as Record<string, WeeklySchedule>;
+      const nextNested: Record<string, WeeklySchedule> = {};
+      for (const sc of modalSubCourts) {
+        nextNested[sc] = { ...(prevNested[sc] || getDefaultWeeklyScheduleForCourt(editingCourt?.id, sc)) };
+      }
+
+      if (modalSubCourtTab === '__ALL__') {
+        for (const sc of modalSubCourts) {
+          const daySlots = nextNested[sc][selectedScheduleDay] || [];
+          if (!daySlots.includes(clean)) {
+            nextNested[sc] = {
+              ...nextNested[sc],
+              [selectedScheduleDay]: [...daySlots, clean],
+            };
+          }
+        }
+      } else {
+        const activeSc = modalSubCourtTab || modalSubCourts[0];
+        const scSched = nextNested[activeSc] || getDefaultWeeklyScheduleForCourt(editingCourt?.id, activeSc);
+        const daySlots = scSched[selectedScheduleDay] || [];
+        if (daySlots.includes(clean)) {
+          alert(`Khung giờ này đã tồn tại trong ngày đã chọn của ${activeSc}.`);
+          return;
+        }
+        nextNested[activeSc] = {
+          ...scSched,
+          [selectedScheduleDay]: [...daySlots, clean],
+        };
+      }
+      setCourtForm({ ...courtForm, weeklySchedule: nextNested });
+    } else {
+      const currentSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
+      const daySlots = currentSchedule[selectedScheduleDay] || [];
+      if (daySlots.includes(clean)) {
+        alert('Khung giờ này đã tồn tại trong ngày đã chọn.');
+        return;
+      }
+      setCourtForm({
+        ...courtForm,
+        weeklySchedule: {
+          ...currentSchedule,
+          [selectedScheduleDay]: [...daySlots, clean],
+        },
+      });
     }
-    setCourtForm({
-      ...courtForm,
-      weeklySchedule: {
-        ...currentSchedule,
-        [selectedScheduleDay]: [...daySlots, clean],
-      },
-    });
     setNewSlotInput('');
   };
 
-  const handleRemoveSlotFromDay = (dayKey: DayOfWeekKey, index: number) => {
-    const currentSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
-    const daySlots = currentSchedule[dayKey] || [];
-    setCourtForm({
-      ...courtForm,
-      weeklySchedule: {
-        ...currentSchedule,
-        [dayKey]: daySlots.filter((_, idx) => idx !== index),
-      },
-    });
+  const handleRemoveSlotFromDay = (dayKey: DayOfWeekKey, index: number, slotValue?: string) => {
+    if (hasMultipleSubCourts) {
+      const prevNested = (courtForm.weeklySchedule || {}) as Record<string, WeeklySchedule>;
+      const nextNested: Record<string, WeeklySchedule> = {};
+      for (const sc of modalSubCourts) {
+        nextNested[sc] = { ...(prevNested[sc] || getDefaultWeeklyScheduleForCourt(editingCourt?.id, sc)) };
+      }
+
+      if (modalSubCourtTab === '__ALL__') {
+        for (const sc of modalSubCourts) {
+          const daySlots = nextNested[sc][dayKey] || [];
+          nextNested[sc] = {
+            ...nextNested[sc],
+            [dayKey]: daySlots.filter((s, idx) => (slotValue ? s !== slotValue : idx !== index)),
+          };
+        }
+      } else {
+        const activeSc = modalSubCourtTab || modalSubCourts[0];
+        const scSched = nextNested[activeSc] || getDefaultWeeklyScheduleForCourt(editingCourt?.id, activeSc);
+        const daySlots = scSched[dayKey] || [];
+        nextNested[activeSc] = {
+          ...scSched,
+          [dayKey]: daySlots.filter((_, idx) => idx !== index),
+        };
+      }
+      setCourtForm({ ...courtForm, weeklySchedule: nextNested });
+    } else {
+      const currentSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
+      const daySlots = currentSchedule[dayKey] || [];
+      setCourtForm({
+        ...courtForm,
+        weeklySchedule: {
+          ...currentSchedule,
+          [dayKey]: daySlots.filter((_, idx) => idx !== index),
+        },
+      });
+    }
   };
 
   const handleCopyDayScheduleToWeekdays = (sourceDay: DayOfWeekKey) => {
-    const currentSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
-    const sourceSlots = [...(currentSchedule[sourceDay] || [])];
-    setCourtForm({
-      ...courtForm,
-      weeklySchedule: {
-        ...currentSchedule,
-        monday: [...sourceSlots],
-        tuesday: [...sourceSlots],
-        wednesday: [...sourceSlots],
-        thursday: [...sourceSlots],
-        friday: [...sourceSlots],
-      },
-    });
+    if (hasMultipleSubCourts) {
+      const prevNested = (courtForm.weeklySchedule || {}) as Record<string, WeeklySchedule>;
+      const nextNested: Record<string, WeeklySchedule> = {};
+      for (const sc of modalSubCourts) {
+        nextNested[sc] = { ...(prevNested[sc] || getDefaultWeeklyScheduleForCourt(editingCourt?.id, sc)) };
+      }
+
+      if (modalSubCourtTab === '__ALL__') {
+        for (const sc of modalSubCourts) {
+          const sourceSlots = [...(nextNested[sc][sourceDay] || [])];
+          nextNested[sc] = {
+            ...nextNested[sc],
+            monday: [...sourceSlots],
+            tuesday: [...sourceSlots],
+            wednesday: [...sourceSlots],
+            thursday: [...sourceSlots],
+            friday: [...sourceSlots],
+          };
+        }
+        setCopyFeedback(`Đã sao chép lịch ${DAYS_OF_WEEK.find((d) => d.key === sourceDay)?.shortVi} sang T2 - T6 cho tất cả các sân!`);
+      } else {
+        const activeSc = modalSubCourtTab || modalSubCourts[0];
+        const scSched = nextNested[activeSc] || getDefaultWeeklyScheduleForCourt(editingCourt?.id, activeSc);
+        const sourceSlots = [...(scSched[sourceDay] || [])];
+        nextNested[activeSc] = {
+          ...scSched,
+          monday: [...sourceSlots],
+          tuesday: [...sourceSlots],
+          wednesday: [...sourceSlots],
+          thursday: [...sourceSlots],
+          friday: [...sourceSlots],
+        };
+        setCopyFeedback(`Đã sao chép lịch ${DAYS_OF_WEEK.find((d) => d.key === sourceDay)?.shortVi} sang T2 - T6 cho ${activeSc}!`);
+      }
+      setCourtForm({ ...courtForm, weeklySchedule: nextNested });
+      setTimeout(() => setCopyFeedback(null), 3000);
+    } else {
+      const currentSchedule = normalizeWeeklySchedule(courtForm.weeklySchedule, editingCourt?.id);
+      const sourceSlots = [...(currentSchedule[sourceDay] || [])];
+      setCourtForm({
+        ...courtForm,
+        weeklySchedule: {
+          ...currentSchedule,
+          monday: [...sourceSlots],
+          tuesday: [...sourceSlots],
+          wednesday: [...sourceSlots],
+          thursday: [...sourceSlots],
+          friday: [...sourceSlots],
+        },
+      });
+      setCopyFeedback(`Đã sao chép lịch ${DAYS_OF_WEEK.find((d) => d.key === sourceDay)?.shortVi} sang T2 - T6!`);
+      setTimeout(() => setCopyFeedback(null), 3000);
+    }
+  };
+
+  const handleCopyScheduleToOtherSubCourts = (sourceSubCourt: string) => {
+    if (!hasMultipleSubCourts) return;
+    const prevNested = (courtForm.weeklySchedule || {}) as Record<string, WeeklySchedule>;
+    const sourceSchedule = prevNested[sourceSubCourt] || getDefaultWeeklyScheduleForCourt(editingCourt?.id, sourceSubCourt);
+    const otherSubCourts = modalSubCourts.filter((sc) => sc !== sourceSubCourt);
+    if (otherSubCourts.length === 0) return;
+
+    const nextNested = { ...prevNested };
+    for (const sc of otherSubCourts) {
+      nextNested[sc] = JSON.parse(JSON.stringify(sourceSchedule));
+    }
+    setCourtForm({ ...courtForm, weeklySchedule: nextNested });
+    setCopyFeedback(`Đã sao chép toàn bộ lịch tuần của ${sourceSubCourt} sang ${otherSubCourts.join(', ')}!`);
+    setTimeout(() => setCopyFeedback(null), 3500);
   };
 
   // Course CRUD handlers
@@ -1193,11 +1408,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {courtsList.map((court) => {
+                  const courtSubCourts = court.subCourts?.length
+                    ? court.subCourts
+                    : (court.id === 'court-btl' || court.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []);
+                  const isMultiSubs = courtSubCourts.length > 1;
+                  const totalWeeklySlots = isMultiSubs
+                    ? courtSubCourts.reduce(
+                        (total, sc) =>
+                          total + DAYS_OF_WEEK.reduce((acc, d) => acc + getSlotsForSubCourt(court.weeklySchedule, d.key, sc).length, 0),
+                        0
+                      )
+                    : DAYS_OF_WEEK.reduce((acc, d) => acc + getSlotsForSubCourt(court.weeklySchedule, d.key).length, 0);
                   const schedule = normalizeWeeklySchedule(court.weeklySchedule, court.id);
-                  const totalWeeklySlots = DAYS_OF_WEEK.reduce(
-                    (acc, d) => acc + (schedule[d.key]?.length || 0),
-                    0
-                  );
                   const isMaintenance = Boolean(
                     court.isMaintenance === true || court.status === 'MAINTENANCE' || court.isAvailable === false
                   );
@@ -1422,7 +1644,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                 const slots = getScheduleSlotsForCourtAndDate(
                   selectedManageCourtId,
                   selectedManageDate,
-                  selectedManageCourt?.weeklySchedule
+                  selectedManageCourt?.weeklySchedule,
+                  manageCourtHasSubCourts ? adminSelectedSubCourt : undefined
                 );
 
                 return (
@@ -4372,6 +4595,22 @@ function doGet(e) {
               </div>
 
               <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Danh Sách Sân Con (Sub-Courts)
+                </label>
+                <input
+                  type="text"
+                  value={subCourtsInput}
+                  onChange={(e) => handleSubCourtsInputChange(e.target.value)}
+                  placeholder="VD: Sân A, Sân B (để trống nếu cơ sở chỉ có 1 sân đơn)"
+                  className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:border-orange-500 font-mono text-xs"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Cơ sở có từ 2 sân con trở lên (VD: BTL Thông Tin) sẽ tự động mở tab thiết lập lịch riêng biệt cho từng sân. Để trống hoặc 1 sân sẽ áp dụng giao diện đơn giản thông thường.
+                </p>
+              </div>
+
+              <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <div>
                     <label className="block text-slate-300 font-semibold">Ảnh Đại Diện Sân</label>
@@ -4441,24 +4680,134 @@ function doGet(e) {
                       Thiết Lập Lịch Tuần (Weekly Schedule Settings)
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Chọn thứ trong tuần và thêm/xóa các khung ca tập trong ngày đó
+                      {hasMultipleSubCourts
+                        ? `Cơ sở có ${modalSubCourts.length} sân con. Chọn sân con và thứ trong tuần để cấu hình khung ca riêng biệt.`
+                        : 'Chọn thứ trong tuần và thêm/xóa các khung ca tập trong ngày đó'}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyDayScheduleToWeekdays(selectedScheduleDay)}
-                    className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-[10px] cursor-pointer transition-all self-start sm:self-auto"
-                    title="Sao chép các ca của thứ đang chọn sang Thứ 2 -> Thứ 6"
-                  >
-                    Sao chép sang T2 - T6
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                    {/* Copy Day Schedule to Weekdays */}
+                    <button
+                      type="button"
+                      onClick={() => handleCopyDayScheduleToWeekdays(selectedScheduleDay)}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-[10px] cursor-pointer transition-all flex items-center gap-1.5"
+                      title={`Sao chép các ca của ${DAYS_OF_WEEK.find((d) => d.key === selectedScheduleDay)?.labelVi} sang Thứ 2 -> Thứ 6`}
+                    >
+                      <Copy className="w-3 h-3 text-slate-400" />
+                      <span>
+                        Sao chép sang T2 - T6
+                        {hasMultipleSubCourts && modalSubCourtTab !== '__ALL__' ? ` (${modalSubCourtTab})` : ''}
+                      </span>
+                    </button>
+
+                    {/* Copy full weekly schedule to other sub-court */}
+                    {hasMultipleSubCourts && modalSubCourtTab !== '__ALL__' && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyScheduleToOtherSubCourts(modalSubCourtTab)}
+                        className="px-2.5 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 font-bold text-[10px] cursor-pointer transition-all flex items-center gap-1.5"
+                        title={`Sao chép toàn bộ lịch tuần của ${modalSubCourtTab} sang ${modalSubCourts.filter((sc) => sc !== modalSubCourtTab).join(', ')}`}
+                      >
+                        <Copy className="w-3 h-3 text-orange-400" />
+                        <span>
+                          Sao chép lịch sang {modalSubCourts.filter((sc) => sc !== modalSubCourtTab).length === 1
+                            ? modalSubCourts.filter((sc) => sc !== modalSubCourtTab)[0]
+                            : 'sân còn lại'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Inline Copy Feedback */}
+                {copyFeedback && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                    <span>{copyFeedback}</span>
+                  </div>
+                )}
+
+                {/* 1. Conditional Sub-court Tabs if hasMultipleSubCourts */}
+                {hasMultipleSubCourts && (
+                  <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                        Chọn Sân Con Để Cấu Hình:
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {modalSubCourts.length} sân con độc lập
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {modalSubCourts.map((sc) => {
+                        const isTabActive = modalSubCourtTab === sc;
+                        const totalSlots = DAYS_OF_WEEK.reduce(
+                          (acc, d) => acc + getSlotsForSubCourt(courtForm.weeklySchedule, d.key, sc).length,
+                          0
+                        );
+                        return (
+                          <button
+                            key={sc}
+                            type="button"
+                            onClick={() => setModalSubCourtTab(sc)}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                              isTabActive
+                                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20 ring-1 ring-orange-400'
+                                : 'bg-[#121826] text-slate-400 hover:text-white border border-slate-700/80 hover:border-slate-600'
+                            }`}
+                          >
+                            <span>{sc}</span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                                isTabActive ? 'bg-black/35 text-white' : 'bg-slate-800 text-slate-400'
+                              }`}
+                            >
+                              {totalSlots} ca
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      {/* Tab: Áp dụng tất cả */}
+                      <button
+                        type="button"
+                        onClick={() => setModalSubCourtTab('__ALL__')}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          modalSubCourtTab === '__ALL__'
+                            ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20 ring-1 ring-indigo-400'
+                            : 'bg-[#121826] text-slate-400 hover:text-white border border-slate-700/80 hover:border-slate-600'
+                        }`}
+                      >
+                        <CheckCheck className="w-3.5 h-3.5" />
+                        <span>Áp dụng tất cả</span>
+                      </button>
+                    </div>
+
+                    {modalSubCourtTab === '__ALL__' ? (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px]">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+                        <span>
+                          Chế độ áp dụng chung: Thao tác thêm hoặc xóa ca sẽ đồng thời áp dụng cho tất cả các sân ({modalSubCourts.join(', ')}).
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                        <span>
+                          Đang xem và sửa khung giờ của: <strong className="text-orange-400">{modalSubCourtTab}</strong>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Day Tabs (Monday -> Sunday) */}
                 <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
                   {DAYS_OF_WEEK.map((day) => {
                     const isSelected = selectedScheduleDay === day.key;
-                    const slotCount = (courtForm.weeklySchedule?.[day.key] || []).length;
+                    const daySlots = getModalDaySlots(day.key);
+                    const slotCount = daySlots.length;
                     return (
                       <button
                         key={day.key}
@@ -4485,19 +4834,24 @@ function doGet(e) {
                       <span className="text-orange-400">
                         {DAYS_OF_WEEK.find((d) => d.key === selectedScheduleDay)?.labelVi}
                       </span>
+                      {hasMultipleSubCourts && (
+                        <span className="text-slate-400 font-normal ml-1">
+                          ({modalSubCourtTab === '__ALL__' ? 'Tất cả sân con' : modalSubCourtTab})
+                        </span>
+                      )}
                     </span>
                     <span className="text-[11px] text-slate-400">
-                      {(courtForm.weeklySchedule?.[selectedScheduleDay] || []).length} khung giờ
+                      {getModalDaySlots(selectedScheduleDay).length} khung giờ
                     </span>
                   </div>
 
-                  {(courtForm.weeklySchedule?.[selectedScheduleDay] || []).length === 0 ? (
+                  {getModalDaySlots(selectedScheduleDay).length === 0 ? (
                     <div className="py-5 text-center border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
-                      Chưa có khung ca nào cho ngày này. Nhập khung giờ bên dưới và bấm "+ Thêm ca".
+                      Chưa có khung ca nào cho ngày này{hasMultipleSubCourts && modalSubCourtTab !== '__ALL__' ? ` của ${modalSubCourtTab}` : ''}. Nhập khung giờ bên dưới và bấm "+ Thêm ca".
                     </div>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {(courtForm.weeklySchedule?.[selectedScheduleDay] || []).map((slot, slotIdx) => (
+                      {getModalDaySlots(selectedScheduleDay).map((slot, slotIdx) => (
                         <div
                           key={`${slot}-${slotIdx}`}
                           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs font-bold"
@@ -4506,7 +4860,7 @@ function doGet(e) {
                           <span>{slot}</span>
                           <button
                             type="button"
-                            onClick={() => handleRemoveSlotFromDay(selectedScheduleDay, slotIdx)}
+                            onClick={() => handleRemoveSlotFromDay(selectedScheduleDay, slotIdx, slot)}
                             className="w-4 h-4 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
                             title="Xóa ca này"
                           >
