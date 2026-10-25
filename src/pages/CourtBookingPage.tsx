@@ -813,7 +813,7 @@ const CourtBookingContent: React.FC = () => {
                             </span>
                           </span>
                           <span className="text-[10px] text-slate-400">
-                            Sân độc lập tiêu chuẩn FIVB
+                            Sân độc lập tiêu chuẩn
                           </span>
                         </div>
                       </div>

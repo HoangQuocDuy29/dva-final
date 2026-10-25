@@ -131,7 +131,7 @@ export const HomePage: React.FC = () => {
                       DVA SPORTS ARENA
                     </div>
                     <p className="text-xs text-slate-300">
-                      1200 Lux Glare-Free Arena Lighting · FIVB Antenna Nets
+                      1200 Lux Glare-Free Arena Lighting · Antenna Nets
                     </p>
                   </div>
 
@@ -181,7 +181,7 @@ export const HomePage: React.FC = () => {
                 03
               </div>
               <div className="text-xs font-bold text-slate-300 mt-1 uppercase tracking-wide">
-                FIVB Regulation Courts
+                 Regulation Courts
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">Central Court, Court 1 & 2</div>
             </div>
@@ -280,7 +280,7 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-500 block">Formation:</span>
-                  <span className="font-bold text-emerald-400">FIVB 5-1</span>
+                  <span className="font-bold text-emerald-400">5-1</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Avg Height:</span>
