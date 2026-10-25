@@ -81,7 +81,7 @@ export const Footer: React.FC = () => {
               {[
                 { label: 'Squad Rosters', path: '/players' },
                 { label: 'Court Booking', path: '/services/court-booking' },
-                { label: 'Academy & Scrimmage', path: '/services/training' },
+                { label: 'Training & Scrimmage', path: '/services/training' },
                 { label: 'Fees & Schedules', path: '/information' },
                 { label: 'Club Bulletin & News', path: '/news' },
                 { label: 'Join DVA Squad', path: '/register' },

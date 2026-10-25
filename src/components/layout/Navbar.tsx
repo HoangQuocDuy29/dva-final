@@ -49,7 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { label: 'Home', path: '/' },
     { label: 'Players', path: '/players' },
     { label: 'Court Booking', path: '/services/court-booking' },
-    { label: 'Training & Academy', path: '/services/training' },
+    { label: 'Training & Scrimmage', path: '/services/training' },
     { label: 'Club Info & Fees', path: '/information' },
     { label: 'News', path: '/news' },
   ];

@@ -22,6 +22,21 @@ import { TrainingCourse, CoachProfile } from '../types';
 import { trainingService, coachService, googleScriptSyncService } from '../services/api';
 import { INITIAL_TRAINING_COURSES, INITIAL_COACHES } from '../data/mockData';
 
+/** Đơn vị học phí: ưu tiên `priceUnit` do admin nhập; nếu trống thì suy ra gói năm. */
+const getPriceUnitLabel = (course: TrainingCourse): string => {
+  if (course.priceUnit && course.priceUnit.trim()) {
+    const unit = course.priceUnit.trim();
+    return unit.startsWith('/') ? unit : `/ ${unit}`;
+  }
+  const title = (course.title || '').toLowerCase();
+  const isYearly =
+    course.id?.includes('annual') ||
+    title.includes('annual') ||
+    title.includes('year') ||
+    course.price >= 10000000;
+  return isYearly ? '/ year' : '/ session';
+};
+
 export const TrainingPage: React.FC = () => {
   const [courses, setCourses] = useState<TrainingCourse[]>(INITIAL_TRAINING_COURSES);
   const [coaches, setCoaches] = useState<CoachProfile[]>(INITIAL_COACHES);
@@ -47,6 +62,14 @@ export const TrainingPage: React.FC = () => {
   const [copiedAmount, setCopiedAmount] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = 'Training & Scrimmage | DVA Volleyball';
+    return () => {
+      document.title = previousTitle;
+    };
+  }, []);
 
   useEffect(() => {
     trainingService.getCourses().then((res) => {
@@ -193,10 +216,10 @@ export const TrainingPage: React.FC = () => {
             DVA Scrimmage & Coaching
           </span>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white font-heading tracking-tight">
-            Scrimmage Matchplay & Technical Training Programs
+            Training & Scrimmage
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-3xl leading-relaxed">
-            From open social scrimmages to focused skill-training sessions. Played on standard indoor mat courts with official Mikasa V200W balls. Quick and easy sign-up—no login required.
+            Weekly open scrimmages, structured skill training, and dedicated player support.
           </p>
         </div>
 
@@ -209,13 +232,11 @@ export const TrainingPage: React.FC = () => {
                 Published Scrimmage & Coaching Packages
               </h2>
             </div>
-            <span className="text-xs text-slate-400 font-mono">
-              6 official training packages available
-            </span>
+            
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
-            {courses.map((course) => {
+            {[...courses].sort((a, b) => Number(a.price || 0) - Number(b.price || 0)).map((course) => {
               const isPrivate1on1 = course.id === 'tc-1on1-mastery';
               return (
                 <div
@@ -285,29 +306,38 @@ export const TrainingPage: React.FC = () => {
                   </div>
 
                   {/* Footer: Price + Register Button */}
-                  <div className="pt-6 mt-6 border-t border-slate-800 flex items-center justify-between gap-3">
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-                        TUITION FEE:
-                      </span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="font-heading font-black text-2xl text-amber-400 tracking-tight font-mono">
-                          {course.price.toLocaleString('vi-VN')} đ
+                  <div className="pt-6 mt-6 border-t border-slate-800">
+                    <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                      <span>TUITION FEE:</span>
+                      {course.maxSlots > 0 && (
+                        <span className="text-amber-500/90 font-medium normal-case tracking-normal">
+                          Max {course.maxSlots} spots
                         </span>
-                        <span className="text-[11px] text-slate-400 font-medium">
-                          {course.priceUnit || '/ session'}
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-baseline gap-1 whitespace-nowrap">
+                          <span className="font-heading font-black text-xl sm:text-2xl text-amber-400 tracking-tight font-mono">
+                            {new Intl.NumberFormat('vi-VN').format(course.price)}
+                          </span>
+                          <span className="text-sm font-bold text-amber-400">đ</span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-medium truncate">
+                          {getPriceUnitLabel(course)}
+                          {course.duration ? ` • ${course.duration}` : ''}
                         </span>
                       </div>
-                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleOpenRegister(course)}
-                      className="px-5 py-2.5 rounded-full font-black text-xs text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 shadow-lg shadow-orange-950/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-                    >
-                      <span>Enroll Now</span>
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenRegister(course)}
+                        className="px-5 py-2.5 rounded-full font-black text-xs text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 shadow-lg shadow-orange-950/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        <span>Enroll Now</span>
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                 </div>
@@ -322,15 +352,13 @@ export const TrainingPage: React.FC = () => {
             <div>
               <span className="text-xs font-bold text-red-500 uppercase tracking-wider">Faculty & Mentors</span>
               <h2 className="text-2xl sm:text-3xl font-black text-white font-heading mt-1">
-                DVA Elite Coaching Staff & Instructors
+                DVA Coaching Team & Mentors
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-                Certified coaches with national competition pedigree dedicated to technical kinematics, 120fps video biomechanics, and tactical 5-1 leadership.
+                Passionate and experienced club coaches dedicated to building solid fundamentals, on-court confidence, and practical game tactics.
               </p>
             </div>
-            <span className="text-xs text-slate-400 font-mono">
-              FIVB certified coaching credentials
-            </span>
+    
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -436,7 +464,7 @@ export const TrainingPage: React.FC = () => {
                     {modalStep === 'RECEIPT' && 'Official Enrollment Confirmed!'}
                   </h3>
                   <p className="text-xs text-amber-400 font-mono">
-                    {selectedCourse.price.toLocaleString('vi-VN')} đ {selectedCourse.priceUnit || ''}
+                    {selectedCourse.price.toLocaleString('vi-VN')} đ {getPriceUnitLabel(selectedCourse)}
                   </p>
                 </div>
               </div>

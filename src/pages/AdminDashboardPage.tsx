@@ -1002,7 +1002,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
               badge: pendingBookingsCount 
             },
             { id: 'PLAYERS', label: `Squad Roster (${players.length})` },
-            { id: 'TRAINING', label: `Academy & Courses (${coursesList.length})` },
+            { id: 'TRAINING', label: `Training & Scrimmage (${coursesList.length})` },
             { id: 'COACHES', label: `Coaching Staff (${coachesList.length})` },
             { 
               id: 'APPLICATIONS', 
@@ -2040,8 +2040,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
             <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div>
-                  <h3 className="font-bold text-base text-white">Quản Lý Các Khóa Học & Lộ Trình (Course CRUD)</h3>
-                  <p className="text-xs text-slate-400">Thêm, sửa học phí, lịch học hoặc xóa các chương trình đào tạo hiển thị trên trang Học Viện.</p>
+                  <h3 className="font-bold text-base text-white">Quản lý Gói Tập & Giao Lưu (Training & Scrimmage)</h3>
+                  <p className="text-xs text-slate-400">Thêm, sửa học phí, lịch học hoặc xóa các chương trình đào tạo hiển thị trên trang Training & Scrimmage.</p>
                 </div>
                 <button
                   type="button"
@@ -3754,7 +3754,7 @@ function doGet(e) {
                   {editingCourse ? `Chỉnh Sửa Khóa Học: ${editingCourse.title}` : 'Thêm Khóa Học Mới'}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Cập nhật chương trình đào tạo, học phí, lịch tập hiển thị trên trang Học Viện.
+                  Cập nhật chương trình đào tạo, học phí, lịch tập hiển thị trên trang Training & Scrimmage.
                 </p>
               </div>
               <button
@@ -3832,22 +3832,45 @@ function doGet(e) {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Đơn vị tính học phí (Billing Unit)</label>
+                <input
+                  type="text"
+                  list="course-billing-units"
+                  value={courseForm.priceUnit || ''}
+                  onChange={(e) => setCourseForm({ ...courseForm, priceUnit: e.target.value })}
+                  placeholder="VD: / buổi, / tháng, / năm, / session, / year (để trống = tự nhận diện)"
+                  className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                />
+                <datalist id="course-billing-units">
+                  <option value="/ buổi" />
+                  <option value="/ tháng" />
+                  <option value="/ năm" />
+                  <option value="/ session" />
+                  <option value="/ year" />
+                  <option value="/ player / session" />
+                </datalist>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Thời lượng (VD: 8 tuần)</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Thời lượng/Quy cách (Duration Detail)</label>
                   <input
                     type="text"
                     value={courseForm.duration || '8 tuần (16 buổi)'}
                     onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
+                    placeholder="VD: 120 phút, 2.5 tiếng, 12 tháng..."
                     className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Số học viên tối đa</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Số lượng tối đa nhận (Max Slots)</label>
                   <input
                     type="number"
+                    min={1}
                     value={courseForm.maxSlots || 16}
                     onChange={(e) => setCourseForm({ ...courseForm, maxSlots: Number(e.target.value) })}
+                    placeholder="VD: 6, 12, 24..."
                     className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
                   />
                 </div>
