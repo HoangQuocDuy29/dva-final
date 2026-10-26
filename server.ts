@@ -67,7 +67,7 @@ import {
   toStoredUser,
 } from './lib/prisma';
 import { countryCodeToFlagEmoji } from './src/types';
-import { sendBookingConfirmationEmail, sendMemberRegistrationEmail } from './lib/mailer';
+import { sendBookingConfirmationEmail, sendMemberRegistrationEmail, sendTrainingRegistrationEmail } from './lib/mailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1548,6 +1548,38 @@ app.post('/api/training/register', ah(async (req, res) => {
     dispatchGoogleSheetsWebhookAsync('Training_Registrations', 'DangKyKhoaHoc', sheetPayload);
   } catch (sheetErr: any) {
     console.warn('[Training Registration] Safe Fallback Notice - Google Sheets sync error:', sheetErr?.message || sheetErr);
+  }
+
+  // 4. Cơ chế Fail-safe & Gửi Email xác nhận đăng ký gói tập tự động (Fire-and-forget, non-blocking)
+  try {
+    const recipientEmail = (email || '').trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+      console.warn('[Training Mailer Warning] Bỏ qua gửi email do địa chỉ email trống hoặc sai định dạng:', recipientEmail);
+    } else {
+      // Chạy ngầm trong nền, không để lỗi gửi mail làm ảnh hưởng đến response API
+      sendTrainingRegistrationEmail({
+        orderCode: code,
+        code,
+        packageName,
+        fullName,
+        email: recipientEmail,
+        phone,
+        level,
+        preferredTime,
+        targetSkill,
+        position,
+        notes,
+        amount,
+        transferContent,
+      }).catch((mailError: any) => {
+        console.warn('[Training Mailer Warning] Gửi mail xác nhận đăng ký gói tập thất bại cho:', recipientEmail, mailError?.message || mailError);
+        // Không throw error ra ngoài, server vẫn tiếp tục chạy bình thường
+      });
+    }
+  } catch (triggerError: any) {
+    console.warn('[Training Mailer Warning] Lỗi khi kích hoạt tiến trình gửi mail:', triggerError?.message || triggerError);
   }
 
   return res.status(200).json({

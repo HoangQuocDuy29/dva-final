@@ -13,7 +13,6 @@ import {
   Copy,
   ShieldCheck,
   Phone,
-  FileSpreadsheet,
   AlertCircle,
   Sparkles,
   ChevronRight
@@ -749,11 +748,6 @@ export const TrainingPage: React.FC = () => {
                     <span className="px-2 py-0.5 bg-amber-950/60 text-amber-300 border border-amber-800/80 rounded font-mono text-[10px]">
                       Mã: {currentPackageCode}
                     </span>
-                  </div>
-
-                  <div className="bg-[#0B0F19] p-3 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Dữ liệu tự động đồng bộ sang Google Sheets (`DangKyKhoaHoc`). Không cần đăng nhập.</span>
                   </div>
 
                   <button
