@@ -56,7 +56,29 @@ dotenv.config({ path: path.join(ROOT_DIR, '.env') });
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const databaseUrl = process.env.DATABASE_URL || '';
+const isCloudDb =
+  databaseUrl.includes('neon.tech') ||
+  databaseUrl.includes('sslmode=require') ||
+  databaseUrl.includes('supabase.co') ||
+  process.env.NODE_ENV === 'production';
+
+// Tối ưu connection pool cho Cloud PostgreSQL (Neon serverless compute wake-up / cold start)
+const pool = new Pool({
+  connectionString: databaseUrl,
+  connectionTimeoutMillis: 15000, // 15 giây chờ compute serverless thức dậy
+  idleTimeoutMillis: 30000,       // Đóng kết nối nhàn rỗi sau 30 giây
+  max: 10,                        // Giới hạn connection pool
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
+  ...(isCloudDb ? { ssl: { rejectUnauthorized: false } } : {}),
+});
+
+// Bắt lỗi idle client để tránh unhandled error làm crash Node.js khi serverless compute ngủ
+pool.on('error', (err) => {
+  console.warn('[Database Pool Warning] Idle connection warning:', err?.message || err);
+});
+
 const adapter = new PrismaPg(pool);
 
 export const prisma =

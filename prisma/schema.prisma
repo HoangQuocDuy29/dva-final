@@ -9,8 +9,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // Prisma 7: connection URL được cấu hình trong prisma.config.ts (migrate)
-  // và adapter (@prisma/adapter-pg) trong lib/prisma.ts (runtime).
+  // Prisma 7: url được quản lý qua prisma.config.ts (CLI) và adapter trong lib/prisma.ts (runtime)
 }
 
 // ============================================================================
