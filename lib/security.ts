@@ -170,7 +170,7 @@ const PUBLIC_RULES: Rule[] = [
   rule('POST', /^\/bookings\/?$/),
   rule('POST', /^\/bookings\/[^/]+\/confirm-payment\/?$/),
   rule('POST', /^\/training\/register\/?$/),
-  rule('POST', /^\/members\/register\/?$/),
+  rule('POST', /^\/members\/(register|apply)\/?$/),
   rule('POST', /^\/vietqr\/generate\/?$/),
   rule('POST', /^\/webhooks\/payment\/?$/),
 ];

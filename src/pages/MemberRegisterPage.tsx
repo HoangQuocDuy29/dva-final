@@ -200,17 +200,6 @@ export const MemberRegisterPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Google Sheets Sync Indicator */}
-                <div className="bg-emerald-950/40 border border-emerald-600/40 rounded-2xl p-3.5 flex items-center justify-between text-xs text-emerald-300">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Your application has been recorded & synced to <strong>Google Sheets (Tab TuyenThanhVien)</strong>.</span>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-700">
-                    Live Synced
-                  </span>
-                </div>
-
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row items-center gap-3">
                   <Link

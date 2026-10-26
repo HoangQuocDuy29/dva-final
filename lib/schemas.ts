@@ -244,7 +244,7 @@ export const MEMBER_REGISTER_SCHEMA: Schema = {
   weight: N(20, 200),
   spikeReach: N(150, 420),
   blockReach: N(140, 400),
-  gmail: EM,
+  gmail: S(254),
   instagram: S(100),
   zalo: PH,
   rotationKnowledge: E(ROTATIONS),

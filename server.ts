@@ -67,7 +67,7 @@ import {
   toStoredUser,
 } from './lib/prisma';
 import { countryCodeToFlagEmoji } from './src/types';
-import { sendBookingConfirmationEmail } from './lib/mailer';
+import { sendBookingConfirmationEmail, sendMemberRegistrationEmail } from './lib/mailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -257,7 +257,7 @@ const loginLimiter = rateLimit({
 const publicWriteLimiter = rateLimit({ windowMs: 10 * 60_000, max: 30, message: 'Too many submissions. Please slow down.' });
 app.use('/api/bookings', (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
 app.use('/api/training/register', publicWriteLimiter);
-app.use('/api/members/register', publicWriteLimiter);
+app.use(['/api/members/register', '/api/members/apply'], publicWriteLimiter);
 
 // 1. Auth, Users & RBAC
 app.post('/api/auth/login', loginLimiter, ah(async (req, res) => {
@@ -1641,14 +1641,38 @@ app.get('/api/members/applications', ah(async (_req, res) => {
   }
 }));
 
-app.post('/api/members/register', ah(async (req, res) => {
+app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) => {
   const data = sanitize(req.body, MEMBER_REGISTER_SCHEMA, {
     required: ['fullName', 'dob', 'position', 'hometownCountry', 'level', 'height', 'weight', 'spikeReach', 'blockReach', 'gmail', 'zalo'],
   });
 
-  const created = await prisma.memberApplication.create({
-    data: {
-      id: `app-${crypto.randomUUID()}`,
+  let created: any;
+  const appId = `app-${crypto.randomUUID()}`;
+  try {
+    created = await prisma.memberApplication.create({
+      data: {
+        id: appId,
+        fullName: data.fullName,
+        dob: data.dob,
+        position: data.position,
+        hometownCountry: data.hometownCountry,
+        desiredJerseyNumber: data.desiredJerseyNumber ?? 0,
+        level: data.level,
+        height: data.height,
+        weight: data.weight,
+        spikeReach: data.spikeReach,
+        blockReach: data.blockReach,
+        gmail: data.gmail,
+        instagram: data.instagram || 'None',
+        zalo: data.zalo,
+        rotationKnowledge: toRotationEnum(data.rotationKnowledge),
+        status: 'PENDING',
+      },
+    });
+  } catch (dbError) {
+    console.error('[API /members/register DB Error, fallback to json]:', dbError);
+    created = {
+      id: appId,
       fullName: data.fullName,
       dob: data.dob,
       position: data.position,
@@ -1664,8 +1688,11 @@ app.post('/api/members/register', ah(async (req, res) => {
       zalo: data.zalo,
       rotationKnowledge: toRotationEnum(data.rotationKnowledge),
       status: 'PENDING',
-    },
-  });
+      createdAt: new Date(),
+    };
+    const currentApps = readJsonFileSafe<any[]>('applications.json', INITIAL_MEMBER_APPLICATIONS);
+    writeJsonFileSafe('applications.json', [created, ...currentApps]);
+  }
 
   const dto = toApplicationDto(created);
 
@@ -1694,7 +1721,42 @@ app.post('/api/members/register', ah(async (req, res) => {
   };
   dispatchGoogleSheetsWebhookAsync('Member_Registrations', 'TuyenThanhVien', memberSheetPayload);
 
-  res.status(201).json(dto);
+  // Cơ chế Fail-safe & Xử lý lỗi gửi Email (Fire-and-Forget, non-blocking)
+  try {
+    const memberEmail = (dto.gmail || '').trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!memberEmail || !emailRegex.test(memberEmail)) {
+      console.warn('[Email Service Warning] Bỏ qua gửi email do địa chỉ email trống hoặc sai format:', memberEmail);
+    } else {
+      // Chạy ngầm trong nền, không để lỗi gửi mail làm ảnh hưởng đến response API
+      sendMemberRegistrationEmail({
+        id: dto.id,
+        passId: dto.id,
+        fullName: dto.fullName,
+        dob: dto.dob,
+        position: dto.position,
+        level: dto.level,
+        desiredJerseyNumber: dto.desiredJerseyNumber,
+        height: dto.height,
+        weight: dto.weight,
+        spikeReach: dto.spikeReach,
+        blockReach: dto.blockReach,
+        gmail: dto.gmail,
+        zalo: dto.zalo,
+        instagram: dto.instagram,
+        rotationKnowledge: dto.rotationKnowledge,
+        hometownCountry: dto.hometownCountry,
+      }).catch((mailError: any) => {
+        console.error('[Email Service Warning] Gửi mail thất bại cho:', memberEmail, mailError?.message || mailError);
+        // Không throw error ra ngoài, server vẫn tiếp tục chạy bình thường
+      });
+    }
+  } catch (triggerError: any) {
+    console.error('[Email Service Warning] Lỗi khi kích hoạt tiến trình gửi mail:', triggerError?.message || triggerError);
+  }
+
+  res.status(200).json(dto);
 }));
 
 app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
