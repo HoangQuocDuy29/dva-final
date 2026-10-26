@@ -100,13 +100,13 @@ export const MemberRegisterPage: React.FC = () => {
         {/* Header */}
         <div className="text-center space-y-3">
           <span className="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-950/60 border border-red-800 px-3 py-1 rounded-full">
-            Season 2026 Competitive Recruitment
+            Season 2026
           </span>
           <h1 className="text-3xl sm:text-4xl font-black text-white font-heading">
-            DVA Squad Tryout Application
+            Player Registration
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
-            Submit your athletic profile and reach metrics. Applications are reviewed by DVA coaching staff and automatically synced into Google Sheets for tryout scheduling.
+            Submit your athletic profile and reach metrics. Applications will be reviewed directly by the team captain, and we will contact you within 24 hours.
           </p>
         </div>
 
@@ -126,7 +126,7 @@ export const MemberRegisterPage: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-heading font-black text-sm sm:text-base text-white tracking-wide">
-                      TRYOUT APPLICATION SUBMITTED!
+                      PLAYER REGISTRATION SUBMITTED!
                     </h3>
                     <p className="text-[11px] text-amber-400 font-semibold">
                       DVA Volleyball Club · Official Athlete Membership Pass
@@ -239,7 +239,6 @@ export const MemberRegisterPage: React.FC = () => {
             </div>
           </div>
         )}
-          /* Main Application Form */
           <form onSubmit={handleSubmit} className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 sm:p-10 shadow-2xl space-y-8">
             
             {/* Section 1: Basic Information */}
@@ -252,7 +251,7 @@ export const MemberRegisterPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
                   <label className="block font-bold text-slate-300 mb-1">
-                    Full Legal Name *
+                    Full Name *
                   </label>
                   <input
                     type="text"
@@ -296,7 +295,7 @@ export const MemberRegisterPage: React.FC = () => {
 
                 <div>
                   <label className="block font-bold text-slate-300 mb-1">
-                    Target Squad Division *
+                    Level *
                   </label>
                   <select
                     value={formData.level}
@@ -491,7 +490,7 @@ export const MemberRegisterPage: React.FC = () => {
               ) : (
                 <>
                   <UserPlus className="w-4 h-4" />
-                  <span>Submit Official Tryout Application</span>
+                  <span>Submit Registration</span>
                 </>
               )}
             </button>
