@@ -67,7 +67,16 @@ import {
   toStoredUser,
 } from './lib/prisma';
 import { countryCodeToFlagEmoji } from './src/types';
-import { sendBookingConfirmationEmail, sendMemberRegistrationEmail, sendTrainingRegistrationEmail } from './lib/mailer';
+import {
+  ADMIN_ALERT_EMAIL,
+  sendAdminNotification,
+  sendAdminNotificationEmail,
+  notifyAdminNewSubmission,
+  removeVietnameseTones,
+  sendBookingConfirmationEmail,
+  sendMemberRegistrationEmail,
+  sendTrainingRegistrationEmail,
+} from './lib/mailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -255,7 +264,7 @@ const loginLimiter = rateLimit({
   message: 'Too many login attempts. Please try again in 15 minutes.',
 });
 const publicWriteLimiter = rateLimit({ windowMs: 10 * 60_000, max: 30, message: 'Too many submissions. Please slow down.' });
-app.use('/api/bookings', (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
+app.use(['/api/bookings', '/api/courts/book'], (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
 app.use('/api/training/register', publicWriteLimiter);
 app.use(['/api/members/register', '/api/members/apply'], publicWriteLimiter);
 
@@ -1010,7 +1019,7 @@ app.get('/api/bookings', ah(async (req, res) => {
   return res.json(dbBookings.map(toBookingDto));
 }));
 
-app.post('/api/bookings', ah(async (req, res) => {
+app.post(['/api/bookings', '/api/courts/book'], ah(async (req, res) => {
   await releaseExpiredHolds();
   const staff = isStaff(req.user);
 
@@ -1192,6 +1201,19 @@ app.post('/api/bookings', ah(async (req, res) => {
   };
   dispatchGoogleSheetsWebhookAsync('Court_Bookings', 'DatSan', sheetPayload.data);
 
+  // Gửi thông báo cho Admin (Fire-and-forget, không làm gián đoạn response)
+  sendAdminNotification({
+    type: 'BOOK_COURT',
+    title: `Đặt Sân: ${targetCourt.name} (${resolvedSubCourt || booking.subCourt || 'Sân A'})`,
+    code: booking.bookingCode || (booking as any).code || booking.id,
+    customerName: booking.customerName,
+    phone: booking.customerPhone,
+    email: booking.customerEmail || undefined,
+    amount: booking.totalPrice,
+    transferContent: booking.transferContent,
+    details: `Ngày: ${booking.date} | Khung giờ: ${booking.timeSlot}`,
+  }).catch((err) => console.error('[Admin Alert Error - Court Booking]:', err?.message || err));
+
   res.status(201).json(dto);
 }));
 
@@ -1230,6 +1252,18 @@ app.patch('/api/bookings/:id/status', ah(async (req, res) => {
       },
       updated.court
     );
+
+    sendAdminNotification({
+      type: 'BOOK_COURT',
+      title: `Đặt Sân (Đã duyệt PAID): ${updated.court?.name || 'Sân bóng chuyền DVA'} (${updated.subCourt || 'Sân A'})`,
+      code: updated.bookingCode || updated.id,
+      customerName: updated.customerName,
+      phone: updated.customerPhone,
+      email: updated.customerEmail || undefined,
+      amount: updated.totalPrice,
+      transferContent: updated.transferContent || undefined,
+      details: `Ngày: ${updated.bookingDate} | Khung giờ: ${updated.startTime} - ${updated.endTime} (Nhân viên xác nhận PAID)`,
+    }).catch((err) => console.error('[Admin Alert Error - Court Booking Status PAID]:', err?.message || err));
   }
 
   res.json(toBookingDto(updated));
@@ -1271,6 +1305,18 @@ app.post('/api/bookings/:id/confirm-payment', ah(async (req, res) => {
       },
       booking.court
     );
+
+    sendAdminNotification({
+      type: 'BOOK_COURT',
+      title: `Đặt Sân: ${booking.court?.name || 'Sân bóng chuyền DVA'} (${booking.subCourt || 'Sân A'})`,
+      code: booking.bookingCode || booking.id,
+      customerName: booking.customerName,
+      phone: booking.customerPhone,
+      email: booking.customerEmail || undefined,
+      amount: booking.totalPrice,
+      transferContent: booking.transferContent,
+      details: `Ngày: ${booking.bookingDate} | Khung giờ: ${booking.startTime} - ${booking.endTime} (Khách đã bấm xác nhận chuyển khoản)`,
+    }).catch((err) => console.error('[Admin Alert Error - Court Booking Payment]:', err?.message || err));
   }
 
   res.json({ success: true, booking: toBookingDto(booking) });
@@ -1582,6 +1628,19 @@ app.post('/api/training/register', ah(async (req, res) => {
     console.warn('[Training Mailer Warning] Lỗi khi kích hoạt tiến trình gửi mail:', triggerError?.message || triggerError);
   }
 
+  // 5. Gửi email thông báo đơn mới tới Quản trị viên (Fire-and-forget, non-blocking)
+  sendAdminNotification({
+    type: 'TRAINING',
+    title: `Gói Tập: ${packageName}`,
+    code: code,
+    customerName: fullName || '',
+    phone: phone || '',
+    email: email || undefined,
+    amount: Number(amount) || 0,
+    transferContent: transferContent || '',
+    details: `Cấp độ: ${level} | Ca: ${preferredTime || 'Linh hoạt'} | Vị trí: ${targetSkill || position || 'N/A'}${notes ? ' | Ghi chú: ' + notes : ''}`,
+  }).catch((err) => console.error('[Admin Alert Error - Training]:', err?.message || err));
+
   return res.status(200).json({
     ...toRegistrationDto(created),
     code,
@@ -1787,6 +1846,23 @@ app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) =>
   } catch (triggerError: any) {
     console.error('[Email Service Warning] Lỗi khi kích hoạt tiến trình gửi mail:', triggerError?.message || triggerError);
   }
+
+  // Gửi email thông báo đơn mới tới Quản trị viên (Fire-and-forget, non-blocking)
+  const cleanMemberName = removeVietnameseTones(dto.fullName).replace(/\s+/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const cleanMemberPhone = (dto.zalo || '').replace(/\D/g, '').trim() || (dto.zalo || '').trim();
+  const memberTransferContent = `register_${cleanMemberName}_clubentry_${cleanMemberPhone}`;
+
+  sendAdminNotification({
+    type: 'MEMBER',
+    title: 'Đăng Ký Thành Viên CLB (Phí 100k)',
+    code: dto.id,
+    customerName: dto.fullName,
+    phone: dto.zalo,
+    email: dto.gmail || undefined,
+    amount: 100000,
+    transferContent: memberTransferContent,
+    details: `Cấp độ: ${dto.level} | Vị trí: ${dto.position || 'N/A'} | Chiều cao: ${dto.height}cm | Quê: ${dto.hometownCountry || 'N/A'}`,
+  }).catch((err) => console.error('[Admin Alert Error - Member Application]:', err?.message || err));
 
   res.status(200).json(dto);
 }));

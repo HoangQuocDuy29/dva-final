@@ -875,13 +875,15 @@ const CourtBookingContent: React.FC = () => {
               </div>
             )}
 
-            {/* Lưới danh sách khung giờ trống (Available Sessions Grid: Mobile 1-2 cols, Tablet 2-3 cols, Desktop 4-5 cols) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3 lg:gap-4">
+            {/* Lưới danh sách khung giờ trống (Available Sessions Grid: Tự động phân bổ linh hoạt, tối thiểu 280px) */}
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
               {availableSlots.map((slot) => {
                 const status = getSlotStatus(slot);
                 const isSelected = selectedSlotObj?.label === slot.label && (!hasSubCourts || selectedSlotObj?.subCourt === selectedSubCourt);
                 const isAvailable = status === 'AVAILABLE';
                 const calculatedPrice = Math.round(hourlyRate * slot.durationHours);
+                const timeRangeText = slot.start && slot.end ? `${slot.start} - ${slot.end}` : slot.label;
+                const extraNote = slot.label.replace(timeRangeText, '').replace(/[()]/g, '').trim();
 
                 return (
                   <button
@@ -896,9 +898,9 @@ const CourtBookingContent: React.FC = () => {
                           : { ...slot, subCourt: hasSubCourts ? selectedSubCourt : undefined }
                       );
                     }}
-                    className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative ${
+                    className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all relative overflow-hidden w-full min-w-[280px] flex flex-col justify-between ${
                       isSelected
-                        ? 'border-red-500 bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-xl ring-2 ring-red-400/40 cursor-pointer scale-[1.02]'
+                        ? 'border-red-500 bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-xl ring-2 ring-red-400/40 cursor-pointer'
                         : isAvailable
                         ? 'border-slate-800 bg-[#0E1524] hover:border-red-500/60 hover:bg-[#141E30] text-slate-200 cursor-pointer'
                         : status === 'HOLDING'
@@ -908,43 +910,50 @@ const CourtBookingContent: React.FC = () => {
                         : 'border-slate-800 bg-slate-900/60 text-slate-500 cursor-not-allowed opacity-50'
                     }`}
                   >
-                    <div className="flex justify-between items-center gap-1.5">
-                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                        <Clock className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
-                        <span className="font-mono font-bold text-xs sm:text-sm tracking-tight truncate">
-                          {slot.label}
+                    {/* Hàng trên: Icon đồng hồ + Khung giờ đầy đủ căn bên trái, các badge căn bên phải */}
+                    <div className="flex items-center justify-between gap-2 w-full">
+                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                        <Clock className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+                        <span className={`font-mono font-semibold text-sm tracking-tight whitespace-nowrap ${
+                          isSelected ? 'text-white' : 'text-slate-100'
+                        }`}>
+                          {timeRangeText}
                         </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {hasSubCourts && (
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-black tracking-wider shrink-0 ${
+                          <span className={`px-2 py-0.5 rounded-md text-xs font-bold tracking-wider whitespace-nowrap shrink-0 ${
                             isSelected
-                              ? 'bg-white/20 text-white'
+                              ? 'bg-white/20 text-white border border-white/30'
                               : 'bg-orange-950/80 text-orange-300 border border-orange-800/80'
                           }`}>
                             {selectedSubCourt.toUpperCase()}
                           </span>
                         )}
-                      </div>
 
-                      <span className={`text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded uppercase tracking-wider shrink-0 ${
-                        isSelected 
-                          ? 'bg-white text-red-600' 
-                          : isAvailable
-                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                          : status === 'HOLDING'
-                          ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                          : status === 'CLOSED'
-                          ? 'bg-red-950 text-red-400 border border-red-800'
-                          : 'bg-slate-800 text-slate-400'
-                      }`}>
-                        {isSelected ? 'Selected' : status === 'AVAILABLE' ? 'Open' : status === 'HOLDING' ? 'Holding' : status === 'CLOSED' ? 'Closed' : 'Booked'}
-                      </span>
+                        <span className={`px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider whitespace-nowrap shrink-0 ${
+                          isSelected 
+                            ? 'bg-white text-red-600 shadow-sm' 
+                            : isAvailable
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                            : status === 'HOLDING'
+                            ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                            : status === 'CLOSED'
+                            ? 'bg-red-950 text-red-400 border border-red-800'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {isSelected ? 'Selected' : status === 'AVAILABLE' ? 'Open' : status === 'HOLDING' ? 'Holding' : status === 'CLOSED' ? 'Closed' : 'Booked'}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/10 text-[10px] sm:text-[11px]">
-                      <span className={isSelected ? 'text-red-100' : 'text-slate-400'}>
-                        {slot.durationHours}h Session
+                    {/* Hàng dưới: Thời lượng buổi tập và mức giá */}
+                    <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/10 text-[11px] sm:text-xs w-full">
+                      <span className={isSelected ? 'text-red-100 font-medium' : 'text-slate-400 font-medium'}>
+                        {slot.durationHours}h Session{extraNote ? ` · ${extraNote}` : ''}
                       </span>
-                      <span className={`font-mono font-bold ${isSelected ? 'text-white' : 'text-orange-400'}`}>
+                      <span className={`font-mono font-bold text-xs sm:text-sm ${isSelected ? 'text-white' : 'text-orange-400'}`}>
                         {calculatedPrice.toLocaleString('vi-VN')} đ
                       </span>
                     </div>

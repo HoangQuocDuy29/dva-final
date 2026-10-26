@@ -3,18 +3,20 @@ import nodemailer from 'nodemailer';
 // ============================================================================
 // KHU VỰC TÙY CHỈNH NỘI DUNG EMAIL & ẢNH HƯỚNG DẪN VÀO SÂN (CHỈNH SỬA TẠI ĐÂY)
 // ============================================================================
+export const DEFAULT_COURT_GUIDE_IMAGE =
+  'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792751386/dcf3e900-0bc9-4d37-9bce-045b3f7df0f3.png';
+
 export const EMAIL_CUSTOM_CONFIG = {
   /**
    * Link ảnh sơ đồ / hướng dẫn đường vào sân (dán link ảnh Cloudinary hoặc link ảnh online vào đây).
-   * Nếu để chuỗi rỗng '', phần ảnh hướng dẫn sẽ tự động ẩn đi.
-   * Bạn cũng có thể cấu hình riêng từng sân theo mã sân ở bên dưới.
+   * Mặc định fallback an toàn về link Cloudinary sơ đồ lối vào sân BTL Thông Tin.
    */
-  defaultGuideImageUrl: process.env.COURT_GUIDE_IMAGE_URL || '',
+  defaultGuideImageUrl: process.env.COURT_GUIDE_IMAGE_URL || DEFAULT_COURT_GUIDE_IMAGE,
 
   courtGuideImages: {
-    'court-btl': 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792751386/dcf3e900-0bc9-4d37-9bce-045b3f7df0f3.png', // Ảnh hướng dẫn vào sân BTL Thông Tin
-    'court-thecong': '', // Dán link ảnh hướng dẫn vào sân Thể Công (nếu có)
-    'court-mydinh': '',  // Dán link ảnh hướng dẫn vào sân Mỹ Đình (nếu có)
+    'court-btl': DEFAULT_COURT_GUIDE_IMAGE, // Ảnh hướng dẫn vào sân BTL Thông Tin
+    'court-thecong': DEFAULT_COURT_GUIDE_IMAGE, // Link ảnh hướng dẫn vào sân Thể Công (fallback)
+    'court-mydinh': DEFAULT_COURT_GUIDE_IMAGE,  // Link ảnh hướng dẫn vào sân Mỹ Đình (fallback)
   } as Record<string, string>,
 
   /**
@@ -103,6 +105,35 @@ export function extractStartAndEndTime(
   return { startTime, endTime };
 }
 
+export function getMailSender(): { name: string; email: string; from: string } {
+  const name = (process.env.EMAIL_FROM_NAME || 'DVA Volleyball Club System').trim();
+  const email = (
+    process.env.EMAIL_FROM_ADDRESS ||
+    process.env.EMAIL_USER ||
+    'dvavolleyballclub@gmail.com'
+  ).trim();
+  return {
+    name,
+    email,
+    from: `"${name}" <${email}>`,
+  };
+}
+
+export const ADMIN_ALERT_EMAIL = (process.env.ADMIN_NOTIFICATION_EMAIL || 'quocduyhoang42@gmail.com').trim();
+
+export function getAdminNotificationEmail(): string {
+  return ADMIN_ALERT_EMAIL;
+}
+
+export function getSpreadsheetUrl(): string {
+  if (process.env.GOOGLE_SHEETS_URL) return process.env.GOOGLE_SHEETS_URL;
+  const sheetId =
+    process.env.SPREADSHEET_ID ||
+    process.env.GOOGLE_SHEETS_SPREADSHEET_ID ||
+    '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms';
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+}
+
 function createMailTransporter() {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT) || 465;
@@ -110,8 +141,8 @@ function createMailTransporter() {
     process.env.SMTP_SECURE !== undefined
       ? String(process.env.SMTP_SECURE).toLowerCase() === 'true'
       : port === 465;
-  const user = (process.env.EMAIL_USER || process.env.SMTP_USER || 'quocduyhoang42@gmail.com').trim();
-  const pass = (process.env.EMAIL_PASS || process.env.SMTP_PASS || '').replace(/\s+/g, '');
+  const user = (process.env.SMTP_USER || process.env.EMAIL_USER || 'dvavolleyballclub@gmail.com').trim();
+  const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').replace(/\s+/g, '');
 
   return nodemailer.createTransport({
     host,
@@ -151,9 +182,9 @@ export async function sendBookingConfirmationEmail(
       return false;
     }
 
-    const smtpUser = (process.env.EMAIL_USER || process.env.SMTP_USER || 'quocduyhoang42@gmail.com').trim();
+    const mailSender = getMailSender();
     const transporter = createMailTransporter();
-    const fromName = process.env.EMAIL_FROM_NAME || 'DVA Volleyball Club';
+    const fromName = mailSender.name;
     const hotline =
       process.env.HOTLINE ||
       process.env.SUPPORT_HOTLINE ||
@@ -194,22 +225,37 @@ export async function sendBookingConfirmationEmail(
       currency: 'VND',
     }).format(Number(booking.totalPrice) || 0);
 
-    const guideImageUrl =
+    const rawGuideUrl =
       (resolvedCourtKey && EMAIL_CUSTOM_CONFIG.courtGuideImages[resolvedCourtKey]) ||
+      court?.imageUrl ||
       EMAIL_CUSTOM_CONFIG.defaultGuideImageUrl ||
-      '';
+      process.env.COURT_GUIDE_IMAGE_URL;
 
-    const guideImageSectionHtml = guideImageUrl
-      ? `
-              <!-- Ảnh hướng dẫn đường vào sân -->
-              <div style="margin-top:16px;border-radius:12px;overflow:hidden;border:1px solid #334155;">
-                <div style="background-color:#1e293b;padding:8px 12px;font-size:12px;font-weight:700;color:#f8fafc;">
+    const guideImageUrl =
+      rawGuideUrl && String(rawGuideUrl).trim().length > 0
+        ? String(rawGuideUrl).trim()
+        : DEFAULT_COURT_GUIDE_IMAGE;
+
+    const guideImageSectionHtml = `
+              <!-- Hình ảnh hướng dẫn lối vào sân chuẩn Gmail -->
+              <div style="margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #f8fafc;">
+                <div style="padding: 10px 14px; background-color: #e2e8f0; font-size: 13px; font-weight: 600; color: #334155;">
                   🗺️ Hình ảnh hướng dẫn lối vào sân (${escapeHtml(courtName)})
                 </div>
-                <img src="${escapeHtml(guideImageUrl)}" alt="Hướng dẫn vào sân ${escapeHtml(courtName)}" style="display:block;width:100%;max-width:100%;height:auto;" />
+                <div style="padding: 8px; text-align: center;">
+                  <a href="${escapeHtml(guideImageUrl)}" target="_blank" style="text-decoration: none; display: block;">
+                    <img 
+                      src="${escapeHtml(guideImageUrl)}" 
+                      alt="Sơ đồ hướng dẫn vào sân ${escapeHtml(courtName)}" 
+                      style="width: 100%; max-width: 520px; height: auto; border-radius: 8px; display: block; margin: 0 auto; border: 0;"
+                    />
+                  </a>
+                  <p style="font-size: 12px; color: #64748b; margin-top: 6px; margin-bottom: 2px;">
+                    (Nhấp vào ảnh để xem bản đồ phóng to chất lượng cao)
+                  </p>
+                </div>
               </div>
-      `
-      : '';
+    `;
 
     const subject = `[DVA Volleyball] Xác nhận đặt sân thành công: ${courtName} (${resolvedTimeSlot}) - Mã đơn: ${booking.bookingCode}`;
 
@@ -331,18 +377,44 @@ export async function sendBookingConfirmationEmail(
 </html>
     `.trim();
 
-    await transporter.sendMail({
-      from: `"${fromName}" <${smtpUser}>`,
-      to: booking.customerEmail,
-      subject,
-      html,
-    });
+    let customerMailSent = false;
+    try {
+      await transporter.sendMail({
+        from: mailSender.from,
+        to: booking.customerEmail,
+        subject,
+        html,
+      });
+      console.log(`[Mailer] Đã gửi email xác nhận đặt sân thành công tới ${booking.customerEmail} (Mã đơn: ${booking.bookingCode})`);
+      customerMailSent = true;
+    } catch (customerMailErr: any) {
+      console.error(
+        `[Mailer Error] Không thể gửi email xác nhận cho đơn ${booking?.bookingCode || 'UNKNOWN'}:`,
+        customerMailErr?.message || customerMailErr
+      );
+    }
 
-    console.log(`[Mailer] Đã gửi email xác nhận đặt sân thành công tới ${booking.customerEmail} (Mã đơn: ${booking.bookingCode})`);
-    return true;
+    // Tự động kích hoạt email thông báo tới Admin song song với email gửi khách (chạy fail-safe)
+    try {
+      await sendAdminNotification({
+        type: 'BOOK_COURT',
+        title: `Đặt Sân: ${courtName}`,
+        code: booking.bookingCode || booking.id || 'N/A',
+        customerName: booking.customerName,
+        phone: booking.customerPhone || 'N/A',
+        email: booking.customerEmail,
+        amount: booking.totalPrice,
+        transferContent: booking.transferContent || undefined,
+        details: `Ngày: ${resolvedDate} | Khung giờ: ${resolvedTimeSlot}`,
+      });
+    } catch (adminMailErr: any) {
+      console.error('[Admin Mailer Error in sendBookingConfirmationEmail]:', adminMailErr?.message || adminMailErr);
+    }
+
+    return customerMailSent;
   } catch (error: any) {
     console.error(
-      `[Mailer Error] Không thể gửi email xác nhận cho đơn ${booking?.bookingCode || 'UNKNOWN'}:`,
+      `[Mailer General Error] Lỗi xử lý gửi email cho đơn ${booking?.bookingCode || 'UNKNOWN'}:`,
       error?.message || error
     );
     return false;
@@ -426,8 +498,8 @@ export async function sendMemberRegistrationEmail(
   }
 
   try {
-    const senderEmail = (process.env.EMAIL_USER || process.env.SMTP_USER || 'quocduyhoang42@gmail.com').trim();
-    const fromName = process.env.EMAIL_FROM_NAME || 'DVA Volleyball Club';
+    const mailSender = getMailSender();
+    const fromName = mailSender.name;
     const transporter = createMailTransporter();
     const hotline = '0768299329';
     const formattedHotline = '0768 299 329';
@@ -747,18 +819,42 @@ export async function sendMemberRegistrationEmail(
 </html>
     `.trim();
 
-    await transporter.sendMail({
-      from: `"${fromName}" <${senderEmail}>`,
-      to: recipientEmail,
-      subject,
-      html,
-    });
+    let memberMailSent = false;
+    try {
+      await transporter.sendMail({
+        from: mailSender.from,
+        to: recipientEmail,
+        subject,
+        html,
+      });
+      console.log(`[Mailer] Đã gửi email xác nhận đăng ký thành viên tới ${recipientEmail} (Pass ID: ${passId})`);
+      memberMailSent = true;
+    } catch (memberMailErr: any) {
+      console.error(
+        `[Email Service Warning] Gửi mail thất bại cho: ${recipientEmail} - ${memberMailErr?.message || memberMailErr}`
+      );
+    }
 
-    console.log(`[Mailer] Đã gửi email xác nhận đăng ký thành viên tới ${recipientEmail} (Pass ID: ${passId})`);
-    return true;
+    // Tự động kích hoạt email thông báo tới Admin song song với email gửi ứng viên
+    try {
+      await sendAdminNotification({
+        type: 'MEMBER',
+        title: 'Đăng Ký Thành Viên CLB (Phí 100k)',
+        code: passId || member.id || 'N/A',
+        customerName: member.fullName,
+        phone: member.zalo,
+        email: recipientEmail,
+        amount: 100000,
+        details: `Cấp độ: ${member.level} | Vị trí: ${formatMemberPosition(member.position)} | Chiều cao: ${member.height}cm`,
+      });
+    } catch (adminMailErr: any) {
+      console.error('[Admin Mailer Error in sendMemberRegistrationEmail]:', adminMailErr?.message || adminMailErr);
+    }
+
+    return memberMailSent;
   } catch (error: any) {
     console.error(
-      `[Email Service Warning] Gửi mail thất bại cho: ${recipientEmail} - ${error?.message || error}`
+      `[Email Service General Warning] Lỗi xử lý gửi mail thành viên: ${error?.message || error}`
     );
     return false;
   }
@@ -799,8 +895,8 @@ export async function sendTrainingRegistrationEmail(
   }
 
   try {
-    const senderEmail = (process.env.EMAIL_USER || process.env.SMTP_USER || 'quocduyhoang42@gmail.com').trim();
-    const fromName = process.env.EMAIL_FROM_NAME || 'DVA Volleyball Club';
+    const mailSender = getMailSender();
+    const fromName = mailSender.name;
     const transporter = createMailTransporter();
 
     const packageName = payload.packageName || 'Gói tập DVA Volleyball';
@@ -1028,19 +1124,223 @@ export async function sendTrainingRegistrationEmail(
 </html>
     `.trim();
 
-    await transporter.sendMail({
-      from: `"${fromName}" <${senderEmail}>`,
-      to: recipientEmail,
-      subject,
-      html,
-    });
+    let trainingMailSent = false;
+    try {
+      await transporter.sendMail({
+        from: mailSender.from,
+        to: recipientEmail,
+        subject,
+        html,
+      });
+      console.log(`[Mailer] Đã gửi email xác nhận đăng ký gói tập thành công tới ${recipientEmail} (Mã đơn: ${orderCode})`);
+      trainingMailSent = true;
+    } catch (trainingMailErr: any) {
+      console.warn(
+        `[Training Mailer Warning] Gửi mail thất bại cho: ${recipientEmail} - ${trainingMailErr?.message || trainingMailErr}`
+      );
+    }
 
-    console.log(`[Mailer] Đã gửi email xác nhận đăng ký gói tập thành công tới ${recipientEmail} (Mã đơn: ${orderCode})`);
-    return true;
+    // Tự động kích hoạt email thông báo tới Admin song song với email gửi học viên
+    try {
+      await sendAdminNotification({
+        type: 'TRAINING',
+        title: `Gói Tập: ${payload.packageName}`,
+        code: orderCode || payload.code || 'N/A',
+        customerName: payload.fullName,
+        phone: payload.phone,
+        email: recipientEmail,
+        amount: payload.amount,
+        transferContent: payload.transferContent || undefined,
+        details: `Cấp độ: ${payload.level || 'Junior'} | Ca: ${payload.preferredTime || 'Linh hoạt'}`,
+      });
+    } catch (adminMailErr: any) {
+      console.error('[Admin Mailer Error in sendTrainingRegistrationEmail]:', adminMailErr?.message || adminMailErr);
+    }
+
+    return trainingMailSent;
   } catch (error: any) {
     console.warn(
-      `[Training Mailer Warning] Gửi mail thất bại cho: ${recipientEmail} - ${error?.message || error}`
+      `[Training Mailer General Warning] Lỗi xử lý gửi mail gói tập: ${error?.message || error}`
     );
     return false;
   }
 }
+
+export interface AdminNotificationDetail {
+  label: string;
+  value: string | number | null | undefined;
+}
+
+export interface AdminNotificationPayload {
+  type: 'BOOK_COURT' | 'TRAINING' | 'MEMBER' | string;
+  title?: string;
+  code?: string;
+  customerName?: string;
+  phone: string;
+  email?: string | null;
+  amount?: number | string | null;
+  transferContent?: string | null;
+  details?: string | AdminNotificationDetail[] | null;
+  // Compatibility fields if passed:
+  moduleName?: string;
+  bookingCode?: string;
+  fullName?: string;
+  notes?: string | null;
+  sheetsUrl?: string;
+}
+
+const recentAdminAlerts = new Map<string, number>();
+
+function isRecentDuplicateAlert(key: string, cooldownMs = 5000): boolean {
+  const now = Date.now();
+  const lastTime = recentAdminAlerts.get(key);
+  if (lastTime && now - lastTime < cooldownMs) {
+    return true;
+  }
+  recentAdminAlerts.set(key, now);
+  if (recentAdminAlerts.size > 300) {
+    for (const [k, time] of recentAdminAlerts.entries()) {
+      if (now - time > 60_000) {
+        recentAdminAlerts.delete(k);
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Gửi email thông báo đơn đăng ký mới tới Quản trị viên (quocduyhoang42@gmail.com).
+ * Áp dụng thống nhất cho tất cả các module: Đặt sân, Gói tập & Scrimmage, Tuyển thành viên.
+ * Hoạt động bất đồng bộ, fail-safe, có log giám sát chi tiết theo chuẩn [BACKEND] [Admin Mailer].
+ */
+export async function sendAdminNotification(
+  payload: AdminNotificationPayload
+): Promise<boolean> {
+  const adminEmail = (process.env.ADMIN_NOTIFICATION_EMAIL || 'quocduyhoang42@gmail.com').trim();
+  const type = payload.type || 'BOOK_COURT';
+  const code = (payload.code || payload.bookingCode || 'N/A').trim();
+  const title = (payload.title || payload.moduleName || 'Đơn đăng ký mới').trim();
+  const customerName = (payload.customerName || payload.fullName || 'Khách hàng').trim();
+  const phone = (payload.phone || '').trim();
+  const email = (payload.email || '').trim() || undefined;
+  const rawAmount = payload.amount;
+  const amount =
+    rawAmount !== undefined && rawAmount !== null && rawAmount !== ''
+      ? Number(rawAmount)
+      : undefined;
+  const transferContent = (payload.transferContent || '').trim() || undefined;
+  const details =
+    typeof payload.details === 'string'
+      ? payload.details.trim()
+      : Array.isArray(payload.details)
+        ? payload.details.map((d) => `${d.label}: ${d.value}`).join(' | ')
+        : (payload.notes || '').trim() || undefined;
+
+  const dedupKey = `${type}:${code}`;
+  if (code && code !== 'N/A' && isRecentDuplicateAlert(dedupKey, 5000)) {
+    console.log(`[BACKEND] [Admin Mailer] ℹ️ Đã gửi thông báo cho đơn ${code} gần đây, bỏ qua trùng lặp.`);
+    return true;
+  }
+
+  console.log(
+    `[BACKEND] [Admin Mailer] 🚀 Đang chuẩn bị gửi email thông báo đơn mới tới: ${adminEmail} (Loại: ${type}, Mã: ${code})`
+  );
+
+  try {
+    const formattedAmount =
+      amount !== undefined && !Number.isNaN(amount)
+        ? `${Number(amount).toLocaleString('vi-VN')}đ`
+        : '';
+    const subject = `🚨 [DVA ADMIN ALERT] ${title} - ${customerName}${formattedAmount ? ' - ' + formattedAmount : ''}`;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 600px;">
+        <h2 style="color: #f97316; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-top: 0;">
+          🚨 CÓ ĐƠN ĐĂNG KÝ MỚI
+        </h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 15px;">
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8; width: 140px;">Dịch vụ:</td>
+            <td style="padding: 8px 0; font-weight: bold; color: #ffffff;">${escapeHtml(title)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Mã đơn:</td>
+            <td style="padding: 8px 0; font-weight: bold; color: #38bdf8;">${escapeHtml(code)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Họ và tên:</td>
+            <td style="padding: 8px 0; font-weight: bold; color: #ffffff;">${escapeHtml(customerName)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Số điện thoại:</td>
+            <td style="padding: 8px 0;"><a href="tel:${escapeHtml(phone)}" style="color: #38bdf8; text-decoration: none; font-weight: bold;">${escapeHtml(phone)}</a></td>
+          </tr>
+          ${
+            email
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Email:</td>
+            <td style="padding: 8px 0; color: #ffffff;">${escapeHtml(email)}</td>
+          </tr>`
+              : ''
+          }
+          ${
+            amount !== undefined && !Number.isNaN(amount)
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Số tiền:</td>
+            <td style="padding: 8px 0; font-weight: bold; color: #4ade80; font-size: 16px;">${Number(amount).toLocaleString('vi-VN')} đ</td>
+          </tr>`
+              : ''
+          }
+          ${
+            transferContent
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Nội dung CK:</td>
+            <td style="padding: 8px 0; font-family: monospace; font-weight: bold; color: #facc15;">${escapeHtml(transferContent)}</td>
+          </tr>`
+              : ''
+          }
+          ${
+            details
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Thông tin thêm:</td>
+            <td style="padding: 8px 0; color: #ffffff;">${escapeHtml(details)}</td>
+          </tr>`
+              : ''
+          }
+        </table>
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
+          Hệ thống Quản lý DVA Volleyball Club • Tự động gửi từ Server
+        </div>
+      </div>
+    `.trim();
+
+    const transporter = createMailTransporter();
+    const result = await transporter.sendMail({
+      from: getMailSender().from,
+      to: adminEmail,
+      subject,
+      html: htmlContent,
+    });
+
+    console.log(
+      `[BACKEND] [Admin Mailer] ✅ Đã gửi email thông báo tới Admin (${adminEmail}) thành công! MessageId: ${result.messageId}`
+    );
+    return true;
+  } catch (error: any) {
+    console.error(
+      `[BACKEND] [Admin Mailer] ❌ Lỗi gửi email tới Admin (${adminEmail}):`,
+      error.message
+    );
+    return false;
+  }
+}
+
+/**
+ * Alias giữ lại để tương thích ngược với code cũ
+ */
+export const sendAdminNotificationEmail = sendAdminNotification;
+export const notifyAdminNewSubmission = sendAdminNotification;
