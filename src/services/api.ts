@@ -24,8 +24,10 @@ import {
   INITIAL_MEMBER_APPLICATIONS 
 } from '../data/mockData';
 import { getDefaultWeeklyScheduleForCourt, normalizeCourtWeeklySchedule } from '../shared/schedule';
+import { API_BASE_URL, getApiUrl } from '../config/api';
 
-const BASE_URL = '/api';
+export { API_BASE_URL, getApiUrl };
+
 const TOKEN_KEY = 'dva_token';
 const CURRENT_USER_KEY = 'dva_current_user';
 
@@ -81,10 +83,11 @@ function clearSession() {
  */
 async function request<T>(endpoint: string, options?: RequestInit, fallbackData?: T): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY);
+  const url = getApiUrl(endpoint);
 
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}${endpoint}`, {
+    res = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
