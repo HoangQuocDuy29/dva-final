@@ -54,7 +54,7 @@ const LEADERSHIP_MEMBERS: LeadershipMember[] = [
     specialtyColor: 'text-blue-400',
     description: 'Manages the technical infrastructure and digital platforms of DVA. Responsible for system stability, match data tracking, and coordinating technical support during events.',
     roleFooter: 'Role : System Technical',
-    fallbackInitials: 'NAM',
+    fallbackInitials: 'KIEN',
     avatarGradient: 'from-blue-700 to-cyan-600',
     hoverBorder: 'hover:border-blue-500/50',
     image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792859693/dedfed66-f2fc-44ad-b4d8-e8b4bb66ef24.png',
@@ -67,7 +67,7 @@ const LEADERSHIP_MEMBERS: LeadershipMember[] = [
     specialtyColor: 'text-amber-400',
     description: 'Captain of the DVA Junior Team. Leads training drills on the court, supports match organization, and helps connect younger members with club activities.',
     roleFooter: 'Role: Junior Squad Captain',
-    fallbackInitials: 'THAO',
+    fallbackInitials: 'PHONG',
     avatarGradient: 'from-amber-600 to-yellow-500',
     hoverBorder: 'hover:border-amber-500/50',
     image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792864125/46219df4-39ee-4418-a31d-3c0d69cbf589.png',
@@ -78,7 +78,7 @@ const LEADERSHIP_MEMBERS: LeadershipMember[] = [
     badgeColor: 'bg-emerald-950 text-emerald-300 border-emerald-800',
     specialty: 'Squad Leader & Youth Development',
     specialtyColor: 'text-emerald-400',
-    description: 'Đội trưởng đội Trẻ (DVA Youth Team), phụ trách dẫn dắt các buổi tập, hướng dẫn kỹ thuật cơ bản cho các VĐV trẻ và gắn kết sinh hoạt đội.',
+    description: 'Captain of the DVA Youth Team, responsible for leading training sessions, instructing youth athletes on fundamental skills, and fostering team cohesion.',
     roleFooter: 'Role : Youth Squad Captain',
     fallbackInitials: 'HUY',
     avatarGradient: 'from-emerald-600 to-teal-500',
@@ -92,7 +92,7 @@ const LEADERSHIP_MEMBERS: LeadershipMember[] = [
     specialtyColor: 'text-orange-400',
     description: 'Manages social media channels and communications for DVA. Captures match photos, posts game schedules, and keeps members updated across club platforms.',
     roleFooter: 'Role: Social Media & Communications',
-    fallbackInitials: 'KHANG',
+    fallbackInitials: 'HIEU',
     avatarGradient: 'from-red-600 to-pink-600',
     hoverBorder: 'hover:border-orange-500/50',
     image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792919620/6d3b1902-b8d9-4097-b65e-fca87ecff4aa.png',
@@ -554,7 +554,7 @@ export const HomePage: React.FC = () => {
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-950 text-red-300 border border-red-700">
                   TIER: SENIOR
                 </span>
-                <span className="text-xs font-mono font-bold text-orange-400">18 Roster Athletes</span>
+                <span className="text-xs font-mono font-bold text-orange-400">197 Roster Athletes</span>
               </div>
 
               <div className="h-40 rounded-2xl overflow-hidden relative bg-gradient-to-br from-red-950 via-slate-900 to-black p-4 flex flex-col justify-between border border-red-900/30">
@@ -584,15 +584,15 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-500 block">Formation:</span>
-                  <span className="font-bold text-emerald-400">5-1</span>
+                  <span className="font-bold text-emerald-400">5-1 & 6-2</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Avg Height:</span>
-                  <span className="font-mono font-bold text-white">188 cm</span>
+                  <span className="font-mono font-bold text-white">180 cm</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Avg Spike Reach:</span>
-                  <span className="font-mono font-bold text-orange-400">334 cm</span>
+                  <span className="font-mono font-bold text-orange-400">300 cm</span>
                 </div>
               </div>
             </div>
@@ -614,7 +614,7 @@ export const HomePage: React.FC = () => {
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-950 text-blue-300 border border-blue-700">
                   TIER: JUNIOR
                 </span>
-                <span className="text-xs font-mono font-bold text-cyan-400">24 Emerging Athletes</span>
+                <span className="text-xs font-mono font-bold text-cyan-400">174 Emerging Athletes</span>
               </div>
 
               <div className="h-40 rounded-2xl overflow-hidden relative bg-gradient-to-br from-blue-950 via-slate-900 to-black p-4 flex flex-col justify-between border border-blue-900/30">
@@ -644,15 +644,15 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-500 block">Tactical System:</span>
-                  <span className="font-bold text-cyan-400">5-1 & 6-2</span>
+                  <span className="font-bold text-cyan-400">5-1</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Avg Height:</span>
-                  <span className="font-mono font-bold text-white">182 cm</span>
+                  <span className="font-mono font-bold text-white">170 cm</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Avg Spike Reach:</span>
-                  <span className="font-mono font-bold text-cyan-400">321 cm</span>
+                  <span className="font-mono font-bold text-cyan-400">280 cm</span>
                 </div>
               </div>
             </div>
@@ -674,7 +674,7 @@ export const HomePage: React.FC = () => {
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-700">
                   TIER: YOUTH
                 </span>
-                <span className="text-xs font-mono font-bold text-emerald-400">30+ Youth Trainees</span>
+                <span className="text-xs font-mono font-bold text-emerald-400">20+ Youth Trainees</span>
               </div>
 
               <div className="h-40 rounded-2xl overflow-hidden relative bg-gradient-to-br from-emerald-950 via-slate-900 to-black p-4 flex flex-col justify-between border border-emerald-900/30">
@@ -703,12 +703,12 @@ export const HomePage: React.FC = () => {
                   <span className="font-bold text-emerald-400">Youth</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Coaching:</span>
-                  <span className="font-bold text-white">Fundamentals 101</span>
+                  <span className="text-slate-500 block">Rotation:</span>
+                  <span className="font-bold text-white">4-2</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Match Ball:</span>
-                  <span className="font-bold text-white">Mikasa V200W</span>
+                  <span className="text-slate-500 block">Avg Height :</span>
+                  <span className="font-bold text-white">165 cm</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Environment:</span>
