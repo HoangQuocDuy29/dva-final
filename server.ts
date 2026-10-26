@@ -97,35 +97,56 @@ if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PRO
 app.disable('x-powered-by');
 app.use(securityHeaders);
 
-// CORS Configuration
-const configuredClientUrl = process.env.CLIENT_URL?.trim().replace(/\/+$/, '');
-const allowedOrigins = [
+// ==============================================================================
+// CORS Configuration (Multi-origin & Environment Adaptive)
+// ==============================================================================
+const defaultAllowedOrigins = [
   'http://localhost:5173',
-  'http://localhost:3000',
   'http://127.0.0.1:5173',
+  'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
   'https://dvavolleyball.com',
-  configuredClientUrl,
-].filter(Boolean) as string[];
+];
+
+// Nạp danh sách domain từ process.env.CLIENT_URL (hỗ trợ 1 URL hoặc nhiều URL phân cách bởi dấu phẩy)
+if (process.env.CLIENT_URL) {
+  process.env.CLIENT_URL.split(',').forEach((url) => {
+    const trimmed = url.trim().replace(/\/+$/, '');
+    if (trimmed && !defaultAllowedOrigins.includes(trimmed)) {
+      defaultAllowedOrigins.push(trimmed);
+    }
+  });
+}
 
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    // Cho phép các request không có origin (như Postman, mobile app, hoặc server-to-server)
-    if (!origin) return callback(null, true);
-
-    // Kiểm tra nếu origin nằm trong whitelist hoặc là subdomain của vercel.app
-    const isAllowed = allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin);
-
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      callback(new Error(`[CORS Blocked] Origin không được phép truy cập: ${origin}`));
+    // 1. Cho phép các request không có origin (UptimeRobot ping /health, mobile app, Postman, server-to-server)
+    if (!origin) {
+      return callback(null, true);
     }
+
+    const cleanOrigin = origin.trim().replace(/\/+$/, '');
+
+    // 2. Cho phép nếu nằm trong danh sách whitelist hoặc là subdomain của vercel.app (*.vercel.app)
+    const isWhitelisted = defaultAllowedOrigins.includes(cleanOrigin) || /\.vercel\.app$/.test(cleanOrigin);
+
+    // 3. Trong môi trường local development, luôn linh hoạt cho phép mọi port từ localhost hoặc 127.0.0.1
+    const isLocalDev = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin);
+
+    if (isWhitelisted || isLocalDev) {
+      return callback(null, true);
+    }
+
+    // 4. Nếu origin không hợp lệ, từ chối an toàn bằng (null, false) thay vì throw Error gây sập 500 ERR_FAILED
+    console.warn(`[CORS Blocked] Origin không được phép truy cập: ${origin}`);
+    return callback(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true, // Cho phép gửi kèm cookie hoặc header xác thực nếu có
-  optionsSuccessStatus: 200, // Hỗ trợ tương thích trên một số trình duyệt / client cũ
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  credentials: true, // Cho phép gửi kèm cookie hoặc header xác thực Authorization
+  optionsSuccessStatus: 200, // Hỗ trợ tương thích preflight cho trình duyệt cũ và mobile
 };
 
 app.use(cors(corsOptions));

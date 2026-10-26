@@ -1,8 +1,9 @@
 /**
  * Cấu hình API Base URL tập trung cho toàn bộ ứng dụng Frontend (Vite/React).
- * Sử dụng biến môi trường linh hoạt VITE_API_URL, mặc định fallback về 'http://localhost:5000'.
+ * Ưu tiên lấy từ biến môi trường VITE_API_URL, tự động fallback về 'http://localhost:5000' nếu chưa cấu hình.
  */
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+export const API_BASE_URL = (rawApiUrl && rawApiUrl.length > 0 ? rawApiUrl : 'http://localhost:5000').replace(/\/+$/, '');
 
 /**
  * Helper chuẩn hóa URL cho các endpoint API: `${API_BASE_URL}/api/...`

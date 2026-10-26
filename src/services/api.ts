@@ -89,6 +89,7 @@ async function request<T>(endpoint: string, options?: RequestInit, fallbackData?
   try {
     res = await fetch(url, {
       ...options,
+      credentials: options?.credentials || 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
