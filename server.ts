@@ -81,12 +81,16 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const ROOT_DIR = fs.existsSync(path.join(__dirname, 'package.json'))
+  ? __dirname
+  : process.cwd();
 
-dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(ROOT_DIR, '.env') });
+dotenv.config();
 assertSecurityConfig();
 
 export const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Required when running behind a reverse proxy (Render, Railway, Vercel...) so req.ip is the real client.
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
@@ -130,6 +134,15 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
+// Health Check Endpoint (Render / Cloud hosting uptime & auto-recovery monitor)
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Bank details used for VietQR (override via env in production)
 const BANK = {
   id: process.env.BANK_ID || process.env.VIETQR_BANK_ID || 'MB',
@@ -145,7 +158,9 @@ const ah = (fn: (req: express.Request, res: express.Response) => any): express.R
     Promise.resolve(fn(req, res)).catch(next);
   };
 
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = fs.existsSync(path.join(__dirname, 'data'))
+  ? path.join(__dirname, 'data')
+  : path.join(ROOT_DIR, 'data');
 
 export function readJsonFileSafe<T>(filename: string, fallback: T): T {
   try {
@@ -190,12 +205,13 @@ setUserLookup(async (id) => {
 const isAllowedScriptUrl = (url: string) => /^https:\/\/script\.google(usercontent)?\.com\//i.test(url);
 
 async function getGoogleScriptUrl(): Promise<string> {
+  const envUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_URL || '';
   try {
     const cfg = await prisma.appConfig.findUnique({ where: { id: 'default' } });
-    return cfg?.googleScriptUrl || process.env.GOOGLE_SCRIPT_URL || '';
+    return cfg?.googleScriptUrl || envUrl;
   } catch (error) {
     console.error("[API ERROR] getGoogleScriptUrl:", error);
-    return process.env.GOOGLE_SCRIPT_URL || '';
+    return envUrl;
   }
 }
 
@@ -2547,7 +2563,9 @@ async function setupViteOrStatic() {
     app.use(vite.middlewares);
     console.log('[Server] Vite middleware mounted in dev mode');
   } else {
-    const distPath = path.resolve(__dirname, 'dist');
+    const distPath = fs.existsSync(path.resolve(__dirname, 'index.html'))
+      ? __dirname
+      : path.resolve(ROOT_DIR, 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.resolve(distPath, 'index.html'));
@@ -2561,7 +2579,8 @@ ensurePostgreSQLSeeded()
   })
   .then(() => setupViteOrStatic())
   .then(() => {
-    const httpServer = app.listen(Number(PORT), '0.0.0.0', () => {
+    const httpServer = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`[BACKEND] Server is running on port ${PORT}`);
       console.log(`=================================================`);
       console.log(`🏐 DVA Volleyball Club Platform Server Running`);
       console.log(`⚡ Port: ${PORT}`);

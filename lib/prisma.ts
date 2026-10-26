@@ -797,15 +797,19 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
   }
 
   // 11. Seed AppConfig
+  const defaultScriptUrl =
+    process.env.GOOGLE_SHEETS_WEBHOOK_URL ||
+    process.env.GOOGLE_SCRIPT_URL ||
+    '';
   const legacyConfig = readLegacyJsonIfExists<{ googleScriptUrl?: string }>('appConfig.json', {
-    googleScriptUrl: process.env.GOOGLE_SCRIPT_URL || '',
+    googleScriptUrl: defaultScriptUrl,
   });
   await prisma.appConfig.upsert({
     where: { id: 'default' },
     update: {},
     create: {
       id: 'default',
-      googleScriptUrl: legacyConfig.googleScriptUrl || process.env.GOOGLE_SCRIPT_URL || '',
+      googleScriptUrl: legacyConfig.googleScriptUrl || defaultScriptUrl,
     },
   });
 }
