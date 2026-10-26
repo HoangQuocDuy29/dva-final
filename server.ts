@@ -1,4 +1,5 @@
 import express from 'express';
+import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -91,6 +92,40 @@ const PORT = process.env.PORT || 4000;
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 app.disable('x-powered-by');
 app.use(securityHeaders);
+
+// CORS Configuration
+const configuredClientUrl = process.env.CLIENT_URL?.trim().replace(/\/+$/, '');
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+  'https://dvavolleyball.com',
+  configuredClientUrl,
+].filter(Boolean) as string[];
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Cho phép các request không có origin (như Postman, mobile app, hoặc server-to-server)
+    if (!origin) return callback(null, true);
+
+    // Kiểm tra nếu origin nằm trong whitelist hoặc là subdomain của vercel.app
+    const isAllowed = allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin);
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error(`[CORS Blocked] Origin không được phép truy cập: ${origin}`));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true, // Cho phép gửi kèm cookie hoặc header xác thực nếu có
+  optionsSuccessStatus: 200, // Hỗ trợ tương thích trên một số trình duyệt / client cũ
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
@@ -2489,6 +2524,9 @@ app.use((err: any, _req: express.Request, res: express.Response, next: express.N
   if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
   if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON body' });
   if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'Request body too large' });
+  if (typeof err?.message === 'string' && err.message.startsWith('[CORS Blocked]')) {
+    return res.status(403).json({ error: err.message });
+  }
   console.error('[Server Error]', err);
   res.status(500).json({ error: 'Internal server error' });
 });
