@@ -1215,7 +1215,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
         </div>
 
         {/* Dedicated Admin Module Navigation Tabs */}
-        <div className="max-w-7xl mx-auto mt-4 pt-2 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto text-xs font-bold scrollbar-none touch-pan-x -mx-2 px-2 sm:mx-0 sm:px-0 py-1">
+        <div
+          className="max-w-7xl mx-auto mt-4 pt-2 border-t border-slate-800/80 flex flex-nowrap items-center gap-2 overflow-x-auto text-xs font-bold scrollbar-none scroll-smooth touch-pan-x py-1.5 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          style={{
+            display: 'flex',
+            flexWrap: 'nowrap',
+            overflowX: 'auto',
+            gap: '0.5rem',
+            scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
           {[
             { id: 'OVERVIEW', label: 'Overview & Metrics' },
             { id: 'COURTS', label: 'Court Schedule & Slots' },
@@ -1243,15 +1253,16 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                 e.preventDefault();
                 setActiveModule(tab.id as any);
               }}
-              className={`px-3.5 py-2 rounded-xl transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl transition-all whitespace-nowrap shrink-0 flex items-center gap-2 cursor-pointer select-none ${
                 activeModule === tab.id
-                  ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow ring-1 ring-red-400'
-                  : 'bg-[#161F30] text-slate-400 hover:text-white border border-slate-800'
+                  ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow ring-1 ring-red-400 font-bold'
+                  : 'bg-[#161F30] text-slate-400 hover:text-white border border-slate-800 font-medium'
               }`}
+              style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
             >
-              <span>{tab.label}</span>
+              <span className="whitespace-nowrap">{tab.label}</span>
               {Boolean(tab.badge && tab.badge > 0) && (
-                <span className="w-4 h-4 rounded-full bg-white text-red-900 text-[9px] flex items-center justify-center font-black">
+                <span className="w-4 h-4 rounded-full bg-white text-red-900 text-[9px] flex items-center justify-center font-black shrink-0">
                   {tab.badge}
                 </span>
               )}
