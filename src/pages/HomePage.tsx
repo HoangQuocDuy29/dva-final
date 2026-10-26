@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Calendar, 
@@ -10,16 +10,320 @@ import {
   ArrowRight, 
   CheckCircle,
   Clock,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Court, Player, NewsPost } from '../types';
 import { courtService, playerService, newsService } from '../services/api';
 import { INITIAL_COURTS, INITIAL_PLAYERS, INITIAL_NEWS } from '../data/mockData';
 
+interface LeadershipMember {
+  name: string;
+  badge: string;
+  badgeColor: string;
+  specialty: string;
+  specialtyColor: string;
+  description: string;
+  roleFooter: string;
+  fallbackInitials: string;
+  avatarGradient: string;
+  hoverBorder: string;
+  image?: string;
+}
+
+const LEADERSHIP_MEMBERS: LeadershipMember[] = [
+  {
+    name: 'Hoang Quoc Duy',
+    badge: 'Founder & Club Manager',
+    badgeColor: 'bg-red-950 text-red-400 border-red-800',
+    specialty: 'Operations & Community Lead',
+    specialtyColor: 'text-orange-400',
+    description: 'Founder and manager of DVA Volleyball Club. Oversees match scheduling, court coordination, and community activities to maintain an accessible, organized playing environment for all members.',
+    roleFooter: 'Role : Senior Squad Captain',
+    fallbackInitials: 'DUY',
+    avatarGradient: 'from-red-600 to-orange-500',
+    hoverBorder: 'hover:border-red-500/50',
+    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792859772/88fd036d-168d-4c9b-b74d-48448e5808da.png',
+  },
+  {
+    name: 'Hoang Manh Kien',
+    badge: 'Technical & System Manager',
+    badgeColor: 'bg-blue-950 text-blue-300 border-blue-800',
+    specialty: 'Information Technology',
+    specialtyColor: 'text-blue-400',
+    description: 'Manages the technical infrastructure and digital platforms of DVA. Responsible for system stability, match data tracking, and coordinating technical support during events.',
+    roleFooter: 'Role : System Technical',
+    fallbackInitials: 'NAM',
+    avatarGradient: 'from-blue-700 to-cyan-600',
+    hoverBorder: 'hover:border-blue-500/50',
+    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792859693/dedfed66-f2fc-44ad-b4d8-e8b4bb66ef24.png',
+  },
+  {
+    name: 'Luong The Phong',
+    badge: 'Junior Team Captain',
+    badgeColor: 'bg-amber-950 text-amber-300 border-amber-800',
+    specialty: 'Squad Leader & Match Support',
+    specialtyColor: 'text-amber-400',
+    description: 'Captain of the DVA Junior Team. Leads training drills on the court, supports match organization, and helps connect younger members with club activities.',
+    roleFooter: 'Role: Junior Squad Captain',
+    fallbackInitials: 'THAO',
+    avatarGradient: 'from-amber-600 to-yellow-500',
+    hoverBorder: 'hover:border-amber-500/50',
+    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792864125/46219df4-39ee-4418-a31d-3c0d69cbf589.png',
+  },
+  {
+    name: 'Tran Cong Huy',
+    badge: 'Youth Squad Captain',
+    badgeColor: 'bg-emerald-950 text-emerald-300 border-emerald-800',
+    specialty: 'Squad Leader & Youth Development',
+    specialtyColor: 'text-emerald-400',
+    description: 'Đội trưởng đội Trẻ (DVA Youth Team), phụ trách dẫn dắt các buổi tập, hướng dẫn kỹ thuật cơ bản cho các VĐV trẻ và gắn kết sinh hoạt đội.',
+    roleFooter: 'Role : Youth Squad Captain',
+    fallbackInitials: 'HUY',
+    avatarGradient: 'from-emerald-600 to-teal-500',
+    hoverBorder: 'hover:border-emerald-500/50',
+  },
+  {
+    name: 'Hoang Minh Hieu',
+    badge: 'Social Media & Communications',
+    badgeColor: 'bg-orange-950 text-orange-300 border-orange-800',
+    specialty: 'Media & Community Channels',
+    specialtyColor: 'text-orange-400',
+    description: 'Manages social media channels and communications for DVA. Captures match photos, posts game schedules, and keeps members updated across club platforms.',
+    roleFooter: 'Role: Social Media & Communications',
+    fallbackInitials: 'KHANG',
+    avatarGradient: 'from-red-600 to-pink-600',
+    hoverBorder: 'hover:border-orange-500/50',
+    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792919620/6d3b1902-b8d9-4097-b65e-fca87ecff4aa.png',
+  },
+];
+
+const LeadershipCard: React.FC<{ member: LeadershipMember }> = ({ member }) => (
+  <div
+    className={`w-[280px] sm:w-[320px] min-h-[390px] shrink-0 bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between transition-all duration-300 shadow-xl group hover:shadow-2xl hover:-translate-y-1 ${member.hoverBorder} select-none`}
+  >
+    <div className="space-y-4">
+      <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${member.avatarGradient} overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto`}>
+        {member.image ? (
+          <img
+            src={member.image}
+            alt={member.name}
+            className="w-full h-full object-cover relative z-10"
+            onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+          />
+        ) : null}
+        <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">
+          {member.fallbackInitials}
+        </span>
+      </div>
+
+      <div className="text-center space-y-1">
+        <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border inline-block ${member.badgeColor}`}>
+          {member.badge}
+        </span>
+        <h3 className="font-heading font-black text-lg text-white">
+          {member.name}
+        </h3>
+        <p className={`text-[11px] font-semibold ${member.specialtyColor}`}>
+          {member.specialty}
+        </p>
+      </div>
+
+      <p className="text-xs text-slate-400 leading-relaxed text-center">
+        {member.description}
+      </p>
+    </div>
+
+    <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
+      {member.roleFooter}
+    </div>
+  </div>
+);
+
 export const HomePage: React.FC = () => {
   const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
   const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
   const [news, setNews] = useState<NewsPost[]>(INITIAL_NEWS);
+
+  // Leadership slider refs & state
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const setMeasureRef = useRef<HTMLDivElement>(null);
+  const [singleSetWidth, setSingleSetWidth] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const isHoveredRef = useRef(false);
+  const isInteractingRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startScrollLeftRef = useRef(0);
+  const currentScrollPosRef = useRef(0);
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Measure single set width on mount and on resize
+  useEffect(() => {
+    const updateWidth = () => {
+      if (setMeasureRef.current) {
+        const width = setMeasureRef.current.offsetWidth;
+        if (width > 0) {
+          setSingleSetWidth(width);
+          if (sliderRef.current && currentScrollPosRef.current === 0) {
+            sliderRef.current.scrollLeft = width;
+            currentScrollPosRef.current = width;
+          }
+        }
+      }
+    };
+
+    updateWidth();
+    const timer = setTimeout(updateWidth, 120);
+    window.addEventListener('resize', updateWidth);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, []);
+
+  // Smooth continuous auto-sliding loop (moving left to right)
+  useEffect(() => {
+    if (singleSetWidth <= 0) return;
+
+    let animId: number;
+    const speed = 0.7; // pixels per frame
+
+    const step = () => {
+      if (!isHoveredRef.current && !isInteractingRef.current && !isDraggingRef.current && sliderRef.current) {
+        // Decreasing scrollLeft moves cards visually from Left to Right
+        currentScrollPosRef.current -= speed;
+
+        if (currentScrollPosRef.current <= 0) {
+          currentScrollPosRef.current += singleSetWidth;
+        } else if (currentScrollPosRef.current >= 2 * singleSetWidth) {
+          currentScrollPosRef.current -= singleSetWidth;
+        }
+
+        sliderRef.current.scrollLeft = currentScrollPosRef.current;
+      }
+      animId = requestAnimationFrame(step);
+    };
+
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [singleSetWidth]);
+
+  // Global mouse up to reliably stop drag even when releasing outside container
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+        resumeTimerRef.current = setTimeout(() => {
+          isInteractingRef.current = false;
+          if (!isHoveredRef.current) {
+            setIsPaused(false);
+          }
+        }, 1500);
+      }
+    };
+
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
+  // Handle user scroll (manual swipe or trackpad)
+  const handleSliderScroll = () => {
+    const container = sliderRef.current;
+    if (!container || singleSetWidth <= 0) return;
+
+    if (isInteractingRef.current || isDraggingRef.current) {
+      currentScrollPosRef.current = container.scrollLeft;
+    }
+
+    // Seamless infinite wrap during manual scrolling
+    if (container.scrollLeft <= 10) {
+      container.scrollLeft += singleSetWidth;
+      currentScrollPosRef.current = container.scrollLeft;
+      if (isDraggingRef.current) {
+        startScrollLeftRef.current += singleSetWidth;
+      }
+    } else if (container.scrollLeft >= 2 * singleSetWidth - 10) {
+      container.scrollLeft -= singleSetWidth;
+      currentScrollPosRef.current = container.scrollLeft;
+      if (isDraggingRef.current) {
+        startScrollLeftRef.current -= singleSetWidth;
+      }
+    }
+  };
+
+  // Mouse drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const container = sliderRef.current;
+    if (!container) return;
+    isDraggingRef.current = true;
+    isInteractingRef.current = true;
+    setIsPaused(true);
+    startXRef.current = e.pageX - container.offsetLeft;
+    startScrollLeftRef.current = container.scrollLeft;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !sliderRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - sliderRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.3;
+    sliderRef.current.scrollLeft = startScrollLeftRef.current - walk;
+    currentScrollPosRef.current = sliderRef.current.scrollLeft;
+  };
+
+  // Mouse hover handlers
+  const handleMouseEnter = () => {
+    isHoveredRef.current = true;
+    setIsPaused(true);
+  };
+
+  const handleMouseLeave = () => {
+    isHoveredRef.current = false;
+    if (!isInteractingRef.current && !isDraggingRef.current) {
+      setIsPaused(false);
+    }
+  };
+
+  // Touch swipe handlers
+  const handleTouchStart = () => {
+    isInteractingRef.current = true;
+    setIsPaused(true);
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+  };
+
+  const handleTouchEnd = () => {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => {
+      isInteractingRef.current = false;
+      if (!isHoveredRef.current) {
+        setIsPaused(false);
+      }
+    }, 1500);
+  };
+
+  // Manual step button navigation
+  const handleManualScroll = (direction: 'left' | 'right') => {
+    const container = sliderRef.current;
+    if (!container) return;
+
+    isInteractingRef.current = true;
+    setIsPaused(true);
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => {
+      isInteractingRef.current = false;
+      if (!isHoveredRef.current) {
+        setIsPaused(false);
+      }
+    }, 2500);
+
+    const stepOffset = direction === 'left' ? -344 : 344;
+    container.scrollBy({ left: stepOffset, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     courtService.getCourts().then((res) => {
@@ -427,140 +731,92 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* LEADERSHIP, MANAGEMENT & CONTENT CREATOR SHOWCASE */}
-      <section className="py-16 bg-[#080C14] border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-          <div>
-            <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Leadership & Operations</span>
-            <h2 className="text-3xl font-black text-white font-heading mt-1">
-              Club Leadership, Technical & Media Team
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-              The core team managing club operations, system infrastructure, youth player activities, and community communications at DVA Volleyball Club.
-            </p>
+      <section className="py-16 bg-[#080C14] border-t border-slate-800 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Leadership & Operations</span>
+              <h2 className="text-3xl font-black text-white font-heading mt-1">
+                Club Leadership, Technical & Media Team
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
+                The core team managing club operations, system infrastructure, youth player activities, and community communications at DVA Volleyball Club.
+              </p>
+            </div>
+
+            {/* Slider Controls & Live Status Pill */}
+            <div className="flex items-center gap-3 self-start md:self-end">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#121826] border border-slate-800 text-slate-400 shadow-sm">
+                <span className={`w-2 h-2 rounded-full transition-colors ${isPaused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
+                <span className="hidden sm:inline">{isPaused ? 'Tạm dừng (Rê chuột / Vuốt)' : 'Tự động trượt (Trái → Phải)'}</span>
+                <span className="sm:hidden">{isPaused ? 'Tạm dừng' : 'Trượt tự động'}</span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleManualScroll('left')}
+                  className="p-2.5 rounded-xl bg-[#121826] hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors active:scale-95 cursor-pointer shadow-md"
+                  aria-label="Xem thẻ phía trước"
+                  title="Xem thẻ trước"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleManualScroll('right')}
+                  className="p-2.5 rounded-xl bg-[#121826] hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors active:scale-95 cursor-pointer shadow-md"
+                  aria-label="Xem thẻ tiếp theo"
+                  title="Xem thẻ tiếp theo"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            {/* Card 1: Founder & Head Coach */}
-            <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-red-500/50 transition-all shadow-xl group">
-  <div className="space-y-4">
-    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-      <img
-        src="https://res.cloudinary.com/dsezvx7xf/image/upload/v1792859772/88fd036d-168d-4c9b-b74d-48448e5808da.png"
-        alt="Hoang Quoc Duy"
-        className="w-full h-full object-cover relative z-10"
-        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-      />
-      <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">DUY</span>
-    </div>
-    <div className="text-center space-y-1">
-      <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-red-950 text-red-400 border border-red-800 inline-block">
-        Founder & Club Manager
-      </span>
-      <h3 className="font-heading font-black text-lg text-white">
-        Hoang Quoc Duy
-      </h3>
-      <p className="text-[11px] text-orange-400 font-semibold">Operations & Community Lead</p>
-    </div>
-    <p className="text-xs text-slate-400 leading-relaxed text-center">
-      Founder and manager of DVA Volleyball Club. Oversees match scheduling, court coordination, and community activities to maintain an accessible, organized playing environment for all members.
-    </p>
-  </div>
-  <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-    Role : Senior Squad Captain
-  </div>
-</div>
+          {/* Carousel Slider with edge fade masks */}
+          <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+            {/* Left fade gradient overlay */}
+            <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-r from-[#080C14] to-transparent z-10 pointer-events-none" />
+            {/* Right fade gradient overlay */}
+            <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-l from-[#080C14] to-transparent z-10 pointer-events-none" />
 
-            {/* Card 2: Technical Leader */}
-            <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-blue-500/50 transition-all shadow-xl group">
-  <div className="space-y-4">
-    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-700 to-cyan-600 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-      <img
-        src="https://res.cloudinary.com/dsezvx7xf/image/upload/v1792859693/dedfed66-f2fc-44ad-b4d8-e8b4bb66ef24.png"
-        alt="Hoang Manh Kien"
-        className="w-full h-full object-cover relative z-10"
-        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-      />
-      <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">NAM</span>
-    </div>
-    <div className="text-center space-y-1">
-      <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-950 text-blue-300 border border-blue-800 inline-block">
-        Technical & System Manager
-      </span>
-      <h3 className="font-heading font-black text-lg text-white">
-        Hoang Manh Kien
-      </h3>
-      <p className="text-[11px] text-blue-400 font-semibold">Information Technology</p>
-    </div>
-    <p className="text-xs text-slate-400 leading-relaxed text-center">
-      Manages the technical infrastructure and digital platforms of DVA. Responsible for system stability, match data tracking, and coordinating technical support during events.
-    </p>
-  </div>
-  <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-    Role : System Technical
-  </div>
-</div>
+            <div
+              ref={sliderRef}
+              onScroll={handleSliderScroll}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="overflow-x-auto scrollbar-none flex cursor-grab active:cursor-grabbing select-none py-4 px-2"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              <div className="flex">
+                {/* Set 0 (Buffer Set for seamless backward wrap) */}
+                <div ref={setMeasureRef} className="flex gap-6 shrink-0 pr-6">
+                  {LEADERSHIP_MEMBERS.map((member, idx) => (
+                    <LeadershipCard key={`set0-${idx}`} member={member} />
+                  ))}
+                </div>
 
-            {/* Card 3: Operations Manager */}
-            <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-amber-500/50 transition-all shadow-xl group">
-  <div className="space-y-4">
-    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-600 to-yellow-500 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-      <img
-        src="https://res.cloudinary.com/dsezvx7xf/image/upload/v1792864125/46219df4-39ee-4418-a31d-3c0d69cbf589.png"
-        alt="Luong The Phong"
-        className="w-full h-full object-cover relative z-10"
-        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-      />
-      <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">THAO</span>
-    </div>
-    <div className="text-center space-y-1">
-      <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-950 text-amber-300 border border-amber-800 inline-block">
-        Junior Team Captain
-      </span>
-      <h3 className="font-heading font-black text-lg text-white">
-        Luong The Phong
-      </h3>
-      <p className="text-[11px] text-amber-400 font-semibold">Squad Leader & Match Support</p>
-    </div>
-    <p className="text-xs text-slate-400 leading-relaxed text-center">
-      Captain of the DVA Junior Team. Leads training drills on the court, supports match organization, and helps connect younger members with club activities.
-    </p>
-  </div>
-  <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-    Role: Junior Squad Captain
-  </div>
-</div>
+                {/* Set 1 (Main Set) */}
+                <div className="flex gap-6 shrink-0 pr-6">
+                  {LEADERSHIP_MEMBERS.map((member, idx) => (
+                    <LeadershipCard key={`set1-${idx}`} member={member} />
+                  ))}
+                </div>
 
-            {/* Card 4: Media & Content Creator */}
-            <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between hover:border-orange-500/50 transition-all shadow-xl group">
-  <div className="space-y-4">
-    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600 to-pink-600 overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto">
-      <img
-        src="https://res.cloudinary.com/dsezvx7xf/image/upload/v1792919620/6d3b1902-b8d9-4097-b65e-fca87ecff4aa.png"
-        alt="Hoang Minh Hieu"
-        className="w-full h-full object-cover relative z-10"
-        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-      />
-      <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">KHANG</span>
-    </div>
-    <div className="text-center space-y-1">
-      <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-orange-950 text-orange-300 border border-orange-800 inline-block">
-        Social Media & Communications
-      </span>
-      <h3 className="font-heading font-black text-lg text-white">
-        Hoang Minh Hieu
-      </h3>
-      <p className="text-[11px] text-orange-400 font-semibold">Media & Community Channels</p>
-    </div>
-    <p className="text-xs text-slate-400 leading-relaxed text-center">
-      Manages social media channels and communications for DVA. Captures match photos, posts game schedules, and keeps members updated across club platforms.
-    </p>
-  </div>
-  <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-    Role: Social Media & Communications
-  </div>
-</div>
-
+                {/* Set 2 (Buffer Set for seamless forward wrap) */}
+                <div className="flex gap-6 shrink-0 pr-6">
+                  {LEADERSHIP_MEMBERS.map((member, idx) => (
+                    <LeadershipCard key={`set2-${idx}`} member={member} />
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

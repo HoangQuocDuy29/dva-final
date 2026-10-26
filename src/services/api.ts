@@ -308,7 +308,7 @@ export const courtService = {
       address: courtData.address || 'DVA Sports Center, Hà Nội',
       description:
         courtData.description ||
-        'Sân bóng chuyền tiêu chuẩn FIVB trang bị mặt sàn Taraflex Pro chống chấn thương.',
+        'Sân bóng chuyền tiêu chuẩn trang bị mặt sàn Taraflex Pro chống chấn thương.',
       floorType: courtData.floorType || 'Gerflor Taraflex Sport Pro',
       hourlyRate: Number(courtData.hourlyRate) || 500000,
       minHours: Number(courtData.minHours) || 1.5,
