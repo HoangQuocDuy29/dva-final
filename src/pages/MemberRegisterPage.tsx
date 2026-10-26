@@ -231,11 +231,11 @@ export const MemberRegisterPage: React.FC = () => {
             Mùa Giải 2026 / Season 2026
           </span>
           <h1 className="text-3xl sm:text-4xl font-black text-white font-heading">
-            Player Registration / Đăng Ký Cầu Thủ
+            Player Registration / Đăng Ký
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
             Submit your athletic profile and reach metrics. Applications will be reviewed directly by the coaching staff within 24 hours. / 
-            Điền hồ sơ thể hình và tầm với của bạn. Ban huấn luyện sẽ xét duyệt và phản hồi trong 24 giờ.
+            Điền hồ sơ thể hình và tầm với của bạn. Chúng tôi sẽ xét duyệt và phản hồi trong 24 giờ.
           </p>
         </div>
 
