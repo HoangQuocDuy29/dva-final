@@ -83,6 +83,43 @@ import {
 import { uploadToCloudinary, buildCloudinaryFolder } from '../utils/cloudinary';
 import { CountrySelect } from '../components/common/CountrySelect';
 
+interface AthleteRosterAvatarProps {
+  avatarUrl?: string;
+  fullName: string;
+  jerseyNumber: number | string;
+}
+
+const AthleteRosterAvatar: React.FC<AthleteRosterAvatarProps> = ({ avatarUrl, fullName, jerseyNumber }) => {
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [avatarUrl]);
+
+  if (!avatarUrl || imageError) {
+    return (
+      <div className="w-12 h-14 rounded-xl bg-slate-900 border border-slate-700/60 flex items-center justify-center font-athletic font-black text-orange-400 text-lg shrink-0 shadow-inner">
+        #{jerseyNumber}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-12 h-14 rounded-xl border border-slate-700/60 bg-slate-900 overflow-hidden relative shrink-0 flex items-center justify-center shadow-sm">
+      <img
+        src={avatarUrl}
+        alt={fullName}
+        referrerPolicy="no-referrer"
+        onError={() => setImageError(true)}
+        className="w-full h-full object-cover object-top"
+      />
+      <span className="text-[10px] font-bold text-amber-500 bg-black/70 px-1 rounded absolute bottom-0.5 right-0.5 font-mono leading-tight select-none">
+        #{jerseyNumber}
+      </span>
+    </div>
+  );
+};
+
 interface AdminDashboardPageProps {
   currentUser: UserType;
   onOpenSheets: () => void;
@@ -2182,9 +2219,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                     return (
                     <div key={p.id} className="p-4 rounded-2xl border border-slate-800 bg-[#0E1524] flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-athletic font-black text-orange-400 text-lg">
-                          #{p.jerseyNumber}
-                        </div>
+                        <AthleteRosterAvatar
+                          avatarUrl={p.avatarUrl || (p as any).avatar || (p as any).image}
+                          fullName={p.fullName}
+                          jerseyNumber={p.jerseyNumber}
+                        />
                         <div>
                           <div className="font-bold text-white text-xs flex items-center gap-1.5">
                             <span>{p.fullName}</span>
