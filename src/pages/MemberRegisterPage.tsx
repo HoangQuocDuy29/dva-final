@@ -374,6 +374,9 @@ export const MemberRegisterPage: React.FC = () => {
                 </label>
                 <input
                   type="text"
+                  name="fullName"
+                  id="register-fullname"
+                  autoComplete="name"
                   required
                   value={formData.fullName}
                   onChange={(e) => {
@@ -687,6 +690,9 @@ export const MemberRegisterPage: React.FC = () => {
                 </label>
                 <input
                   type="email"
+                  name="email"
+                  id="register-email"
+                  autoComplete="email"
                   required
                   value={formData.gmail}
                   onChange={(e) => {
@@ -714,6 +720,9 @@ export const MemberRegisterPage: React.FC = () => {
                 </label>
                 <input
                   type="tel"
+                  name="tel"
+                  id="register-tel"
+                  autoComplete="tel"
                   required
                   value={formData.zalo}
                   onChange={(e) => {

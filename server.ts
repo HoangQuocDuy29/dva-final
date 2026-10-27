@@ -49,8 +49,6 @@ import {
   toMinutes,
 } from './src/shared/schedule';
 import {
-  INITIAL_MEMBER_APPLICATIONS,
-  INITIAL_PLAYERS,
   ensurePostgreSQLSeeded,
   fromRotationEnum,
   normalizeSquad,
@@ -495,11 +493,8 @@ app.get('/api/players', ah(async (req, res) => {
     return res.json(dbPlayers.map(toPlayerDto));
   } catch (error) {
     console.error('[API /players Error]:', error);
-    let fallbackPlayers = readJsonFileSafe<any[]>('players.json', INITIAL_PLAYERS);
-    if (!Array.isArray(fallbackPlayers) || fallbackPlayers.length === 0) {
-      fallbackPlayers = INITIAL_PLAYERS;
-    }
-    let mapped = fallbackPlayers.map(toPlayerDto);
+    let fallbackPlayers = readJsonFileSafe<any[]>('players.json', []);
+    let mapped = (fallbackPlayers || []).map(toPlayerDto);
 
     const { level, position, search } = req.query;
     if (typeof level === 'string') {
@@ -1432,9 +1427,21 @@ app.put('/api/bookings/:id', ah(async (req, res) => {
 
 app.delete('/api/bookings/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const existing = await prisma.booking.findUnique({ where: { id } });
-  if (!existing) return res.status(404).json({ error: 'Booking not found' });
-  await prisma.booking.delete({ where: { id } });
+  try {
+    const existing = await prisma.booking.findUnique({ where: { id } });
+    if (existing) {
+      await prisma.booking.delete({ where: { id } });
+    }
+  } catch (dbErr) {
+    console.warn('[DELETE /api/bookings/:id] DB error, will check JSON file:', dbErr);
+  }
+
+  const fileBookings = readJsonFileSafe<any[]>('bookings.json', []);
+  const nextBookings = fileBookings.filter((b: any) => b.id !== id);
+  if (nextBookings.length !== fileBookings.length) {
+    writeJsonFileSafe('bookings.json', nextBookings);
+  }
+
   res.json({ success: true, message: 'Booking deleted' });
 }));
 
@@ -1494,8 +1501,14 @@ app.delete('/api/training/courses/:id', ah(async (req, res) => {
 }));
 
 app.get('/api/training/registrations', ah(async (_req, res) => {
-  const dbRegs = await prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' } });
-  res.json(dbRegs.map(toRegistrationDto));
+  try {
+    const dbRegs = await prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' } });
+    return res.json(dbRegs.map(toRegistrationDto));
+  } catch (error) {
+    console.error('[API /training/registrations Error]:', error);
+    const fileRegs = readJsonFileSafe<any[]>('trainingRegistrations.json', []);
+    return res.json((fileRegs || []).map(toRegistrationDto));
+  }
 }));
 
 app.post('/api/training/register', ah(async (req, res) => {
@@ -1737,9 +1750,19 @@ app.patch('/api/training/registrations/:id/status', ah(async (req, res) => {
 
 app.delete('/api/training/registrations/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const existing = await prisma.trainingRegistration.findUnique({ where: { id } });
-  if (!existing) return res.status(404).json({ error: 'Registration not found' });
-  await prisma.trainingRegistration.delete({ where: { id } });
+  try {
+    const existing = await prisma.trainingRegistration.findUnique({ where: { id } });
+    if (existing) await prisma.trainingRegistration.delete({ where: { id } });
+  } catch (dbErr) {
+    console.warn('[DELETE /api/training/registrations/:id] DB error:', dbErr);
+  }
+
+  const fileRegs = readJsonFileSafe<any[]>('trainingRegistrations.json', []);
+  const nextRegs = fileRegs.filter((r: any) => r.id !== id);
+  if (nextRegs.length !== fileRegs.length) {
+    writeJsonFileSafe('trainingRegistrations.json', nextRegs);
+  }
+
   res.json({ success: true, message: 'Registration deleted' });
 }));
 
@@ -1796,11 +1819,8 @@ app.get('/api/members/applications', ah(async (_req, res) => {
     return res.json(dbApps.map(toApplicationDto));
   } catch (error) {
     console.error('[API /members/applications Error]:', error);
-    let fallbackApps = readJsonFileSafe<any[]>('applications.json', INITIAL_MEMBER_APPLICATIONS);
-    if (!Array.isArray(fallbackApps) || fallbackApps.length === 0) {
-      fallbackApps = INITIAL_MEMBER_APPLICATIONS;
-    }
-    return res.json(fallbackApps.map(toApplicationDto));
+    let fallbackApps = readJsonFileSafe<any[]>('applications.json', []);
+    return res.json((fallbackApps || []).map(toApplicationDto));
   }
 }));
 
@@ -1853,7 +1873,7 @@ app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) =>
       status: 'PENDING',
       createdAt: new Date(),
     };
-    const currentApps = readJsonFileSafe<any[]>('applications.json', INITIAL_MEMBER_APPLICATIONS);
+    const currentApps = readJsonFileSafe<any[]>('applications.json', []);
     writeJsonFileSafe('applications.json', [created, ...currentApps]);
   }
 
@@ -1995,9 +2015,19 @@ app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
 
 app.delete('/api/members/applications/:id', ah(async (req, res) => {
   const { id } = req.params;
-  const existing = await prisma.memberApplication.findUnique({ where: { id } });
-  if (!existing) return res.status(404).json({ error: 'Application not found' });
-  await prisma.memberApplication.delete({ where: { id } });
+  try {
+    const existing = await prisma.memberApplication.findUnique({ where: { id } });
+    if (existing) await prisma.memberApplication.delete({ where: { id } });
+  } catch (dbErr) {
+    console.warn('[DELETE /api/members/applications/:id] DB error:', dbErr);
+  }
+
+  const fileApps = readJsonFileSafe<any[]>('applications.json', []);
+  const nextApps = fileApps.filter((a: any) => a.id !== id);
+  if (nextApps.length !== fileApps.length) {
+    writeJsonFileSafe('applications.json', nextApps);
+  }
+
   res.json({ success: true, message: 'Application deleted' });
 }));
 
@@ -2251,7 +2281,7 @@ app.get('/api/sheets/data', ah(async (_req, res) => {
     ]);
   } catch (error) {
     console.error('[API ERROR] GET /api/sheets/data:', error);
-    apps = readJsonFileSafe<any[]>('applications.json', INITIAL_MEMBER_APPLICATIONS).slice(0, 100);
+    apps = readJsonFileSafe<any[]>('applications.json', []).slice(0, 100);
     bookingsList = readJsonFileSafe<any[]>('bookings.json', []).slice(0, 100);
     regs = readJsonFileSafe<any[]>('trainingRegistrations.json', []).slice(0, 100);
   }

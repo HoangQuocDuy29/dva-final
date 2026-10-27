@@ -227,7 +227,7 @@ export const userService = {
 export const playerService = {
   async getPlayers(params?: { level?: string; position?: string; search?: string }): Promise<Player[]> {
     const query = new URLSearchParams(params as any).toString();
-    return request<Player[]>(`/players${query ? `?${query}` : ''}`, {}, INITIAL_PLAYERS);
+    return request<Player[]>(`/players${query ? `?${query}` : ''}`, {}, []);
   },
 
   async addPlayer(playerData: Partial<Player>): Promise<Player> {
@@ -271,34 +271,36 @@ export const playerService = {
 export const courtService = {
   async getCourts(): Promise<Court[]> {
     const saved = localStorage.getItem('dva_courts');
-    let fallback = INITIAL_COURTS;
+    let fallback: Court[] = [];
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           fallback = parsed;
         }
       } catch {
-        fallback = INITIAL_COURTS;
+        fallback = [];
       }
     }
     const res = await request<Court[]>('/courts', {}, fallback);
-    const cleaned = (Array.isArray(res) && res.length > 0 ? res : fallback).map((c) => {
+    const rawList = Array.isArray(res) ? res : fallback;
+    const cleaned = rawList.map((c) => {
       const subs = c.subCourts?.length
         ? c.subCourts
         : (c.id === 'court-btl' || c.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []);
-      const initMatch = INITIAL_COURTS.find((ic) => ic.id === c.id);
       return {
         ...c,
         subCourts: subs.length > 0 ? subs : undefined,
         weeklySchedule: normalizeCourtWeeklySchedule(
-          c.weeklySchedule || initMatch?.weeklySchedule,
+          c.weeklySchedule,
           c.id,
           subs
         ),
       };
     });
-    localStorage.setItem('dva_courts', JSON.stringify(cleaned));
+    if (cleaned.length > 0) {
+      localStorage.setItem('dva_courts', JSON.stringify(cleaned));
+    }
     return cleaned;
   },
 
@@ -336,7 +338,7 @@ export const courtService = {
     );
 
     const saved = localStorage.getItem('dva_courts');
-    const list: Court[] = saved ? JSON.parse(saved) : INITIAL_COURTS;
+    const list: Court[] = saved ? JSON.parse(saved) : [];
     localStorage.setItem('dva_courts', JSON.stringify([...list, res]));
     return res;
   },
@@ -364,14 +366,14 @@ export const courtService = {
 
   async toggleMaintenance(id: string, isMaintenance?: boolean): Promise<Court> {
     const saved = localStorage.getItem('dva_courts');
-    const list: Court[] = saved ? JSON.parse(saved) : INITIAL_COURTS;
+    const list: Court[] = saved ? JSON.parse(saved) : [];
     const current = list.find((c) => c.id === id);
     const nextMaint =
       typeof isMaintenance === 'boolean'
         ? isMaintenance
         : !(current?.isMaintenance === true || current?.status === 'MAINTENANCE' || current?.isAvailable === false);
     const fallbackCourt: Court = {
-      ...(current || INITIAL_COURTS[0]),
+      ...(current || { id, name: 'Sân bóng chuyền', code: 'COURT', hourlyRate: 500000, minHours: 1.5, floorType: 'Taraflex', imageUrl: '', address: '', description: '', includes: [] }),
       id,
       status: nextMaint ? 'MAINTENANCE' : 'ACTIVE',
       isMaintenance: nextMaint,
@@ -514,10 +516,17 @@ export const bookingService = {
 export const trainingService = {
   async getCourses(): Promise<TrainingCourse[]> {
     const saved = localStorage.getItem('dva_courses');
-    const fallback = saved ? JSON.parse(saved) : INITIAL_TRAINING_COURSES;
+    let fallback: TrainingCourse[] = [];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) fallback = parsed;
+      } catch {
+        fallback = [];
+      }
+    }
     const res = await request<TrainingCourse[]>('/training/courses', {}, fallback);
-    if (res && res.length > 0) localStorage.setItem('dva_courses', JSON.stringify(res));
-    return res;
+    return Array.isArray(res) ? res : [];
   },
 
   async createCourse(courseData: Partial<TrainingCourse>): Promise<TrainingCourse> {
@@ -536,7 +545,7 @@ export const trainingService = {
     }, newCourse);
 
     const saved = localStorage.getItem('dva_courses');
-    const list: TrainingCourse[] = saved ? JSON.parse(saved) : INITIAL_TRAINING_COURSES;
+    const list: TrainingCourse[] = saved ? JSON.parse(saved) : [];
     localStorage.setItem('dva_courses', JSON.stringify([res, ...list]));
     return res;
   },
@@ -601,10 +610,17 @@ export const trainingService = {
 export const coachService = {
   async getCoaches(): Promise<CoachProfile[]> {
     const saved = localStorage.getItem('dva_coaches');
-    const fallback = saved ? JSON.parse(saved) : INITIAL_COACHES;
+    let fallback: CoachProfile[] = [];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) fallback = parsed;
+      } catch {
+        fallback = [];
+      }
+    }
     const res = await request<CoachProfile[]>('/coaches', {}, fallback);
-    if (res && res.length > 0) localStorage.setItem('dva_coaches', JSON.stringify(res));
-    return res;
+    return Array.isArray(res) ? res : [];
   },
 
   async addCoach(coachData: Partial<CoachProfile>): Promise<CoachProfile> {
@@ -621,7 +637,7 @@ export const coachService = {
     }, newCoach);
 
     const saved = localStorage.getItem('dva_coaches');
-    const list: CoachProfile[] = saved ? JSON.parse(saved) : INITIAL_COACHES;
+    const list: CoachProfile[] = saved ? JSON.parse(saved) : [];
     localStorage.setItem('dva_coaches', JSON.stringify([res, ...list]));
     return res;
   },
@@ -665,7 +681,7 @@ export const memberService = {
   },
 
   async getApplications(): Promise<MemberApplication[]> {
-    return request<MemberApplication[]>('/members/applications', {}, INITIAL_MEMBER_APPLICATIONS);
+    return request<MemberApplication[]>('/members/applications', {}, []);
   },
 
   async updateStatus(id: string, status: 'PENDING' | 'APPROVED' | 'REJECTED', reviewNotes?: string): Promise<{ application: MemberApplication; promotedPlayer: boolean }> {
@@ -710,7 +726,15 @@ function normalizeNewsPost(post: NewsPost): NewsPost {
 export const newsService = {
   async getNews(params?: { category?: string; search?: string }): Promise<NewsPost[]> {
     const saved = localStorage.getItem('dva_news');
-    const fullFallback: NewsPost[] = (saved ? JSON.parse(saved) : INITIAL_NEWS).map(normalizeNewsPost);
+    let fullFallback: NewsPost[] = [];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) fullFallback = parsed.map(normalizeNewsPost);
+      } catch {
+        fullFallback = [];
+      }
+    }
     const filteredFallback = fullFallback.filter((item) => {
       if (params?.category && item.category !== params.category) return false;
       if (params?.search) {
@@ -722,16 +746,13 @@ export const newsService = {
     const query = new URLSearchParams(params as any).toString();
     const res = await request<NewsPost[]>(`/news${query ? `?${query}` : ''}`, {}, filteredFallback);
     const normalizedRes = Array.isArray(res) ? res.map(normalizeNewsPost) : [];
-    if (normalizedRes.length > 0 && !params?.category && !params?.search) {
-      localStorage.setItem('dva_news', JSON.stringify(normalizedRes));
-    }
     return normalizedRes;
   },
 
   async getNewsById(id: string): Promise<NewsPost> {
     const saved = localStorage.getItem('dva_news');
-    const list: NewsPost[] = (saved ? JSON.parse(saved) : INITIAL_NEWS).map(normalizeNewsPost);
-    const fallbackPost = list.find((n) => n.id === id || n.slug === id) || normalizeNewsPost(INITIAL_NEWS[0]);
+    const list: NewsPost[] = saved ? JSON.parse(saved).map(normalizeNewsPost) : [];
+    const fallbackPost = list.find((n) => n.id === id || n.slug === id) || ({ id, slug: id, title: '', excerpt: '', content: '', author: '', authorName: '', authorRole: '', thumbnail: '', publishedAt: '', readTimeMinutes: 1, category: 'GENERAL' } as unknown as NewsPost);
     const res = await request<NewsPost>(`/news/${id}`, {}, fallbackPost);
     return normalizeNewsPost(res);
   },
@@ -764,7 +785,7 @@ export const newsService = {
     );
 
     const saved = localStorage.getItem('dva_news');
-    const list: NewsPost[] = (saved ? JSON.parse(saved) : INITIAL_NEWS).map(normalizeNewsPost);
+    const list: NewsPost[] = saved ? JSON.parse(saved).map(normalizeNewsPost) : [];
     localStorage.setItem('dva_news', JSON.stringify([res, ...list.filter((n) => n.id !== res.id)]));
     return res;
   },
@@ -793,7 +814,7 @@ export const newsService = {
     );
 
     const saved = localStorage.getItem('dva_news');
-    const list: NewsPost[] = (saved ? JSON.parse(saved) : INITIAL_NEWS).map(normalizeNewsPost);
+    const list: NewsPost[] = saved ? JSON.parse(saved).map(normalizeNewsPost) : [];
     localStorage.setItem(
       'dva_news',
       JSON.stringify(list.map((n) => (n.id === id ? normalizeNewsPost({ ...n, ...res }) : n)))

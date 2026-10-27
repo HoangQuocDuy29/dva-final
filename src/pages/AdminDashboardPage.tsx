@@ -71,7 +71,6 @@ import {
   googleScriptSyncService,
   userService
 } from '../services/api';
-import { INITIAL_PLAYERS, INITIAL_COURTS, INITIAL_COACHES, INITIAL_TRAINING_COURSES } from '../data/mockData';
 import {
   getDefaultWeeklyScheduleForCourt,
   getScheduleSlotsForCourtAndDate,
@@ -82,6 +81,7 @@ import {
   parseSlotLabel,
 } from '../shared/schedule';
 import { uploadToCloudinary, buildCloudinaryFolder } from '../utils/cloudinary';
+import { CountrySelect } from '../components/common/CountrySelect';
 
 interface AdminDashboardPageProps {
   currentUser: UserType;
@@ -108,12 +108,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   };
 
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [courtsList, setCourtsList] = useState<Court[]>(INITIAL_COURTS);
+  const [courtsList, setCourtsList] = useState<Court[]>([]);
   const [applications, setApplications] = useState<MemberApplication[]>([]);
   const [trainingRegs, setTrainingRegs] = useState<TrainingRegistration[]>([]);
-  const [coursesList, setCoursesList] = useState<TrainingCourse[]>(INITIAL_TRAINING_COURSES);
-  const [coachesList, setCoachesList] = useState<CoachProfile[]>(INITIAL_COACHES);
-  const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
+  const [coursesList, setCoursesList] = useState<TrainingCourse[]>([]);
+  const [coachesList, setCoachesList] = useState<CoachProfile[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [playerSearchQuery, setPlayerSearchQuery] = useState('');
   const [newsList, setNewsList] = useState<NewsPost[]>([]);
   const [sheetsData, setSheetsData] = useState<any>(null);
@@ -357,38 +357,31 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
         coachService.getCoaches(),
         courtService.getCourts(),
       ]);
-      setBookings(b);
-      setApplications(a);
-      setTrainingRegs(t);
-      if (p && p.length > 0) setPlayers(p);
-      setNewsList(n);
-      setSheetsData(s);
-      if (Array.isArray(cs)) setClosedSlots(cs);
-      if (Array.isArray(courses) && courses.length > 0) setCoursesList(courses);
-      if (Array.isArray(coaches) && coaches.length > 0) setCoachesList(coaches);
-      if (Array.isArray(fetchedCourts) && fetchedCourts.length > 0) {
+      setBookings(Array.isArray(b) ? b : []);
+      setApplications(Array.isArray(a) ? a : []);
+      setTrainingRegs(Array.isArray(t) ? t : []);
+      setPlayers(Array.isArray(p) ? p : []);
+      setNewsList(Array.isArray(n) ? n : []);
+      setSheetsData(s || null);
+      setClosedSlots(Array.isArray(cs) ? cs : []);
+      setCoursesList(Array.isArray(courses) ? courses : []);
+      setCoachesList(Array.isArray(coaches) ? coaches : []);
+      if (Array.isArray(fetchedCourts)) {
         const activeCourts = fetchedCourts
           .filter((fc) => fc.isActive !== false)
           .map((fc) => {
-            const local = INITIAL_COURTS.find((ic) => ic.id === fc.id);
             const subs = (fc.subCourts && fc.subCourts.length > 0)
               ? fc.subCourts
-              : (local?.subCourts && local.subCourts.length > 0 ? local.subCourts : (fc.id === 'court-btl' || fc.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []));
-            return local
-              ? {
-                  ...local,
-                  ...fc,
-                  subCourts: subs,
-                  imageUrl: fc.imageUrl || local.imageUrl,
-                  weeklySchedule: normalizeCourtWeeklySchedule(fc.weeklySchedule ?? local.weeklySchedule, fc.id, subs),
-                }
-              : {
-                  ...fc,
-                  subCourts: subs,
-                  weeklySchedule: normalizeCourtWeeklySchedule(fc.weeklySchedule, fc.id, subs),
-                };
+              : (fc.id === 'court-btl' || fc.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []);
+            return {
+              ...fc,
+              subCourts: subs,
+              weeklySchedule: normalizeCourtWeeklySchedule(fc.weeklySchedule, fc.id, subs),
+            };
           });
         setCourtsList(activeCourts);
+      } else {
+        setCourtsList([]);
       }
     } catch (e) {
       console.error(e);
@@ -614,7 +607,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
         const created = await bookingService.createBooking({
           ...bookingForm,
           courtId: bookingForm.courtId || 'court-btl',
-          courtName: bookingForm.courtName || INITIAL_COURTS.find(c => c.id === bookingForm.courtId)?.name || 'Sân Thể Công (Court 1)',
+          courtName: bookingForm.courtName || courtsList.find(c => c.id === bookingForm.courtId)?.name || 'Sân Thể Công (Court 1)',
           bookingDate: bookingForm.bookingDate || new Date().toISOString().split('T')[0],
           startTime: bookingForm.startTime || '17:30',
           endTime: bookingForm.endTime || '19:30',
@@ -2755,18 +2748,20 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                   )}
 
                   {([
-                    { key: 'name', label: 'Tên', type: 'text' },
-                    { key: 'email', label: 'Email', type: 'email' },
-                    { key: 'password', label: 'Mật khẩu (tối thiểu 8 ký tự)', type: 'password' },
+                    { key: 'name', label: 'Tên', type: 'text', autoComplete: 'name' },
+                    { key: 'email', label: 'Email', type: 'email', autoComplete: 'email' },
+                    { key: 'password', label: 'Mật khẩu (tối thiểu 8 ký tự)', type: 'password', autoComplete: 'new-password' },
                   ] as const).map((f) => (
                     <label key={f.key} className="block space-y-1">
                       <span className="text-[11px] font-bold text-slate-400">{f.label}</span>
                       <input
                         type={f.type}
+                        name={f.key}
+                        id={`user-form-${f.key}`}
                         required
                         value={userForm[f.key]}
                         onChange={(e) => setUserForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                        autoComplete={f.key === 'password' ? 'new-password' : 'off'}
+                        autoComplete={f.autoComplete}
                         className="w-full bg-[#0B1220] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
                       />
                     </label>
@@ -3725,30 +3720,19 @@ function doGet(e) {
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Quốc gia / Quốc tịch (Country & Flag) *</label>
-                  <select
+                  <CountrySelect
+                    label="Quốc gia / Quốc tịch (Country & Flag) *"
                     value={(playerForm.countryCode || 'VN').toUpperCase()}
-                    onChange={(e) => {
-                      const code = e.target.value.toUpperCase();
-                      const found = PLAYER_COUNTRIES.find((c) => c.code === code);
-                      const countryName = found?.name || code;
-                      const countryFlag = found?.flag || countryCodeToFlagEmoji(code);
+                    onChange={(country) => {
                       setPlayerForm({
                         ...playerForm,
-                        country: countryName,
-                        countryName,
-                        countryCode: code,
-                        countryFlag,
+                        country: country.name,
+                        countryName: country.name,
+                        countryCode: country.code,
+                        countryFlag: country.flag,
                       });
                     }}
-                    className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
-                  >
-                    {PLAYER_COUNTRIES.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.flag} {c.name} ({c.code})
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div>

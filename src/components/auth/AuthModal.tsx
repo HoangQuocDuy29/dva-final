@@ -83,13 +83,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         <div className="p-5 sm:p-6 overflow-y-auto">
           <form onSubmit={handleLogin} className="space-y-4 text-xs">
             <div>
-              <label className="block font-semibold text-slate-300 mb-1.5">
+              <label htmlFor="auth-email" className="block font-semibold text-slate-300 mb-1.5">
                 Email Address
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                 <input
                   type="email"
+                  name="email"
+                  id="auth-email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -100,13 +103,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1.5">
+              <label htmlFor="auth-password" className="block font-semibold text-slate-300 mb-1.5">
                 Password
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                 <input
                   type="password"
+                  name="password"
+                  id="auth-password"
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

@@ -63,19 +63,32 @@ const isCloudDb =
   databaseUrl.includes('supabase.co') ||
   process.env.NODE_ENV === 'production';
 
-// Tối ưu connection pool cho Cloud PostgreSQL (Neon serverless compute wake-up / cold start)
+// Tối ưu connection pool cho Neon Serverless PostgreSQL
 const pool = new Pool({
   connectionString: databaseUrl,
-  connectionTimeoutMillis: 15000, // 15 giây chờ compute serverless thức dậy
-  idleTimeoutMillis: 30000,       // Đóng kết nối nhàn rỗi sau 30 giây
-  max: 10,                        // Giới hạn connection pool
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 10000,
+  connectionTimeoutMillis: 5000, // 5 giây timeout kết nối
+  idleTimeoutMillis: 30000, // 30 giây giải phóng kết nối nhàn rỗi trước khi Neon ngắt socket
+  max: 10, // Giới hạn 10 kết nối phù hợp với Neon serverless
+  keepAlive: true, // Bật TCP keep-alive
+  keepAliveInitialDelayMillis: 10000, // Gửi probe keep-alive đầu tiên sau 10 giây
   ...(isCloudDb ? { ssl: { rejectUnauthorized: false } } : {}),
 });
 
-// Bắt lỗi idle client để tránh unhandled error làm crash Node.js khi serverless compute ngủ
-pool.on('error', (err) => {
+// Bắt lỗi idle client để tránh unhandled error làm crash Node.js khi Neon ngắt socket rảnh rỗi
+pool.on('error', (err: any) => {
+  // Lọc bỏ lỗi ECONNRESET / EPIPE khi Neon Serverless thu hồi kết nối rảnh rỗi
+  const isIdleSocketReset =
+    err?.code === 'ECONNRESET' ||
+    err?.code === 'EPIPE' ||
+    err?.message?.includes('ECONNRESET') ||
+    err?.message?.includes('Connection terminated unexpectedly');
+
+  if (isIdleSocketReset) {
+    // Socket nhàn rỗi đã được ngắt an toàn, pg-pool sẽ tự khởi tạo kết nối mới khi có query tiếp theo.
+    // Bỏ qua để tránh spam console log.
+    return;
+  }
+
   console.warn('[Database Pool Warning] Idle connection warning:', err?.message || err);
 });
 
