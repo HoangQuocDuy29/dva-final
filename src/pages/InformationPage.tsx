@@ -198,7 +198,7 @@ export const InformationPage: React.FC = () => {
               <div>
                 <h3 className="font-bold text-sm text-white flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
-                  <span>Official DVA Senior Squad Training & Scrimmage</span>
+                  <span>Senior Squad – Play</span>
                 </h3>
                 <p className="text-[11px] text-slate-400 font-mono mt-1">19:00 – 21:30</p>
               </div>
@@ -221,7 +221,7 @@ export const InformationPage: React.FC = () => {
               <div>
                 <h3 className="font-bold text-sm text-white flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
-                  <span>DVA Junior Squad Training & Scrimmage</span>
+                  <span>Junior Squad – Play</span>
                 </h3>
                 <p className="text-[11px] text-slate-400 font-mono mt-1">19:00 – 21:30</p>
               </div>
@@ -281,7 +281,7 @@ export const InformationPage: React.FC = () => {
                     </td>
                     <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
-                      <span>Official DVA Senior Squad Training & Scrimmage</span>
+                      <span>Senior Squad – Play</span>
                     </td>
                     <td className="py-4 px-5 whitespace-nowrap">
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-800">
@@ -300,7 +300,7 @@ export const InformationPage: React.FC = () => {
                     </td>
                     <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
-                      <span>DVA Junior Squad Training & Scrimmage</span>
+                      <span>Junior Squad – Play</span>
                     </td>
                     <td className="py-4 px-5 whitespace-nowrap">
                       <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
