@@ -21,7 +21,6 @@ import {
   MapPin
 } from 'lucide-react';
 import { Booking, Court, BookingAddons, ClosedSlot } from '../types';
-import { INITIAL_COURTS } from '../data/mockData';
 import {
   ADDON_PRICES,
   CourtTimeSlot,
@@ -125,20 +124,17 @@ const CourtBookingContent: React.FC = () => {
     return list;
   }, []);
 
-  // Courts state initialized safely with the 3 official courts
-  const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
-  const [selectedCourtId, setSelectedCourtId] = useState<string>(
-    paramCourtId && INITIAL_COURTS.some(c => c.id === paramCourtId)
-      ? paramCourtId
-      : INITIAL_COURTS[0]?.id || 'court-btl'
-  );
+  // Courts state initialized safely to empty array; loading is true on initial mount
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [isLoadingCourts, setIsLoadingCourts] = useState<boolean>(true);
+  const [selectedCourtId, setSelectedCourtId] = useState<string>(paramCourtId || '');
 
   const [bookingDate, setBookingDate] = useState<string>(todayStr);
   const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
   const [closedSlots, setClosedSlots] = useState<ClosedSlot[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const selectedCourt: Court = courts.find((c) => c.id === selectedCourtId) || courts[0] || INITIAL_COURTS[0];
+  const selectedCourt: Court | undefined = courts.find((c) => c.id === selectedCourtId) || courts[0];
 
   const subCourts = useMemo(() => {
     if (selectedCourt?.subCourts && selectedCourt.subCourts.length > 0) {
@@ -253,29 +249,34 @@ const CourtBookingContent: React.FC = () => {
       ]);
 
       if (Array.isArray(fetchedCourts) && fetchedCourts.length > 0) {
-        const activeCourts = fetchedCourts
-          .filter((fc) => fc.isActive !== false)
-          .map((fc) => {
-            const local = INITIAL_COURTS.find((ic) => ic.id === fc.id);
-            return local ? { ...local, ...fc, imageUrl: fc.imageUrl || local.imageUrl } : fc;
-          });
+        const activeCourts = fetchedCourts.filter((fc) => fc.isActive !== false);
+        setCourts(activeCourts);
         if (activeCourts.length > 0) {
-          setCourts(activeCourts);
-          if (!activeCourts.some((c) => c.id === selectedCourtId)) {
-            setSelectedCourtId(activeCourts[0].id);
-          }
+          setSelectedCourtId((prev) => {
+            if (prev && activeCourts.some((c) => c.id === prev)) {
+              return prev;
+            }
+            return activeCourts[0].id;
+          });
         }
+      } else {
+        setCourts([]);
       }
       if (Array.isArray(fetchedBookings)) {
         setExistingBookings(fetchedBookings);
+      } else {
+        setExistingBookings([]);
       }
       if (Array.isArray(fetchedClosed)) {
         setClosedSlots(fetchedClosed);
+      } else {
+        setClosedSlots([]);
       }
     } catch (err) {
       console.warn('Real-time sync notice:', err);
     } finally {
       if (!silent) setIsRefreshing(false);
+      setIsLoadingCourts(false);
     }
   };
 
@@ -369,6 +370,11 @@ const CourtBookingContent: React.FC = () => {
 
     if (!customerName.trim() || !customerPhone.trim() || !customerEmail.trim()) {
       setErrorMessage('Please fill in your name, phone number, and email address.');
+      return;
+    }
+
+    if (!selectedCourt) {
+      setErrorMessage('Vui lòng chọn sân trước khi đặt chỗ.');
       return;
     }
 
@@ -557,104 +563,128 @@ const CourtBookingContent: React.FC = () => {
               </span>
               <span>Choose Your Preferred Court</span>
             </h2>
-            <span className="text-xs font-mono text-orange-400 font-semibold">Rates: From 500,000 VND/h (The Cong & My Dinh: 500k/h · BTL: 550k/h)</span>
+            
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {courts.map((court) => {
-              const isSelected = court.id === selectedCourtId;
-              const isMaintenance = isCourtMaintenance(court);
-
-              return (
-                <button
-                  key={court.id}
-                  type="button"
-                  disabled={isMaintenance}
-                  onClick={() => {
-                    if (isMaintenance) return;
-                    setSelectedCourtId(court.id);
-                    setErrorMessage(null);
-                  }}
-                  className={`text-left rounded-3xl border-2 overflow-hidden transition-all duration-300 flex flex-col justify-between relative group ${
-                    isMaintenance
-                      ? 'border-amber-700/60 bg-[#101520] opacity-65 cursor-not-allowed select-none'
-                      : isSelected
-                      ? 'border-red-500 bg-[#161F30] shadow-2xl ring-2 ring-red-500/30 scale-[1.02] cursor-pointer'
-                      : 'border-slate-800 bg-[#121826] hover:border-slate-700 shadow-md hover:bg-[#151c2c] cursor-pointer'
-                  }`}
+            {isLoadingCourts ? (
+              Array.from({ length: 3 }).map((_, idx) => (
+                <div
+                  key={`court-skel-${idx}`}
+                  className="rounded-3xl border-2 border-slate-800 bg-[#121826] overflow-hidden flex flex-col justify-between animate-pulse h-96"
                 >
-                  {/* Court Photograph Banner */}
-                  <div className="relative h-44 w-full overflow-hidden bg-slate-900">
-                    <img
-                      src={court.imageUrl}
-                      alt={court.name}
-                      referrerPolicy="no-referrer"
-                      className={`w-full h-full object-cover transition-transform duration-500 ${
-                        isMaintenance ? 'grayscale-[60%] brightness-50' : 'group-hover:scale-105'
-                      }`}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#121826] via-black/40 to-black/20" />
-
-                    {/* Maintenance Overlay Banner */}
-                    {isMaintenance && (
-                      <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4 z-10">
-                        <div className="px-3.5 py-2 rounded-2xl bg-amber-950/95 border-2 border-amber-500 text-amber-200 font-extrabold text-xs text-center shadow-2xl flex items-center gap-1.5">
-                          <span>🛠️ Đang bảo trì / Tạm dừng phục vụ</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Badges on Court Photo */}
-                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20">
-                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                        isMaintenance
-                          ? 'bg-amber-900/90 text-amber-200 border border-amber-600'
-                          : isSelected
-                          ? 'bg-red-600 text-white shadow-lg'
-                          : 'bg-black/70 text-slate-200 backdrop-blur'
-                      }`}>
-                        {court.code}
-                      </span>
-                      {isMaintenance ? (
-                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-red-950/90 text-red-300 border border-red-700">
-                          Tạm ngưng
-                        </span>
-                      ) : isSelected ? (
-                        <div className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg">
-                          <Check className="w-4 h-4 stroke-[3]" />
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="absolute bottom-3 left-3 right-3 z-20">
-                      <h3 className="font-heading font-black text-xl text-white drop-shadow-md">
-                        {court.name}
-                      </h3>
-                      <span className="text-[11px] text-orange-300 font-mono font-semibold flex items-center gap-1">
-                        <MapPin className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{court.address || 'DVA Sports Center'}</span>
-                      </span>
+                  <div className="h-44 w-full bg-slate-800" />
+                  <div className="p-5 space-y-3">
+                    <div className="w-2/3 h-5 bg-slate-800 rounded" />
+                    <div className="w-full h-3 bg-slate-800/60 rounded" />
+                    <div className="w-4/5 h-3 bg-slate-800/60 rounded" />
+                    <div className="pt-4 flex justify-between items-center">
+                      <div className="w-24 h-6 bg-slate-800 rounded" />
+                      <div className="w-16 h-4 bg-slate-800 rounded" />
                     </div>
                   </div>
+                </div>
+              ))
+            ) : courts.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-slate-500 bg-[#121826] border border-slate-800 rounded-3xl">
+                Không tìm thấy sân nào đang hoạt động.
+              </div>
+            ) : (
+              courts.map((court) => {
+                const isSelected = court.id === selectedCourtId;
+                const isMaintenance = isCourtMaintenance(court);
 
-                  {/* Court Details Body */}
-                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      {court.description}
-                    </p>
+                return (
+                  <button
+                    key={court.id}
+                    type="button"
+                    disabled={isMaintenance}
+                    onClick={() => {
+                      if (isMaintenance) return;
+                      setSelectedCourtId(court.id);
+                      setErrorMessage(null);
+                    }}
+                    className={`text-left rounded-3xl border-2 overflow-hidden transition-all duration-300 flex flex-col justify-between relative group ${
+                      isMaintenance
+                        ? 'border-amber-700/60 bg-[#101520] opacity-65 cursor-not-allowed select-none'
+                        : isSelected
+                        ? 'border-red-500 bg-[#161F30] shadow-2xl ring-2 ring-red-500/30 scale-[1.02] cursor-pointer'
+                        : 'border-slate-800 bg-[#121826] hover:border-slate-700 shadow-md hover:bg-[#151c2c] cursor-pointer'
+                    }`}
+                  >
+                    {/* Court Photograph Banner */}
+                    <div className="relative h-44 w-full overflow-hidden bg-slate-900">
+                      <img
+                        src={court.imageUrl}
+                        alt={court.name}
+                        referrerPolicy="no-referrer"
+                        className={`w-full h-full object-cover transition-transform duration-500 ${
+                          isMaintenance ? 'grayscale-[60%] brightness-50' : 'group-hover:scale-105'
+                        }`}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#121826] via-black/40 to-black/20" />
 
-                    <div className="pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs">
-                      {isMaintenance ? (
-                        <span className="text-amber-400 font-bold">🛠️ Đang bảo trì / Tạm dừng phục vụ</span>
-                      ) : (
-                        <span className="text-slate-400 font-medium">Taraflex Pro Flooring</span>
+                      {/* Maintenance Overlay Banner */}
+                      {isMaintenance && (
+                        <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4 z-10">
+                          <div className="px-3.5 py-2 rounded-2xl bg-amber-950/95 border-2 border-amber-500 text-amber-200 font-extrabold text-xs text-center shadow-2xl flex items-center gap-1.5">
+                            <span>🛠️ Đang bảo trì / Tạm dừng phục vụ</span>
+                          </div>
+                        </div>
                       )}
-                      <span className="font-bold text-orange-400 font-mono text-sm">{court.hourlyRate.toLocaleString('vi-VN')} đ/h</span>
+                      
+                      {/* Badges on Court Photo */}
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                          isMaintenance
+                            ? 'bg-amber-900/90 text-amber-200 border border-amber-600'
+                            : isSelected
+                            ? 'bg-red-600 text-white shadow-lg'
+                            : 'bg-black/70 text-slate-200 backdrop-blur'
+                        }`}>
+                          {court.code}
+                        </span>
+                        {isMaintenance ? (
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-red-950/90 text-red-300 border border-red-700">
+                            Tạm ngưng
+                          </span>
+                        ) : isSelected ? (
+                          <div className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg">
+                            <Check className="w-4 h-4 stroke-[3]" />
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="absolute bottom-3 left-3 right-3 z-20">
+                        <h3 className="font-heading font-black text-xl text-white drop-shadow-md">
+                          {court.name}
+                        </h3>
+                        <span className="text-[11px] text-orange-300 font-mono font-semibold flex items-center gap-1">
+                          <MapPin className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{court.address || 'DVA Sports Center'}</span>
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              );
-            })}
+
+                    {/* Court Details Body */}
+                    <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        {court.description}
+                      </p>
+
+                      <div className="pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs">
+                        {isMaintenance ? (
+                          <span className="text-amber-400 font-bold">🛠️ Đang bảo trì / Tạm dừng phục vụ</span>
+                        ) : (
+                          <span className="text-slate-400 font-medium">Taraflex Pro Flooring</span>
+                        )}
+                        <span className="font-bold text-orange-400 font-mono text-sm">{court.hourlyRate.toLocaleString('vi-VN')} đ/h</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -670,7 +700,7 @@ const CourtBookingContent: React.FC = () => {
                 <span>Select Date & Dynamic Session Slot</span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Active Court: <strong className="text-orange-400 font-bold">{selectedCourt?.name}</strong> · Showing verified slots for: <strong className="text-white">{formatFriendlyDate(bookingDate)}</strong>
+                Active Court: <strong className="text-orange-400 font-bold">{selectedCourt?.name || (isLoadingCourts ? 'Đang tải...' : 'Chưa chọn sân')}</strong> · Showing verified slots for: <strong className="text-white">{formatFriendlyDate(bookingDate)}</strong>
               </p>
             </div>
 
@@ -749,7 +779,7 @@ const CourtBookingContent: React.FC = () => {
                 <div>
                   <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                    <span>Chọn Sân Con (Sub-Courts) - {selectedCourt.name}:</span>
+                    <span>Chọn Sân Con (Sub-Courts) - {selectedCourt?.name || ''}:</span>
                   </span>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     Trong cùng 1 khung giờ có 2 sân thi đấu độc lập. Trạng thái đặt chỗ giữa Sân A và Sân B hoàn toàn riêng biệt.
@@ -813,7 +843,7 @@ const CourtBookingContent: React.FC = () => {
                             </span>
                           </span>
                           <span className="text-[10px] text-slate-400 block truncate">
-                            Sân độc lập tiêu chuẩn
+                            Sân độc lập 
                           </span>
                         </div>
                       </div>
@@ -840,7 +870,7 @@ const CourtBookingContent: React.FC = () => {
           <div>
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Available Sessions for {selectedCourt.name}{hasSubCourts ? ` (${selectedSubCourt})` : ''}:
+                Available Sessions for {selectedCourt?.name || '...'}{hasSubCourts ? ` (${selectedSubCourt})` : ''}:
               </span>
               <span className="text-[11px] text-slate-400">
                 {availableSlots.length} available sessions configured
@@ -851,7 +881,7 @@ const CourtBookingContent: React.FC = () => {
               <div className="mb-4 p-4 rounded-2xl bg-amber-950/80 border-2 border-amber-500 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="font-extrabold text-sm text-amber-300">
-                    🛠️ Đang bảo trì / Tạm dừng phục vụ ({selectedCourt.name})
+                    🛠️ Đang bảo trì / Tạm dừng phục vụ ({selectedCourt?.name || ''})
                   </div>
                   <p className="text-amber-100/90">
                     Sân hiện đang trong thời gian bảo trì, vui lòng chọn sân khác hoặc quay lại sau. Toàn bộ khung giờ của sân này hiện đã bị khóa đặt chỗ.
@@ -876,8 +906,28 @@ const CourtBookingContent: React.FC = () => {
             )}
 
             {/* Lưới danh sách khung giờ trống (Available Sessions Grid: Tự động phân bổ linh hoạt, tối thiểu 280px) */}
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-              {availableSlots.map((slot) => {
+            {isLoadingCourts ? (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <div
+                    key={`slot-skel-${idx}`}
+                    className="p-4 rounded-2xl border border-slate-800 bg-[#0E1524] animate-pulse flex items-center justify-between h-20"
+                  >
+                    <div className="space-y-2">
+                      <div className="w-24 h-4 bg-slate-800 rounded" />
+                      <div className="w-16 h-3 bg-slate-800/60 rounded" />
+                    </div>
+                    <div className="w-16 h-6 bg-slate-800 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : availableSlots.length === 0 ? (
+              <div className="py-8 text-center text-slate-500 bg-[#0B0F19] rounded-2xl border border-slate-800/80">
+                {selectedCourtIsMaintenance ? 'Sân đang bảo trì, không có ca hoạt động.' : 'Không có khung giờ nào được cấu hình cho ngày này.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+                {availableSlots.map((slot) => {
                 const status = getSlotStatus(slot);
                 const isSelected = selectedSlotObj?.label === slot.label && (!hasSubCourts || selectedSlotObj?.subCourt === selectedSubCourt);
                 const isAvailable = status === 'AVAILABLE';
@@ -960,7 +1010,8 @@ const CourtBookingContent: React.FC = () => {
                   </button>
                 );
               })}
-            </div>
+              </div>
+            )}
           </div>
 
         </div>
@@ -1200,15 +1251,19 @@ const CourtBookingContent: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={isSubmitting || selectedCourtIsMaintenance}
+                disabled={isSubmitting || selectedCourtIsMaintenance || !selectedCourt || isLoadingCourts}
                 className={`w-full py-4 px-6 rounded-2xl font-bold text-sm text-white transition-all flex items-center justify-center gap-2 ${
-                  selectedCourtIsMaintenance
-                    ? 'bg-slate-800 border border-amber-700/60 text-amber-300 cursor-not-allowed opacity-75'
+                  selectedCourtIsMaintenance || !selectedCourt || isLoadingCourts
+                    ? 'bg-slate-800 border border-slate-700 text-slate-400 cursor-not-allowed opacity-75'
                     : 'bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 shadow-lg shadow-red-900/40 cursor-pointer'
                 }`}
               >
-                {selectedCourtIsMaintenance ? (
+                {isLoadingCourts ? (
+                  <span>Đang tải thông tin sân...</span>
+                ) : selectedCourtIsMaintenance ? (
                   <span>🛠️ Sân đang bảo trì - Không thể đặt</span>
+                ) : !selectedCourt ? (
+                  <span>Vui lòng chọn sân</span>
                 ) : isSubmitting ? (
                   <span>Generating VietQR code...</span>
                 ) : (

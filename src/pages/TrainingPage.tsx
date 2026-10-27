@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { TrainingCourse, CoachProfile } from '../types';
 import { trainingService, coachService, googleScriptSyncService } from '../services/api';
-import { INITIAL_TRAINING_COURSES, INITIAL_COACHES } from '../data/mockData';
 
 /** Đơn vị học phí: ưu tiên `priceUnit` do admin nhập; nếu trống thì suy ra gói năm. */
 const getPriceUnitLabel = (course: TrainingCourse): string => {
@@ -100,8 +99,9 @@ export const formatTrainingTransferContent = (
 };
 
 export const TrainingPage: React.FC = () => {
-  const [courses, setCourses] = useState<TrainingCourse[]>(INITIAL_TRAINING_COURSES);
-  const [coaches, setCoaches] = useState<CoachProfile[]>(INITIAL_COACHES);
+  const [courses, setCourses] = useState<TrainingCourse[]>([]);
+  const [coaches, setCoaches] = useState<CoachProfile[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedCourse, setSelectedCourse] = useState<TrainingCourse | null>(null);
   
   // Checkout modal states (Multi-step VietQR payment flow)
@@ -162,13 +162,23 @@ export const TrainingPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    trainingService.getCourses().then((res) => {
-      if (Array.isArray(res) && res.length > 0) setCourses(res);
-    }).catch(console.error);
-
-    coachService.getCoaches().then((res) => {
-      if (Array.isArray(res) && res.length > 0) setCoaches(res);
-    }).catch(console.error);
+    setIsLoading(true);
+    Promise.all([
+      trainingService.getCourses(),
+      coachService.getCoaches(),
+    ])
+      .then(([courseRes, coachRes]) => {
+        setCourses(Array.isArray(courseRes) ? courseRes : []);
+        setCoaches(Array.isArray(coachRes) ? coachRes : []);
+      })
+      .catch((err) => {
+        console.error('[TrainingPage] Error loading training data:', err);
+        setCourses([]);
+        setCoaches([]);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const handleOpenRegister = (course: TrainingCourse) => {
@@ -342,115 +352,151 @@ export const TrainingPage: React.FC = () => {
             
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
-            {[...courses].sort((a, b) => Number(a.price || 0) - Number(b.price || 0)).map((course) => {
-              const isPrivate1on1 = course.id === 'tc-1on1-mastery';
-              return (
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
+              {Array.from({ length: 6 }).map((_, i) => (
                 <div
-                  key={course.id}
-                  className={`bg-[#0E1524] rounded-3xl border p-6 sm:p-7 shadow-2xl flex flex-col justify-between transition-all duration-300 relative group hover:scale-[1.01] ${
-                    isPrivate1on1 
-                      ? 'border-amber-500/70 shadow-amber-950/30 ring-1 ring-amber-500/40 bg-gradient-to-b from-[#141b2b] to-[#0E1524]' 
-                      : 'border-[#1e2738] hover:border-amber-500/50'
-                  }`}
+                  key={`skeleton-course-${i}`}
+                  className="bg-[#0E1524] rounded-3xl border border-[#1e2738] p-6 sm:p-7 shadow-2xl flex flex-col justify-between animate-pulse min-h-[380px]"
                 >
-                  <div className="space-y-5">
-                    
-                    {/* Top Row: Tag + Target Audience */}
-                    {(course.tag || course.targetAudience) && (
-                      <div className="flex items-start justify-between gap-3">
-                        {course.tag ? (
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm shrink-0 ${
-                            isPrivate1on1
-                              ? 'border-amber-500 bg-amber-500 text-black font-extrabold'
-                              : 'border-amber-600/70 bg-amber-950/40 text-amber-300'
-                          }`}>
-                            {course.tag}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div className="h-5 w-20 bg-slate-800 rounded-full" />
+                      <div className="h-4 w-28 bg-slate-800 rounded" />
+                    </div>
+                    <div className="h-7 w-3/4 bg-slate-700/60 rounded mt-3" />
+                    <div className="h-4 w-full bg-slate-800/80 rounded" />
+                    <div className="h-4 w-2/3 bg-slate-800/80 rounded" />
+                    <div className="pt-4 space-y-2">
+                      <div className="h-3.5 w-5/6 bg-slate-800/60 rounded" />
+                      <div className="h-3.5 w-4/6 bg-slate-800/60 rounded" />
+                      <div className="h-3.5 w-3/6 bg-slate-800/60 rounded" />
+                    </div>
+                  </div>
+                  <div className="pt-6 border-t border-slate-800/80 flex items-center justify-between">
+                    <div className="h-7 w-28 bg-slate-700/70 rounded" />
+                    <div className="h-10 w-28 bg-slate-700/70 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : courses.length === 0 ? (
+            <div className="p-14 rounded-3xl bg-[#0E1524] border border-dashed border-slate-800 text-center space-y-2">
+              <Calendar className="w-10 h-10 text-slate-600 mx-auto" />
+              <h3 className="font-heading font-bold text-white text-base">Chưa có gói tập nào</h3>
+              <p className="text-xs text-slate-400">Các gói tập và lịch giao lưu scrimmage sẽ được ban huấn luyện công bố sớm.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
+              {[...courses].sort((a, b) => Number(a.price || 0) - Number(b.price || 0)).map((course) => {
+                const isPrivate1on1 = course.id === 'tc-1on1-mastery';
+                return (
+                  <div
+                    key={course.id}
+                    className={`bg-[#0E1524] rounded-3xl border p-6 sm:p-7 shadow-2xl flex flex-col justify-between transition-all duration-300 relative group hover:scale-[1.01] ${
+                      isPrivate1on1 
+                        ? 'border-amber-500/70 shadow-amber-950/30 ring-1 ring-amber-500/40 bg-gradient-to-b from-[#141b2b] to-[#0E1524]' 
+                        : 'border-[#1e2738] hover:border-amber-500/50'
+                    }`}
+                  >
+                    <div className="space-y-5">
+                      
+                      {/* Top Row: Tag + Target Audience */}
+                      {(course.tag || course.targetAudience) && (
+                        <div className="flex items-start justify-between gap-3">
+                          {course.tag ? (
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm shrink-0 ${
+                              isPrivate1on1
+                                ? 'border-amber-500 bg-amber-500 text-black font-extrabold'
+                                : 'border-amber-600/70 bg-amber-950/40 text-amber-300'
+                            }`}>
+                              {course.tag}
+                            </span>
+                          ) : <span />}
+                          {course.targetAudience && (
+                            <div className="flex items-center gap-1.5 text-slate-300 text-xs text-right">
+                              <Users className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                              <span className="line-clamp-2 text-[11px]">{course.targetAudience}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Package Title */}
+                      <h3 className="font-heading font-black text-xl sm:text-2xl text-amber-400 tracking-tight leading-snug">
+                        {course.title}
+                      </h3>
+
+                      {/* Description */}
+                      <p className="text-xs text-slate-300 leading-relaxed min-h-[44px]">
+                        {course.description}
+                      </p>
+
+                      {/* Benefits Section */}
+                      {(course.benefits || course.curriculum || []).length > 0 && (
+                      <div className="space-y-2.5 pt-3 border-t border-slate-800/80">
+                        <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">
+                          PACKAGE INCLUSIONS:
+                        </span>
+                        <div className="space-y-2">
+                          {(course.benefits || course.curriculum || []).map((b, idx) => (
+                            <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-200">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                              <span className="leading-snug">{b}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      )}
+
+                      {/* Schedule Box */}
+                      <div className="bg-[#0B0F19] rounded-2xl p-3.5 border border-slate-800 flex items-start gap-2.5 text-xs text-slate-300">
+                        <Calendar className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <span className="leading-snug">{course.schedule}</span>
+                      </div>
+
+                    </div>
+
+                    {/* Footer: Price + Register Button */}
+                    <div className="pt-6 mt-6 border-t border-slate-800">
+                      <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                        <span>TUITION FEE:</span>
+                        {course.maxSlots > 0 && (
+                          <span className="text-amber-500/90 font-medium normal-case tracking-normal">
+                            Max {course.maxSlots} spots
                           </span>
-                        ) : <span />}
-                        {course.targetAudience && (
-                          <div className="flex items-center gap-1.5 text-slate-300 text-xs text-right">
-                            <Users className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-                            <span className="line-clamp-2 text-[11px]">{course.targetAudience}</span>
-                          </div>
                         )}
                       </div>
-                    )}
-
-                    {/* Package Title */}
-                    <h3 className="font-heading font-black text-xl sm:text-2xl text-amber-400 tracking-tight leading-snug">
-                      {course.title}
-                    </h3>
-
-                    {/* Description */}
-                    <p className="text-xs text-slate-300 leading-relaxed min-h-[44px]">
-                      {course.description}
-                    </p>
-
-                    {/* Benefits Section */}
-                    {(course.benefits || course.curriculum || []).length > 0 && (
-                    <div className="space-y-2.5 pt-3 border-t border-slate-800/80">
-                      <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">
-                        PACKAGE INCLUSIONS:
-                      </span>
-                      <div className="space-y-2">
-                        {(course.benefits || course.curriculum || []).map((b, idx) => (
-                          <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-200">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                            <span className="leading-snug">{b}</span>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-baseline gap-1 whitespace-nowrap">
+                            <span className="font-heading font-black text-xl sm:text-2xl text-amber-400 tracking-tight font-mono">
+                              {new Intl.NumberFormat('vi-VN').format(course.price)}
+                            </span>
+                            <span className="text-sm font-bold text-amber-400">đ</span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                    )}
-
-                    {/* Schedule Box */}
-                    <div className="bg-[#0B0F19] rounded-2xl p-3.5 border border-slate-800 flex items-start gap-2.5 text-xs text-slate-300">
-                      <Calendar className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                      <span className="leading-snug">{course.schedule}</span>
-                    </div>
-
-                  </div>
-
-                  {/* Footer: Price + Register Button */}
-                  <div className="pt-6 mt-6 border-t border-slate-800">
-                    <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                      <span>TUITION FEE:</span>
-                      {course.maxSlots > 0 && (
-                        <span className="text-amber-500/90 font-medium normal-case tracking-normal">
-                          Max {course.maxSlots} spots
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-baseline gap-1 whitespace-nowrap">
-                          <span className="font-heading font-black text-xl sm:text-2xl text-amber-400 tracking-tight font-mono">
-                            {new Intl.NumberFormat('vi-VN').format(course.price)}
+                          <span className="text-[11px] text-slate-400 font-medium truncate">
+                            {getPriceUnitLabel(course)}
+                            {course.duration ? ` • ${course.duration}` : ''}
                           </span>
-                          <span className="text-sm font-bold text-amber-400">đ</span>
                         </div>
-                        <span className="text-[11px] text-slate-400 font-medium truncate">
-                          {getPriceUnitLabel(course)}
-                          {course.duration ? ` • ${course.duration}` : ''}
-                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenRegister(course)}
+                          className="px-5 py-2.5 rounded-full font-black text-xs text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 shadow-lg shadow-orange-950/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                        >
+                          <span>Enroll Now</span>
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleOpenRegister(course)}
-                        className="px-5 py-2.5 rounded-full font-black text-xs text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 shadow-lg shadow-orange-950/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-                      >
-                        <span>Enroll Now</span>
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
                     </div>
-                  </div>
 
-                </div>
-              );
-            })}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* SECTION 2: DVA ELITE COACHING STAFF (Required: Coach cards with photo, name, experience, height, age, etc.) */}
@@ -468,87 +514,118 @@ export const TrainingPage: React.FC = () => {
     
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {coaches.map((coach) => (
-              <div
-                key={coach.id}
-                className="bg-[#121826] rounded-3xl border border-slate-800 p-5 flex flex-col justify-between hover:border-slate-700 transition-all shadow-xl group"
-              >
-                <div className="space-y-4">
-                  
-                  {/* Coach Photo */}
-                  <div className="w-full h-52 rounded-2xl overflow-hidden bg-[#0c1017] border border-slate-700/60 relative shadow-inner">
-                    <img
-                      src={coach.avatarUrl}
-                      alt={coach.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded-xl text-[10px] text-white flex justify-between items-center font-mono">
-                      <span>Height: {coach.height}</span>
-                      <span>Age: {coach.age} ({coach.bornYear})</span>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={`skeleton-coach-${i}`}
+                  className="bg-[#121826] rounded-3xl border border-slate-800 p-5 flex flex-col justify-between animate-pulse"
+                >
+                  <div className="space-y-4">
+                    <div className="w-full h-52 rounded-2xl bg-slate-800/60" />
+                    <div className="space-y-1.5">
+                      <div className="h-5 w-3/4 bg-slate-700/60 rounded" />
+                      <div className="h-3.5 w-1/2 bg-slate-800 rounded" />
+                    </div>
+                    <div className="h-10 w-full bg-slate-800/80 rounded-xl" />
+                    <div className="space-y-1 pt-2 border-t border-slate-800/80">
+                      <div className="h-3 w-full bg-slate-800/60 rounded" />
+                      <div className="h-3 w-4/5 bg-slate-800/60 rounded" />
                     </div>
                   </div>
-
-                  {/* Coach Name & Role */}
-                  <div>
-                    <h3 className="font-heading font-black text-lg text-white">
-                      {coach.name}
-                    </h3>
-                    <p className="text-xs text-orange-400 font-semibold mt-0.5">
-                      {coach.role}
-                    </p>
-                  </div>
-
-                  {/* Experience Tag */}
-                  <div className="p-2.5 rounded-xl bg-[#0B0F19] border border-slate-800 text-[11px] text-slate-300">
-                    <span className="text-slate-500 block text-[10px] font-bold uppercase">Experience</span>
-                    <span className="font-semibold">{coach.experience}</span>
-                  </div>
-
-                  {/* Specialty */}
-                  <div className="text-xs text-slate-300 space-y-1">
-                    <span className="text-slate-500 block text-[10px] font-bold uppercase">Specialty</span>
-                    <p className="leading-snug text-slate-300">{coach.specialty}</p>
-                  </div>
-
-                  {/* Certifications */}
-                  {coach.certifications && coach.certifications.length > 0 && (
-                    <div className="space-y-1 pt-2 border-t border-slate-800/80">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Certifications</span>
-                      <div className="space-y-1">
-                        {coach.certifications.map((c, i) => (
-                          <div key={i} className="flex items-center gap-1.5 text-[11px] text-emerald-400">
-                            <ShieldCheck className="w-3 h-3 shrink-0" />
-                            <span className="line-clamp-1">{c}</span>
-                          </div>
-                        ))}
+                  <div className="h-9 w-full bg-slate-800/80 rounded-xl mt-4" />
+                </div>
+              ))}
+            </div>
+          ) : coaches.length === 0 ? (
+            <div className="p-10 rounded-3xl bg-[#121826] border border-dashed border-slate-800 text-center space-y-2">
+              <Users className="w-8 h-8 text-slate-600 mx-auto" />
+              <h3 className="font-heading font-bold text-white text-sm">Chưa có thông tin huấn luyện viên</h3>
+              <p className="text-xs text-slate-400">Danh sách ban huấn luyện sẽ sớm được cập nhật.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {coaches.map((coach) => (
+                <div
+                  key={coach.id}
+                  className="bg-[#121826] rounded-3xl border border-slate-800 p-5 flex flex-col justify-between hover:border-slate-700 transition-all shadow-xl group"
+                >
+                  <div className="space-y-4">
+                    
+                    {/* Coach Photo */}
+                    <div className="w-full h-52 rounded-2xl overflow-hidden bg-[#0c1017] border border-slate-700/60 relative shadow-inner">
+                      <img
+                        src={coach.avatarUrl}
+                        alt={coach.name}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded-xl text-[10px] text-white flex justify-between items-center font-mono">
+                        <span>Height: {coach.height}</span>
+                        <span>Age: {coach.age} ({coach.bornYear})</span>
                       </div>
                     </div>
-                  )}
+
+                    {/* Coach Name & Role */}
+                    <div>
+                      <h3 className="font-heading font-black text-lg text-white">
+                        {coach.name}
+                      </h3>
+                      <p className="text-xs text-orange-400 font-semibold mt-0.5">
+                        {coach.role}
+                      </p>
+                    </div>
+
+                    {/* Experience Tag */}
+                    <div className="p-2.5 rounded-xl bg-[#0B0F19] border border-slate-800 text-[11px] text-slate-300">
+                      <span className="text-slate-500 block text-[10px] font-bold uppercase">Experience</span>
+                      <span className="font-semibold">{coach.experience}</span>
+                    </div>
+
+                    {/* Specialty */}
+                    <div className="text-xs text-slate-300 space-y-1">
+                      <span className="text-slate-500 block text-[10px] font-bold uppercase">Specialty</span>
+                      <p className="leading-snug text-slate-300">{coach.specialty}</p>
+                    </div>
+
+                    {/* Certifications */}
+                    {coach.certifications && coach.certifications.length > 0 && (
+                      <div className="space-y-1 pt-2 border-t border-slate-800/80">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase block">Certifications</span>
+                        <div className="space-y-1">
+                          {coach.certifications.map((c, i) => (
+                            <div key={i} className="flex items-center gap-1.5 text-[11px] text-emerald-400">
+                              <ShieldCheck className="w-3 h-3 shrink-0" />
+                              <span className="line-clamp-1">{c}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* Bio snippet */}
+                  <p className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 italic leading-snug line-clamp-3">
+                    "{coach.bio}"
+                  </p>
+
+                  {/* Direct 1-on-1 VietQR Booking Button for Coach */}
+                  <div className="pt-3 mt-3 border-t border-slate-800/60">
+                    <button
+                      type="button"
+                      onClick={() => handleBookCoach(coach)}
+                      className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500 hover:to-orange-500 text-amber-300 hover:text-black border border-amber-500/40 hover:border-transparent font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow cursor-pointer group-hover:border-amber-400"
+                    >
+                      <span>Book 1-on-1 với {coach.name}</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
 
                 </div>
-
-                {/* Bio snippet */}
-                <p className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 italic leading-snug line-clamp-3">
-                  "{coach.bio}"
-                </p>
-
-                {/* Direct 1-on-1 VietQR Booking Button for Coach */}
-                <div className="pt-3 mt-3 border-t border-slate-800/60">
-                  <button
-                    type="button"
-                    onClick={() => handleBookCoach(coach)}
-                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500 hover:to-orange-500 text-amber-300 hover:text-black border border-amber-500/40 hover:border-transparent font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow cursor-pointer group-hover:border-amber-400"
-                  >
-                    <span>Book 1-on-1 với {coach.name}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>

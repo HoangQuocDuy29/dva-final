@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { Player, VolleyballPosition, User as UserType, countryCodeToFlagEmoji } from '../types';
 import { playerService } from '../services/api';
-import { INITIAL_PLAYERS } from '../data/mockData';
 
 interface PlayersPageProps {
   currentUser: UserType;
@@ -29,8 +28,8 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     return 'JUNIOR'; // Default level
   }, [levelParam]);
 
-  const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
-  const [loading, setLoading] = useState(false);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedPosition, setSelectedPosition] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'SINGLE_TAB' | '3_COLUMNS'>('SINGLE_TAB');
@@ -44,11 +43,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     setLoading(true);
     try {
       const data = await playerService.getPlayers();
-      if (Array.isArray(data) && data.length > 0) {
-        setPlayers(data);
-      }
+      setPlayers(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.warn('Using fallback initial players:', err);
+      console.error('[PlayersPage] Error fetching players:', err);
+      setPlayers([]);
     } finally {
       setLoading(false);
     }
@@ -256,6 +254,29 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     );
   };
 
+  const renderSkeletonCard = (idx: string | number) => (
+    <div
+      key={`skeleton-player-${idx}`}
+      className="bg-[#121826] rounded-3xl border border-slate-800/80 overflow-hidden shadow-xl animate-pulse flex flex-col justify-between"
+    >
+      <div className="relative aspect-[3/4] bg-slate-800/50 flex items-center justify-center">
+        <div className="w-16 h-16 rounded-full bg-slate-700/40" />
+        <div className="absolute top-3 left-3 w-20 h-5 rounded-full bg-slate-700/50" />
+        <div className="absolute top-3 right-3 w-9 h-9 rounded-full bg-slate-700/50" />
+      </div>
+      <div className="p-4 sm:p-5 space-y-3 bg-[#0E1524]">
+        <div className="flex justify-between items-center">
+          <div className="h-4 w-32 bg-slate-700/60 rounded" />
+          <div className="h-4 w-10 bg-slate-700/60 rounded" />
+        </div>
+        <div className="space-y-2 pt-2 border-t border-slate-800/80">
+          <div className="h-3 w-full bg-slate-800 rounded" />
+          <div className="h-3 w-2/3 bg-slate-800 rounded" />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
@@ -314,7 +335,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               <span className={`px-2.5 py-1 rounded-xl font-mono font-bold text-xs ${
                 resolvedLevel === 'JUNIOR' ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-300'
               }`}>
-                {juniorPlayers.length} Athletes
+                {loading ? '...' : `${juniorPlayers.length} Athletes`}
               </span>
             </div>
 
@@ -356,7 +377,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               <span className={`px-2.5 py-1 rounded-xl font-mono font-bold text-xs ${
                 resolvedLevel === 'SENIOR' ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-300'
               }`}>
-                {seniorPlayers.length} Athletes
+                {loading ? '...' : `${seniorPlayers.length} Athletes`}
               </span>
             </div>
 
@@ -398,7 +419,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               <span className={`px-2.5 py-1 rounded-xl font-mono font-bold text-xs ${
                 resolvedLevel === 'YOUTH' ? 'bg-emerald-400 text-black' : 'bg-slate-800 text-slate-300'
               }`}>
-                {youthPlayers.length} Athletes
+                {loading ? '...' : `${youthPlayers.length} Athletes`}
               </span>
             </div>
 
@@ -503,8 +524,12 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
           <div>
             <div id="players-grid-top" className="scroll-mt-24" />
 
-            {/* Empty state */}
-            {paginatedPlayers.length === 0 ? (
+            {/* Loading Skeleton */}
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {Array.from({ length: 8 }).map((_, i) => renderSkeletonCard(i))}
+              </div>
+            ) : paginatedPlayers.length === 0 ? (
               <div className="p-16 rounded-3xl bg-[#121826] border border-dashed border-slate-800 text-center space-y-3">
                 <User className="w-10 h-10 text-slate-600 mx-auto" />
                 <h4 className="font-heading font-bold text-white text-base">No Athletes Found</h4>
@@ -587,7 +612,11 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
                 </div>
               </div>
 
-              {juniorPlayers.length === 0 ? (
+              {loading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => renderSkeletonCard(`col1-${i}`))}
+                </div>
+              ) : juniorPlayers.length === 0 ? (
                 <div className="text-center py-10 text-slate-500 text-xs bg-[#131822]/60 rounded-2xl border border-dashed border-slate-800">
                   No junior athletes found
                 </div>
@@ -606,7 +635,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
                     <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
                     <h2 className="font-heading font-black text-lg text-white">Senior Squad</h2>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-800">
-                      {seniorPlayers.length}
+                      {loading ? '...' : seniorPlayers.length}
                     </span>
                   </div>
                   <p className="text-[11px] text-red-300/80 mt-1">
@@ -615,7 +644,11 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
                 </div>
               </div>
 
-              {seniorPlayers.length === 0 ? (
+              {loading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => renderSkeletonCard(`col2-${i}`))}
+                </div>
+              ) : seniorPlayers.length === 0 ? (
                 <div className="text-center py-10 text-slate-500 text-xs bg-[#131822]/60 rounded-2xl border border-dashed border-slate-800">
                   No senior athletes found
                 </div>
@@ -634,7 +667,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                     <h2 className="font-heading font-black text-lg text-white">Youth</h2>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                      {youthPlayers.length}
+                      {loading ? '...' : youthPlayers.length}
                     </span>
                   </div>
                   <p className="text-[11px] text-emerald-300/80 mt-1">
@@ -643,7 +676,11 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
                 </div>
               </div>
 
-              {youthPlayers.length === 0 ? (
+              {loading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => renderSkeletonCard(`col3-${i}`))}
+                </div>
+              ) : youthPlayers.length === 0 ? (
                 <div className="text-center py-10 text-slate-500 text-xs bg-[#131822]/60 rounded-2xl border border-dashed border-slate-800">
                   No youth athletes found
                 </div>

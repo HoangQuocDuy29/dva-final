@@ -16,12 +16,6 @@ import {
 import { 
   GUEST_USER,
   INITIAL_USERS,
-  INITIAL_COURTS, 
-  INITIAL_PLAYERS, 
-  INITIAL_COACHES,
-  INITIAL_NEWS, 
-  INITIAL_TRAINING_COURSES, 
-  INITIAL_MEMBER_APPLICATIONS 
 } from '../data/mockData';
 import { getDefaultWeeklyScheduleForCourt, normalizeCourtWeeklySchedule } from '../shared/schedule';
 import { API_BASE_URL, getApiUrl } from '../config/api';
@@ -706,13 +700,10 @@ export const memberService = {
 };
 
 function normalizeNewsPost(post: NewsPost): NewsPost {
-  const initMatch = INITIAL_NEWS.find((n) => n.id === post.id || n.slug === post.slug);
   const resolvedImageUrl = (
     post.imageUrl ||
     post.image ||
     post.thumbnail ||
-    initMatch?.imageUrl ||
-    initMatch?.thumbnail ||
     ''
   ).trim();
   return {

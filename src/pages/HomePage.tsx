@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { Court, Player, NewsPost } from '../types';
 import { courtService, playerService, newsService } from '../services/api';
-import { INITIAL_COURTS, INITIAL_PLAYERS, INITIAL_NEWS } from '../data/mockData';
 
 interface LeadershipMember {
   name: string;
@@ -83,6 +82,7 @@ const LEADERSHIP_MEMBERS: LeadershipMember[] = [
     fallbackInitials: 'HUY',
     avatarGradient: 'from-emerald-600 to-teal-500',
     hoverBorder: 'hover:border-emerald-500/50',
+    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1793037457/dva_club/players/youth/mb/z9ttorct7lcif5wnvehe.png',
   },
   {
     name: 'Hoang Minh Hieu',
@@ -142,9 +142,10 @@ const LeadershipCard: React.FC<{ member: LeadershipMember }> = ({ member }) => (
 );
 
 export const HomePage: React.FC = () => {
-  const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
-  const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
-  const [news, setNews] = useState<NewsPost[]>(INITIAL_NEWS);
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [news, setNews] = useState<NewsPost[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Leadership slider refs & state
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -326,20 +327,26 @@ export const HomePage: React.FC = () => {
   };
 
   useEffect(() => {
-    courtService.getCourts().then((res) => {
-      if (Array.isArray(res) && res.length > 0) setCourts(res);
-    }).catch(console.error);
-
-    playerService.getPlayers().then((res) => {
-      if (Array.isArray(res) && res.length > 0) setPlayers(res);
-    }).catch(console.error);
-
-    newsService.getNews().then((res) => {
-      if (Array.isArray(res) && res.length > 0) setNews(res);
-    }).catch(console.error);
+    setIsLoading(true);
+    Promise.all([
+      courtService.getCourts(),
+      playerService.getPlayers(),
+      newsService.getNews(),
+    ])
+      .then(([courtsRes, playersRes, newsRes]) => {
+        setCourts(Array.isArray(courtsRes) ? courtsRes : []);
+        setPlayers(Array.isArray(playersRes) ? playersRes : []);
+        setNews(Array.isArray(newsRes) ? newsRes : []);
+      })
+      .catch((err) => {
+        console.error('[HomePage] Error loading homepage data:', err);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
-  const seniorCaptain = players.find(p => p.isCaptain || (p as any).captain) || players[0] || INITIAL_PLAYERS[0];
+  const seniorCaptain = players.find(p => p.isCaptain || (p as any).captain) || players[0];
   const featuredPlayers = players.slice(0, 3);
   const latestNews = news.slice(0, 3);
 
@@ -446,26 +453,36 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 {/* Captain spotlight mini card */}
-                <div className="flex items-center gap-4 p-4 bg-[#161F30] rounded-2xl border border-slate-800">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center font-athletic font-black text-2xl text-white shadow">
-                    #1
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs font-bold text-white flex items-center gap-2">
-                      <span>{seniorCaptain.fullName}</span>
-                      <span className="text-[10px] text-orange-400 bg-orange-950 border border-orange-800 px-1.5 py-0.2 rounded font-bold">Team Captain</span>
+                {seniorCaptain ? (
+                  <div className="flex items-center gap-4 p-4 bg-[#161F30] rounded-2xl border border-slate-800">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center font-athletic font-black text-2xl text-white shadow">
+                      #{seniorCaptain.jerseyNumber || 1}
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">
-                      Spike Reach: <strong className="text-white font-mono">{seniorCaptain.spikeTouch}cm</strong> · Block: <strong className="text-white font-mono">{seniorCaptain.blockTouch}cm</strong>
+                    <div className="flex-1">
+                      <div className="text-xs font-bold text-white flex items-center gap-2">
+                        <span>{seniorCaptain.fullName}</span>
+                        <span className="text-[10px] text-orange-400 bg-orange-950 border border-orange-800 px-1.5 py-0.2 rounded font-bold">Team Captain</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Spike Reach: <strong className="text-white font-mono">{seniorCaptain.spikeTouch || 325}cm</strong> · Block: <strong className="text-white font-mono">{seniorCaptain.blockTouch || 310}cm</strong>
+                      </div>
+                    </div>
+                    <Link
+                      to="/players/senior"
+                      className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4 p-4 bg-[#161F30] rounded-2xl border border-slate-800 animate-pulse">
+                    <div className="w-12 h-12 rounded-xl bg-slate-800" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-32 bg-slate-700/60 rounded" />
+                      <div className="h-2.5 w-48 bg-slate-800 rounded" />
                     </div>
                   </div>
-                  <Link
-                    to="/players/senior"
-                    className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
+                )}
 
               </div>
             </div>
@@ -744,35 +761,7 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
 
-            {/* Slider Controls & Live Status Pill */}
-            <div className="flex items-center gap-3 self-start md:self-end">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#121826] border border-slate-800 text-slate-400 shadow-sm">
-                <span className={`w-2 h-2 rounded-full transition-colors ${isPaused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
-                <span className="hidden sm:inline">{isPaused ? 'Tạm dừng (Rê chuột / Vuốt)' : 'Tự động trượt (Trái → Phải)'}</span>
-                <span className="sm:hidden">{isPaused ? 'Tạm dừng' : 'Trượt tự động'}</span>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleManualScroll('left')}
-                  className="p-2.5 rounded-xl bg-[#121826] hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors active:scale-95 cursor-pointer shadow-md"
-                  aria-label="Xem thẻ phía trước"
-                  title="Xem thẻ trước"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleManualScroll('right')}
-                  className="p-2.5 rounded-xl bg-[#121826] hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors active:scale-95 cursor-pointer shadow-md"
-                  aria-label="Xem thẻ tiếp theo"
-                  title="Xem thẻ tiếp theo"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            
           </div>
 
           {/* Carousel Slider with edge fade masks */}
@@ -840,66 +829,81 @@ export const HomePage: React.FC = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courts.map((court) => (
-              <div
-                key={court.id}
-                className="bg-[#161F30] rounded-3xl border border-slate-800 overflow-hidden shadow-xl flex flex-col justify-between"
-              >
-                <div>
-                  <div className="relative h-44 w-full overflow-hidden bg-slate-900">
-                    <img
-                      src={court.imageUrl}
-                      alt={court.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#161F30] via-black/50 to-black/30" />
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={`skeleton-court-${i}`} className="bg-[#161F30] rounded-3xl border border-slate-800 overflow-hidden shadow-xl animate-pulse min-h-[360px]">
+                  <div className="h-44 w-full bg-slate-800/80" />
+                  <div className="p-6 space-y-3">
+                    <div className="h-4 w-3/4 bg-slate-700/60 rounded" />
+                    <div className="h-3 w-full bg-slate-800 rounded" />
+                    <div className="h-3 w-5/6 bg-slate-800 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courts.map((court) => (
+                <div
+                  key={court.id}
+                  className="bg-[#161F30] rounded-3xl border border-slate-800 overflow-hidden shadow-xl flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="relative h-44 w-full overflow-hidden bg-slate-900">
+                      <img
+                        src={court.imageUrl}
+                        alt={court.name}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#161F30] via-black/50 to-black/30" />
 
-                    <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
-                      <span className="px-2.5 py-0.5 rounded text-[11px] font-extrabold uppercase bg-red-600 text-white shadow-md">
-                        {court.code}
-                      </span>
-                      <span className="font-mono text-xs bg-black/60 backdrop-blur px-2.5 py-0.5 rounded text-orange-400 font-bold border border-orange-500/30">
-                        {court.hourlyRate ? `${Math.round(court.hourlyRate / 1000)}k/h` : '500k/h'}
-                      </span>
+                      <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
+                        <span className="px-2.5 py-0.5 rounded text-[11px] font-extrabold uppercase bg-red-600 text-white shadow-md">
+                          {court.code}
+                        </span>
+                        <span className="font-mono text-xs bg-black/60 backdrop-blur px-2.5 py-0.5 rounded text-orange-400 font-bold border border-orange-500/30">
+                          {court.hourlyRate ? `${Math.round(court.hourlyRate / 1000)}k/h` : '500k/h'}
+                        </span>
+                      </div>
+
+                      <div className="absolute bottom-3 left-4 right-4">
+                        <h3 className="font-heading font-black text-xl text-white drop-shadow-md">
+                          {court.name}
+                        </h3>
+                        <p className="text-xs text-slate-300 mt-0.5">{court.floorType}</p>
+                      </div>
                     </div>
 
-                    <div className="absolute bottom-3 left-4 right-4">
-                      <h3 className="font-heading font-black text-xl text-white drop-shadow-md">
-                        {court.name}
-                      </h3>
-                      <p className="text-xs text-slate-300 mt-0.5">{court.floorType}</p>
+                    <div className="p-6 space-y-4">
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        {court.description}
+                      </p>
+
+                      <div className="space-y-2 border-t border-slate-800 pt-4 text-xs text-slate-400">
+                        {(court.includes || []).slice(0, 3).map((item: string, idx: number) => (
+                          <div key={idx} className="flex items-start gap-2">
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="p-6 space-y-4">
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      {court.description}
-                    </p>
-
-                    <div className="space-y-2 border-t border-slate-800 pt-4 text-xs text-slate-400">
-                      {(court.includes || []).slice(0, 3).map((item: string, idx: number) => (
-                        <div key={idx} className="flex items-start gap-2">
-                          <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="p-6 pt-0">
+                    <Link
+                      to={`/services/court-booking?courtId=${court.id}`}
+                      className="w-full py-3 px-4 rounded-xl font-bold text-xs text-center block text-white bg-red-600 hover:bg-red-500 transition-colors shadow-md"
+                    >
+                      Book {court.name.split('(')[0].trim()}
+                    </Link>
                   </div>
                 </div>
-
-                <div className="p-6 pt-0">
-                  <Link
-                    to={`/services/court-booking?courtId=${court.id}`}
-                    className="w-full py-3 px-4 rounded-xl font-bold text-xs text-center block text-white bg-red-600 hover:bg-red-500 transition-colors shadow-md"
-                  >
-                    Book {court.name.split('(')[0].trim()}
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -922,35 +926,60 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {latestNews.map((news) => (
-            <article
-              key={news.id}
-              className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between shadow-xl space-y-4"
-            >
-              <div className="space-y-3">
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-red-950 text-red-400 border border-red-800">
-                  {news.category}
-                </span>
-                <h3 className="font-heading font-black text-base text-white hover:text-orange-400 transition-colors">
-                  <Link to={`/news/${news.id}`}>{news.title}</Link>
-                </h3>
-                <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
-                  {news.excerpt}
-                </p>
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, idx) => (
+              <div
+                key={`news-skel-${idx}`}
+                className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between shadow-xl space-y-4 animate-pulse"
+              >
+                <div className="space-y-3">
+                  <div className="w-20 h-4 bg-slate-800 rounded"></div>
+                  <div className="w-full h-6 bg-slate-800 rounded"></div>
+                  <div className="w-3/4 h-6 bg-slate-800 rounded"></div>
+                  <div className="w-full h-4 bg-slate-800/60 rounded"></div>
+                  <div className="w-5/6 h-4 bg-slate-800/60 rounded"></div>
+                </div>
+                <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
+                  <div className="w-24 h-4 bg-slate-800 rounded"></div>
+                  <div className="w-20 h-4 bg-slate-800 rounded"></div>
+                </div>
               </div>
+            ))
+          ) : latestNews.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-slate-500 bg-[#161F30]/50 border border-slate-800 rounded-3xl">
+              Chưa có tin tức nào được xuất bản.
+            </div>
+          ) : (
+            latestNews.map((news) => (
+              <article
+                key={news.id}
+                className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between shadow-xl space-y-4"
+              >
+                <div className="space-y-3">
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-red-950 text-red-400 border border-red-800">
+                    {news.category}
+                  </span>
+                  <h3 className="font-heading font-black text-base text-white hover:text-orange-400 transition-colors">
+                    <Link to={`/news/${news.id}`}>{news.title}</Link>
+                  </h3>
+                  <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
+                    {news.excerpt}
+                  </p>
+                </div>
 
-              <div className="pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
-                <span className="text-slate-500">{news.publishedAt}</span>
-                <Link
-                  to={`/news/${news.id}`}
-                  className="font-bold text-orange-400 hover:underline flex items-center gap-1"
-                >
-                  <span>Read Story</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </article>
-          ))}
+                <div className="pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
+                  <span className="text-slate-500">{news.publishedAt}</span>
+                  <Link
+                    to={`/news/${news.id}`}
+                    className="font-bold text-orange-400 hover:underline flex items-center gap-1"
+                  >
+                    <span>Read Story</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </article>
+            ))
+          )}
         </div>
       </section>
 
