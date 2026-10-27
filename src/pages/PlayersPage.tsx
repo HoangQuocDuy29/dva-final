@@ -146,7 +146,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     return (
       <div
         key={player.id}
-        className={`w-full rounded-3xl bg-[#131822] p-5 shadow-xl transition-all duration-300 flex flex-col justify-between relative group hover:scale-[1.01] ${
+        className={`w-[calc(100%-2rem)] sm:w-full max-w-md mx-auto rounded-3xl bg-[#131822] p-4 sm:p-5 shadow-xl transition-all duration-300 flex flex-col justify-between relative group hover:scale-[1.01] ${
           isTeamCaptain 
             ? 'border-2 border-amber-500/80 shadow-lg shadow-amber-500/10 hover:border-amber-400 ring-1 ring-amber-400/30' 
             : 'border border-[#1e2738] hover:border-slate-600'
@@ -170,15 +170,15 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
           </div>
         </div>
 
-        <div>
+        <div className="space-y-3">
           {/* Athlete Avatar Photo */}
-          <div className="w-28 h-32 mx-auto rounded-2xl bg-[#0c1017] border border-slate-700/60 overflow-hidden shadow-inner flex items-center justify-center mt-1">
+          <div className="w-32 h-40 sm:w-36 sm:h-44 mx-auto rounded-2xl bg-[#0c1017] border border-slate-700/60 overflow-hidden shadow-inner flex items-center justify-center">
             {player.avatarUrl ? (
               <img
                 src={player.avatarUrl}
                 alt={player.fullName}
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-slate-800 to-red-950 flex items-center justify-center font-athletic font-black text-3xl text-orange-400">
@@ -187,42 +187,46 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             )}
           </div>
 
-          {/* Athlete Name & Flag */}
-          <h3 className="font-heading font-extrabold text-base sm:text-lg text-white text-center mt-3 tracking-wide flex items-center justify-center gap-1.5">
-            <span>{player.fullName}</span>
-            <span className="text-sm select-none" title={resolvedCountryName}>{resolvedFlag}</span>
-          </h3>
+          {/* Athlete Name & Position Badge */}
+          <div>
+            <h3 className="font-heading font-extrabold text-base sm:text-lg text-white text-center tracking-wide flex items-center justify-center gap-1.5">
+              <span>{player.fullName}</span>
+              <span className="text-sm select-none" title={resolvedCountryName}>{resolvedFlag}</span>
+            </h3>
 
-          {/* Position Pill Badge */}
-          <div className="flex justify-center mt-1.5">
-            <span className={`${posMeta.bg} text-white px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm`}>
-              {posMeta.label}
-            </span>
+            {/* Position Pill Badge */}
+            <div className="flex justify-center mt-1">
+              <span className={`${posMeta.bg} text-white px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm`}>
+                {posMeta.label}
+              </span>
+            </div>
           </div>
 
-          {/* 4-Box Metric Grid */}
-          <div className="grid grid-cols-2 gap-2 my-3">
-            <div className="bg-[#0c1017] rounded-xl p-2 text-center border border-[#1a2332]">
-              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">HEIGHT</span>
-              <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{player.height}cm</span>
+          {/* Metric Grid: 5 stats with BORN centered in the last row */}
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 my-3">
+            <div className="py-1.5 px-2 rounded-xl bg-slate-800/50 border border-slate-700/50 text-center">
+              <span className="text-[10px] tracking-wider text-slate-400 font-semibold uppercase block">HEIGHT</span>
+              <span className="font-mono font-bold text-xs sm:text-sm text-white">{player.height}cm</span>
             </div>
-            <div className="bg-[#0c1017] rounded-xl p-2 text-center border border-[#1a2332]">
-              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">REACH</span>
-              <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{player.spikeTouch}cm</span>
+            <div className="py-1.5 px-2 rounded-xl bg-slate-800/50 border border-slate-700/50 text-center">
+              <span className="text-[10px] tracking-wider text-slate-400 font-semibold uppercase block">REACH</span>
+              <span className="font-mono font-bold text-xs sm:text-sm text-white">{player.spikeTouch}cm</span>
             </div>
             {player.blockTouch > 0 && (
-              <div className="bg-[#0c1017] rounded-xl p-2 text-center border border-[#1a2332]">
-                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">BLOCK</span>
-                <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{player.blockTouch}cm</span>
+              <div className="py-1.5 px-2 rounded-xl bg-slate-800/50 border border-slate-700/50 text-center">
+                <span className="text-[10px] tracking-wider text-slate-400 font-semibold uppercase block">BLOCK</span>
+                <span className="font-mono font-bold text-xs sm:text-sm text-white">{player.blockTouch}cm</span>
               </div>
             )}
-            <div className="bg-[#0c1017] rounded-xl p-2 text-center border border-[#1a2332]">
-              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">JOINED</span>
-              <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{resolvedJoined}</span>
+            <div className="py-1.5 px-2 rounded-xl bg-slate-800/50 border border-slate-700/50 text-center">
+              <span className="text-[10px] tracking-wider text-slate-400 font-semibold uppercase block">JOINED</span>
+              <span className="font-mono font-bold text-xs sm:text-sm text-white">{resolvedJoined}</span>
             </div>
-            <div className="bg-[#0c1017] rounded-xl p-2 text-center border border-[#1a2332]">
-              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">BORN</span>
-              <span className="font-mono font-extrabold text-white text-xs sm:text-sm">{player.bornYear || 2005}</span>
+            <div className={`py-1.5 px-2 rounded-xl bg-slate-800/50 border border-slate-700/50 text-center ${
+              player.blockTouch > 0 ? 'col-span-2 mx-auto w-full max-w-[180px]' : ''
+            }`}>
+              <span className="text-[10px] tracking-wider text-slate-400 font-semibold uppercase block">BORN</span>
+              <span className="font-mono font-bold text-xs sm:text-sm text-white">{player.bornYear || 2005}</span>
             </div>
           </div>
 
