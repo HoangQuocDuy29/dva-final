@@ -54,6 +54,13 @@ export const COURT_GATE_IMAGE =
 export const COURT_DEFAULT_ADDRESS = '155 Trường Chinh, Thanh Xuân, Hà Nội';
 export const COURT_DEFAULT_MAPS_URL = 'https://maps.app.goo.gl/hkqofjzojcUoE39M7';
 
+// ============================================================================
+// THÔNG TIN TÀI KHOẢN THỤ HƯỞNG & VIETQR CHUẨN (MBBANK - HOANG QUOC DUY)
+// ============================================================================
+export const VIETQR_BANK_ID = 'MB'; // MBBank (Ngân hàng Quân Đội)
+export const VIETQR_ACCOUNT_NO = '0002090671521';
+export const VIETQR_ACCOUNT_NAME = 'HOANG QUOC DUY';
+
 export const EMAIL_CUSTOM_CONFIG = {
   defaultGuideImageUrl: process.env.COURT_GUIDE_IMAGE_URL || DEFAULT_COURT_GUIDE_IMAGE,
   gateImageUrl: COURT_GATE_IMAGE,
@@ -98,6 +105,7 @@ export interface BookingEmailPayload {
   totalPrice: number;
   paymentStatus?: string | null;
   transferContent?: string | null;
+  vietqrUrl?: string | null;
   notes?: string | null;
 }
 
@@ -216,6 +224,118 @@ export function removeVietnameseTones(str: string): string {
     .replace(/Đ/g, 'D');
 }
 
+export function formatBookingDateDDMM(rawDate?: string): string {
+  const str = (rawDate || '').trim();
+  if (!str) {
+    const now = new Date();
+    return `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+  // YYYY-MM-DD hoặc YYYY/MM/DD
+  const ymdMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (ymdMatch) {
+    const d = ymdMatch[3].padStart(2, '0');
+    const m = ymdMatch[2].padStart(2, '0');
+    return `${d}${m}`;
+  }
+  // DD-MM-YYYY hoặc DD/MM/YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (dmyMatch) {
+    const d = dmyMatch[1].padStart(2, '0');
+    const m = dmyMatch[2].padStart(2, '0');
+    return `${d}${m}`;
+  }
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const d = String(parsed.getDate()).padStart(2, '0');
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    return `${d}${m}`;
+  }
+  const digits = str.replace(/\D/g, '');
+  if (digits.length >= 4) return digits.slice(-4);
+  return '2910';
+}
+
+export function formatBookingCourtTag(
+  courtName?: string,
+  subCourt?: string | null,
+  courtId?: string
+): string {
+  const combined = `${courtId || ''} ${courtName || ''}`.toUpperCase();
+  const sub = removeVietnameseTones(subCourt || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let subTag = '';
+  if (sub.includes('B')) subTag = 'B';
+  else if (sub.includes('A')) subTag = 'A';
+
+  if (combined.includes('BTL') || combined.includes('THONG TIN')) {
+    return subTag ? `BTL${subTag}` : 'BTLA';
+  }
+  if (combined.includes('THE CONG') || combined.includes('THECONG')) {
+    return subTag ? `TC${subTag}` : 'TC';
+  }
+  if (combined.includes('MY DINH') || combined.includes('MYDINH')) {
+    return subTag ? `MD${subTag}` : 'MD';
+  }
+  if (subTag) return `155TC${subTag}`;
+  return '155TC';
+}
+
+export function formatBookingTimeTag(timeSlot?: string, rawStart?: string, rawEnd?: string): string {
+  const { startTime, endTime } = extractStartAndEndTime(timeSlot, rawStart, rawEnd);
+  const toCompactTime = (t: string): string => {
+    const digits = t.replace(/\D/g, '');
+    if (digits.length === 4) return digits;
+    if (t.includes(':')) {
+      const [h, m] = t.split(':');
+      return `${(h || '00').padStart(2, '0')}${(m || '00').padEnd(2, '0').slice(0, 2)}`;
+    }
+    return digits.padEnd(4, '0').slice(0, 4);
+  };
+  return `${toCompactTime(startTime)} ${toCompactTime(endTime)}`;
+}
+
+export function generateBookingTransferDescription(
+  booking: {
+    customerName?: string;
+    bookingDate?: string;
+    date?: string;
+    subCourt?: string | null;
+    courtName?: string;
+    courtId?: string;
+    startTime?: string;
+    endTime?: string;
+    timeSlot?: string;
+    bookingCode?: string;
+    transferContent?: string | null;
+  },
+  court?: { id?: string; name?: string } | null
+): string {
+  const rawName = booking.customerName || 'KHACH';
+  const cleanName =
+    removeVietnameseTones(rawName)
+      .replace(/[^A-Za-z0-9]/g, '')
+      .toUpperCase() || 'KHACH';
+
+  const dateStr = formatBookingDateDDMM(booking.bookingDate || booking.date);
+  const courtTag = formatBookingCourtTag(
+    court?.name || booking.courtName,
+    booking.subCourt,
+    court?.id || booking.courtId
+  );
+  const timeTag = formatBookingTimeTag(booking.timeSlot, booking.startTime, booking.endTime);
+
+  return `DVA ${cleanName} ${dateStr} ${courtTag} ${timeTag}`.trim();
+}
+
+export function buildBookingVietQrUrl(
+  amount: number,
+  transferContent: string,
+  accountName = VIETQR_ACCOUNT_NAME,
+  accountNo = VIETQR_ACCOUNT_NO,
+  bankId = VIETQR_BANK_ID
+): string {
+  return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${Number(amount) || 0}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accountName)}`;
+}
+
 export function formatMemberPosition(pos: string): string {
   const p = (pos || '').toUpperCase().trim();
   const map: Record<string, string> = {
@@ -319,6 +439,8 @@ export function getBookingConfirmationHtml(data: {
   total_price: number;
   formatted_price: string;
   payment_status: string;
+  transfer_content?: string;
+  vietqr_url?: string;
   guide_image_url: string;
   gate_image_url?: string;
   maps_url: string;
@@ -336,6 +458,11 @@ export function getBookingConfirmationHtml(data: {
       : DEFAULT_COURT_GUIDE_IMAGE;
   const mapsLink = data.maps_url || COURT_DEFAULT_MAPS_URL;
   const addressText = data.court_address || COURT_DEFAULT_ADDRESS;
+
+  const cleanTransfer = (data.transfer_content || `DVA ${data.booking_code}`).trim();
+  const vietQrUrl =
+    data.vietqr_url ||
+    buildBookingVietQrUrl(Number(data.total_price) || 0, cleanTransfer);
 
   return `
 <!DOCTYPE html>
@@ -474,6 +601,14 @@ export function getBookingConfirmationHtml(data: {
                     ${escapeHtml(data.formatted_price)} <span style="font-size:12px;color:#94a3b8;font-weight:600;">(${escapeHtml(data.payment_status)})</span>
                   </td>
                 </tr>
+                <tr>
+                  <td style="padding:9px 0 4px;font-size:13px;color:#94a3b8;">
+                    Nội dung chuyển khoản<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Transfer Content</span>
+                  </td>
+                  <td style="padding:9px 0 4px;font-size:13px;font-family:monospace;font-weight:700;color:#facc15;text-align:right;">
+                    ${escapeHtml(cleanTransfer)}
+                  </td>
+                </tr>
               </table>
 
               <!-- Callout nhắc nhở giờ vào sân (Song ngữ) -->
@@ -495,11 +630,86 @@ export function getBookingConfirmationHtml(data: {
                   ⚠️ LƯU Ý THANH TOÁN QUAN TRỌNG / IMPORTANT PAYMENT NOTICE
                 </div>
                 <p style="margin:0 0 10px;font-size:13.5px;line-height:1.6;color:#fecaca;">
-                  <strong>VI:</strong> Nếu bạn chưa chuyển khoản thành công, vui lòng liên hệ ngay hotline/Zalo/WhatsApp: <a href="tel:0768299329" style="color:#ffffff;font-weight:800;text-decoration:none;">0768 299 329</a>. Lịch đặt sân chỉ được tính là hợp lệ và giữ chỗ chính thức khi bạn đã thực sự chuyển khoản thành công và được Quốc Duy xác nhận.
+                  <strong>VI:</strong> Nếu bạn chưa chuyển khoản thành công, vui lòng mở ứng dụng ngân hàng quét mã VietQR bên dưới hoặc liên hệ ngay hotline/Zalo/WhatsApp: <a href="tel:0768299329" style="color:#ffffff;font-weight:800;text-decoration:none;">0768 299 329</a>. Lịch đặt sân chỉ được tính là hợp lệ và giữ chỗ chính thức khi bạn đã thực sự chuyển khoản thành công và được Quốc Duy xác nhận.
                 </p>
                 <p style="margin:0;font-size:12.5px;line-height:1.6;color:#e2e8f0;font-style:italic;">
-                  <strong>EN:</strong> If you have not completed the bank transfer, please immediately contact Hotline/Zalo/WhatsApp: <a href="tel:+84768299329" style="color:#ffffff;font-weight:700;text-decoration:none;">+84 768 299 329</a>. Your booking is only officially secured once the payment has been completed and verified by Quoc Duy.
+                  <strong>EN:</strong> If you have not completed the bank transfer, please scan the VietQR code below or immediately contact Hotline/Zalo/WhatsApp: <a href="tel:+84768299329" style="color:#ffffff;font-weight:700;text-decoration:none;">+84 768 299 329</a>. Your booking is only officially secured once the payment has been completed and verified by Quoc Duy.
                 </p>
+              </div>
+
+              <!-- KHỐI MÃ VIETQR THANH TOÁN TỰ ĐỘNG (QR PAYMENT BOX) -->
+              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;text-align:center;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#f97316;margin-bottom:4px;">
+                  💳 MÃ VIETQR THANH TOÁN TIỀN SÂN TỰ ĐỘNG
+                </div>
+                <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:14px;font-style:italic;">
+                  AUTOMATED VIETQR COURT PAYMENT
+                </div>
+
+                <!-- Dòng nhắc nhở thân thiện (Song ngữ) -->
+                <div style="margin:0 auto 16px auto;padding:12px 16px;background:rgba(249,115,22,0.1);border-radius:10px;border-left:3px solid #f97316;text-align:left;max-width:520px;">
+                  <p style="margin:0 0 6px;font-size:13px;line-height:1.5;color:#ffedd5;">
+                    💬 <strong>VI:</strong> Quét mã QR bằng ứng dụng ngân hàng để được điền sẵn số tiền và nội dung chuyển khoản tự động chính xác nhất.
+                  </p>
+                  <p style="margin:0;font-size:12px;line-height:1.5;color:#cbd5e1;font-style:italic;">
+                    💬 <strong>EN:</strong> Scan the QR code using any banking app to automatically fill in the exact amount and transfer reference.
+                  </p>
+                </div>
+
+                <!-- Ảnh VietQR -->
+                <div style="margin:12px auto;display:inline-block;">
+                  <img src="${escapeHtml(vietQrUrl)}" alt="Mã VietQR thanh toán tiền sân" style="max-width:100%;width:240px;height:auto;border-radius:12px;display:block;margin:0 auto;border:1px solid #334155;box-shadow:0 4px 14px rgba(0,0,0,0.4);" />
+                </div>
+                <p style="margin:6px 0 16px 0;font-size:12px;color:#94a3b8;line-height:1.4;">
+                  (Mở app ngân hàng bất kỳ để quét mã VietQR tự động điền số tiền và nội dung)<br />
+                  <span style="font-size:11px;font-style:italic;">Open any banking app to scan VietQR with auto-filled amount and reference</span>
+                </p>
+
+                <!-- Bảng chi tiết chuyển khoản rõ ràng bên dưới ảnh QR -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:10px;padding:14px 16px;margin:0 auto;max-width:520px;text-align:left;">
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Ngân hàng thụ hưởng / Bank
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
+                      MBBank (Ngân hàng Quân Đội)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Số tài khoản / Account Number
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:800;color:#38bdf8;text-align:right;font-family:monospace;">
+                      0002090671521
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Chủ tài khoản / Account Name
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
+                      HOANG QUOC DUY
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Số tiền / Amount
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:800;color:#4ade80;text-align:right;font-family:monospace;">
+                      ${escapeHtml(data.formatted_price)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 0 2px 0;font-size:12.5px;color:#94a3b8;">
+                      Nội dung chuyển khoản / Transfer Content
+                    </td>
+                    <td style="padding:8px 0 2px 0;text-align:right;">
+                      <strong style="color: #facc15;font-family:monospace;font-size:13px;background:rgba(250,204,21,0.15);padding:3px 8px;border-radius:6px;display:inline-block;">
+                        ${escapeHtml(cleanTransfer)}
+                      </strong>
+                    </td>
+                  </tr>
+                </table>
               </div>
 
               <!-- MỤC CHỈ ĐƯỜNG & HƯỚNG DẪN VÀO SÂN (ĐẦY ĐỦ 2 KHỐI ẢNH + GOOGLE MAPS BUTTON) -->
@@ -1252,6 +1462,23 @@ export async function sendBookingConfirmationEmail(
       currency: 'VND',
     }).format(Number(booking.totalPrice) || 0);
 
+    // Chuẩn hóa Cú pháp chuyển khoản VietQR: DVA [TênKhôngDấu] [Ngày] [Sân/SânCon] [KhungGiờ]
+    const transferContent = generateBookingTransferDescription(
+      {
+        ...booking,
+        bookingDate,
+        startTime,
+        endTime,
+        timeSlot: resolvedTimeSlot,
+      },
+      court
+    );
+
+    // Tạo URL mã VietQR tự động qua Quicklink API của VietQR
+    const vietQrUrl =
+      booking.vietqrUrl ||
+      buildBookingVietQrUrl(Number(booking.totalPrice) || 0, transferContent);
+
     // Sơ đồ lối di chuyển từ cổng vào sân thi đấu (155 Trường Chinh)
     // Luôn ưu tiên dùng DEFAULT_COURT_GUIDE_IMAGE tuyệt đối trên Cloudinary.
     // Nếu court?.imageUrl trong database là đường dẫn tương đối (ví dụ '/courts/btl.png')
@@ -1277,6 +1504,8 @@ export async function sendBookingConfirmationEmail(
       total_price: Number(booking.totalPrice) || 0,
       formatted_price: formattedTotalPrice,
       payment_status: booking.paymentStatus || 'PENDING',
+      transfer_content: transferContent,
+      vietqr_url: vietQrUrl,
       guide_image_url: guideImageUrl,
       gate_image_url: COURT_GATE_IMAGE,
       maps_url: COURT_DEFAULT_MAPS_URL,
@@ -1328,6 +1557,7 @@ export async function sendBookingConfirmationEmail(
             <tr><td style="padding: 6px 0; color: #94a3b8;">Ngày chơi:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(bookingDate)}</td></tr>
             <tr><td style="padding: 6px 0; color: #94a3b8;">Khung giờ:</td><td style="padding: 6px 0; color: #38bdf8;">${escapeHtml(resolvedTimeSlot)}</td></tr>
             <tr><td style="padding: 6px 0; color: #94a3b8;">Tổng tiền:</td><td style="padding: 6px 0; font-weight: bold; color: #4ade80; font-size: 16px;">${escapeHtml(formattedTotalPrice)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Nội dung CK:</td><td style="padding: 6px 0; font-family: monospace; font-weight: bold; color: #facc15;">${escapeHtml(transferContent)}</td></tr>
             <tr><td style="padding: 6px 0; color: #94a3b8;">Ghi chú:</td><td style="padding: 6px 0; color: #cbd5e1;">${escapeHtml(booking.notes || 'Không có')}</td></tr>
           </table>
           <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
