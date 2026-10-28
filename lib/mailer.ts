@@ -601,12 +601,18 @@ export function getTrainingRegistrationHtml(payload: {
   amount: number;
   formatted_amount: string;
   transfer_content: string;
+  vietqr_url?: string;
   notes: string;
 }): string {
   const hotline = process.env.HOTLINE || '0768 299 329';
   const gateImg = COURT_GATE_IMAGE;
   const mapsLink = COURT_DEFAULT_MAPS_URL;
   const addressText = COURT_DEFAULT_ADDRESS;
+
+  const cleanTransfer = (payload.transfer_content || `DVA_${payload.order_code}`).trim();
+  const trainingQrUrl =
+    payload.vietqr_url ||
+    `https://img.vietqr.io/image/MB-0002090671521-compact2.png?amount=${Number(payload.amount) || 0}&addInfo=${encodeURIComponent(cleanTransfer)}&accountName=HOANG%20QUOC%20DUY`;
 
   return `
 <!DOCTYPE html>
@@ -746,6 +752,81 @@ export function getTrainingRegistrationHtml(payload: {
                   </td>
                 </tr>
               </table>
+
+              <!-- KHỐI MÃ VIETQR THANH TOÁN TỰ ĐỘNG (QR PAYMENT BOX) -->
+              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;text-align:center;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#38bdf8;margin-bottom:4px;">
+                  💳 MÃ VIETQR THANH TOÁN HỌC PHÍ TỰ ĐỘNG
+                </div>
+                <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:14px;font-style:italic;">
+                  AUTOMATED VIETQR TUITION PAYMENT
+                </div>
+
+                <!-- Dòng nhắc nhở thân thiện (Song ngữ) -->
+                <div style="margin:0 auto 16px auto;padding:12px 16px;background:rgba(2,132,199,0.1);border-radius:10px;border-left:3px solid #38bdf8;text-align:left;max-width:520px;">
+                  <p style="margin:0 0 6px;font-size:13px;line-height:1.5;color:#e0f2fe;">
+                    💬 <strong>VI:</strong> Nếu bạn chưa kịp thanh toán trên website, bạn có thể mở ứng dụng ngân hàng và quét mã QR phía trên để hoàn tất học phí bất kỳ lúc nào.
+                  </p>
+                  <p style="margin:0;font-size:12px;line-height:1.5;color:#94a3b8;font-style:italic;">
+                    💬 <strong>EN:</strong> If you haven&#39;t completed the payment on the website, you can scan the QR code above using your banking app to finalize your tuition anytime.
+                  </p>
+                </div>
+
+                <!-- Ảnh VietQR -->
+                <div style="margin:12px auto;display:inline-block;">
+                  <img src="${escapeHtml(trainingQrUrl)}" alt="Mã VietQR thanh toán học phí" style="max-width:100%;width:240px;height:auto;border-radius:12px;display:block;margin:0 auto;border:1px solid #334155;box-shadow:0 4px 14px rgba(0,0,0,0.4);" />
+                </div>
+                <p style="margin:6px 0 16px 0;font-size:12px;color:#94a3b8;line-height:1.4;">
+                  (Mở app ngân hàng bất kỳ để quét mã VietQR tự động điền số tiền và nội dung)<br />
+                  <span style="font-size:11px;font-style:italic;">Open any banking app to scan VietQR with auto-filled amount and reference</span>
+                </p>
+
+                <!-- Bảng chi tiết chuyển khoản bên dưới ảnh -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:10px;padding:14px 16px;margin:0 auto;max-width:520px;text-align:left;">
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Ngân hàng / Bank
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
+                      MBBank (Ngân hàng Quân Đội)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Số tài khoản / Account Number
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:800;color:#38bdf8;text-align:right;font-family:monospace;">
+                      0002090671521
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Chủ tài khoản / Account Name
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
+                      HOANG QUOC DUY
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Số tiền học phí / Tuition Fee
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:800;color:#4ade80;text-align:right;font-family:monospace;">
+                      ${escapeHtml(payload.formatted_amount)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 0 2px 0;font-size:12.5px;color:#94a3b8;">
+                      Cú pháp chuyển khoản / Transfer Content
+                    </td>
+                    <td style="padding:8px 0 2px 0;text-align:right;">
+                      <strong style="color:#facc15;font-family:monospace;font-size:13px;background:rgba(250,204,21,0.15);padding:3px 8px;border-radius:6px;display:inline-block;">
+                        ${escapeHtml(payload.transfer_content)}
+                      </strong>
+                    </td>
+                  </tr>
+                </table>
+              </div>
 
               <!-- THÔNG BÁO LIÊN HỆ & KÊNH HỖ TRỢ TRỰC TIẾP (NOTICE BOX SONG NGỮ BẮT BUỘC) -->
               <div style="background-color:rgba(14,165,233,0.12);border-left:4px solid #0284c7;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
@@ -1317,6 +1398,19 @@ export async function sendTrainingRegistrationEmail(
       currency: 'VND',
     }).format(Number(payload.amount) || 0);
 
+    const cleanName = removeVietnameseTones(payload.fullName || '')
+      .replace(/\s+/g, '')
+      .replace(/[^A-Za-z0-9]/g, '')
+      .toUpperCase();
+    const cleanPhone = (payload.phone || '').replace(/\D/g, '').trim();
+    const fallbackTransfer = `DVA_${orderCode}_${cleanName || 'HV'}${cleanPhone ? '_' + cleanPhone : ''}`;
+    const rawTransfer = (payload.transferContent || fallbackTransfer).trim();
+    const cleanTransfer = removeVietnameseTones(rawTransfer)
+      .replace(/[^A-Za-z0-9_\-\s]/g, '')
+      .trim();
+
+    const trainingQrUrl = `https://img.vietqr.io/image/MB-0002090671521-compact2.png?amount=${Number(payload.amount) || 0}&addInfo=${encodeURIComponent(cleanTransfer)}&accountName=HOANG%20QUOC%20DUY`;
+
     const traineeHtml = getTrainingRegistrationHtml({
       order_code: orderCode,
       package_name: payload.packageName || 'Gói tập DVA Volleyball',
@@ -1328,7 +1422,8 @@ export async function sendTrainingRegistrationEmail(
       target_skill: payload.targetSkill || payload.position || '',
       amount: Number(payload.amount) || 0,
       formatted_amount: formattedAmount,
-      transfer_content: payload.transferContent || '',
+      transfer_content: cleanTransfer,
+      vietqr_url: trainingQrUrl,
       notes: payload.notes || 'Không có',
     });
 
@@ -1377,7 +1472,7 @@ export async function sendTrainingRegistrationEmail(
             <tr><td style="padding: 6px 0; color: #94a3b8;">Cấp độ:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(payload.level || 'Junior')}</td></tr>
             <tr><td style="padding: 6px 0; color: #94a3b8;">Khung giờ:</td><td style="padding: 6px 0; color: #38bdf8;">${escapeHtml(payload.preferredTime || 'Linh hoạt')}</td></tr>
             <tr><td style="padding: 6px 0; color: #94a3b8;">Học phí:</td><td style="padding: 6px 0; font-weight: bold; color: #4ade80; font-size: 16px;">${escapeHtml(formattedAmount)}</td></tr>
-            <tr><td style="padding: 6px 0; color: #94a3b8;">Nội dung CK:</td><td style="padding: 6px 0; font-family: monospace; font-weight: bold; color: #facc15;">${escapeHtml(payload.transferContent || 'N/A')}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Nội dung CK:</td><td style="padding: 6px 0; font-family: monospace; font-weight: bold; color: #facc15;">${escapeHtml(cleanTransfer)}</td></tr>
             <tr><td style="padding: 6px 0; color: #94a3b8;">Ghi chú:</td><td style="padding: 6px 0; color: #cbd5e1;">${escapeHtml(payload.notes || 'Không có')}</td></tr>
           </table>
           <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
