@@ -1,46 +1,85 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // ============================================================================
-// KHU VỰC TÙY CHỈNH NỘI DUNG EMAIL & ẢNH HƯỚNG DẪN VÀO SÂN (CHỈNH SỬA TẠI ĐÂY)
+// CẤU HÌNH RESEND EMAIL CLIENT (OFFICIAL DOMAIN: dva-volleyball-hanoi.com)
+// ============================================================================
+export const resend = new Resend(process.env.RESEND_API_KEY);
+
+export const DEFAULT_SENDER_EMAIL = 'DVA Volleyball <contact@dva-volleyball-hanoi.com>';
+export const DEFAULT_ADMIN_EMAIL = 'quocduyhoang42@gmail.com';
+
+export function getResendApiKey(): string {
+  return (process.env.RESEND_API_KEY || '').trim();
+}
+
+export function getSenderEmail(): string {
+  const envFrom = (process.env.EMAIL_FROM || '').trim();
+  if (envFrom) {
+    if (!envFrom.includes('<') && envFrom.includes('@')) {
+      return `DVA Volleyball <${envFrom}>`;
+    }
+    return envFrom;
+  }
+  return DEFAULT_SENDER_EMAIL;
+}
+
+export function getAdminEmail(): string {
+  return (
+    process.env.ADMIN_NOTIFY_EMAIL ||
+    process.env.ADMIN_NOTIFICATION_EMAIL ||
+    DEFAULT_ADMIN_EMAIL
+  ).trim();
+}
+
+export function getResendClient(): Resend {
+  return new Resend(getResendApiKey());
+}
+
+export const SENDER_EMAIL = getSenderEmail();
+export const ADMIN_EMAIL = getAdminEmail();
+export const ADMIN_ALERT_EMAIL = ADMIN_EMAIL;
+
+// ============================================================================
+// HÌNH ẢNH & THÔNG TIN HỖ TRỢ SÂN (155 TRƯỜNG CHINH, HÀ NỘI)
 // ============================================================================
 export const DEFAULT_COURT_GUIDE_IMAGE =
   'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792751386/dcf3e900-0bc9-4d37-9bce-045b3f7df0f3.png';
 
+export const COURT_GATE_IMAGE =
+  'https://res.cloudinary.com/dsezvx7xf/image/upload/v1793177550/4855e108-747c-4517-8f29-eb130796805b.png';
+
+export const COURT_DEFAULT_ADDRESS = '155 Trường Chinh, Thanh Xuân, Hà Nội';
+export const COURT_DEFAULT_MAPS_URL = 'https://maps.app.goo.gl/hkqofjzojcUoE39M7';
+
 export const EMAIL_CUSTOM_CONFIG = {
-  /**
-   * Link ảnh sơ đồ / hướng dẫn đường vào sân (dán link ảnh Cloudinary hoặc link ảnh online vào đây).
-   * Mặc định fallback an toàn về link Cloudinary sơ đồ lối vào sân BTL Thông Tin.
-   */
   defaultGuideImageUrl: process.env.COURT_GUIDE_IMAGE_URL || DEFAULT_COURT_GUIDE_IMAGE,
-
+  gateImageUrl: COURT_GATE_IMAGE,
   courtGuideImages: {
-    'court-btl': DEFAULT_COURT_GUIDE_IMAGE, // Ảnh hướng dẫn vào sân BTL Thông Tin
-    'court-thecong': DEFAULT_COURT_GUIDE_IMAGE, // Link ảnh hướng dẫn vào sân Thể Công (fallback)
-    'court-mydinh': DEFAULT_COURT_GUIDE_IMAGE,  // Link ảnh hướng dẫn vào sân Mỹ Đình (fallback)
+    'court-btl': DEFAULT_COURT_GUIDE_IMAGE,
+    'court-thecong': DEFAULT_COURT_GUIDE_IMAGE,
+    'court-mydinh': DEFAULT_COURT_GUIDE_IMAGE,
   } as Record<string, string>,
-
-  /**
-   * Link Google Maps chỉ đường riêng cho từng sân
-   */
   courtMapsUrls: {
-    'court-btl': 'https://maps.app.goo.gl/medo3LwqDRUS5zNc7', // Link Google Maps sân BTL Thông Tin
-    'court-thecong': '', // Dán link Google Maps sân Thể Công (nếu có)
-    'court-mydinh': '',  // Dán link Google Maps sân Mỹ Đình (nếu có)
+    'court-btl': COURT_DEFAULT_MAPS_URL,
+    'court-thecong': COURT_DEFAULT_MAPS_URL,
+    'court-mydinh': COURT_DEFAULT_MAPS_URL,
   } as Record<string, string>,
-
-  /**
-   * Lời chào / lời dẫn mở đầu email
-   */
-  introMessage:
-    'Cảm ơn bạn đã tin tưởng và lựa chọn hệ thống sân bóng chuyền tiêu chuẩn thi đấu của DVA Volleyball Club. Hệ thống đã nhận được khoản thanh toán của bạn và xác nhận giữ sân thành công với thông tin chi tiết dưới đây:',
-
-  /**
-   * Lời chúc gửi tới khách hàng ở cuối bức thư
-   */
-  wishMessage:
+  introMessageVi:
+    'Cảm ơn bạn đã lựa chọn DVA Volleyball Club! Đơn đặt sân của bạn đã được ghi nhận trên hệ thống. Dưới đây là thông tin chi tiết về ca sân và hướng dẫn check-in nhận sân:',
+  introMessageEn:
+    'Thank you for choosing DVA Volleyball Club! Your court booking has been recorded on our system. Below are your booking details and check-in instructions:',
+  wishMessageVi:
     'Chúc bạn và đồng đội có những pha bóng đẹp mắt, tràn đầy năng lượng và một buổi thi đấu bùng nổ tại DVA Volleyball Club! 🏐🔥',
+  wishMessageEn:
+    'Wishing you and your team energetic, high-flying spikes and a fantastic match at DVA Volleyball Club! 🏐🔥',
 };
 
+// ============================================================================
+// DATA INTERFACES
+// ============================================================================
 export interface BookingEmailPayload {
   id?: string;
   bookingCode: string;
@@ -57,6 +96,7 @@ export interface BookingEmailPayload {
   timeSlot?: string;
   totalHours?: number;
   totalPrice: number;
+  paymentStatus?: string | null;
   transferContent?: string | null;
   notes?: string | null;
 }
@@ -69,356 +109,20 @@ export interface CourtEmailPayload {
   imageUrl?: string | null;
 }
 
-/**
- * Extracts the start time (HH:mm) from `timeSlot` (e.g. "17:30 - 19:30") or `startTime`
- * and subtracts 15 minutes to compute the recommended check-in time (e.g. "17:15").
- */
-export function calculateCheckInTime(timeSlotOrStart?: string, fallbackStartTime?: string): string {
-  const source = (timeSlotOrStart || fallbackStartTime || '').trim();
-  const match = source.match(/(\d{1,2}):(\d{2})/);
-  if (!match) {
-    return 'trước giờ ca tập 15 phút';
-  }
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
-    return 'trước giờ ca tập 15 phút';
-  }
-
-  const totalMinutes = (hours * 60 + minutes - 15 + 24 * 60) % (24 * 60);
-  const checkInHour = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-  const checkInMinute = String(totalMinutes % 60).padStart(2, '0');
-  return `${checkInHour}:${checkInMinute}`;
-}
-
-/**
- * Trích xuất động giờ bắt đầu (`startTime`) và giờ kết thúc (`endTime`) từ `timeSlot` hoặc từ các trường của đơn đặt sân.
- */
-export function extractStartAndEndTime(
-  timeSlot?: string,
-  fallbackStart?: string,
-  fallbackEnd?: string
-): { startTime: string; endTime: string } {
-  const matches = (timeSlot || '').match(/(\d{1,2}:\d{2})/g);
-  const startTime = fallbackStart || (matches && matches[0]) || '17:30';
-  const endTime = fallbackEnd || (matches && matches[1]) || '19:30';
-  return { startTime, endTime };
-}
-
-export function getMailSender(): { name: string; email: string; from: string } {
-  const name = (process.env.EMAIL_FROM_NAME || 'DVA Volleyball Club System').trim();
-  const email = (
-    process.env.EMAIL_FROM_ADDRESS ||
-    process.env.EMAIL_USER ||
-    'dvavolleyballclub@gmail.com'
-  ).trim();
-  return {
-    name,
-    email,
-    from: `"${name}" <${email}>`,
-  };
-}
-
-export const ADMIN_ALERT_EMAIL = (process.env.ADMIN_NOTIFICATION_EMAIL || 'quocduyhoang42@gmail.com').trim();
-
-export function getAdminNotificationEmail(): string {
-  return ADMIN_ALERT_EMAIL;
-}
-
-export function getSpreadsheetUrl(): string {
-  if (process.env.GOOGLE_SHEETS_URL) return process.env.GOOGLE_SHEETS_URL;
-  const sheetId =
-    process.env.SPREADSHEET_ID ||
-    process.env.GOOGLE_SHEETS_SPREADSHEET_ID ||
-    '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms';
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
-}
-
-function createMailTransporter() {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT) || 465;
-  const secure =
-    process.env.SMTP_SECURE !== undefined
-      ? String(process.env.SMTP_SECURE).toLowerCase() === 'true'
-      : port === 465;
-  const user = (process.env.SMTP_USER || process.env.EMAIL_USER || 'dvavolleyballclub@gmail.com').trim();
-  const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').replace(/\s+/g, '');
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: {
-      user,
-      pass,
-    },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 15_000,
-  });
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-/**
- * Gửi email xác nhận đặt sân thành công kèm hướng dẫn check-in.
- * Được bọc hoàn toàn trong try/catch bất đồng bộ để đảm bảo không bao giờ
- * làm gián đoạn hoặc crash luồng xử lý thanh toán của server.
- */
-export async function sendBookingConfirmationEmail(
-  booking: BookingEmailPayload,
-  court?: CourtEmailPayload | null
-): Promise<boolean> {
-  try {
-    if (!booking?.customerEmail) {
-      console.warn('[Mailer] Bỏ qua gửi email vì đơn đặt sân không có customerEmail.');
-      return false;
-    }
-
-    const mailSender = getMailSender();
-    const transporter = createMailTransporter();
-    const fromName = mailSender.name;
-    const hotline =
-      process.env.HOTLINE ||
-      process.env.SUPPORT_HOTLINE ||
-      process.env.CLUB_HOTLINE ||
-      '0768 299 329';
-
-    const baseCourtName = court?.name || booking.courtName || 'Sân bóng chuyền DVA';
-    const courtName = booking.subCourt ? `${baseCourtName} - ${booking.subCourt}` : baseCourtName;
-    const courtAddress =
-      court?.address ||
-      process.env.CLUB_ADDRESS ||
-      'DVA Sports Center, Hà Nội (BTL Thông Tin / Thể Công / Mỹ Đình)';
-
-    const rawCourtId = (court?.id || booking.courtId || '').toLowerCase();
-    const isBtlCourt =
-      rawCourtId === 'court-btl' ||
-      /btl|thông tin|thong tin/i.test(courtName) ||
-      /^DVA-BTL-/i.test(booking.bookingCode || '');
-    const resolvedCourtKey = isBtlCourt ? 'court-btl' : rawCourtId;
-
-    const mapsQuery = encodeURIComponent(`${baseCourtName} ${courtAddress}`);
-    const mapsUrl =
-      (resolvedCourtKey && EMAIL_CUSTOM_CONFIG.courtMapsUrls[resolvedCourtKey]) ||
-      process.env.CLUB_MAPS_URL ||
-      `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
-
-    const resolvedDate = booking.bookingDate || booking.date || '';
-    const { startTime, endTime } = extractStartAndEndTime(
-      booking.timeSlot,
-      booking.startTime,
-      booking.endTime
-    );
-    const resolvedTimeSlot = booking.timeSlot || `${startTime} - ${endTime}`;
-    const checkInTime = calculateCheckInTime(resolvedTimeSlot, startTime);
-
-    const formattedTotalPrice = new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(Number(booking.totalPrice) || 0);
-
-    const rawGuideUrl =
-      (resolvedCourtKey && EMAIL_CUSTOM_CONFIG.courtGuideImages[resolvedCourtKey]) ||
-      court?.imageUrl ||
-      EMAIL_CUSTOM_CONFIG.defaultGuideImageUrl ||
-      process.env.COURT_GUIDE_IMAGE_URL;
-
-    const guideImageUrl =
-      rawGuideUrl && String(rawGuideUrl).trim().length > 0
-        ? String(rawGuideUrl).trim()
-        : DEFAULT_COURT_GUIDE_IMAGE;
-
-    const guideImageSectionHtml = `
-              <!-- Hình ảnh hướng dẫn lối vào sân chuẩn Gmail -->
-              <div style="margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #f8fafc;">
-                <div style="padding: 10px 14px; background-color: #e2e8f0; font-size: 13px; font-weight: 600; color: #334155;">
-                  🗺️ Hình ảnh hướng dẫn lối vào sân (${escapeHtml(courtName)})
-                </div>
-                <div style="padding: 8px; text-align: center;">
-                  <a href="${escapeHtml(guideImageUrl)}" target="_blank" style="text-decoration: none; display: block;">
-                    <img 
-                      src="${escapeHtml(guideImageUrl)}" 
-                      alt="Sơ đồ hướng dẫn vào sân ${escapeHtml(courtName)}" 
-                      style="width: 100%; max-width: 520px; height: auto; border-radius: 8px; display: block; margin: 0 auto; border: 0;"
-                    />
-                  </a>
-                  <p style="font-size: 12px; color: #64748b; margin-top: 6px; margin-bottom: 2px;">
-                    (Nhấp vào ảnh để xem bản đồ phóng to chất lượng cao)
-                  </p>
-                </div>
-              </div>
-    `;
-
-    const subject = `[DVA Volleyball] Xác nhận đặt sân thành công: ${courtName} (${resolvedTimeSlot}) - Mã đơn: ${booking.bookingCode}`;
-
-    const html = `
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(subject)}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0b0f19;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background-color:#121826;border:1px solid #1e293b;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
-          <!-- Header -->
-          <tr>
-            <td style="background:linear-gradient(135deg,#dc2626 0%,#ea580c 100%);padding:28px 32px;text-align:center;">
-              <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#fee2e2;margin-bottom:6px;">
-                DVA VOLLEYBALL CLUB
-              </div>
-              <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;">
-                XÁC NHẬN ĐẶT SÂN THÀNH CÔNG
-              </h1>
-              <p style="margin:8px 0 0;font-size:13px;color:#ffedd5;">
-                Mã đơn đặt sân: <strong style="background:rgba(0,0,0,0.25);padding:3px 10px;border-radius:6px;font-family:monospace;">${escapeHtml(booking.bookingCode)}</strong>
-              </p>
-            </td>
-          </tr>
-
-          <!-- Greeting & Body -->
-          <tr>
-            <td style="padding:32px;">
-              <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#f8fafc;">
-                Xin chào <strong>${escapeHtml(booking.customerName)}</strong>,
-              </p>
-              <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#cbd5e1;">
-                ${escapeHtml(EMAIL_CUSTOM_CONFIG.introMessage)}
-              </p>
-
-              <!-- Booking Details Card -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;">
-                <tr>
-                  <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">Mã đơn đặt sân</td>
-                  <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;font-family:monospace;">${escapeHtml(booking.bookingCode)}</td>
-                </tr>
-                <tr>
-                  <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">Sân đặt</td>
-                  <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:700;color:#fb923c;text-align:right;">${escapeHtml(courtName)}</td>
-                </tr>
-                <tr>
-                  <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">Ngày đặt</td>
-                  <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">${escapeHtml(resolvedDate)}</td>
-                </tr>
-                <tr>
-                  <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">Khung giờ thuê sân</td>
-                  <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#38bdf8;text-align:right;font-family:monospace;">${escapeHtml(resolvedTimeSlot)}</td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 0 4px;font-size:13px;color:#94a3b8;">Tổng số tiền đã thanh toán</td>
-                  <td style="padding:10px 0 4px;font-size:16px;font-weight:800;color:#34d399;text-align:right;font-family:monospace;">${escapeHtml(formattedTotalPrice)} (ĐÃ THANH TOÁN)</td>
-                </tr>
-              </table>
-
-              <!-- Dynamic Check-in & Check-out Time Callout -->
-              <div style="background-color:rgba(16,185,129,0.12);border-left:4px solid #10b981;border-radius:10px;padding:16px 18px;margin-bottom:24px;">
-                <div style="font-size:12px;font-weight:800;text-transform:uppercase;color:#34d399;margin-bottom:6px;">
-                  ⏰ Thời gian có mặt &amp; Kết thúc ca sân (Tự động theo khung giờ đặt)
-                </div>
-                <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#ecfdf5;line-height:1.5;">
-                  • Vui lòng có mặt lúc <span style="color:#34d399;text-decoration:underline;">${escapeHtml(checkInTime)}</span> để khởi động và hoàn tất thủ tục nhận sân.
-                </p>
-                <p style="margin:0;font-size:13px;color:#d1fae5;line-height:1.5;">
-                  • Giờ vào sân chính thức: <strong>${escapeHtml(startTime)}</strong> — Giờ kết thúc ca thuê sân: <strong>${escapeHtml(endTime)}</strong>.
-                </p>
-              </div>
-
-              <!-- Directions, Guide Image & Support -->
-              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:18px 20px;margin-bottom:24px;">
-                <h3 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#f8fafc;">
-                  📍 Hướng dẫn đường đi &amp; Hỗ trợ tại sân
-                </h3>
-                <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  <strong>Địa chỉ sân:</strong> ${escapeHtml(courtAddress)}
-                </p>
-                <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  <strong>Hướng dẫn nhận sân:</strong> Khi đến cổng hoặc quầy quản lý sân, bạn chỉ cần xuất trình mã đơn <strong>${escapeHtml(booking.bookingCode)}</strong> để nhận sân và bóng thi đấu Mikasa V200W đi kèm.
-                </p>
-                <p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  <strong>Hotline / Zalo hỗ trợ trực tiếp:</strong> <a href="tel:${escapeHtml(hotline.replace(/\s+/g, ''))}" style="color:#fb923c;font-weight:700;text-decoration:none;">${escapeHtml(hotline)}</a>
-                </p>
-                <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#2563eb;color:#ffffff;font-size:12px;font-weight:700;text-decoration:none;padding:10px 16px;border-radius:8px;">
-                  Xem chỉ đường trên Google Maps →
-                </a>
-                ${guideImageSectionHtml}
-              </div>
-
-              <!-- Lời chúc cuối thư -->
-              <div style="background-color:rgba(234,88,12,0.1);border:1px dashed rgba(251,146,60,0.4);border-radius:12px;padding:14px 18px;text-align:center;">
-                <p style="margin:0;font-size:13px;line-height:1.6;color:#fed7aa;font-weight:600;">
-                  ${escapeHtml(EMAIL_CUSTOM_CONFIG.wishMessage)}
-                </p>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background-color:#090d16;padding:18px 32px;text-align:center;border-top:1px solid #1e293b;font-size:12px;color:#64748b;">
-              © ${new Date().getFullYear()} ${escapeHtml(fromName)} · Hotline: ${escapeHtml(hotline)}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-    `.trim();
-
-    let customerMailSent = false;
-    try {
-      await transporter.sendMail({
-        from: mailSender.from,
-        to: booking.customerEmail,
-        subject,
-        html,
-      });
-      console.log(`[Mailer] Đã gửi email xác nhận đặt sân thành công tới ${booking.customerEmail} (Mã đơn: ${booking.bookingCode})`);
-      customerMailSent = true;
-    } catch (customerMailErr: any) {
-      console.error(
-        `[Mailer Error] Không thể gửi email xác nhận cho đơn ${booking?.bookingCode || 'UNKNOWN'}:`,
-        customerMailErr?.message || customerMailErr
-      );
-    }
-
-    // Tự động kích hoạt email thông báo tới Admin song song với email gửi khách (chạy fail-safe)
-    try {
-      await sendAdminNotification({
-        type: 'BOOK_COURT',
-        title: `Đặt Sân: ${courtName}`,
-        code: booking.bookingCode || booking.id || 'N/A',
-        customerName: booking.customerName,
-        phone: booking.customerPhone || 'N/A',
-        email: booking.customerEmail,
-        amount: booking.totalPrice,
-        transferContent: booking.transferContent || undefined,
-        details: `Ngày: ${resolvedDate} | Khung giờ: ${resolvedTimeSlot}`,
-      });
-    } catch (adminMailErr: any) {
-      console.error('[Admin Mailer Error in sendBookingConfirmationEmail]:', adminMailErr?.message || adminMailErr);
-    }
-
-    return customerMailSent;
-  } catch (error: any) {
-    console.error(
-      `[Mailer General Error] Lỗi xử lý gửi email cho đơn ${booking?.bookingCode || 'UNKNOWN'}:`,
-      error?.message || error
-    );
-    return false;
-  }
+export interface TrainingEmailPayload {
+  orderCode?: string;
+  code?: string;
+  packageName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  level?: string;
+  preferredTime?: string | null;
+  targetSkill?: string | null;
+  position?: string | null;
+  notes?: string | null;
+  amount: number | string;
+  transferContent?: string;
 }
 
 export interface MemberEmailPayload {
@@ -441,731 +145,6 @@ export interface MemberEmailPayload {
   hometownCountry?: string;
 }
 
-function formatMemberPosition(pos: string): string {
-  const p = (pos || '').toUpperCase().trim();
-  const map: Record<string, string> = {
-    OH: 'Outside Hitter (Chủ công - OH)',
-    OPP: 'Opposite (Đối chuyền - OPP)',
-    MB: 'Middle Blocker (Phụ công - MB)',
-    SETTER: 'Setter (Chuyền hai - S)',
-    LIBERO: 'Libero (Chuyên gia phòng thủ - L)',
-  };
-  return map[p] || pos;
-}
-
-function formatMemberLevel(lvl: string): string {
-  const l = (lvl || '').toUpperCase().trim();
-  if (l === 'SENIOR') return 'Senior (Đội 1 / Advanced 3+ năm)';
-  if (l === 'JUNIOR') return 'Junior (Bán chuyên / Intermediate)';
-  if (l === 'YOUTH') return 'Youth (Tuyến trẻ / Development)';
-  return lvl;
-}
-
-function formatMemberTactics(tactic?: string): string {
-  if (!tactic) return 'Hệ thống cơ bản / Basic system';
-  const t = tactic.trim().toUpperCase();
-  if (t === '5-1') return 'Chiến thuật 5-1 / 5-1 System';
-  if (t === '6-2') return 'Chiến thuật 6-2 / 6-2 System';
-  if (t === '4-2') return 'Chiến thuật 4-2 / 4-2 System';
-  if (t === 'ADVANCED') return 'Thành thạo 5-1 & 6-2 / Advanced 5-1 & 6-2';
-  if (t === 'BASIC') return 'Cơ bản / Basic system';
-  return tactic;
-}
-
-export function removeVietnameseTones(str: string): string {
-  return (str || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D');
-}
-
-/**
- * Gửi email xác nhận đăng ký thành viên / vận động viên DVA Volleyball Club (Song ngữ: Tiếng Việt / English).
- * Thiết kế tông màu đen - cam chuẩn thương hiệu DVA.
- * Được bọc hoàn toàn trong try/catch bất đồng bộ để không bao giờ làm gián đoạn trải nghiệm người dùng.
- */
-export async function sendMemberRegistrationEmail(
-  member: MemberEmailPayload
-): Promise<boolean> {
-  const recipientEmail = (member.gmail || member.email || '').trim();
-  const passId = member.passId || member.id || 'DVA-PASS';
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!recipientEmail || !emailRegex.test(recipientEmail)) {
-    console.warn('[Email Service Warning] Bỏ qua gửi email thành viên vì địa chỉ email trống hoặc sai format:', recipientEmail);
-    return false;
-  }
-
-  try {
-    const mailSender = getMailSender();
-    const fromName = mailSender.name;
-    const transporter = createMailTransporter();
-    const hotline = '0768299329';
-    const formattedHotline = '0768 299 329';
-    const clubEmail = 'quocduyhoang42@gmail.com';
-
-    // Tiêu đề email (Bỏ hoàn toàn cụm từ Sports Arena)
-    const subject = `[DVA Volleyball Club] Xác nhận đơn đăng ký thành viên - Pass ID: ${passId}`;
-
-    const formattedPosition = formatMemberPosition(member.position);
-    const formattedLevel = formatMemberLevel(member.level);
-    const formattedTactics = formatMemberTactics(member.rotationKnowledge);
-    const jerseyNumber =
-      member.desiredJerseyNumber !== undefined && member.desiredJerseyNumber !== null && member.desiredJerseyNumber !== ''
-        ? `#${member.desiredJerseyNumber}`
-        : 'Tự do / Any';
-
-    const instagramDisplay =
-      member.instagram && member.instagram.trim() && member.instagram !== 'None'
-        ? member.instagram.trim()
-        : 'Chưa cung cấp / Not provided';
-
-    // Chuẩn hóa cú pháp nội dung chuyển khoản: register_{normalizedFullName}_clubentry_{phone}
-    const cleanName = removeVietnameseTones(member.fullName).replace(/\s+/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    const cleanPhone = (member.zalo || '').replace(/\D/g, '').trim() || (member.zalo || '').trim();
-    const transferContent = `register_${cleanName}_clubentry_${cleanPhone}`;
-
-    // Cấu hình URL ảnh VietQR động cố định phí 100.000 VNĐ
-    const vietQrUrl = `https://img.vietqr.io/image/MB-0002090671521-compact2.png?amount=100000&addInfo=${encodeURIComponent(transferContent)}&accountName=HOANG%20QUOC%20DUY`;
-
-    const html = `
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(subject)}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0b0f19;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background-color:#121826;border:1px solid #1e293b;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.6);">
-          
-          <!-- Header Banner (Gradient Cam - Đỏ nhận diện DVA) -->
-          <tr>
-            <td style="background:linear-gradient(135deg, #ea580c 0%, #dc2626 50%, #9a3412 100%);padding:28px 32px;text-align:center;">
-              <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#ffedd5;margin-bottom:6px;">
-                DVA VOLLEYBALL CLUB
-              </div>
-              <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
-                XÁC NHẬN ĐƠN ĐĂNG KÝ THÀNH VIÊN
-              </h1>
-              <div style="font-size:13px;font-weight:600;color:#fed7aa;margin-top:4px;letter-spacing:0.5px;">
-                MEMBER REGISTRATION CONFIRMATION
-              </div>
-              <div style="margin-top:12px;">
-                <span style="display:inline-block;background:rgba(0,0,0,0.35);padding:6px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);font-family:monospace;font-size:13px;color:#ffedd5;font-weight:700;">
-                  ATHLETE PASS ID: ${escapeHtml(passId)}
-                </span>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Main Content -->
-          <tr>
-            <td style="padding:28px 24px;">
-              
-              <!-- 1. Lưu ý dành cho thành viên cũ (Notice for Existing Members) -->
-              <div style="background-color:rgba(59,130,246,0.1);border-left:4px solid #3b82f6;border-radius:10px;padding:14px 18px;margin-bottom:24px;">
-                <p style="margin:0 0 4px;font-size:13px;line-height:1.5;color:#bfdbfe;font-weight:700;">
-                  📌 Vui lòng bỏ qua email này nếu bạn là thành viên cũ và chỉ đang cập nhật thông tin theo yêu cầu của đội trưởng.
-                </p>
-                <p style="margin:0;font-size:12px;line-height:1.5;color:#93c5fd;font-style:italic;">
-                  ℹ️ <em>Please ignore this email if you are an existing member simply updating your details as requested by your team captain.</em>
-                </p>
-              </div>
-
-              <!-- 2. Lời chào mừng (Greeting) -->
-              <p style="margin:0 0 4px;font-size:16px;line-height:1.6;color:#f8fafc;">
-                Xin chào <strong>${escapeHtml(member.fullName)}</strong>,
-              </p>
-              <p style="margin:0 0 16px;font-size:13px;line-height:1.6;color:#94a3b8;font-style:italic;">
-                Hello <strong>${escapeHtml(member.fullName)}</strong>,
-              </p>
-              <p style="margin:0 0 4px;font-size:14px;line-height:1.6;color:#cbd5e1;">
-                Chào mừng bạn đến với cộng đồng <strong style="color:#fb923c;">DVA Volleyball Club</strong>! Chúng tôi đã tiếp nhận hồ sơ đăng ký tham gia thành viên / vận động viên CLB của bạn.
-              </p>
-              <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#94a3b8;font-style:italic;">
-                Welcome to the <strong style="color:#fb923c;">DVA Volleyball Club</strong> community! We have received your membership application.
-              </p>
-
-              <!-- 3. Cách thức liên lạc (Xưng hô: Chúng tôi / We / The DVA Team) -->
-              <div style="background-color:rgba(234,88,12,0.08);border-left:4px solid #ea580c;border-radius:10px;padding:14px 18px;margin-bottom:24px;">
-                <p style="margin:0 0 4px;font-size:13px;line-height:1.6;color:#f8fafc;">
-                  📞 <strong>Chúng tôi</strong> sẽ chủ động liên hệ với bạn qua Số điện thoại (<strong style="color:#fb923c;">${escapeHtml(member.zalo)}</strong>) hoặc Instagram (<strong style="color:#fb923c;">${escapeHtml(instagramDisplay)}</strong>) bạn đã cung cấp trong form đăng ký.
-                </p>
-                <p style="margin:0;font-size:12px;line-height:1.6;color:#fed7aa;font-style:italic;">
-                  💬 <em><strong>We</strong> will contact you via the phone number or Instagram handle provided in your application.</em>
-                </p>
-              </div>
-
-              <!-- 4. Thông tin lệ phí & Tài khoản ngân hàng (Song ngữ) -->
-              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;">
-                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fb923c;margin-bottom:14px;">
-                  💳 THÔNG TIN LỆ PHÍ &amp; CHUYỂN KHOẢN / FEES &amp; PAYMENT
-                </div>
-
-                <!-- 4A. Phí gia nhập CLB & Mã VietQR Động -->
-                <div style="background:rgba(234,88,12,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:12px;padding:18px;margin-bottom:16px;">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:8px;">
-                    <tr>
-                      <td style="font-size:14px;font-weight:800;color:#ffffff;">
-                        1. Phí gia nhập CLB / Club Membership Fee
-                      </td>
-                      <td align="right" style="font-size:16px;font-weight:900;color:#fb923c;font-family:monospace;">
-                        100.000 VNĐ
-                      </td>
-                    </tr>
-                  </table>
-                  <p style="margin:0 0 4px;font-size:13px;line-height:1.6;color:#f8fafc;">
-                    Cần đóng trước <strong>100.000 VNĐ</strong> vào tài khoản ngân hàng bên dưới để hoàn tất hồ sơ đăng ký.
-                  </p>
-                  <p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#94a3b8;font-style:italic;">
-                    A one-time registration fee of 100,000 VND is required to finalize your membership application.
-                  </p>
-
-                  <!-- Dynamic VietQR Payment Code -->
-                  <div style="text-align: center; margin: 20px 0;">
-                    <img src="${vietQrUrl}" alt="VietQR Payment" style="max-width: 250px; width: 100%; border-radius: 12px; border: 2px solid #ea580c; display: block; margin: 0 auto;" />
-                    <p style="font-size: 13px; color: #9ca3af; margin-top: 8px;">
-                      Quét mã QR để chuyển khoản nhanh 100.000 VNĐ (Đã có sẵn số tiền &amp; nội dung)
-                    </p>
-                    <p style="font-size: 11px; color: #64748b; margin-top: 2px; font-style: italic;">
-                      Scan QR code to transfer 100,000 VND (Amount &amp; transfer note pre-filled)
-                    </p>
-                  </div>
-                </div>
-
-                <!-- 4B. Chi phí các buổi tập trong tương lai -->
-                <div style="background:#161f30;border:1px solid #334155;border-radius:12px;padding:16px;">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:6px;">
-                    <tr>
-                      <td style="font-size:14px;font-weight:800;color:#ffffff;">
-                        2. Chi phí các buổi tập / chơi trong tương lai (Future Sessions)
-                      </td>
-                      <td align="right" style="font-size:15px;font-weight:800;color:#38bdf8;font-family:monospace;">
-                        70.000 VNĐ / buổi
-                      </td>
-                    </tr>
-                  </table>
-                  <p style="margin:0 0 4px;font-size:13px;line-height:1.6;color:#f8fafc;">
-                    <strong>Mức phí:</strong> 70.000 VNĐ / buổi (gói Basic).
-                  </p>
-                  <p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#f8fafc;">
-                    <strong>Hình thức:</strong> Tự do chọn buổi tham gia, không bắt buộc phải đi đủ tất cả các buổi; tham gia buổi nào đóng tiền buổi đó.
-                  </p>
-                  <p style="margin:0;font-size:12px;line-height:1.5;color:#94a3b8;font-style:italic;">
-                    Future session fee is 70,000 VND / session (Basic pass). Flexible attendance—you are not required to attend every session; pay as you play.
-                  </p>
-                </div>
-              </div>
-
-              <!-- 5. Bảng tóm tắt thông số cá nhân (Song ngữ) -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(145deg, #161f30 0%, #0d121c 100%);border:2px solid rgba(249,115,22,0.45);border-radius:16px;margin-bottom:24px;overflow:hidden;box-shadow:inset 0 1px 1px rgba(255,255,255,0.1);">
-                <tr>
-                  <td style="padding:18px 22px;border-bottom:1px solid rgba(249,115,22,0.2);background:rgba(234,88,12,0.06);">
-                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                      <tr>
-                        <td>
-                          <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#fb923c;text-transform:uppercase;display:block;">
-                            OFFICIAL ATHLETE PASS
-                          </span>
-                          <span style="font-size:19px;font-weight:900;color:#ffffff;display:block;margin-top:2px;">
-                            ${escapeHtml(member.fullName)}
-                          </span>
-                        </td>
-                        <td align="right">
-                          <span style="display:inline-block;background:#dc2626;color:#ffffff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:8px;text-transform:uppercase;">
-                            ${escapeHtml(member.position)} · ${escapeHtml(member.level)}
-                          </span>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td style="padding:14px 22px;">
-                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Mã thẻ / Pass ID
-                        </td>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#fb923c;text-align:right;font-family:monospace;">
-                          ${escapeHtml(passId)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Cấp độ / Level
-                        </td>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
-                          ${escapeHtml(formattedLevel)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Số áo mong muốn / Jersey
-                        </td>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:800;color:#38bdf8;text-align:right;font-family:monospace;">
-                          ${escapeHtml(jerseyNumber)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Vị trí sở trường / Position
-                        </td>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
-                          ${escapeHtml(formattedPosition)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Chiều cao &amp; Cân nặng / Height &amp; Weight
-                        </td>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;font-family:monospace;">
-                          ${escapeHtml(String(member.height))} cm · ${escapeHtml(String(member.weight))} kg
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Tầm bật đà / Spike Reach
-                        </td>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:800;color:#f87171;text-align:right;font-family:monospace;">
-                          ${escapeHtml(String(member.spikeReach))} cm
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Tầm bật chắn / Block Reach
-                        </td>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:800;color:#fbbf24;text-align:right;font-family:monospace;">
-                          ${escapeHtml(String(member.blockReach))} cm
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Hệ thống chiến thuật / Tactical System
-                        </td>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#a78bfa;text-align:right;">
-                          ${escapeHtml(formattedTactics)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Số điện thoại / Phone (Zalo)
-                        </td>
-                        <td style="padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#34d399;text-align:right;font-family:monospace;">
-                          ${escapeHtml(member.zalo)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:8px 0 2px;font-size:13px;color:#94a3b8;">
-                          Instagram
-                        </td>
-                        <td style="padding:8px 0 2px;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;font-family:monospace;">
-                          ${escapeHtml(instagramDisplay)}
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- 6. Thông tin liên hệ CLB (Chỉ giữ duy nhất cơ sở BTL Thông Tin court) -->
-              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:18px 20px;margin-bottom:20px;">
-                <h3 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#f8fafc;">
-                  📍 Thông tin liên hệ CLB / Contact &amp; Home Court
-                </h3>
-                <p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  🏢 <strong>Sân tập luyện chính thức / Home Court:</strong> Sân BTL Thông Tin (BTL Thông Tin court)
-                </p>
-                <p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  📞 <strong>Hotline / Zalo:</strong> <a href="tel:${escapeHtml(hotline)}" style="color:#fb923c;font-weight:700;text-decoration:none;">${escapeHtml(hotline)}</a> (${escapeHtml(formattedHotline)})
-                </p>
-                <p style="margin:0;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  ✉️ <strong>Email:</strong> <a href="mailto:${escapeHtml(clubEmail)}" style="color:#38bdf8;text-decoration:none;">${escapeHtml(clubEmail)}</a>
-                </p>
-              </div>
-
-              <!-- Lời chúc thân ái -->
-              <div style="background-color:rgba(234,88,12,0.06);border:1px dashed rgba(251,146,60,0.35);border-radius:12px;padding:14px 18px;text-align:center;">
-                <p style="margin:0 0 4px;font-size:13px;line-height:1.6;color:#fed7aa;font-weight:600;">
-                  Rất vui mừng chào đón bạn đồng hành cùng DVA Volleyball Club! 🏐🔥
-                </p>
-                <p style="margin:0;font-size:12px;line-height:1.5;color:#fdba74;font-style:italic;">
-                  We look forward to having you on the court with us!
-                </p>
-              </div>
-
-            </td>
-          </tr>
-
-          <!-- Footer (Chỉ giữ duy nhất BTL Thông Tin court, bỏ hoàn toàn Sports Arena) -->
-          <tr>
-            <td style="background-color:#090d16;padding:18px 32px;text-align:center;border-top:1px solid #1e293b;font-size:12px;color:#64748b;">
-              © ${new Date().getFullYear()} ${escapeHtml(fromName)} · Sân BTL Thông Tin (BTL Thông Tin court)<br />
-              Hotline / Zalo: ${escapeHtml(formattedHotline)} · Email: ${escapeHtml(clubEmail)}
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-    `.trim();
-
-    let memberMailSent = false;
-    try {
-      await transporter.sendMail({
-        from: mailSender.from,
-        to: recipientEmail,
-        subject,
-        html,
-      });
-      console.log(`[Mailer] Đã gửi email xác nhận đăng ký thành viên tới ${recipientEmail} (Pass ID: ${passId})`);
-      memberMailSent = true;
-    } catch (memberMailErr: any) {
-      console.error(
-        `[Email Service Warning] Gửi mail thất bại cho: ${recipientEmail} - ${memberMailErr?.message || memberMailErr}`
-      );
-    }
-
-    // Tự động kích hoạt email thông báo tới Admin song song với email gửi ứng viên
-    try {
-      await sendAdminNotification({
-        type: 'MEMBER',
-        title: 'Đăng Ký Thành Viên CLB (Phí 100k)',
-        code: passId || member.id || 'N/A',
-        customerName: member.fullName,
-        phone: member.zalo,
-        email: recipientEmail,
-        amount: 100000,
-        details: `Cấp độ: ${member.level} | Vị trí: ${formatMemberPosition(member.position)} | Chiều cao: ${member.height}cm`,
-      });
-    } catch (adminMailErr: any) {
-      console.error('[Admin Mailer Error in sendMemberRegistrationEmail]:', adminMailErr?.message || adminMailErr);
-    }
-
-    return memberMailSent;
-  } catch (error: any) {
-    console.error(
-      `[Email Service General Warning] Lỗi xử lý gửi mail thành viên: ${error?.message || error}`
-    );
-    return false;
-  }
-}
-
-export interface TrainingEmailPayload {
-  orderCode?: string;
-  code?: string;
-  packageName: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  level?: string;
-  preferredTime?: string | null;
-  targetSkill?: string | null;
-  position?: string | null;
-  notes?: string | null;
-  amount: number | string;
-  transferContent?: string;
-}
-
-/**
- * Gửi email xác nhận đăng ký gói tập tự động (Dynamic Training Enrollment Confirmation Email)
- * cho module "Training & Scrimmage" (gửi từ quocduyhoang42@gmail.com).
- * Nội dung tự động ẩn/hiện các dòng thông tin phù hợp (Bilingual Tiếng Việt / English).
- * Không đưa thông tin tài khoản / VietQR vào mail (khách hàng đã quét mã ở form đăng ký).
- */
-export async function sendTrainingRegistrationEmail(
-  payload: TrainingEmailPayload
-): Promise<boolean> {
-  const recipientEmail = (payload.email || '').trim();
-  const orderCode = (payload.orderCode || payload.code || `TR-${Date.now().toString().slice(-6)}`).trim();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!recipientEmail || !emailRegex.test(recipientEmail)) {
-    console.warn('[Training Mailer Warning] Bỏ qua gửi email vì địa chỉ email trống hoặc sai format:', recipientEmail);
-    return false;
-  }
-
-  try {
-    const mailSender = getMailSender();
-    const fromName = mailSender.name;
-    const transporter = createMailTransporter();
-
-    const packageName = payload.packageName || 'Gói tập DVA Volleyball';
-    const fullName = payload.fullName || 'Học viên';
-    const phone = payload.phone || '';
-    const level = payload.level || 'Junior';
-    const amountNum = Number(payload.amount) || 0;
-    const formattedAmount = amountNum.toLocaleString('vi-VN');
-
-    // Tiêu đề Email chuẩn: [DVA Volleyball Club] Xác nhận đăng ký {packageName} thành công - Mã đơn: {code}
-    const subject = `[DVA Volleyball Club] Xác nhận đăng ký ${packageName} thành công - Mã đơn: ${orderCode}`;
-
-    // 1. Render có điều kiện: Khung giờ / Ca tập
-    const preferredTime = (payload.preferredTime || '').trim();
-    const preferredTimeRowHtml = preferredTime
-      ? `
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Khung giờ / Ca tập (Preferred Schedule)
-                        </td>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#38bdf8;text-align:right;font-family:monospace;">
-                          ${escapeHtml(preferredTime)}
-                        </td>
-                      </tr>`
-      : '';
-
-    // 2. Render có điều kiện: Vị trí thi đấu / Mục tiêu cải thiện
-    const targetSkillOrPosition = (payload.targetSkill || payload.position || '').trim();
-    const targetSkillRowHtml = targetSkillOrPosition
-      ? `
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Vị trí thi đấu / Mục tiêu cải thiện (Position / Focus Skill)
-                        </td>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
-                          ${escapeHtml(targetSkillOrPosition)}
-                        </td>
-                      </tr>`
-      : '';
-
-    // 3. Render có điều kiện: Ghi chú đặc thù
-    const notes = (payload.notes || '').trim();
-    const notesRowHtml = notes
-      ? `
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Ghi chú đặc thù (Special Notes)
-                        </td>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:600;color:#cbd5e1;text-align:right;">
-                          ${escapeHtml(notes)}
-                        </td>
-                      </tr>`
-      : '';
-
-    const html = `
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(subject)}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0b0f19;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background-color:#121826;border:1px solid #1e293b;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.6);">
-          
-          <!-- Header Banner (Gradient Cam - Đỏ nhận diện DVA) -->
-          <tr>
-            <td style="background:linear-gradient(135deg, #ea580c 0%, #dc2626 50%, #9a3412 100%);padding:28px 32px;text-align:center;">
-              <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#ffedd5;margin-bottom:6px;">
-                DVA VOLLEYBALL CLUB
-              </div>
-              <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
-                XÁC NHẬN ĐĂNG KÝ GÓI TẬP THÀNH CÔNG
-              </h1>
-              <div style="font-size:13px;font-weight:600;color:#fed7aa;margin-top:4px;letter-spacing:0.5px;">
-                TRAINING ENROLLMENT CONFIRMATION
-              </div>
-              <div style="margin-top:12px;">
-                <span style="display:inline-block;background:rgba(0,0,0,0.35);padding:6px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);font-family:monospace;font-size:13px;color:#ffedd5;font-weight:700;">
-                  MÃ ĐƠN: ${escapeHtml(orderCode)}
-                </span>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Main Content -->
-          <tr>
-            <td style="padding:28px 24px;">
-              
-              <!-- Lời chào & Thông báo nhận đơn (Bilingual) -->
-              <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#f8fafc;">
-                Chào mừng <strong>${escapeHtml(fullName)}</strong>, cảm ơn bạn đã đăng ký tham gia <strong>${escapeHtml(packageName)}</strong> tại DVA Volleyball Club.
-              </p>
-              <p style="margin:0 0 20px;font-size:13px;line-height:1.6;color:#94a3b8;font-style:italic;">
-                Welcome <strong>${escapeHtml(fullName)}</strong>, thank you for registering for <strong>${escapeHtml(packageName)}</strong> at DVA Volleyball Club.
-              </p>
-
-              <!-- Nội dung thông báo liên hệ & xác nhận (Được làm nổi bật) -->
-              <div style="background-color:rgba(234,88,12,0.1);border-left:4px solid #ea580c;border-radius:12px;padding:18px 20px;margin-bottom:24px;">
-                <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#fed7aa;font-weight:600;">
-                  💬 Chúng tôi đã tiếp nhận thông tin đăng ký của bạn và sẽ liên hệ sớm qua Số điện thoại hoặc Instagram của bạn để trao đổi cụ thể trước buổi tập. Trường hợp bạn cần hỗ trợ gấp hoặc có thay đổi về lịch trình, vui lòng liên hệ trực tiếp qua Hotline/Zalo: <a href="tel:0768299329" style="color:#fb923c;text-decoration:none;font-weight:700;">0768299329</a> hoặc Instagram: <a href="https://instagram.com/_nathan.hq_" target="_blank" rel="noopener noreferrer" style="color:#38bdf8;text-decoration:none;font-weight:700;">@_nathan.hq_</a>.
-                </p>
-                <p style="margin:0;font-size:13px;line-height:1.6;color:#cbd5e1;font-style:italic;">
-                  ℹ️ <em>We have received your registration and will contact you shortly via your phone number or Instagram before the session. If you need urgent assistance or have schedule adjustments, please reach out directly via Hotline/Zalo: 0768299329 or Instagram: @_nathan.hq_.</em>
-                </p>
-              </div>
-
-              <!-- Bảng tóm tắt thông tin đăng ký (Bilingual Tiếng Việt / English - Render theo điều kiện) -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(145deg, #161f30 0%, #0d121c 100%);border:2px solid rgba(249,115,22,0.45);border-radius:16px;margin-bottom:24px;overflow:hidden;box-shadow:inset 0 1px 1px rgba(255,255,255,0.1);">
-                <tr>
-                  <td style="padding:16px 20px;border-bottom:1px solid rgba(249,115,22,0.2);background:rgba(234,88,12,0.06);">
-                    <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#fb923c;text-transform:uppercase;">
-                      THÔNG TIN ĐĂNG KÝ / REGISTRATION DETAILS
-                    </div>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td style="padding:14px 20px;">
-                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Mã đăng ký (Registration Code)
-                        </td>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#fb923c;text-align:right;font-family:monospace;">
-                          ${escapeHtml(orderCode)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Gói tập đăng ký (Selected Package)
-                        </td>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:700;color:#ffffff;text-align:right;">
-                          ${escapeHtml(packageName)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Họ và tên học viên
-                        </td>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
-                          ${escapeHtml(fullName)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Số điện thoại
-                        </td>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#38bdf8;text-align:right;font-family:monospace;">
-                          ${escapeHtml(phone)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
-                          Cấp độ / Đội (Squad / Level)
-                        </td>
-                        <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#fbbf24;text-align:right;">
-                          ${escapeHtml(level)}
-                        </td>
-                      </tr>
-                      ${preferredTimeRowHtml}
-                      ${targetSkillRowHtml}
-                      ${notesRowHtml}
-                      <tr>
-                        <td style="padding:12px 0 4px;font-size:13px;color:#94a3b8;">
-                          Mức phí đã đăng ký
-                        </td>
-                        <td style="padding:12px 0 4px;font-size:16px;font-weight:900;color:#34d399;text-align:right;font-family:monospace;">
-                          ${formattedAmount} VNĐ
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Thông tin sân tập & Kênh liên hệ -->
-              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:18px 20px;margin-bottom:20px;">
-                <h3 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#f8fafc;">
-                  📍 Thông tin sân tập &amp; Kênh liên hệ chính thức
-                </h3>
-                <p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  🏢 <strong>Địa điểm tập:</strong> Sân bóng chuyền BTL Thông Tin (Hà Nội).
-                </p>
-                <p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  📞 <strong>Hotline / Zalo:</strong> <a href="tel:0768299329" style="color:#fb923c;font-weight:700;text-decoration:none;">0768299329</a>
-                </p>
-                <p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  📸 <strong>Instagram:</strong> <a href="https://instagram.com/_nathan.hq_" target="_blank" rel="noopener noreferrer" style="color:#38bdf8;font-weight:700;text-decoration:none;">@_nathan.hq_</a>
-                </p>
-                <p style="margin:0;font-size:13px;line-height:1.6;color:#cbd5e1;">
-                  ✉️ <strong>Email:</strong> <a href="mailto:quocduyhoang42@gmail.com" style="color:#38bdf8;text-decoration:none;">quocduyhoang42@gmail.com</a>
-                </p>
-              </div>
-
-              <!-- Lời chúc thân ái -->
-              <div style="background-color:rgba(234,88,12,0.06);border:1px dashed rgba(251,146,60,0.35);border-radius:12px;padding:14px 18px;text-align:center;">
-                <p style="margin:0 0 4px;font-size:13px;line-height:1.6;color:#fed7aa;font-weight:600;">
-                  Chúc bạn có những giờ tập luyện hiệu quả và bùng nổ cùng DVA Volleyball Club! 🏐🔥
-                </p>
-                <p style="margin:0;font-size:12px;line-height:1.5;color:#fdba74;font-style:italic;">
-                  Train hard, play passionately, and conquer your goals on the court!
-                </p>
-              </div>
-
-            </td>
-          </tr>
-
-          <!-- Chân trang Email (Footer) -->
-          <tr>
-            <td style="background-color:#090d16;padding:18px 32px;text-align:center;border-top:1px solid #1e293b;font-size:12px;color:#64748b;line-height:1.6;">
-              © ${new Date().getFullYear()} ${escapeHtml(fromName)} · Địa điểm tập: Sân bóng chuyền BTL Thông Tin (Hà Nội)<br />
-              Hotline / Zalo: 0768299329 · Instagram: @_nathan.hq_ · Email: quocduyhoang42@gmail.com
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-    `.trim();
-
-    let trainingMailSent = false;
-    try {
-      await transporter.sendMail({
-        from: mailSender.from,
-        to: recipientEmail,
-        subject,
-        html,
-      });
-      console.log(`[Mailer] Đã gửi email xác nhận đăng ký gói tập thành công tới ${recipientEmail} (Mã đơn: ${orderCode})`);
-      trainingMailSent = true;
-    } catch (trainingMailErr: any) {
-      console.warn(
-        `[Training Mailer Warning] Gửi mail thất bại cho: ${recipientEmail} - ${trainingMailErr?.message || trainingMailErr}`
-      );
-    }
-
-    // Tự động kích hoạt email thông báo tới Admin song song với email gửi học viên
-    try {
-      await sendAdminNotification({
-        type: 'TRAINING',
-        title: `Gói Tập: ${payload.packageName}`,
-        code: orderCode || payload.code || 'N/A',
-        customerName: payload.fullName,
-        phone: payload.phone,
-        email: recipientEmail,
-        amount: payload.amount,
-        transferContent: payload.transferContent || undefined,
-        details: `Cấp độ: ${payload.level || 'Junior'} | Ca: ${payload.preferredTime || 'Linh hoạt'}`,
-      });
-    } catch (adminMailErr: any) {
-      console.error('[Admin Mailer Error in sendTrainingRegistrationEmail]:', adminMailErr?.message || adminMailErr);
-    }
-
-    return trainingMailSent;
-  } catch (error: any) {
-    console.warn(
-      `[Training Mailer General Warning] Lỗi xử lý gửi mail gói tập: ${error?.message || error}`
-    );
-    return false;
-  }
-}
-
 export interface AdminNotificationDetail {
   label: string;
   value: string | number | null | undefined;
@@ -1181,12 +160,125 @@ export interface AdminNotificationPayload {
   amount?: number | string | null;
   transferContent?: string | null;
   details?: string | AdminNotificationDetail[] | null;
-  // Compatibility fields if passed:
+  // Compatibility fields
   moduleName?: string;
   bookingCode?: string;
   fullName?: string;
   notes?: string | null;
   sheetsUrl?: string;
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+export function calculateCheckInTime(timeSlotOrStart?: string, fallbackStartTime?: string): string {
+  let start = fallbackStartTime || '';
+  if (!start && timeSlotOrStart) {
+    const parts = timeSlotOrStart.split(/[-–—]/);
+    if (parts.length > 0) start = parts[0].trim();
+  }
+  const match = (start || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return '15 phút trước giờ nhận sân / 15 mins prior';
+
+  let h = parseInt(match[1], 10);
+  let m = parseInt(match[2], 10);
+  m -= 15;
+  if (m < 0) {
+    m += 60;
+    h -= 1;
+    if (h < 0) h = 23;
+  }
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function extractStartAndEndTime(
+  timeSlot?: string,
+  rawStart?: string,
+  rawEnd?: string
+): { startTime: string; endTime: string } {
+  let startTime = (rawStart || '').trim();
+  let endTime = (rawEnd || '').trim();
+  if ((!startTime || !endTime) && timeSlot) {
+    const parts = timeSlot.split(/[-–—]/);
+    if (parts.length === 2) {
+      if (!startTime) startTime = parts[0].trim();
+      if (!endTime) endTime = parts[1].trim();
+    }
+  }
+  return { startTime: startTime || '17:30', endTime: endTime || '19:00' };
+}
+
+export function removeVietnameseTones(str: string): string {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
+
+export function formatMemberPosition(pos: string): string {
+  const p = (pos || '').toUpperCase().trim();
+  const map: Record<string, string> = {
+    OH: 'Outside Hitter (Chủ công - OH)',
+    OP: 'Opposite (Đối chuyền - OP)',
+    OPP: 'Opposite (Đối chuyền - OPP)',
+    MB: 'Middle Blocker (Phụ công - MB)',
+    S: 'Setter (Chuyền hai - S)',
+    SETTER: 'Setter (Chuyền hai - S)',
+    L: 'Libero (Chuyên gia phòng thủ - L)',
+    LIBERO: 'Libero (Chuyên gia phòng thủ - L)',
+  };
+  return map[p] || pos;
+}
+
+export function formatMemberLevel(lvl: string): string {
+  const l = (lvl || '').toUpperCase().trim();
+  if (l === 'SENIOR') return 'Senior (Đội 1 / Advanced 3+ năm)';
+  if (l === 'JUNIOR') return 'Junior (Bán chuyên / Intermediate)';
+  if (l === 'YOUTH') return 'Youth (Tuyến trẻ / Development)';
+  return lvl;
+}
+
+export function formatMemberTactics(tactic?: string): string {
+  if (!tactic) return 'Hệ thống cơ bản / Basic system';
+  const t = tactic.trim().toUpperCase();
+  if (t === '5-1') return 'Chiến thuật 5-1 / 5-1 System';
+  if (t === '6-2') return 'Chiến thuật 6-2 / 6-2 System';
+  if (t === '4-2') return 'Chiến thuật 4-2 / 4-2 System';
+  if (t === 'ADVANCED') return 'Thành thạo 5-1 & 6-2 / Advanced 5-1 & 6-2';
+  if (t === 'BASIC') return 'Cơ bản / Basic system';
+  return tactic;
+}
+
+export function getMailSender(): { name: string; email: string; from: string } {
+  return {
+    name: 'DVA Volleyball Club',
+    email: SENDER_EMAIL,
+    from: SENDER_EMAIL,
+  };
+}
+
+export function getAdminNotificationEmail(): string {
+  return ADMIN_EMAIL;
+}
+
+export function getSpreadsheetUrl(): string {
+  if (process.env.GOOGLE_SHEETS_URL) return process.env.GOOGLE_SHEETS_URL;
+  const sheetId =
+    process.env.SPREADSHEET_ID ||
+    process.env.GOOGLE_SHEETS_SPREADSHEET_ID ||
+    '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms';
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+}
+
+function escapeHtml(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 const recentAdminAlerts = new Map<string, number>();
@@ -1208,15 +300,1284 @@ function isRecentDuplicateAlert(key: string, cooldownMs = 5000): boolean {
   return false;
 }
 
-/**
- * Gửi email thông báo đơn đăng ký mới tới Quản trị viên (quocduyhoang42@gmail.com).
- * Áp dụng thống nhất cho tất cả các module: Đặt sân, Gói tập & Scrimmage, Tuyển thành viên.
- * Hoạt động bất đồng bộ, fail-safe, có log giám sát chi tiết theo chuẩn [BACKEND] [Admin Mailer].
- */
+// ============================================================================
+// HTML GENERATOR 1: ĐẶT SÂN (COURT BOOKING CONFIRMATION) - SONG NGỮ ANH - VIỆT
+// ============================================================================
+export function getBookingConfirmationHtml(data: {
+  booking_code: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  court_name: string;
+  court_address: string;
+  booking_date: string;
+  time_slot: string;
+  start_time: string;
+  end_time: string;
+  check_in_time: string;
+  total_hours: number;
+  total_price: number;
+  formatted_price: string;
+  payment_status: string;
+  guide_image_url: string;
+  gate_image_url?: string;
+  maps_url: string;
+  notes: string;
+}): string {
+  const hotline = process.env.HOTLINE || '0768 299 329';
+  const gateImg =
+    data.gate_image_url && (data.gate_image_url.startsWith('http://') || data.gate_image_url.startsWith('https://'))
+      ? data.gate_image_url.trim()
+      : COURT_GATE_IMAGE;
+  const rawGuide = data.guide_image_url;
+  const guideImg =
+    rawGuide && (rawGuide.startsWith('http://') || rawGuide.startsWith('https://'))
+      ? rawGuide.trim()
+      : DEFAULT_COURT_GUIDE_IMAGE;
+  const mapsLink = data.maps_url || COURT_DEFAULT_MAPS_URL;
+  const addressText = data.court_address || COURT_DEFAULT_ADDRESS;
+
+  return `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xác nhận đặt sân / Court Booking Confirmation - ${escapeHtml(data.booking_code)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0b0f19;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background-color:#111827;border:1px solid #1e293b;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.6);">
+          
+          <!-- Header Banner (Gradient Cam - Đỏ Thể Thao DVA) -->
+          <tr>
+            <td style="background:linear-gradient(135deg, #ea580c 0%, #dc2626 50%, #9a3412 100%);padding:28px 32px;text-align:center;">
+              <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#ffedd5;margin-bottom:6px;">
+                DVA VOLLEYBALL CLUB
+              </div>
+              <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
+                XÁC NHẬN ĐẶT SÂN
+              </h1>
+              <div style="font-size:13px;font-weight:700;color:#ffedd5;margin-top:4px;letter-spacing:0.5px;">
+                COURT BOOKING CONFIRMATION
+              </div>
+              <div style="margin-top:12px;">
+                <span style="display:inline-block;background:rgba(0,0,0,0.35);padding:6px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);font-family:monospace;font-size:13px;color:#ffedd5;font-weight:700;">
+                  MÃ ĐƠN / CODE: ${escapeHtml(data.booking_code)}
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding:28px 24px;">
+              <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#f8fafc;">
+                Xin chào / Dear <strong>${escapeHtml(data.customer_name)}</strong>,
+              </p>
+              <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+                ${escapeHtml(EMAIL_CUSTOM_CONFIG.introMessageVi)}
+              </p>
+              <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#94a3b8;font-style:italic;">
+                ${escapeHtml(EMAIL_CUSTOM_CONFIG.introMessageEn)}
+              </p>
+
+              <!-- Thông tin chi tiết ca sân (Song ngữ) -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:14px;padding:18px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Mã đơn đặt sân<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Booking Code</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#38bdf8;text-align:right;font-family:monospace;">
+                    ${escapeHtml(data.booking_code)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Họ và tên khách<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Customer Name</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:600;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(data.customer_name)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Số điện thoại<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Phone Number</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(data.customer_phone || 'N/A')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Email<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Email Address</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(data.customer_email || 'N/A')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Sân thi đấu<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Court Name</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:700;color:#f97316;text-align:right;">
+                    ${escapeHtml(data.court_name)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Địa chỉ sân<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Court Address</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(addressText)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Ngày thi đấu<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Date</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(data.booking_date)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Khung giờ thuê sân<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Time Slot</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#38bdf8;text-align:right;font-family:monospace;">
+                    ${escapeHtml(data.time_slot)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Giờ check-in đề xuất<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Recommended Check-in</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f97316;text-align:right;font-family:monospace;">
+                    ${escapeHtml(data.check_in_time)} <span style="font-size:11px;color:#fed7aa;font-weight:normal;">(15 mins prior / trước 15p)</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Ghi chú / Add-on<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Notes &amp; Add-ons</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#cbd5e1;text-align:right;">
+                    ${escapeHtml(data.notes || 'None / Không có')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0 4px;font-size:13px;color:#94a3b8;">
+                    Tổng thanh toán<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Total Amount</span>
+                  </td>
+                  <td style="padding:12px 0 4px;font-size:16px;font-weight:800;color:#4ade80;text-align:right;font-family:monospace;">
+                    ${escapeHtml(data.formatted_price)} <span style="font-size:12px;color:#94a3b8;font-weight:600;">(${escapeHtml(data.payment_status)})</span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Callout nhắc nhở giờ vào sân (Song ngữ) -->
+              <div style="background-color:rgba(249,115,22,0.1);border-left:4px solid #f97316;border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+                <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#fed7aa;line-height:1.5;">
+                  ⏰ Vui lòng có mặt lúc <span style="color:#f97316;text-decoration:underline;">${escapeHtml(data.check_in_time)}</span> để hoàn tất thủ tục nhận sân và khởi động.
+                </p>
+                <p style="margin:0 0 8px;font-size:12.5px;color:#ffedd5;line-height:1.5;font-style:italic;">
+                  Please arrive at <span style="color:#f97316;font-weight:700;">${escapeHtml(data.check_in_time)}</span> (15 minutes prior) for warm-up and court check-in.
+                </p>
+                <p style="margin:0;font-size:13px;color:#cbd5e1;line-height:1.5;">
+                  • Giờ nhận sân chính thức / Official Start: <strong>${escapeHtml(data.start_time)}</strong> — Giờ kết thúc / End: <strong>${escapeHtml(data.end_time)}</strong>.
+                </p>
+              </div>
+
+              <!-- DÒNG GHI CHÚ QUAN TRỌNG VỀ THANH TOÁN (NOTICE BOX SONG NGỮ BẮT BUỘC) -->
+              <div style="background-color:rgba(239,68,68,0.12);border-left:4px solid #ef4444;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fca5a5;margin-bottom:8px;">
+                  ⚠️ LƯU Ý THANH TOÁN QUAN TRỌNG / IMPORTANT PAYMENT NOTICE
+                </div>
+                <p style="margin:0 0 10px;font-size:13.5px;line-height:1.6;color:#fecaca;">
+                  <strong>VI:</strong> Nếu bạn chưa chuyển khoản thành công, vui lòng liên hệ ngay hotline/Zalo/WhatsApp: <a href="tel:0768299329" style="color:#ffffff;font-weight:800;text-decoration:none;">0768 299 329</a>. Lịch đặt sân chỉ được tính là hợp lệ và giữ chỗ chính thức khi bạn đã thực sự chuyển khoản thành công và được Quốc Duy xác nhận.
+                </p>
+                <p style="margin:0;font-size:12.5px;line-height:1.6;color:#e2e8f0;font-style:italic;">
+                  <strong>EN:</strong> If you have not completed the bank transfer, please immediately contact Hotline/Zalo/WhatsApp: <a href="tel:+84768299329" style="color:#ffffff;font-weight:700;text-decoration:none;">+84 768 299 329</a>. Your booking is only officially secured once the payment has been completed and verified by Quoc Duy.
+                </p>
+              </div>
+
+              <!-- MỤC CHỈ ĐƯỜNG & HƯỚNG DẪN VÀO SÂN (ĐẦY ĐỦ 2 KHỐI ẢNH + GOOGLE MAPS BUTTON) -->
+              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;">
+                <h3 style="margin:0 0 4px;font-size:15px;font-weight:800;color:#f8fafc;letter-spacing:0.5px;">
+                  📍 HƯỚNG DẪN ĐƯỜNG ĐI &amp; LỐI VÀO SÂN THI ĐẤU
+                </h3>
+                <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:12px;font-style:italic;">
+                  VENUE LOCATION &amp; ENTRANCE GUIDE
+                </div>
+                
+                <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+                  🏢 <strong>Địa chỉ sân / Venue Address:</strong> <span style="color:#fb923c;font-weight:700;">${escapeHtml(addressText)}</span>
+                </p>
+                
+                <p style="margin:0 0 16px;font-size:13px;line-height:1.6;color:#94a3b8;">
+                  Nhấn vào nút bên dưới để mở Google Maps dẫn đường trực tiếp đến cổng sân bóng:<br />
+                  <span style="font-size:12px;font-style:italic;">Click the button below to open directions on Google Maps:</span>
+                </p>
+
+                <!-- Nút bấm chỉ đường trực quan Google Maps -->
+                <div style="text-align:center;margin:16px 0 20px 0;">
+                  <a href="${escapeHtml(mapsLink)}" target="_blank" style="display:inline-block;background:linear-gradient(135deg, #ea580c 0%, #f97316 100%);color:#ffffff;font-weight:800;font-size:14px;padding:13px 28px;border-radius:8px;text-decoration:none;box-shadow:0 4px 14px rgba(249,115,22,0.4);">
+                    🗺️ Mở Chỉ Đường Trên Google Maps / Open in Google Maps
+                  </a>
+                </div>
+
+                <!-- Khối ảnh 1: Cổng vào sân 155 Trường Chinh -->
+                <div style="margin:16px 0;background:#0b0f19;border:1px solid #1e293b;border-radius:10px;padding:12px;text-align:center;">
+                  <a href="${escapeHtml(gateImg)}" target="_blank" style="text-decoration:none;display:block;">
+                    <img src="${escapeHtml(gateImg)}" alt="Cổng vào sân 155 Trường Chinh" style="max-width:100%;height:auto;display:block;margin:0 auto;border-radius:8px;border:0;" />
+                  </a>
+                  <p style="font-size:12.5px;color:#cbd5e1;margin-top:10px;margin-bottom:2px;font-weight:600;">
+                    🚪 Hình ảnh cổng vào địa điểm thi đấu: 155 Trường Chinh, Thanh Xuân, Hà Nội
+                  </p>
+                  <p style="font-size:11.5px;color:#94a3b8;margin:0;font-style:italic;">
+                    Main Entrance Gate: 155 Truong Chinh, Thanh Xuan, Hanoi
+                  </p>
+                </div>
+
+                <!-- Khối ảnh 2: Sơ đồ chi tiết lối vào sân -->
+                <div style="margin:16px 0;background:#0b0f19;border:1px solid #1e293b;border-radius:10px;padding:12px;text-align:center;">
+                  <a href="${escapeHtml(guideImg)}" target="_blank" style="text-decoration:none;display:block;">
+                    <img src="${escapeHtml(guideImg)}" alt="Sơ đồ lối vào sân bóng" style="max-width:100%;height:auto;display:block;margin:0 auto;border-radius:8px;border:0;" />
+                  </a>
+                  <p style="font-size:12.5px;color:#cbd5e1;margin-top:10px;margin-bottom:2px;font-weight:600;">
+                    🗺️ Sơ đồ chi tiết lối di chuyển từ cổng vào thẳng sân bóng
+                  </p>
+                  <p style="font-size:11.5px;color:#94a3b8;margin:0;font-style:italic;">
+                    Detailed route diagram from the main gate to the volleyball court
+                  </p>
+                </div>
+
+                <p style="margin:12px 0 0;font-size:13px;line-height:1.6;color:#cbd5e1;">
+                  📞 <strong>Hotline hỗ trợ nhận sân / Support:</strong> <a href="tel:${escapeHtml(hotline.replace(/\s+/g, ''))}" style="color:#f97316;font-weight:700;text-decoration:none;">${escapeHtml(hotline)}</a> (Quốc Duy)
+                </p>
+              </div>
+
+              <!-- Lời chúc (Song ngữ) -->
+              <div style="margin:24px 0 0;padding:14px;background:#0b0f19;border-radius:12px;text-align:center;border:1px dashed #334155;">
+                <p style="margin:0 0 6px;font-size:13.5px;line-height:1.6;color:#cbd5e1;font-weight:600;">
+                  ${escapeHtml(EMAIL_CUSTOM_CONFIG.wishMessageVi)}
+                </p>
+                <p style="margin:0;font-size:12.5px;line-height:1.6;color:#94a3b8;font-style:italic;">
+                  ${escapeHtml(EMAIL_CUSTOM_CONFIG.wishMessageEn)}
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#090d16;padding:20px 32px;text-align:center;border-top:1px solid #1e293b;font-size:12px;color:#64748b;">
+              © ${new Date().getFullYear()} DVA Volleyball Club · 155 Trường Chinh, Thanh Xuân, Hà Nội<br />
+              Hotline / Zalo: ${escapeHtml(hotline)} · Instagram: @_nathan.hq_
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+// ============================================================================
+// HTML GENERATOR 2: ĐĂNG KÝ GÓI TẬP (TRAINING & SCRIMMAGE) - SONG NGỮ ANH - VIỆT
+// ============================================================================
+export function getTrainingRegistrationHtml(payload: {
+  order_code: string;
+  package_name: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  level: string;
+  preferred_time: string;
+  target_skill: string;
+  amount: number;
+  formatted_amount: string;
+  transfer_content: string;
+  notes: string;
+}): string {
+  const hotline = process.env.HOTLINE || '0768 299 329';
+  const gateImg = COURT_GATE_IMAGE;
+  const mapsLink = COURT_DEFAULT_MAPS_URL;
+  const addressText = COURT_DEFAULT_ADDRESS;
+
+  return `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tiếp nhận đăng ký khóa tập / Training Registration - ${escapeHtml(payload.order_code)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0b0f19;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background-color:#111827;border:1px solid #1e293b;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.6);">
+          
+          <!-- Header Banner (Gradient Xanh Dương Thể Thao #0284c7) -->
+          <tr>
+            <td style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #075985 100%);padding:28px 32px;text-align:center;">
+              <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#e0f2fe;margin-bottom:6px;">
+                DVA VOLLEYBALL CLUB
+              </div>
+              <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
+                TIẾP NHẬN ĐĂNG KÝ KHÓA TẬP
+              </h1>
+              <div style="font-size:13px;font-weight:700;color:#bae6fd;margin-top:4px;letter-spacing:0.5px;">
+                TRAINING ENROLLMENT &amp; SCRIMMAGE
+              </div>
+              <div style="margin-top:12px;">
+                <span style="display:inline-block;background:rgba(0,0,0,0.35);padding:6px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);font-family:monospace;font-size:13px;color:#e0f2fe;font-weight:700;">
+                  MÃ ĐĂNG KÝ / CODE: ${escapeHtml(payload.order_code)}
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding:28px 24px;">
+              <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#f8fafc;">
+                Xin chào / Dear <strong>${escapeHtml(payload.full_name)}</strong>,
+              </p>
+              <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+                Chào mừng bạn đến với chương trình đào tạo của <strong style="color:#38bdf8;">DVA Volleyball Club</strong>! Chúng tôi đã ghi nhận thông tin đăng ký khóa tập của bạn thành công.
+              </p>
+              <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#94a3b8;font-style:italic;">
+                Welcome to <strong style="color:#38bdf8;">DVA Volleyball Club</strong> training program! We have successfully received your training/scrimmage registration.
+              </p>
+
+              <!-- Thông tin chi tiết gói tập (Song ngữ) -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:14px;padding:18px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Mã đơn đăng ký<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Order Code</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#38bdf8;text-align:right;font-family:monospace;">
+                    ${escapeHtml(payload.order_code)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Gói tập / Khóa học<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Training Package</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:700;color:#38bdf8;text-align:right;">
+                    ${escapeHtml(payload.package_name)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Họ tên học viên<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Trainee Name</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:600;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(payload.full_name)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Số điện thoại<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Phone Number</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(payload.phone)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Email<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Email Address</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(payload.email || 'N/A')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Cấp độ / Đội<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Skill Level</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#e0f2fe;text-align:right;font-weight:600;">
+                    ${escapeHtml(payload.level)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Khung giờ tập<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Training Schedule</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#38bdf8;text-align:right;font-weight:600;">
+                    ${escapeHtml(payload.preferred_time || 'Linh hoạt theo lịch CLB / Flexible per Club schedule')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Mục tiêu / Vị trí<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Target Skill &amp; Position</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#cbd5e1;text-align:right;">
+                    ${escapeHtml(payload.target_skill || 'Linh hoạt / Flexible')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Ghi chú<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Notes</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#cbd5e1;text-align:right;">
+                    ${escapeHtml(payload.notes || 'None / Không có')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Nội dung chuyển khoản<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Transfer Note</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-family:monospace;font-weight:700;color:#facc15;text-align:right;">
+                    ${escapeHtml(payload.transfer_content || 'N/A')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0 4px;font-size:13px;color:#94a3b8;">
+                    Mức học phí<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Training Fee</span>
+                  </td>
+                  <td style="padding:12px 0 4px;font-size:16px;font-weight:800;color:#4ade80;text-align:right;font-family:monospace;">
+                    ${escapeHtml(payload.formatted_amount)}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- THÔNG BÁO LIÊN HỆ & KÊNH HỖ TRỢ TRỰC TIẾP (NOTICE BOX SONG NGỮ BẮT BUỘC) -->
+              <div style="background-color:rgba(14,165,233,0.12);border-left:4px solid #0284c7;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#7dd3fc;margin-bottom:10px;">
+                  ℹ️ THÔNG BÁO XẾP LỊCH &amp; HỖ TRỢ TRỰC TIẾP / DIRECT SUPPORT
+                </div>
+                
+                <div style="font-size:13.5px;line-height:1.6;color:#e0f2fe;margin-bottom:12px;">
+                  <p style="margin:0 0 6px;">
+                    <strong>VI:</strong> Chúng tôi sẽ sớm liên hệ lại với bạn để xếp lịch tập. Nếu cần hỗ trợ gấp hoặc tư vấn thêm, bạn có thể chủ động liên hệ trực tiếp với Quốc Duy qua:
+                  </p>
+                  <ul style="margin:0;padding-left:20px;line-height:1.7;">
+                    <li>Instagram: <a href="https://instagram.com/_nathan.hq_" target="_blank" style="color:#38bdf8;font-weight:700;text-decoration:none;">@_nathan.hq_</a></li>
+                    <li>WhatsApp: <a href="https://wa.me/84768299329" target="_blank" style="color:#38bdf8;font-weight:700;text-decoration:none;">+84 768 299 329</a></li>
+                    <li>Zalo / Hotline: <a href="tel:0768299329" style="color:#38bdf8;font-weight:700;text-decoration:none;">0768 299 329</a></li>
+                  </ul>
+                </div>
+
+                <div style="font-size:12.5px;line-height:1.6;color:#cbd5e1;font-style:italic;">
+                  <p style="margin:0 0 6px;">
+                    <strong>EN:</strong> We will contact you shortly to schedule your session. If you need urgent assistance, feel free to reach out directly to Quoc Duy via:
+                  </p>
+                  <ul style="margin:0;padding-left:20px;line-height:1.7;">
+                    <li>Instagram: <a href="https://instagram.com/_nathan.hq_" target="_blank" style="color:#38bdf8;font-weight:700;text-decoration:none;">@_nathan.hq_</a></li>
+                    <li>WhatsApp: <a href="https://wa.me/84768299329" target="_blank" style="color:#38bdf8;font-weight:700;text-decoration:none;">+84 768 299 329</a></li>
+                    <li>Zalo / Hotline: <a href="tel:0768299329" style="color:#38bdf8;font-weight:700;text-decoration:none;">0768 299 329</a></li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- HƯỚNG DẪN ĐẾN SÂN TẬP (VENUE GUIDE BỔ SUNG: ĐỊA CHỈ, GOOGLE MAPS & ẢNH CỔNG) -->
+              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;">
+                <h3 style="margin:0 0 4px;font-size:15px;font-weight:800;color:#f8fafc;letter-spacing:0.5px;">
+                  📍 ĐỊA ĐIỂM SÂN TẬP &amp; HƯỚNG DẪN ĐẾN SÂN
+                </h3>
+                <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:12px;font-style:italic;">
+                  TRAINING VENUE &amp; LOCATION GUIDE
+                </div>
+                
+                <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+                  🏢 <strong>Địa chỉ sân tập / Training Venue:</strong> <span style="color:#38bdf8;font-weight:700;">${escapeHtml(addressText)}</span>
+                </p>
+
+                <!-- Nút chỉ đường Google Maps -->
+                <div style="text-align:center;margin:16px 0 18px 0;">
+                  <a href="${escapeHtml(mapsLink)}" target="_blank" style="display:inline-block;background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%);color:#ffffff;font-weight:800;font-size:14px;padding:13px 28px;border-radius:8px;text-decoration:none;box-shadow:0 4px 14px rgba(2,132,199,0.4);">
+                    🗺️ Mở Chỉ Đường Trên Google Maps / Open in Google Maps
+                  </a>
+                </div>
+
+                <!-- Ảnh cổng vào sân tập -->
+                <div style="margin:16px 0;background:#0b0f19;border:1px solid #1e293b;border-radius:10px;padding:12px;text-align:center;">
+                  <a href="${escapeHtml(gateImg)}" target="_blank" style="text-decoration:none;display:block;">
+                    <img src="${escapeHtml(gateImg)}" alt="Cổng vào sân 155 Trường Chinh" style="max-width:100%;height:auto;display:block;margin:0 auto;border-radius:8px;border:0;" />
+                  </a>
+                  <p style="font-size:12.5px;color:#cbd5e1;margin-top:10px;margin-bottom:2px;font-weight:600;">
+                    🚪 Hình ảnh cổng vào CLB: 155 Trường Chinh, Thanh Xuân, Hà Nội
+                  </p>
+                  <p style="font-size:11.5px;color:#94a3b8;margin:0;font-style:italic;">
+                    Main Entrance Gate: 155 Truong Chinh, Thanh Xuan, Hanoi
+                  </p>
+                </div>
+              </div>
+
+              <!-- Lưu ý khi đi tập (Song ngữ) -->
+              <div style="background-color:rgba(2,132,199,0.1);border-left:4px solid #0284c7;border-radius:10px;padding:14px 18px;margin-bottom:24px;">
+                <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#e0f2fe;line-height:1.5;">
+                  ℹ️ Lưu ý dành cho học viên khi tham gia buổi tập / Important Notes:
+                </p>
+                <p style="margin:0 0 4px;font-size:13px;color:#cbd5e1;line-height:1.5;">
+                  • Vui lòng có mặt trước giờ tập <strong>10–15 phút</strong> để khởi động kĩ càng.
+                </p>
+                <p style="margin:0 0 8px;font-size:12.5px;color:#94a3b8;line-height:1.5;font-style:italic;">
+                  Please arrive <strong>10–15 minutes early</strong> for proper warm-up.
+                </p>
+                <p style="margin:0 0 4px;font-size:13px;color:#cbd5e1;line-height:1.5;">
+                  • Mang theo giày bóng chuyền chuyên dụng, trang phục tập thoải mái và bình nước cá nhân.
+                </p>
+                <p style="margin:0;font-size:12.5px;color:#94a3b8;line-height:1.5;font-style:italic;">
+                  Bring specialized volleyball shoes, comfortable training apparel, and a personal water bottle.
+                </p>
+              </div>
+
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#94a3b8;text-align:center;">
+                📞 Hotline / Zalo tư vấn lớp tập / Support: <a href="tel:${escapeHtml(hotline.replace(/\s+/g, ''))}" style="color:#38bdf8;font-weight:700;text-decoration:none;">${escapeHtml(hotline)}</a> (Quốc Duy)
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#090d16;padding:20px 32px;text-align:center;border-top:1px solid #1e293b;font-size:12px;color:#64748b;">
+              © ${new Date().getFullYear()} DVA Volleyball Club · 155 Trường Chinh, Thanh Xuân, Hà Nội<br />
+              Hotline / Zalo: ${escapeHtml(hotline)} · Instagram: @_nathan.hq_
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+// ============================================================================
+// HTML GENERATOR 3: ĐĂNG KÝ THÀNH VIÊN MỚI (NEW MEMBER APPLICATION) - SONG NGỮ
+// ============================================================================
+export function getMemberRegistrationHtml(member: {
+  pass_id: string;
+  full_name: string;
+  dob: string;
+  position: string;
+  formatted_position: string;
+  level: string;
+  jersey_number: string | number;
+  height: string | number;
+  weight: string | number;
+  spike_reach: string | number;
+  block_reach: string | number;
+  zalo: string;
+  email: string;
+  instagram: string;
+  rotation_knowledge: string;
+  hometown_country: string;
+  transfer_content: string;
+  vietqr_url: string;
+}): string {
+  const hotline = process.env.HOTLINE || '0768 299 329';
+  const jerseyDisplay =
+    member.jersey_number !== undefined && member.jersey_number !== null && member.jersey_number !== ''
+      ? `#${member.jersey_number}`
+      : 'Tự do / Any';
+
+  return `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tiếp nhận hồ sơ thành viên mới / New Member Application - ${escapeHtml(member.pass_id)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0b0f19;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background-color:#111827;border:1px solid #1e293b;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.6);">
+          
+          <!-- Header Banner (Gradient Xanh Lá Thể Thao #16a34a) -->
+          <tr>
+            <td style="background:linear-gradient(135deg, #16a34a 0%, #15803d 50%, #166534 100%);padding:28px 32px;text-align:center;">
+              <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#dcfce7;margin-bottom:6px;">
+                DVA VOLLEYBALL CLUB
+              </div>
+              <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
+                TIẾP NHẬN HỒ SƠ THÀNH VIÊN MỚI
+              </h1>
+              <div style="font-size:13px;font-weight:700;color:#bbf7d0;margin-top:4px;letter-spacing:0.5px;">
+                NEW MEMBER APPLICATION
+              </div>
+              <div style="margin-top:12px;">
+                <span style="display:inline-block;background:rgba(0,0,0,0.35);padding:6px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);font-family:monospace;font-size:13px;color:#dcfce7;font-weight:700;">
+                  MÃ HỘI VIÊN / MEMBER PASS ID: ${escapeHtml(member.pass_id)}
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding:28px 24px;">
+              <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#f8fafc;">
+                Xin chào / Dear <strong>${escapeHtml(member.full_name)}</strong>,
+              </p>
+              <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+                Chào mừng bạn đến với cộng đồng <strong style="color:#4ade80;">DVA Volleyball Club</strong>! Ban chuyên môn đã tiếp nhận hồ sơ đăng ký thành viên mới của bạn.
+              </p>
+              <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#94a3b8;font-style:italic;">
+                Welcome to <strong style="color:#4ade80;">DVA Volleyball Club</strong> community! We have successfully received your new member registration application.
+              </p>
+
+              <!-- Thông tin hồ sơ thành viên (Song ngữ) -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:14px;padding:18px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Mã hội viên<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Member Pass ID</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#4ade80;text-align:right;font-family:monospace;">
+                    ${escapeHtml(member.pass_id)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Họ và tên<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Full Name</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:600;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(member.full_name)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Ngày sinh<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Date of Birth</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(member.dob || 'N/A')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Vị trí thi đấu<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Playing Position</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#4ade80;text-align:right;">
+                    ${escapeHtml(member.formatted_position)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Số áo mong muốn<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Desired Jersey Number</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#facc15;text-align:right;font-family:monospace;">
+                    ${escapeHtml(jerseyDisplay)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Cấp độ đăng ký<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Skill Level</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#dcfce7;text-align:right;font-weight:600;">
+                    ${escapeHtml(member.level)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Chiều cao / Cân nặng<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Height / Weight</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(member.height)} cm / ${escapeHtml(member.weight)} kg
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Tầm bật đập / chắn<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Spike / Block Reach</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    Đập ${escapeHtml(member.spike_reach)} cm | Chắn ${escapeHtml(member.block_reach)} cm
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Chiến thuật 5-1<br /><span style="font-size:11px;color:#64748b;font-style:italic;">5-1 System Knowledge</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#cbd5e1;text-align:right;">
+                    ${escapeHtml(member.rotation_knowledge)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Quê quán / Quốc gia<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Nationality / Country</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(member.hometown_country || 'Việt Nam')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Số điện thoại / Zalo<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Phone / Zalo</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#38bdf8;text-align:right;">
+                    ${escapeHtml(member.zalo)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Email<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Email Address</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(member.email || 'N/A')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0 4px;font-size:13px;color:#94a3b8;">
+                    Instagram<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Instagram Handle</span>
+                  </td>
+                  <td style="padding:9px 0 4px;font-size:13px;color:#cbd5e1;text-align:right;">
+                    ${escapeHtml(member.instagram || 'None')}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- DÒNG LƯU Ý ĐỐI VỚI THÀNH VIÊN CŨ (PHÂN LOẠI CHUYỂN KHOẢN - SONG NGỮ BẮT BUỘC - ĐẶT NGAY TRÊN KHỐI PHÍ/QR) -->
+              <div style="background-color:rgba(234,179,8,0.12);border-left:4px solid #eab308;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fde047;margin-bottom:8px;">
+                  📌 LƯU Ý PHÂN LOẠI HỘI VIÊN / NOTICE FOR EXISTING MEMBERS
+                </div>
+                <p style="margin:0 0 10px;font-size:13.5px;line-height:1.6;color:#fef08a;">
+                  <strong>VI:</strong> 📌 <strong>Lưu ý:</strong> Nếu bạn là thành viên cũ điền form theo yêu cầu của Quốc Duy (Nathan) để cập nhật thông tin hồ sơ lên website, bạn <strong>KHÔNG CẦN</strong> chuyển khoản theo nội dung bên dưới. Nếu bạn là thành viên mới đăng ký gia nhập, sau khi chuyển khoản thành công bạn sẽ được thêm vào cộng đồng DVA.
+                </p>
+                <p style="margin:0;font-size:12.5px;line-height:1.6;color:#e2e8f0;font-style:italic;">
+                  <strong>EN:</strong> 📌 <strong>Notice:</strong> If you are an existing member filling out this form at Quoc Duy's (Nathan) request to update your profile on the website, you <strong>DO NOT</strong> need to transfer the entry fee below. If you are a new applicant, you will be invited into the DVA Community once the payment is completed.
+                </p>
+              </div>
+
+              <!-- Khối Lệ Phí & Quét Mã VietQR 100k -->
+              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;text-align:center;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#4ade80;margin-bottom:6px;">
+                  💳 THÔNG TIN LỆ PHÍ GIA NHẬP CLB
+                </div>
+                <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:12px;font-style:italic;">
+                  CLUB ENTRY FEE &amp; VIETQR PAYMENT
+                </div>
+                
+                <p style="margin:0 0 8px;font-size:14px;color:#cbd5e1;">
+                  Lệ phí gia nhập / Entry Fee: <strong style="color:#4ade80;font-size:16px;">100.000 VNĐ / 100,000 VND</strong>
+                </p>
+                <p style="margin:0 0 14px;font-size:13px;color:#94a3b8;">
+                  Cú pháp chuyển khoản / Transfer Note:<br />
+                  <span style="font-family:monospace;font-weight:bold;color:#facc15;background:rgba(250,204,21,0.15);padding:4px 10px;border-radius:6px;display:inline-block;margin-top:4px;">${escapeHtml(member.transfer_content)}</span>
+                </p>
+
+                <!-- Ảnh VietQR -->
+                <div style="margin:16px auto;display:inline-block;">
+                  <img src="${escapeHtml(member.vietqr_url)}" alt="Mã VietQR nộp lệ phí 100k" style="max-width:100%;width:220px;height:auto;border-radius:12px;display:block;margin:0 auto;border:1px solid #334155;" />
+                </div>
+                <p style="margin:8px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+                  (Mở app ngân hàng bất kỳ để quét mã VietQR tự động điền số tiền và nội dung)<br />
+                  <span style="font-size:11px;font-style:italic;">Open any banking app to scan VietQR with auto-filled amount and reference</span>
+                </p>
+              </div>
+
+              <!-- HAI DÒNG GHI CHÚ QUAN TRỌNG VỀ ẢNH THẺ & QUYỀN LỢI HỘI VIÊN (SONG NGỮ BẮT BUỘC) -->
+              <div style="background-color:rgba(16,185,129,0.12);border-left:4px solid #10b981;border-radius:12px;padding:16px 20px;margin-bottom:24px;text-align:left;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#86efac;margin-bottom:10px;">
+                  📸 GỬI ẢNH CHÂN DUNG &amp; QUYỀN LỢI HỘI VIÊN / PHOTO SUBMISSION &amp; BENEFITS
+                </div>
+                
+                <div style="font-size:13px;line-height:1.6;color:#dcfce7;margin-bottom:12px;">
+                  <p style="margin:0 0 6px;"><strong>VI:</strong></p>
+                  <ul style="margin:0;padding-left:20px;line-height:1.6;">
+                    <li style="margin-bottom:6px;">
+                      Khi bạn đóng xong lệ phí, hãy gửi ảnh chân dung (ảnh nửa người/toàn thân rõ mặt) của bạn cho Quốc Duy qua một trong các kênh liên hệ (Zalo/WhatsApp: <a href="tel:0768299329" style="color:#4ade80;font-weight:700;text-decoration:none;">0768 299 329</a>, Instagram: <a href="https://instagram.com/_nathan.hq_" target="_blank" style="color:#4ade80;font-weight:700;text-decoration:none;">@_nathan.hq_</a>) để được cập nhật hồ sơ vào đội sớm nhất.
+                    </li>
+                    <li>
+                      ⚠️ <em>Lưu ý: Đây chỉ là phí gia nhập CLB một lần duy nhất. Sau khi gia nhập CLB, bạn có quyền tự do lựa chọn các buổi chơi/tập trong tương lai, đi buổi nào đóng phí sân buổi đó.</em>
+                    </li>
+                  </ul>
+                </div>
+
+                <div style="font-size:12.5px;line-height:1.6;color:#cbd5e1;font-style:italic;">
+                  <p style="margin:0 0 6px;"><strong>EN:</strong></p>
+                  <ul style="margin:0;padding-left:20px;line-height:1.6;">
+                    <li style="margin-bottom:6px;">
+                      After completing the entry fee, please send your portrait photo (headshot/action photo) to Quoc Duy via Zalo/WhatsApp (<a href="tel:+84768299329" style="color:#4ade80;font-weight:700;text-decoration:none;">+84 768 299 329</a>) or Instagram (<a href="https://instagram.com/_nathan.hq_" target="_blank" style="color:#4ade80;font-weight:700;text-decoration:none;">@_nathan.hq_</a>) to get your player profile published on our squad roster promptly.
+                    </li>
+                    <li>
+                      ⚠️ <em>Please note: This is a one-time club entry fee. As a member, you have the flexibility to sign up for future games/sessions and only pay per-session court fees.</em>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#94a3b8;text-align:center;">
+                📞 Hotline / Zalo tuyển sinh CLB / Support: <a href="tel:${escapeHtml(hotline.replace(/\s+/g, ''))}" style="color:#4ade80;font-weight:700;text-decoration:none;">${escapeHtml(hotline)}</a> (Quốc Duy)
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#090d16;padding:20px 32px;text-align:center;border-top:1px solid #1e293b;font-size:12px;color:#64748b;">
+              © ${new Date().getFullYear()} DVA Volleyball Club · 155 Trường Chinh, Thanh Xuân, Hà Nội<br />
+              Hotline / Zalo: ${escapeHtml(hotline)} · Instagram: @_nathan.hq_
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+// ============================================================================
+// 1. LUỒNG GỬI EMAIL ĐẶT SÂN (COURT BOOKING)
+// ============================================================================
+export async function sendBookingConfirmationEmail(
+  booking: BookingEmailPayload,
+  court?: CourtEmailPayload | null
+): Promise<boolean> {
+  try {
+    if (!booking?.customerEmail) {
+      console.warn('[Resend Mailer] Bỏ qua gửi email vì đơn đặt sân không có customerEmail.');
+      return false;
+    }
+
+    if (!getResendApiKey()) {
+      console.warn(
+        '[Resend Mailer Warning] RESEND_API_KEY chưa được cấu hình. Vui lòng thêm RESEND_API_KEY vào .env hoặc biến môi trường Render.'
+      );
+      return false;
+    }
+
+    const client = getResendClient();
+    const sender = getSenderEmail();
+    const admin = getAdminEmail();
+
+    const baseCourtName = court?.name || booking.courtName || 'Sân bóng chuyền DVA';
+    const courtDisplayName = booking.subCourt ? `${baseCourtName} - ${booking.subCourt}` : baseCourtName;
+    const courtAddress = court?.address || COURT_DEFAULT_ADDRESS;
+
+    const bookingDate = booking.bookingDate || booking.date || '';
+    const { startTime, endTime } = extractStartAndEndTime(
+      booking.timeSlot,
+      booking.startTime,
+      booking.endTime
+    );
+    const resolvedTimeSlot = booking.timeSlot || `${startTime} - ${endTime}`;
+    const checkInTime = calculateCheckInTime(resolvedTimeSlot, startTime);
+    const totalHours = booking.totalHours || 1.5;
+
+    const formattedTotalPrice = new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(Number(booking.totalPrice) || 0);
+
+    // Sơ đồ lối di chuyển từ cổng vào sân thi đấu (155 Trường Chinh)
+    // Luôn ưu tiên dùng DEFAULT_COURT_GUIDE_IMAGE tuyệt đối trên Cloudinary.
+    // Nếu court?.imageUrl trong database là đường dẫn tương đối (ví dụ '/courts/btl.png')
+    // thì không dùng để tránh làm hỏng hiển thị thẻ img trong email client.
+    const guideImageUrl =
+      court?.imageUrl && (court.imageUrl.startsWith('http://') || court.imageUrl.startsWith('https://'))
+        ? court.imageUrl.trim()
+        : DEFAULT_COURT_GUIDE_IMAGE;
+
+    const customerHtml = getBookingConfirmationHtml({
+      booking_code: booking.bookingCode,
+      customer_name: booking.customerName,
+      customer_email: booking.customerEmail,
+      customer_phone: booking.customerPhone || '',
+      court_name: courtDisplayName,
+      court_address: courtAddress,
+      booking_date: bookingDate,
+      time_slot: resolvedTimeSlot,
+      start_time: startTime,
+      end_time: endTime,
+      check_in_time: checkInTime,
+      total_hours: totalHours,
+      total_price: Number(booking.totalPrice) || 0,
+      formatted_price: formattedTotalPrice,
+      payment_status: booking.paymentStatus || 'PENDING',
+      guide_image_url: guideImageUrl,
+      gate_image_url: COURT_GATE_IMAGE,
+      maps_url: COURT_DEFAULT_MAPS_URL,
+      notes: booking.notes || 'Không có',
+    });
+
+    let customerMailSent = false;
+    try {
+      const { data, error } = await client.emails.send({
+        from: sender,
+        to: booking.customerEmail.trim(),
+        subject: `[DVA Volleyball] Xác nhận đặt sân / Court Booking Confirmation - ${booking.bookingCode}`,
+        html: customerHtml,
+        replyTo: admin,
+      });
+
+      if (error) {
+        console.warn(
+          `[Resend Mailer Warning] Không thể gửi email đặt sân cho ${booking.customerEmail}:`,
+          error.message
+        );
+      } else {
+        console.log(
+          `[Resend Mailer] ✅ Đã gửi email xác nhận đặt sân tới ${booking.customerEmail} (ID: ${data?.id})`
+        );
+        customerMailSent = true;
+      }
+    } catch (sendErr: any) {
+      console.warn(
+        `[Resend Mailer Warning] Lỗi ngoại lệ khi gửi email đặt sân cho ${booking.customerEmail}:`,
+        sendErr?.message || sendErr
+      );
+    }
+
+    // Tự động gửi email thông báo ngắn về hòm thư Admin (non-blocking)
+    try {
+      const adminSubject = `[DVA Admin] Có đơn đặt sân mới: ${booking.bookingCode} - ${booking.customerName}`;
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 600px;">
+          <h2 style="color: #f97316; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-top: 0;">
+            🚨 [DVA Admin] Có đơn đặt sân mới
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 15px;">
+            <tr><td style="padding: 6px 0; color: #94a3b8; width: 140px;">Mã đơn:</td><td style="padding: 6px 0; font-weight: bold; color: #38bdf8;">${escapeHtml(booking.bookingCode)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Khách hàng:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${escapeHtml(booking.customerName)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Số điện thoại:</td><td style="padding: 6px 0;"><a href="tel:${escapeHtml(booking.customerPhone || '')}" style="color: #38bdf8; text-decoration: none;">${escapeHtml(booking.customerPhone || 'N/A')}</a></td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Email:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(booking.customerEmail || 'N/A')}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Sân đặt:</td><td style="padding: 6px 0; font-weight: bold; color: #fb923c;">${escapeHtml(courtDisplayName)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Ngày chơi:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(bookingDate)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Khung giờ:</td><td style="padding: 6px 0; color: #38bdf8;">${escapeHtml(resolvedTimeSlot)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Tổng tiền:</td><td style="padding: 6px 0; font-weight: bold; color: #4ade80; font-size: 16px;">${escapeHtml(formattedTotalPrice)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Ghi chú:</td><td style="padding: 6px 0; color: #cbd5e1;">${escapeHtml(booking.notes || 'Không có')}</td></tr>
+          </table>
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
+            Hệ thống Quản lý DVA Volleyball Club • Gửi tự động qua Resend
+          </div>
+        </div>
+      `.trim();
+
+      const { error: adminError } = await client.emails.send({
+        from: sender,
+        to: admin,
+        subject: adminSubject,
+        html: adminHtml,
+        replyTo: booking.customerEmail.trim(),
+      });
+
+      if (adminError) {
+        console.warn(
+          `[Resend Mailer Warning] Không thể gửi thông báo Admin cho đơn ${booking.bookingCode}:`,
+          adminError.message
+        );
+      } else {
+        console.log(`[Resend Mailer] 📢 Đã gửi thông báo Admin cho đơn đặt sân: ${booking.bookingCode}`);
+      }
+    } catch (adminErr: any) {
+      console.warn(
+        `[Resend Mailer Warning] Lỗi ngoại lệ khi gửi thông báo Admin cho đơn ${booking.bookingCode}:`,
+        adminErr?.message || adminErr
+      );
+    }
+
+    return customerMailSent;
+  } catch (err: any) {
+    console.warn(`[Resend Mailer General Warning] Lỗi xử lý gửi email đặt sân:`, err?.message || err);
+    return false;
+  }
+}
+
+// ============================================================================
+// 2. LUỒNG GỬI EMAIL ĐĂNG KÝ TẬP LUYỆN (TRAINING & SCRIMMAGE)
+// ============================================================================
+export async function sendTrainingRegistrationEmail(
+  payload: TrainingEmailPayload
+): Promise<boolean> {
+  const recipientEmail = (payload.email || '').trim();
+  const orderCode = (payload.orderCode || payload.code || `TR-${Date.now().toString().slice(-6)}`).trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+    console.warn('[Resend Mailer Warning] Bỏ qua gửi email vì email học viên không hợp lệ:', recipientEmail);
+    return false;
+  }
+
+  if (!getResendApiKey()) {
+    console.warn(
+      '[Resend Mailer Warning] RESEND_API_KEY chưa được cấu hình. Vui lòng thêm RESEND_API_KEY vào .env hoặc biến môi trường Render.'
+    );
+    return false;
+  }
+
+  const client = getResendClient();
+  const sender = getSenderEmail();
+  const admin = getAdminEmail();
+
+  try {
+    const formattedAmount = new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(Number(payload.amount) || 0);
+
+    const traineeHtml = getTrainingRegistrationHtml({
+      order_code: orderCode,
+      package_name: payload.packageName || 'Gói tập DVA Volleyball',
+      full_name: payload.fullName || 'Học viên',
+      phone: payload.phone || '',
+      email: recipientEmail,
+      level: payload.level || 'Junior',
+      preferred_time: payload.preferredTime || '',
+      target_skill: payload.targetSkill || payload.position || '',
+      amount: Number(payload.amount) || 0,
+      formatted_amount: formattedAmount,
+      transfer_content: payload.transferContent || '',
+      notes: payload.notes || 'Không có',
+    });
+
+    let traineeMailSent = false;
+    try {
+      const { data, error } = await client.emails.send({
+        from: sender,
+        to: recipientEmail,
+        subject: `[DVA Volleyball] Tiếp nhận đăng ký khóa tập / Training Registration - ${payload.packageName || 'Khóa học DVA'}`,
+        html: traineeHtml,
+        replyTo: admin,
+      });
+
+      if (error) {
+        console.warn(
+          `[Resend Mailer Warning] Không thể gửi email gói tập tới ${recipientEmail}:`,
+          error.message
+        );
+      } else {
+        console.log(
+          `[Resend Mailer] ✅ Đã gửi email xác nhận đăng ký gói tập tới ${recipientEmail} (ID: ${data?.id})`
+        );
+        traineeMailSent = true;
+      }
+    } catch (sendErr: any) {
+      console.warn(
+        `[Resend Mailer Warning] Lỗi ngoại lệ khi gửi email gói tập tới ${recipientEmail}:`,
+        sendErr?.message || sendErr
+      );
+    }
+
+    // Tự động gửi email thông báo ngắn về hòm thư Admin (non-blocking)
+    try {
+      const adminSubject = `[DVA Admin] Đăng ký gói tập mới: ${payload.packageName || 'Gói tập'} - ${payload.fullName}`;
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 600px;">
+          <h2 style="color: #0284c7; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-top: 0;">
+            🚨 [DVA Admin] Đăng ký gói tập mới
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 15px;">
+            <tr><td style="padding: 6px 0; color: #94a3b8; width: 140px;">Mã đăng ký:</td><td style="padding: 6px 0; font-weight: bold; color: #38bdf8;">${escapeHtml(orderCode)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Học viên:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${escapeHtml(payload.fullName)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Gói tập:</td><td style="padding: 6px 0; font-weight: bold; color: #38bdf8;">${escapeHtml(payload.packageName)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Số điện thoại:</td><td style="padding: 6px 0;"><a href="tel:${escapeHtml(payload.phone)}" style="color: #38bdf8; text-decoration: none;">${escapeHtml(payload.phone)}</a></td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Email:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(recipientEmail)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Cấp độ:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(payload.level || 'Junior')}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Khung giờ:</td><td style="padding: 6px 0; color: #38bdf8;">${escapeHtml(payload.preferredTime || 'Linh hoạt')}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Học phí:</td><td style="padding: 6px 0; font-weight: bold; color: #4ade80; font-size: 16px;">${escapeHtml(formattedAmount)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Nội dung CK:</td><td style="padding: 6px 0; font-family: monospace; font-weight: bold; color: #facc15;">${escapeHtml(payload.transferContent || 'N/A')}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Ghi chú:</td><td style="padding: 6px 0; color: #cbd5e1;">${escapeHtml(payload.notes || 'Không có')}</td></tr>
+          </table>
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
+            Hệ thống Quản lý DVA Volleyball Club • Gửi tự động qua Resend
+          </div>
+        </div>
+      `.trim();
+
+      const { error: adminError } = await client.emails.send({
+        from: sender,
+        to: admin,
+        subject: adminSubject,
+        html: adminHtml,
+        replyTo: recipientEmail || undefined,
+      });
+
+      if (adminError) {
+        console.warn(
+          `[Resend Mailer Warning] Không thể gửi thông báo Admin cho gói tập ${orderCode}:`,
+          adminError.message
+        );
+      } else {
+        console.log(`[Resend Mailer] 📢 Đã gửi thông báo Admin cho gói tập: ${orderCode}`);
+      }
+    } catch (adminErr: any) {
+      console.warn(
+        `[Resend Mailer Warning] Lỗi ngoại lệ khi gửi thông báo Admin cho gói tập ${orderCode}:`,
+        adminErr?.message || adminErr
+      );
+    }
+
+    return traineeMailSent;
+  } catch (err: any) {
+    console.warn(`[Resend Mailer General Warning] Lỗi xử lý gửi email gói tập:`, err?.message || err);
+    return false;
+  }
+}
+
+// ============================================================================
+// 3. LUỒNG GỬI EMAIL ĐĂNG KÝ THÀNH VIÊN MỚI (NEW MEMBER APPLICATION)
+// ============================================================================
+export async function sendMemberRegistrationEmail(
+  member: MemberEmailPayload
+): Promise<boolean> {
+  const recipientEmail = (member.gmail || member.email || '').trim();
+  const passId = (member.passId || member.id || 'DVA-PASS').trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+    console.warn('[Resend Mailer Warning] Bỏ qua gửi email thành viên vì địa chỉ email không hợp lệ:', recipientEmail);
+    return false;
+  }
+
+  if (!getResendApiKey()) {
+    console.warn(
+      '[Resend Mailer Warning] RESEND_API_KEY chưa được cấu hình. Vui lòng thêm RESEND_API_KEY vào .env hoặc biến môi trường Render.'
+    );
+    return false;
+  }
+
+  const client = getResendClient();
+  const sender = getSenderEmail();
+  const admin = getAdminEmail();
+
+  try {
+    const formattedPosition = formatMemberPosition(member.position);
+    const cleanName = removeVietnameseTones(member.fullName).replace(/\s+/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const cleanPhone = (member.zalo || '').replace(/\D/g, '').trim() || (member.zalo || '').trim();
+    const transferContent = `register_${cleanName}_clubentry_${cleanPhone}`;
+    const vietQrUrl = `https://img.vietqr.io/image/MB-0002090671521-compact2.png?amount=100000&addInfo=${encodeURIComponent(transferContent)}&accountName=HOANG%20QUOC%20DUY`;
+
+    const memberHtml = getMemberRegistrationHtml({
+      pass_id: passId,
+      full_name: member.fullName,
+      dob: member.dob || '',
+      position: member.position,
+      formatted_position: formattedPosition,
+      level: member.level,
+      jersey_number:
+        member.desiredJerseyNumber !== undefined && member.desiredJerseyNumber !== null
+          ? member.desiredJerseyNumber
+          : '',
+      height: member.height,
+      weight: member.weight,
+      spike_reach: member.spikeReach,
+      block_reach: member.blockReach,
+      zalo: member.zalo,
+      email: recipientEmail,
+      instagram: member.instagram || 'None',
+      rotation_knowledge: member.rotationKnowledge || '',
+      hometown_country: member.hometownCountry || '',
+      transfer_content: transferContent,
+      vietqr_url: vietQrUrl,
+    });
+
+    let memberMailSent = false;
+    try {
+      const { data, error } = await client.emails.send({
+        from: sender,
+        to: recipientEmail,
+        subject: `[DVA Volleyball] Tiếp nhận hồ sơ thành viên mới / New Member Application - ${member.fullName}`,
+        html: memberHtml,
+        replyTo: admin,
+      });
+
+      if (error) {
+        console.warn(
+          `[Resend Mailer Warning] Không thể gửi email thành viên tới ${recipientEmail}:`,
+          error.message
+        );
+      } else {
+        console.log(
+          `[Resend Mailer] ✅ Đã gửi email xác nhận thành viên tới ${recipientEmail} (ID: ${data?.id})`
+        );
+        memberMailSent = true;
+      }
+    } catch (sendErr: any) {
+      console.warn(
+        `[Resend Mailer Warning] Lỗi ngoại lệ khi gửi email thành viên tới ${recipientEmail}:`,
+        sendErr?.message || sendErr
+      );
+    }
+
+    // Tự động gửi email thông báo ngắn về hòm thư Admin (non-blocking)
+    try {
+      const jerseyDisplay =
+        member.desiredJerseyNumber !== undefined && member.desiredJerseyNumber !== null && member.desiredJerseyNumber !== ''
+          ? `#${member.desiredJerseyNumber}`
+          : 'Chưa chọn';
+      const adminSubject = `[DVA Admin] Đơn gia nhập CLB mới: ${member.fullName} (${jerseyDisplay})`;
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 600px;">
+          <h2 style="color: #16a34a; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-top: 0;">
+            🚨 [DVA Admin] Đơn gia nhập CLB mới
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 15px;">
+            <tr><td style="padding: 6px 0; color: #94a3b8; width: 140px;">Pass ID:</td><td style="padding: 6px 0; font-weight: bold; color: #38bdf8;">${escapeHtml(passId)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Thành viên:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${escapeHtml(member.fullName)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Vị trí:</td><td style="padding: 6px 0; font-weight: bold; color: #4ade80;">${escapeHtml(formattedPosition)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Số áo mong muốn:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${escapeHtml(jerseyDisplay)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Cấp độ:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(member.level)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Chiều cao / Cân nặng:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(member.height)}cm / ${escapeHtml(member.weight)}kg</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Tầm bật:</td><td style="padding: 6px 0; color: #ffffff;">Đập: ${escapeHtml(member.spikeReach)}cm | Chắn: ${escapeHtml(member.blockReach)}cm</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Số Zalo:</td><td style="padding: 6px 0;"><a href="tel:${escapeHtml(member.zalo)}" style="color: #38bdf8; text-decoration: none;">${escapeHtml(member.zalo)}</a></td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Email:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(recipientEmail)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Quốc gia:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(member.hometownCountry || 'Việt Nam')}</td></tr>
+          </table>
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
+            Hệ thống Quản lý DVA Volleyball Club • Gửi tự động qua Resend
+          </div>
+        </div>
+      `.trim();
+
+      const { error: adminError } = await client.emails.send({
+        from: sender,
+        to: admin,
+        subject: adminSubject,
+        html: adminHtml,
+        replyTo: recipientEmail || undefined,
+      });
+
+      if (adminError) {
+        console.warn(
+          `[Resend Mailer Warning] Không thể gửi thông báo Admin cho thành viên ${member.fullName}:`,
+          adminError.message
+        );
+      } else {
+        console.log(`[Resend Mailer] 📢 Đã gửi thông báo Admin cho thành viên: ${member.fullName}`);
+      }
+    } catch (adminErr: any) {
+      console.warn(
+        `[Resend Mailer Warning] Lỗi ngoại lệ khi gửi thông báo Admin cho thành viên ${member.fullName}:`,
+        adminErr?.message || adminErr
+      );
+    }
+
+    return memberMailSent;
+  } catch (err: any) {
+    console.warn(`[Resend Mailer General Warning] Lỗi xử lý gửi mail thành viên:`, err?.message || err);
+    return false;
+  }
+}
+
+// ============================================================================
+// 4. HÀM GỬI THÔNG BÁO TỔNG QUÁT TỚI ADMIN (SEND ADMIN NOTIFICATION)
+// ============================================================================
 export async function sendAdminNotification(
   payload: AdminNotificationPayload
 ): Promise<boolean> {
-  const adminEmail = (process.env.ADMIN_NOTIFICATION_EMAIL || 'quocduyhoang42@gmail.com').trim();
+  if (!getResendApiKey()) {
+    console.warn(
+      '[Resend Mailer Warning] RESEND_API_KEY chưa được cấu hình. Bỏ qua gửi email Admin.'
+    );
+    return false;
+  }
+
+  const client = getResendClient();
+  const sender = getSenderEmail();
+  const adminEmail = getAdminEmail();
+
   const type = payload.type || 'BOOK_COURT';
   const code = (payload.code || payload.bookingCode || 'N/A').trim();
   const title = (payload.title || payload.moduleName || 'Đơn đăng ký mới').trim();
@@ -1238,18 +1599,14 @@ export async function sendAdminNotification(
 
   const dedupKey = `${type}:${code}`;
   if (code && code !== 'N/A' && isRecentDuplicateAlert(dedupKey, 5000)) {
-    console.log(`[BACKEND] [Admin Mailer] ℹ️ Đã gửi thông báo cho đơn ${code} gần đây, bỏ qua trùng lặp.`);
+    console.log(`[Resend Mailer] ℹ️ Đã gửi thông báo cho đơn ${code} gần đây, bỏ qua trùng lặp.`);
     return true;
   }
-
-  console.log(
-    `[BACKEND] [Admin Mailer] 🚀 Đang chuẩn bị gửi email thông báo đơn mới tới: ${adminEmail} (Loại: ${type}, Mã: ${code})`
-  );
 
   try {
     const formattedAmount =
       amount !== undefined && !Number.isNaN(amount)
-        ? `${Number(amount).toLocaleString('vi-VN')}đ`
+        ? `${Number(amount).toLocaleString('vi-VN')} đ`
         : '';
     const subject = `🚨 [DVA ADMIN ALERT] ${title} - ${customerName}${formattedAmount ? ' - ' + formattedAmount : ''}`;
 
@@ -1285,11 +1642,11 @@ export async function sendAdminNotification(
               : ''
           }
           ${
-            amount !== undefined && !Number.isNaN(amount)
+            formattedAmount
               ? `
           <tr>
             <td style="padding: 8px 0; color: #94a3b8;">Số tiền:</td>
-            <td style="padding: 8px 0; font-weight: bold; color: #4ade80; font-size: 16px;">${Number(amount).toLocaleString('vi-VN')} đ</td>
+            <td style="padding: 8px 0; font-weight: bold; color: #4ade80; font-size: 16px;">${escapeHtml(formattedAmount)}</td>
           </tr>`
               : ''
           }
@@ -1313,34 +1670,34 @@ export async function sendAdminNotification(
           }
         </table>
         <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
-          Hệ thống Quản lý DVA Volleyball Club • Tự động gửi từ Server
+          Hệ thống Quản lý DVA Volleyball Club • Gửi tự động qua Resend
         </div>
       </div>
     `.trim();
 
-    const transporter = createMailTransporter();
-    const result = await transporter.sendMail({
-      from: getMailSender().from,
+    const { error } = await client.emails.send({
+      from: sender,
       to: adminEmail,
       subject,
       html: htmlContent,
+      replyTo: email || undefined,
     });
 
-    console.log(
-      `[BACKEND] [Admin Mailer] ✅ Đã gửi email thông báo tới Admin (${adminEmail}) thành công! MessageId: ${result.messageId}`
-    );
+    if (error) {
+      console.warn(`[Resend Mailer Warning] Lỗi gửi email tới Admin (${adminEmail}):`, error.message);
+      return false;
+    }
+
+    console.log(`[Resend Mailer] ✅ Đã gửi email thông báo tới Admin (${adminEmail}) thành công!`);
     return true;
   } catch (error: any) {
-    console.error(
-      `[BACKEND] [Admin Mailer] ❌ Lỗi gửi email tới Admin (${adminEmail}):`,
-      error.message
+    console.warn(
+      `[Resend Mailer Warning] Lỗi ngoại lệ khi gửi email tới Admin (${adminEmail}):`,
+      error?.message || error
     );
     return false;
   }
 }
 
-/**
- * Alias giữ lại để tương thích ngược với code cũ
- */
 export const sendAdminNotificationEmail = sendAdminNotification;
 export const notifyAdminNewSubmission = sendAdminNotification;
