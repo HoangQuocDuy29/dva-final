@@ -62,7 +62,7 @@ export default function App() {
         />
 
         {/* Main Routes */}
-        <main className="flex-1">
+        <main className="flex-1 pt-20">
           <Routes>
             <Route path="/" element={<HomePage />} />
             
