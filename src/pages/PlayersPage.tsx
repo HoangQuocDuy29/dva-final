@@ -79,27 +79,52 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     }
   };
 
-  // Filter & Alphabetical (A-Z) Sort helper
+  // Level-scoped Sorting helper: Captain first, then alphabetical by Given Name (A-Z, Vietnamese standard)
+  const sortPlayersWithinLevel = (playerList: Player[]) => {
+    return [...playerList].sort((a, b) => {
+      // Cấp 1: Ưu tiên Captain của chính cấp độ đó lên đầu
+      const aCaptain = Boolean(a.isCaptain || a.captain || (a as any).role === 'CAPTAIN');
+      const bCaptain = Boolean(b.isCaptain || b.captain || (b as any).role === 'CAPTAIN');
+
+      if (aCaptain && !bCaptain) return -1;
+      if (!aCaptain && bCaptain) return 1;
+
+      // Cấp 2: Sắp xếp theo Tên riêng (từ cuối cùng trong họ tên) từ A -> Z chuẩn tiếng Việt
+      const getSortName = (fullName: string = '') => {
+        const parts = fullName.trim().split(/\s+/);
+        return (parts[parts.length - 1] || '').toLowerCase();
+      };
+
+      const nameA = getSortName(a.fullName || (a as any).name);
+      const nameB = getSortName(b.fullName || (b as any).name);
+
+      const diff = nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+      if (diff !== 0) return diff;
+      return (a.fullName || (a as any).name || '').localeCompare(b.fullName || (b as any).name || '', 'vi', { sensitivity: 'base' });
+    });
+  };
+
+  // Filter & Level-scoped Sort helper
   const filterAndSortList = (list: Player[]) => {
-    return list
-      .filter((p) => {
-        if (selectedPosition !== 'ALL' && p.position !== selectedPosition) return false;
-        if (search.trim()) {
-          const q = search.toLowerCase();
-          return (
-            p.fullName.toLowerCase().includes(q) ||
-            String(p.jerseyNumber).includes(q) ||
-            p.position.toLowerCase().includes(q) ||
-            (p.bio && p.bio.toLowerCase().includes(q)) ||
-            p.hometownCountry.toLowerCase().includes(q) ||
-            (p.country && p.country.toLowerCase().includes(q)) ||
-            (p.countryName && p.countryName.toLowerCase().includes(q)) ||
-            (p.countryCode && p.countryCode.toLowerCase().includes(q))
-          );
-        }
-        return true;
-      })
-      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi', { sensitivity: 'base' }));
+    const filtered = list.filter((p) => {
+      if (selectedPosition !== 'ALL' && p.position !== selectedPosition) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        return (
+          p.fullName.toLowerCase().includes(q) ||
+          String(p.jerseyNumber).includes(q) ||
+          p.position.toLowerCase().includes(q) ||
+          (p.bio && p.bio.toLowerCase().includes(q)) ||
+          p.hometownCountry.toLowerCase().includes(q) ||
+          (p.country && p.country.toLowerCase().includes(q)) ||
+          (p.countryName && p.countryName.toLowerCase().includes(q)) ||
+          (p.countryCode && p.countryCode.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+
+    return sortPlayersWithinLevel(filtered);
   };
 
   // Squad counts (alphabetically sorted)
