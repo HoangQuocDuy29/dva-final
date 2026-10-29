@@ -29,6 +29,8 @@ import {
   getDayOfWeekKey,
   parseSlotLabel,
   rangesOverlap,
+  compareSlotsByStartTime,
+  sortSlotsByStartTime,
 } from '../shared/schedule';
 import { bookingService, courtService } from '../services/api';
 import { VietQRModal } from '../components/common/VietQRModal';
@@ -165,12 +167,13 @@ const CourtBookingContent: React.FC = () => {
 
   // Compute dynamic slots based on court's weeklySchedule & selected date (Day of week)
   const availableSlots = useMemo(() => {
-    return getScheduleSlotsForCourtAndDate(
+    const slots = getScheduleSlotsForCourtAndDate(
       selectedCourt?.id || selectedCourtId,
       bookingDate,
       selectedCourt?.weeklySchedule,
       hasSubCourts ? selectedSubCourt : undefined
     );
+    return sortSlotsByStartTime(slots);
   }, [selectedCourt, selectedCourtId, bookingDate, hasSubCourts, selectedSubCourt]);
 
   // Selected Slot State: null by default so user picks deliberately
@@ -927,7 +930,10 @@ const CourtBookingContent: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-                {availableSlots.map((slot) => {
+                {availableSlots
+                  .slice()
+                  .sort(compareSlotsByStartTime)
+                  .map((slot) => {
                 const status = getSlotStatus(slot);
                 const isSelected = selectedSlotObj?.label === slot.label && (!hasSubCourts || selectedSlotObj?.subCourt === selectedSubCourt);
                 const isAvailable = status === 'AVAILABLE';

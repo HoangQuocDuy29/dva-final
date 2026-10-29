@@ -23,6 +23,88 @@ export const ADDON_PRICES = {
 
 export const MAX_WATER_BOTTLES = 100;
 
+export const toMinutes = (hm: string): number => {
+  if (!hm) return 0;
+  const clean = String(hm).trim();
+  const [h, m] = clean.split(':').map(Number);
+  return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
+};
+
+/** Extract "HH:mm - HH:mm" from a slot label (labels may carry a suffix like "(Full 3h Block)"). */
+export const parseSlotLabel = (label: string): { start: string; end: string } | null => {
+  const match = /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/.exec(label || '');
+  return match ? { start: match[1].padStart(5, '0'), end: match[2].padStart(5, '0') } : null;
+};
+
+/**
+ * Extract start time in minutes from a slot string (e.g. "12:00 - 14:00")
+ * or slot object with startTime / start / label / timeSlot.
+ */
+export const getSlotStartMinutes = (
+  slot: string | { startTime?: string; start?: string; label?: string; timeSlot?: string }
+): number => {
+  if (!slot) return 0;
+  if (typeof slot === 'string') {
+    const parsed = parseSlotLabel(slot);
+    if (parsed) return toMinutes(parsed.start);
+    const startStr = slot.split(/[-–—]/)[0]?.trim();
+    return toMinutes(startStr);
+  }
+  const timeStr = slot.startTime || slot.start;
+  if (timeStr) {
+    const startStr = timeStr.split(/[-–—]/)[0]?.trim();
+    return toMinutes(startStr);
+  }
+  const labelStr = slot.label || slot.timeSlot;
+  if (labelStr) {
+    const parsed = parseSlotLabel(labelStr);
+    if (parsed) return toMinutes(parsed.start);
+    const startStr = labelStr.split(/[-–—]/)[0]?.trim();
+    return toMinutes(startStr);
+  }
+  return 0;
+};
+
+/**
+ * Comparator to sort slots/sessions ascending by start time (and end time if start time is identical).
+ */
+export const compareSlotsByStartTime = <
+  T extends string | { startTime?: string; start?: string; endTime?: string; end?: string; label?: string; timeSlot?: string }
+>(
+  a: T,
+  b: T
+): number => {
+  const aStartMin = getSlotStartMinutes(a);
+  const bStartMin = getSlotStartMinutes(b);
+  if (aStartMin !== bStartMin) {
+    return aStartMin - bStartMin;
+  }
+  const getEndMin = (item: T): number => {
+    if (typeof item === 'string') {
+      const parsed = parseSlotLabel(item);
+      return parsed ? toMinutes(parsed.end) : 0;
+    }
+    const endStr = item.endTime || item.end;
+    if (endStr) return toMinutes(endStr.split(/[-–—]/)[0]?.trim());
+    const labelStr = item.label || item.timeSlot;
+    if (labelStr) {
+      const parsed = parseSlotLabel(labelStr);
+      return parsed ? toMinutes(parsed.end) : 0;
+    }
+    return 0;
+  };
+  return getEndMin(a) - getEndMin(b);
+};
+
+export const sortSlotsByStartTime = <
+  T extends string | { startTime?: string; start?: string; endTime?: string; end?: string; label?: string; timeSlot?: string }
+>(
+  slots: T[]
+): T[] => {
+  if (!Array.isArray(slots)) return [];
+  return [...slots].sort(compareSlotsByStartTime);
+};
+
 export const DAY_KEYS_BY_JS_DAY: DayOfWeekKey[] = [
   'sunday',
   'monday',
@@ -151,9 +233,9 @@ export function getSlotsForSubCourt(
 
   const extractSlots = (obj: any): string[] => {
     if (!obj || typeof obj !== 'object') return [];
-    if (Array.isArray(obj[dayKey])) return obj[dayKey];
-    if (Array.isArray(obj[rawDay])) return obj[rawDay];
-    if (Array.isArray(obj[normalizedDay])) return obj[normalizedDay];
+    if (Array.isArray(obj[dayKey])) return sortSlotsByStartTime(obj[dayKey]);
+    if (Array.isArray(obj[rawDay])) return sortSlotsByStartTime(obj[rawDay]);
+    if (Array.isArray(obj[normalizedDay])) return sortSlotsByStartTime(obj[normalizedDay]);
     return [];
   };
 
@@ -220,9 +302,11 @@ export const normalizeWeeklySchedule = (
   const result: WeeklySchedule = { ...defaults };
   for (const dayKey of DAY_KEYS_BY_JS_DAY) {
     if (Array.isArray(obj[dayKey])) {
-      result[dayKey] = (obj[dayKey] as unknown[])
-        .map((s) => String(s || '').trim())
-        .filter((s) => Boolean(parseSlotLabel(s)));
+      result[dayKey] = sortSlotsByStartTime(
+        (obj[dayKey] as unknown[])
+          .map((s) => String(s || '').trim())
+          .filter((s) => Boolean(parseSlotLabel(s)))
+      );
     }
   }
   return result;
@@ -317,18 +401,8 @@ export const getScheduleSlotsForCourtAndDate = (
   return slotLabels
     .map((label) => slotLabelToCourtTimeSlot(courtId, label))
     .filter((slot): slot is CourtTimeSlot => slot !== null)
-    .map((slot) => (subCourt ? { ...slot, subCourt } : slot));
-};
-
-export const toMinutes = (hm: string): number => {
-  const [h, m] = hm.split(':').map(Number);
-  return h * 60 + m;
-};
-
-/** Extract "HH:mm - HH:mm" from a slot label (labels may carry a suffix like "(Full 3h Block)"). */
-export const parseSlotLabel = (label: string): { start: string; end: string } | null => {
-  const match = /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/.exec(label || '');
-  return match ? { start: match[1].padStart(5, '0'), end: match[2].padStart(5, '0') } : null;
+    .map((slot) => (subCourt ? { ...slot, subCourt } : slot))
+    .sort(compareSlotsByStartTime);
 };
 
 /** True when two [start, end) time ranges ("HH:mm") overlap. */

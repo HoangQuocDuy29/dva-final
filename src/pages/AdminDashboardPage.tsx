@@ -79,6 +79,8 @@ import {
   isMultiCourtWeeklySchedule,
   getSlotsForSubCourt,
   parseSlotLabel,
+  compareSlotsByStartTime,
+  sortSlotsByStartTime,
 } from '../shared/schedule';
 import { uploadToCloudinary, buildCloudinaryFolder } from '../utils/cloudinary';
 import { CountrySelect } from '../components/common/CountrySelect';
@@ -896,11 +898,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
   };
 
   const getModalDaySlots = (dayKey: DayOfWeekKey): string[] => {
+    let slots: string[] = [];
     if (hasMultipleSubCourts) {
       const activeSc = modalSubCourtTab === '__ALL__' ? modalSubCourts[0] : (modalSubCourtTab || modalSubCourts[0]);
-      return getSlotsForSubCourt(courtForm.weeklySchedule, dayKey, activeSc);
+      slots = getSlotsForSubCourt(courtForm.weeklySchedule, dayKey, activeSc);
+    } else {
+      slots = getSlotsForSubCourt(courtForm.weeklySchedule, dayKey);
     }
-    return getSlotsForSubCourt(courtForm.weeklySchedule, dayKey);
+    return sortSlotsByStartTime(slots);
   };
 
   const handleAddSlotToDay = () => {
@@ -923,7 +928,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
           if (!daySlots.includes(clean)) {
             nextNested[sc] = {
               ...nextNested[sc],
-              [selectedScheduleDay]: [...daySlots, clean],
+              [selectedScheduleDay]: sortSlotsByStartTime([...daySlots, clean]),
             };
           }
         }
@@ -937,7 +942,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
         }
         nextNested[activeSc] = {
           ...scSched,
-          [selectedScheduleDay]: [...daySlots, clean],
+          [selectedScheduleDay]: sortSlotsByStartTime([...daySlots, clean]),
         };
       }
       setCourtForm({ ...courtForm, weeklySchedule: nextNested });
@@ -952,7 +957,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
         ...courtForm,
         weeklySchedule: {
           ...currentSchedule,
-          [selectedScheduleDay]: [...daySlots, clean],
+          [selectedScheduleDay]: sortSlotsByStartTime([...daySlots, clean]),
         },
       });
     }
@@ -1739,7 +1744,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ currentU
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                      {slots.map((slot) => {
+                      {slots.slice().sort(compareSlotsByStartTime).map((slot) => {
                         const isClosed = closedSlots.find(
                           cs => cs.courtId === selectedManageCourtId && cs.date === selectedManageDate && cs.slotLabel === slot.label &&
                           (!manageCourtHasSubCourts || (cs.subCourt || '') === adminSelectedSubCourt || !cs.subCourt)
