@@ -97,10 +97,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           WebkitBackdropFilter: isScrolled ? 'blur(16px)' : 'blur(12px)',
           backdropFilter: isScrolled ? 'blur(16px)' : 'blur(12px)',
         }}
-        className={`pointer-events-auto transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-between gap-2 sm:gap-4 md:gap-3 lg:gap-8 px-4 sm:px-6 lg:px-8 ${
+        className={`pointer-events-auto transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-between w-full gap-2 sm:gap-3 md:gap-2.5 lg:gap-5 ${
           isScrolled
-            ? 'w-full max-w-5xl rounded-2xl h-14 border border-slate-700/60 shadow-2xl shadow-black/50 bg-[#0B0F19]/70 backdrop-blur-md'
-            : 'w-full max-w-7xl rounded-none h-20 border-b border-slate-800/80 bg-[#0B0F19]/90'
+            ? 'max-w-6xl rounded-2xl h-14 border border-slate-700/60 shadow-2xl shadow-black/50 bg-[#0B0F19]/70 backdrop-blur-md px-4 sm:px-6'
+            : 'max-w-7xl rounded-none h-20 border-b border-slate-800/80 bg-[#0B0F19]/90 px-4 sm:px-6 lg:px-8'
         }`}
       >
         {/* Brand Wordmark & Dynamic Logo Slot */}
@@ -134,27 +134,27 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex flex-col">
             <span
               className={`font-heading font-black tracking-tight text-white flex items-center gap-1 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                isScrolled ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'
+                isScrolled ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
               }`}
             >
               DVA <span className="text-orange-500">VOLLEYBALL</span>
             </span>
             <span
               className={`tracking-widest text-slate-400 uppercase font-bold transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                isScrolled ? 'text-[8px] sm:text-[9px]' : 'text-[9px] sm:text-[10px]'
+                isScrolled ? 'text-[8px] leading-tight' : 'text-[9px] sm:text-[10px] leading-normal'
               }`}
             >
-              {' '}Sports Arena
+              Sports Arena
             </span>
           </div>
         </Link>
 
         {/* Public Nav Links (Tablet & Desktop: responsive gap & font size) */}
         <nav
-          className={`hidden md:flex items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] font-semibold ${
+          className={`hidden md:flex items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] font-semibold shrink-0 ${
             isScrolled
-              ? 'gap-2 lg:gap-4 xl:gap-5 text-xs'
-              : 'gap-2.5 lg:gap-6 xl:gap-7 text-xs lg:text-sm'
+              ? 'gap-2 lg:gap-3 xl:gap-4 text-xs lg:text-[13px]'
+              : 'gap-2.5 lg:gap-5 xl:gap-6 text-xs lg:text-sm'
           }`}
         >
           {navLinks.map((link) => (
@@ -176,31 +176,31 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Action Area */}
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* User Account / Role Pill (Desktop & Tablet) */}
-          <div ref={dropdownRef} className="relative">
+          <div ref={dropdownRef} className="relative shrink-0">
             {currentUser.role === 'GUEST' ? (
               <button
                 onClick={onOpenAuth}
-                className={`hidden sm:flex items-center gap-1.5 sm:gap-2 text-xs font-semibold rounded-xl border border-slate-700 bg-[#161F30] text-slate-200 hover:bg-slate-800 transition-all duration-300 cursor-pointer ${
-                  isScrolled ? 'px-2.5 sm:px-3 py-1.5' : 'px-3 sm:px-3.5 py-2'
+                className={`hidden sm:flex items-center gap-1.5 text-xs font-semibold rounded-xl border border-slate-700 bg-[#161F30] text-slate-200 hover:bg-slate-800 transition-all duration-300 cursor-pointer shrink-0 ${
+                  isScrolled ? 'px-2.5 py-1 text-xs' : 'px-3 sm:px-3.5 py-2 text-xs'
                 }`}
               >
-                <User className="w-3.5 h-3.5 text-slate-400" />
+                <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 <span>Sign In</span>
               </button>
             ) : (
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className={`flex items-center gap-1.5 sm:gap-2 text-xs font-semibold rounded-xl border transition-all duration-300 cursor-pointer shadow-sm ${
-                  isScrolled ? 'px-2 sm:px-2.5 py-1' : 'px-2.5 sm:px-3 py-1.5 sm:py-2'
+                className={`flex items-center gap-1.5 text-xs font-semibold rounded-xl border transition-all duration-300 cursor-pointer shadow-sm shrink-0 ${
+                  isScrolled ? 'px-2.5 py-1 text-xs' : 'px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs'
                 } ${
                   isAdmin 
                     ? 'border-red-800 bg-red-950/40 text-red-200 hover:bg-red-950/70' 
                     : 'border-slate-700 bg-[#161F30] text-slate-200 hover:bg-slate-800'
                 }`}
               >
-                <span className={`px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] rounded uppercase font-bold font-mono border ${
+                <span className={`px-1.5 py-0.5 text-[9px] rounded uppercase font-bold font-mono border shrink-0 ${
                   currentUser.role === 'SUPERADMIN' 
                     ? 'bg-red-900 text-red-200 border-red-700'
                     : currentUser.role === 'ADMIN'
@@ -209,8 +209,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}>
                   {currentUser.role}
                 </span>
-                <span className="max-w-[70px] sm:max-w-[110px] truncate text-white">{currentUser.fullName.split(' ').slice(-1)[0]}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                <span className={`${isScrolled ? 'max-w-[60px] sm:max-w-[80px]' : 'max-w-[70px] sm:max-w-[100px]'} truncate text-white`}>
+                  {currentUser.fullName.split(' ').slice(-1)[0]}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               </button>
             )}
 
@@ -265,11 +267,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Primary CTA Button: Join DVA */}
           <Link
             to="/register"
-            className={`hidden sm:inline-flex text-xs font-bold text-white bg-gradient-to-r from-red-600 to-orange-500 rounded-xl hover:brightness-110 shadow-lg shadow-red-900/30 hover:scale-[1.02] transition-all duration-300 whitespace-nowrap shrink-0 items-center gap-1.5 ${
-              isScrolled ? 'px-3 sm:px-4 py-1.5' : 'px-3.5 sm:px-5 py-2.5'
+            className={`hidden sm:inline-flex text-white bg-gradient-to-r from-red-600 to-orange-500 rounded-xl hover:brightness-110 shadow-lg shadow-red-900/30 hover:scale-[1.02] transition-all duration-300 whitespace-nowrap shrink-0 items-center gap-1.5 ${
+              isScrolled
+                ? 'px-3.5 py-1.5 text-xs font-semibold'
+                : 'px-4 sm:px-5 py-2.5 text-xs font-bold'
             }`}
           >
-            <UserPlus className="w-3.5 h-3.5" />
+            <UserPlus className="w-3.5 h-3.5 shrink-0" />
             <span>Join DVA</span>
           </Link>
 
@@ -277,7 +281,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle Navigation Menu"
-            className={`md:hidden rounded-xl bg-[#161F30] border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-all duration-300 ${
+            className={`md:hidden rounded-xl bg-[#161F30] border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-all duration-300 shrink-0 ${
               isScrolled ? 'w-8 h-8 min-w-[32px] min-h-[32px]' : 'w-10 h-10 min-w-[40px] min-h-[40px]'
             }`}
           >
@@ -295,7 +299,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}
           className={`w-full md:hidden pointer-events-auto transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] animate-in slide-in-from-top-2 duration-200 max-h-[calc(100vh-5rem)] overflow-y-auto ${
             isScrolled
-              ? 'mt-2 max-w-5xl rounded-2xl bg-[#0F1420]/80 backdrop-blur-xl border border-slate-700/60 shadow-2xl p-4 space-y-3'
+              ? 'mt-2 max-w-6xl rounded-2xl bg-[#0F1420]/80 backdrop-blur-xl border border-slate-700/60 shadow-2xl p-4 space-y-3'
               : 'max-w-7xl rounded-b-2xl bg-[#0F1420]/95 backdrop-blur-xl border-x border-b border-slate-800 px-4 pt-4 pb-6 space-y-3 shadow-2xl'
           }`}
         >
