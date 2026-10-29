@@ -75,6 +75,8 @@ import {
   sendBookingConfirmationEmail,
   sendMemberRegistrationEmail,
   sendTrainingRegistrationEmail,
+  sendGuestSessionEmail,
+  GuestSessionEmailPayload,
 } from './lib/mailer';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -2399,7 +2401,66 @@ app.post('/api/cloudinary/sign-upload', (req, res) => {
   });
 });
 
-// 10. VietQR Generation API
+// 10. Admin Guest Session Notification Email
+app.post('/api/admin/send-guest-session-email', ah(async (req, res) => {
+  const body = req.body ?? {};
+  const guestEmail = typeof body.guestEmail === 'string' ? body.guestEmail.trim().toLowerCase() : '';
+  const fullName = typeof body.fullName === 'string' ? body.fullName.trim() : '';
+  const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
+  const position = typeof body.position === 'string' ? body.position.trim().toUpperCase() : 'OH';
+  const positionPrivilege = typeof body.positionPrivilege === 'string' ? body.positionPrivilege.trim() : 'FIXED';
+  const level = typeof body.level === 'string' ? body.level.trim() : 'All Levels';
+  const sessionDate = typeof body.sessionDate === 'string' ? body.sessionDate.trim() : '';
+  const sessionTime = typeof body.sessionTime === 'string' ? body.sessionTime.trim() : '19:30 - 21:30';
+  const amount = Number(body.amount);
+
+  if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+    return res.status(400).json({ error: 'Email khách hàng không hợp lệ.' });
+  }
+  if (!fullName || fullName.length < 2) {
+    return res.status(400).json({ error: 'Họ và tên khách hàng phải có ít nhất 2 ký tự.' });
+  }
+  if (!phone || phone.length < 8) {
+    return res.status(400).json({ error: 'Số điện thoại không hợp lệ (tối thiểu 8 chữ số).' });
+  }
+  if (!sessionDate) {
+    return res.status(400).json({ error: 'Ngày thi đấu không được để trống.' });
+  }
+  if (!sessionTime) {
+    return res.status(400).json({ error: 'Khung giờ thi đấu không được để trống.' });
+  }
+  if (Number.isNaN(amount) || amount < 0) {
+    return res.status(400).json({ error: 'Mức phí giữ chỗ không hợp lệ.' });
+  }
+
+  const payload: GuestSessionEmailPayload = {
+    guestEmail,
+    fullName,
+    phone,
+    height: body.height !== undefined && body.height !== null && body.height !== '' ? Number(body.height) : undefined,
+    weight: body.weight !== undefined && body.weight !== null && body.weight !== '' ? Number(body.weight) : undefined,
+    position,
+    positionPrivilege,
+    level,
+    sessionDate,
+    sessionTime,
+    courtAddress: typeof body.courtAddress === 'string' && body.courtAddress.trim() ? body.courtAddress.trim() : undefined,
+    amount,
+    notes: typeof body.notes === 'string' ? body.notes.trim() : undefined,
+  };
+
+  // Safe async dispatch (fire-and-forget, non-blocking)
+  sendGuestSessionEmail(payload).catch((err: any) => {
+    console.warn('[Admin Guest Session Email Fire-and-Forget Error]:', err?.message || err);
+  });
+
+  return res.json({
+    success: true,
+    message: 'Đã gửi email thông tin session cho khách vãng lai thành công!',
+  });
+}));
+
+// 11. VietQR Generation API
 app.post('/api/vietqr/generate', (req, res) => {
   const { amount, bookingCode, description } = sanitize(
     req.body,

@@ -153,6 +153,22 @@ export interface MemberEmailPayload {
   hometownCountry?: string;
 }
 
+export interface GuestSessionEmailPayload {
+  guestEmail: string;
+  fullName: string;
+  phone: string;
+  height?: number | string;
+  weight?: number | string;
+  position: 'OH' | 'MB' | 'OP' | 'S' | 'L' | string;
+  positionPrivilege: 'FIXED' | 'RANDOM' | string;
+  level: string; // Senior, Junior, Youth, All Levels...
+  sessionDate: string; // YYYY-MM-DD hoặc DD/MM/YYYY
+  sessionTime: string; // VD: "19:30 - 21:30"
+  courtAddress?: string; // Mặc định 155 Trường Chinh
+  amount: number; // Mức phí giữ chỗ (VND)
+  notes?: string;
+}
+
 export interface AdminNotificationDetail {
   label: string;
   value: string | number | null | undefined;
@@ -324,6 +340,27 @@ export function generateBookingTransferDescription(
   const timeTag = formatBookingTimeTag(booking.timeSlot, booking.startTime, booking.endTime);
 
   return `DVA ${cleanName} ${dateStr} ${courtTag} ${timeTag}`.trim();
+}
+
+export function generateGuestSessionTransferDescription(
+  fullName: string,
+  sessionDate: string,
+  sessionTime: string,
+  position: string
+): string {
+  const rawName = fullName || 'KHACH';
+  const cleanName =
+    removeVietnameseTones(rawName)
+      .replace(/[^A-Za-z0-9]/g, '')
+      .toUpperCase()
+      .slice(0, 5) || 'KHACH';
+
+  const ddmm = formatBookingDateDDMM(sessionDate);
+  const { startTime } = extractStartAndEndTime(sessionTime);
+  const shortTime = startTime.replace(/\D/g, '').padEnd(4, '0').slice(0, 4) || '1930';
+  const pos = (position || 'OH').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || 'OH';
+
+  return `SCRIM ${cleanName} ${ddmm} ${shortTime} ${pos}`.trim();
 }
 
 export function buildBookingVietQrUrl(
@@ -2026,3 +2063,544 @@ export async function sendAdminNotification(
 
 export const sendAdminNotificationEmail = sendAdminNotification;
 export const notifyAdminNewSubmission = sendAdminNotification;
+
+// ============================================================================
+// 5. HTML GENERATOR 4: THÔNG TIN SESSION CHO KHÁCH VÃNG LAI (GUEST SESSION)
+// ============================================================================
+export function getGuestSessionEmailHtml(data: {
+  full_name: string;
+  phone: string;
+  guest_email: string;
+  height?: number | string;
+  weight?: number | string;
+  position: string;
+  position_privilege: string;
+  level: string;
+  session_date: string;
+  session_time: string;
+  court_address: string;
+  amount: number;
+  formatted_amount: string;
+  transfer_content: string;
+  vietqr_url: string;
+  notes?: string;
+}): string {
+  const hotline = process.env.HOTLINE || '0768 299 329';
+  const gateImg = COURT_GATE_IMAGE;
+  const guideImg = DEFAULT_COURT_GUIDE_IMAGE;
+  const mapsLink = COURT_DEFAULT_MAPS_URL;
+  const addressText = data.court_address || COURT_DEFAULT_ADDRESS;
+
+  const isFixed =
+    (data.position_privilege || '').toUpperCase() === 'FIXED' ||
+    (data.position_privilege || '').toLowerCase().includes('cố định');
+  const privilegeText = isFixed
+    ? 'Cố định vị trí (Fixed Position)'
+    : 'Xoay vòng vị trí (Random / Rotation Position)';
+
+  const heightWeightText =
+    data.height || data.weight
+      ? `${data.height ? `${escapeHtml(data.height)} cm` : '--'} / ${data.weight ? `${escapeHtml(data.weight)} kg` : '--'}`
+      : 'Chưa cập nhật / Not provided';
+
+  return `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thông tin Session / Scrimmage Session Details - ${escapeHtml(data.full_name)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0b0f19;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background-color:#111827;border:1px solid #1e293b;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.6);">
+          
+          <!-- Header Banner (Gradient Tím - Xanh Thể Thao DVA) -->
+          <tr>
+            <td style="background:linear-gradient(135deg, #7c3aed 0%, #6366f1 50%, #4338ca 100%);padding:28px 32px;text-align:center;">
+              <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#ede9fe;margin-bottom:6px;">
+                DVA VOLLEYBALL HANOI
+              </div>
+              <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
+                THÔNG TIN SESSION
+              </h1>
+              <div style="font-size:13px;font-weight:700;color:#ddd6fe;margin-top:4px;letter-spacing:0.5px;">
+                SCRIMMAGE SESSION DETAILS
+              </div>
+              <div style="margin-top:12px;">
+                <span style="display:inline-block;background:rgba(0,0,0,0.35);padding:6px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);font-family:monospace;font-size:13px;color:#ede9fe;font-weight:700;">
+                  CÚ PHÁP CK: ${escapeHtml(data.transfer_content)}
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding:28px 24px;">
+              <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#f8fafc;">
+                Xin chào / Dear <strong>${escapeHtml(data.full_name)}</strong>,
+              </p>
+              <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+                Chào mừng bạn tham gia ca giao lưu bóng chuyền (Scrimmage Session) tại <strong style="color:#a78bfa;">DVA Volleyball Hanoi</strong>! Dưới đây là thông tin chi tiết buổi chơi và hướng dẫn chuyển khoản giữ chỗ:
+              </p>
+              <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#94a3b8;font-style:italic;">
+                Welcome to the volleyball scrimmage session at <strong style="color:#a78bfa;">DVA Volleyball Hanoi</strong>! Below are your session details and reservation instructions:
+              </p>
+
+              <!-- Thông tin chi tiết Session (Song ngữ) -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:14px;padding:18px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Họ và tên<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Full Name</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(data.full_name)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Số điện thoại<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Phone Number</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#38bdf8;text-align:right;">
+                    ${escapeHtml(data.phone || 'N/A')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Chiều cao - Cân nặng<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Height - Weight</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${heightWeightText}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Vị trí thi đấu<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Position</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:700;color:#38bdf8;text-align:right;">
+                    ${escapeHtml(data.position)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Đặc quyền vị trí<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Position Privilege</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#c084fc;text-align:right;">
+                    ${escapeHtml(privilegeText)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Cấp độ<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Level</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#e0f2fe;text-align:right;font-weight:600;">
+                    ${escapeHtml(data.level)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Ngày thi đấu<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Session Date</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(data.session_date)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Khung giờ<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Time Slot</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#38bdf8;text-align:right;font-family:monospace;">
+                    ${escapeHtml(data.session_time)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Địa chỉ sân<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Court Address</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(addressText)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Ghi chú<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Notes</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#cbd5e1;text-align:right;">
+                    ${escapeHtml(data.notes || 'None / Không có')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0 4px;font-size:13px;color:#94a3b8;">
+                    Phí giữ chỗ<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Reservation Fee</span>
+                  </td>
+                  <td style="padding:12px 0 4px;font-size:16px;font-weight:800;color:#4ade80;text-align:right;font-family:monospace;">
+                    ${escapeHtml(data.formatted_amount)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0 4px;font-size:13px;color:#94a3b8;">
+                    Cú pháp chuyển khoản<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Transfer Content</span>
+                  </td>
+                  <td style="padding:9px 0 4px;font-size:13px;font-family:monospace;font-weight:700;color:#facc15;text-align:right;">
+                    ${escapeHtml(data.transfer_content)}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- KHỐI MÃ VIETQR THANH TOÁN TỰ ĐỘNG (QR PAYMENT BOX) -->
+              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;text-align:center;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#a78bfa;margin-bottom:4px;">
+                  💳 MÃ VIETQR THANH TOÁN GIỮ CHỖ TỰ ĐỘNG
+                </div>
+                <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:14px;font-style:italic;">
+                  AUTOMATED VIETQR RESERVATION PAYMENT
+                </div>
+
+                <!-- Dòng nhắc nhở thân thiện (Song ngữ) -->
+                <div style="margin:0 auto 16px auto;padding:12px 16px;background:rgba(124,58,237,0.1);border-radius:10px;border-left:3px solid #7c3aed;text-align:left;max-width:520px;">
+                  <p style="margin:0 0 6px;font-size:13px;line-height:1.5;color:#ede9fe;">
+                    💬 <strong>VI:</strong> Quét mã QR bằng ứng dụng ngân hàng bất kỳ để được tự động điền số tiền và nội dung chuyển khoản chính xác nhất.
+                  </p>
+                  <p style="margin:0;font-size:12px;line-height:1.5;color:#cbd5e1;font-style:italic;">
+                    💬 <strong>EN:</strong> Scan the QR code using any banking app to automatically fill in the exact amount and transfer reference.
+                  </p>
+                </div>
+
+                <!-- Ảnh VietQR -->
+                <div style="margin:12px auto;display:inline-block;">
+                  <img src="${escapeHtml(data.vietqr_url)}" alt="Mã VietQR thanh toán giữ chỗ" style="max-width:100%;width:240px;height:auto;border-radius:12px;display:block;margin:0 auto;border:1px solid #334155;box-shadow:0 4px 14px rgba(0,0,0,0.4);" />
+                </div>
+                <p style="margin:6px 0 16px 0;font-size:12px;color:#94a3b8;line-height:1.4;">
+                  (Mở app ngân hàng bất kỳ để quét mã VietQR tự động điền số tiền và nội dung)<br />
+                  <span style="font-size:11px;font-style:italic;">Open any banking app to scan VietQR with auto-filled amount and reference</span>
+                </p>
+
+                <!-- Bảng chi tiết chuyển khoản -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:10px;padding:14px 16px;margin:0 auto;max-width:520px;text-align:left;">
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Ngân hàng thụ hưởng / Bank
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
+                      MBBank (Ngân hàng Quân Đội)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Số tài khoản / Account Number
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:800;color:#38bdf8;text-align:right;font-family:monospace;">
+                      0002090671521
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Chủ tài khoản / Account Name
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#f8fafc;text-align:right;">
+                      HOANG QUOC DUY
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:12.5px;color:#94a3b8;">
+                      Số tiền / Amount
+                    </td>
+                    <td style="padding:7px 0;border-bottom:1px solid #1e293b;font-size:14px;font-weight:800;color:#4ade80;text-align:right;font-family:monospace;">
+                      ${escapeHtml(data.formatted_amount)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 0 2px 0;font-size:12.5px;color:#94a3b8;">
+                      Cú pháp chuyển khoản / Transfer Content
+                    </td>
+                    <td style="padding:8px 0 2px 0;text-align:right;">
+                      <strong style="color:#facc15;font-family:monospace;font-size:13px;background:rgba(250,204,21,0.15);padding:3px 8px;border-radius:6px;display:inline-block;">
+                        ${escapeHtml(data.transfer_content)}
+                      </strong>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- KHUNG LƯU Ý QUAN TRỌNG (NOTICE BOX - SONG NGỮ BẮT BUỘC) -->
+              <div style="background-color:rgba(239,68,68,0.12);border-left:4px solid #ef4444;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fca5a5;margin-bottom:8px;">
+                  ⚠️ LƯU Ý THANH TOÁN QUAN TRỌNG / IMPORTANT PAYMENT NOTICE
+                </div>
+                <p style="margin:0 0 10px;font-size:13.5px;line-height:1.6;color:#fecaca;">
+                  <strong>VI:</strong> Vui lòng hoàn tất thanh toán trước ít nhất <strong>6 tiếng</strong> trước khi diễn ra buổi tập để giữ chỗ chính thức. Nếu quá thời gian trên, slot sẽ được nhường cho VĐV khác.
+                </p>
+                <p style="margin:0 0 14px;font-size:12.5px;line-height:1.6;color:#e2e8f0;font-style:italic;">
+                  <strong>EN:</strong> Please complete your payment at least <strong>6 hours</strong> prior to the session to secure your spot. Otherwise, the reservation will be released to other players.
+                </p>
+                <p style="margin:0 0 6px;font-size:13.5px;line-height:1.6;color:#fed7aa;">
+                  ⏰ <strong>VI:</strong> Vui lòng có mặt trước giờ tập <strong>15 phút</strong> để khởi động và chuẩn bị thể lực.
+                </p>
+                <p style="margin:0;font-size:12.5px;line-height:1.6;color:#e2e8f0;font-style:italic;">
+                  ⏰ <strong>EN:</strong> Please arrive <strong>15 minutes</strong> before the session starts for warm-up and preparation.
+                </p>
+              </div>
+
+              <!-- MỤC CHỈ ĐƯỜNG & HƯỚNG DẪN VÀO SÂN (ĐẦY ĐỦ 2 KHỐI ẢNH + GOOGLE MAPS BUTTON) -->
+              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;">
+                <h3 style="margin:0 0 4px;font-size:15px;font-weight:800;color:#f8fafc;letter-spacing:0.5px;">
+                  📍 ĐỊA ĐIỂM SÂN THI ĐẤU &amp; HƯỚNG DẪN ĐƯỜNG ĐI
+                </h3>
+                <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:12px;font-style:italic;">
+                  VENUE LOCATION &amp; ENTRANCE GUIDE
+                </div>
+                
+                <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+                  🏢 <strong>Địa chỉ sân / Venue Address:</strong> <span style="color:#a78bfa;font-weight:700;">${escapeHtml(addressText)}</span>
+                </p>
+                
+                <p style="margin:0 0 16px;font-size:13px;line-height:1.6;color:#94a3b8;">
+                  Nhấn vào nút bên dưới để mở Google Maps dẫn đường trực tiếp đến cổng sân bóng:<br />
+                  <span style="font-size:12px;font-style:italic;">Click the button below to open directions on Google Maps:</span>
+                </p>
+
+                <!-- Nút bấm Google Maps -->
+                <div style="text-align:center;margin:16px 0 20px 0;">
+                  <a href="${escapeHtml(mapsLink)}" target="_blank" style="display:inline-block;background:linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);color:#ffffff;font-weight:800;font-size:14px;padding:13px 28px;border-radius:8px;text-decoration:none;box-shadow:0 4px 14px rgba(99,102,241,0.4);">
+                    🗺️ Mở Chỉ Đường Trên Google Maps / Open in Google Maps
+                  </a>
+                </div>
+
+                <!-- Khối ảnh 1: Cổng vào sân 155 Trường Chinh -->
+                <div style="margin:16px 0;background:#0b0f19;border:1px solid #1e293b;border-radius:10px;padding:12px;text-align:center;">
+                  <a href="${escapeHtml(gateImg)}" target="_blank" style="text-decoration:none;display:block;">
+                    <img src="${escapeHtml(gateImg)}" alt="Cổng vào sân 155 Trường Chinh" style="max-width:100%;height:auto;display:block;margin:0 auto;border-radius:8px;border:0;" />
+                  </a>
+                  <p style="font-size:12.5px;color:#cbd5e1;margin-top:10px;margin-bottom:2px;font-weight:600;">
+                    🚪 Hình ảnh cổng vào địa điểm thi đấu: 155 Trường Chinh, Thanh Xuân, Hà Nội
+                  </p>
+                  <p style="font-size:11.5px;color:#94a3b8;margin:0;font-style:italic;">
+                    Main Entrance Gate: 155 Truong Chinh, Thanh Xuan, Hanoi
+                  </p>
+                </div>
+
+                <!-- Khối ảnh 2: Sơ đồ chi tiết lối vào sân -->
+                <div style="margin:16px 0;background:#0b0f19;border:1px solid #1e293b;border-radius:10px;padding:12px;text-align:center;">
+                  <a href="${escapeHtml(guideImg)}" target="_blank" style="text-decoration:none;display:block;">
+                    <img src="${escapeHtml(guideImg)}" alt="Sơ đồ lối vào sân bóng" style="max-width:100%;height:auto;display:block;margin:0 auto;border-radius:8px;border:0;" />
+                  </a>
+                  <p style="font-size:12.5px;color:#cbd5e1;margin-top:10px;margin-bottom:2px;font-weight:600;">
+                    🗺️ Sơ đồ chi tiết lối di chuyển từ cổng vào thẳng sân bóng
+                  </p>
+                  <p style="font-size:11.5px;color:#94a3b8;margin:0;font-style:italic;">
+                    Detailed route diagram from the main gate to the volleyball court
+                  </p>
+                </div>
+              </div>
+
+              <!-- THÔNG BÁO LIÊN HỆ & KÊNH HỖ TRỢ TRỰC TIẾP (QUỐC DUY / NATHAN) -->
+              <div style="background-color:rgba(124,58,237,0.1);border-left:4px solid #7c3aed;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#c084fc;margin-bottom:10px;">
+                  ℹ️ KÊNH HỖ TRỢ TRỰC TIẾP QUỐC DUY (NATHAN) / DIRECT SUPPORT
+                </div>
+                
+                <div style="font-size:13.5px;line-height:1.6;color:#ede9fe;margin-bottom:10px;">
+                  <p style="margin:0 0 6px;">
+                    <strong>VI:</strong> Nếu bạn cần hỗ trợ thêm thông tin về ca đấu hoặc tìm vị trí sân khi đến nơi, vui lòng liên hệ trực tiếp với Quốc Duy qua:
+                  </p>
+                  <ul style="margin:0;padding-left:20px;line-height:1.7;">
+                    <li>Instagram: <a href="https://instagram.com/_nathan.hq_" target="_blank" style="color:#a78bfa;font-weight:700;text-decoration:none;">@_nathan.hq_</a></li>
+                    <li>WhatsApp: <a href="https://wa.me/84768299329" target="_blank" style="color:#a78bfa;font-weight:700;text-decoration:none;">+84 768 299 329</a></li>
+                    <li>Zalo / Hotline: <a href="tel:0768299329" style="color:#a78bfa;font-weight:700;text-decoration:none;">0768 299 329</a></li>
+                  </ul>
+                </div>
+
+                <div style="font-size:12.5px;line-height:1.6;color:#cbd5e1;font-style:italic;">
+                  <p style="margin:0 0 6px;">
+                    <strong>EN:</strong> If you need any assistance regarding the session or finding the court, feel free to reach out directly to Quoc Duy via:
+                  </p>
+                  <ul style="margin:0;padding-left:20px;line-height:1.7;">
+                    <li>Instagram: <a href="https://instagram.com/_nathan.hq_" target="_blank" style="color:#a78bfa;font-weight:700;text-decoration:none;">@_nathan.hq_</a></li>
+                    <li>WhatsApp: <a href="https://wa.me/84768299329" target="_blank" style="color:#a78bfa;font-weight:700;text-decoration:none;">+84 768 299 329</a></li>
+                    <li>Zalo / Hotline: <a href="tel:0768299329" style="color:#a78bfa;font-weight:700;text-decoration:none;">0768 299 329</a></li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Lời chúc (Song ngữ) -->
+              <div style="margin:24px 0 0;padding:14px;background:#0b0f19;border-radius:12px;text-align:center;border:1px dashed #334155;">
+                <p style="margin:0 0 6px;font-size:13.5px;line-height:1.6;color:#cbd5e1;font-weight:600;">
+                  Chúc bạn có một buổi thi đấu thăng hoa, nhiều pha bóng mãn nhãn và tràn đầy năng lượng cùng DVA! 🏐🔥
+                </p>
+                <p style="margin:0;font-size:12.5px;line-height:1.6;color:#94a3b8;font-style:italic;">
+                  Wishing you high-flying spikes and a fantastic scrimmage match with DVA! 🏐🔥
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#090d16;padding:20px 32px;text-align:center;border-top:1px solid #1e293b;font-size:12px;color:#64748b;">
+              © ${new Date().getFullYear()} DVA Volleyball Club · 155 Trường Chinh, Thanh Xuân, Hà Nội<br />
+              Hotline / Zalo: ${escapeHtml(hotline)} · Instagram: @_nathan.hq_
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+// ============================================================================
+// 6. LUỒNG GỬI EMAIL SESSION KHÁCH VÃNG LAI (GUEST SESSION EMAIL)
+// ============================================================================
+export async function sendGuestSessionEmail(
+  payload: GuestSessionEmailPayload
+): Promise<boolean> {
+  const recipientEmail = (payload.guestEmail || '').trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+    console.warn('[Resend Mailer Warning] Bỏ qua gửi email session vì email khách không hợp lệ:', recipientEmail);
+    return false;
+  }
+
+  if (!getResendApiKey()) {
+    console.warn(
+      '[Resend Mailer Warning] RESEND_API_KEY chưa được cấu hình. Bỏ qua gửi email session cho khách.'
+    );
+    return false;
+  }
+
+  const client = getResendClient();
+  const sender = getSenderEmail();
+  const admin = getAdminEmail();
+
+  try {
+    const formattedAmount = new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(Number(payload.amount) || 0);
+
+    const transferContent = generateGuestSessionTransferDescription(
+      payload.fullName,
+      payload.sessionDate,
+      payload.sessionTime,
+      payload.position
+    );
+
+    const vietQrUrl = `https://img.vietqr.io/image/MB-0002090671521-compact2.png?amount=${Number(payload.amount) || 0}&addInfo=${encodeURIComponent(transferContent)}&accountName=HOANG%20QUOC%20DUY`;
+
+    const courtAddress = payload.courtAddress || COURT_DEFAULT_ADDRESS;
+
+    const guestHtml = getGuestSessionEmailHtml({
+      full_name: payload.fullName || 'Khách vãng lai',
+      phone: payload.phone || '',
+      guest_email: recipientEmail,
+      height: payload.height,
+      weight: payload.weight,
+      position: payload.position,
+      position_privilege: payload.positionPrivilege,
+      level: payload.level,
+      session_date: payload.sessionDate,
+      session_time: payload.sessionTime,
+      court_address: courtAddress,
+      amount: Number(payload.amount) || 0,
+      formatted_amount: formattedAmount,
+      transfer_content: transferContent,
+      vietqr_url: vietQrUrl,
+      notes: payload.notes || 'Không có',
+    });
+
+    let guestMailSent = false;
+    try {
+      const { data, error } = await client.emails.send({
+        from: sender,
+        to: recipientEmail,
+        subject: `[DVA Volleyball Hanoi] Thông tin tham gia Session / Scrimmage Session Details - ${payload.fullName}`,
+        html: guestHtml,
+        replyTo: admin,
+      });
+
+      if (error) {
+        console.warn(
+          `[Resend Mailer Warning] Không thể gửi email session cho ${recipientEmail}:`,
+          error.message
+        );
+      } else {
+        console.log(
+          `[Resend Mailer] ✅ Đã gửi email thông tin session tới ${recipientEmail} (ID: ${data?.id})`
+        );
+        guestMailSent = true;
+      }
+    } catch (sendErr: any) {
+      console.warn(
+        `[Resend Mailer Warning] Lỗi ngoại lệ khi gửi email session tới ${recipientEmail}:`,
+        sendErr?.message || sendErr
+      );
+    }
+
+    // Gửi email notify ngắn gọn về hòm thư Admin (non-blocking)
+    try {
+      const privilegeLabel =
+        (payload.positionPrivilege || '').toUpperCase() === 'FIXED' ||
+        (payload.positionPrivilege || '').toLowerCase().includes('cố định')
+          ? 'Cố định'
+          : 'Xoay vòng';
+
+      const adminSubject = `[DVA Admin] Đã phát thông tin Session cho khách: ${payload.fullName} (${payload.position}) - ${payload.sessionDate}`;
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 600px;">
+          <h2 style="color: #8b5cf6; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-top: 0;">
+            🏐 [DVA Admin] Đã phát thông tin Session cho Khách Vãng Lai
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 15px;">
+            <tr><td style="padding: 6px 0; color: #94a3b8; width: 140px;">Khách hàng:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${escapeHtml(payload.fullName)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Email:</td><td style="padding: 6px 0; color: #38bdf8;">${escapeHtml(recipientEmail)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Số điện thoại:</td><td style="padding: 6px 0;"><a href="tel:${escapeHtml(payload.phone)}" style="color: #38bdf8; text-decoration: none;">${escapeHtml(payload.phone)}</a></td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Vị trí / Đặc quyền:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(payload.position)} (${escapeHtml(privilegeLabel)})</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Cấp độ:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(payload.level)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Ngày tập:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${escapeHtml(payload.sessionDate)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Khung giờ:</td><td style="padding: 6px 0; color: #38bdf8;">${escapeHtml(payload.sessionTime)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Mức phí giữ chỗ:</td><td style="padding: 6px 0; font-weight: bold; color: #4ade80; font-size: 16px;">${escapeHtml(formattedAmount)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Cú pháp CK:</td><td style="padding: 6px 0; font-family: monospace; font-weight: bold; color: #facc15;">${escapeHtml(transferContent)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Ghi chú:</td><td style="padding: 6px 0; color: #cbd5e1;">${escapeHtml(payload.notes || 'Không có')}</td></tr>
+          </table>
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
+            Hệ thống Quản lý DVA Volleyball Club • Gửi tự động qua Resend
+          </div>
+        </div>
+      `.trim();
+
+      const { error: adminError } = await client.emails.send({
+        from: sender,
+        to: admin,
+        subject: adminSubject,
+        html: adminHtml,
+        replyTo: recipientEmail || undefined,
+      });
+
+      if (adminError) {
+        console.warn(
+          `[Resend Mailer Warning] Không thể gửi thông báo Admin session cho ${payload.fullName}:`,
+          adminError.message
+        );
+      } else {
+        console.log(`[Resend Mailer] 📢 Đã gửi thông báo Admin cho session khách: ${payload.fullName}`);
+      }
+    } catch (adminErr: any) {
+      console.warn(
+        `[Resend Mailer Warning] Lỗi ngoại lệ khi gửi thông báo Admin cho session khách ${payload.fullName}:`,
+        adminErr?.message || adminErr
+      );
+    }
+
+    return guestMailSent;
+  } catch (err: any) {
+    console.warn(`[Resend Mailer General Warning] Lỗi xử lý gửi email session khách:`, err?.message || err);
+    return false;
+  }
+}
+

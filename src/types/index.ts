@@ -262,3 +262,19 @@ export interface GoogleSheetsSyncLog {
   timestamp: string;
   status: 'SUCCESS' | 'QUEUED';
 }
+
+export interface GuestSessionPayload {
+  guestEmail: string;
+  fullName: string;
+  phone: string;
+  height?: number | string;
+  weight?: number | string;
+  position: 'OH' | 'MB' | 'OP' | 'S' | 'L' | string;
+  positionPrivilege: 'FIXED' | 'RANDOM' | string;
+  level: string;
+  sessionDate: string;
+  sessionTime: string;
+  courtAddress?: string;
+  amount: number;
+  notes?: string;
+}

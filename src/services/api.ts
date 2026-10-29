@@ -11,7 +11,8 @@ import {
   TrainingRegistration, 
   User, 
   UserRole,
-  ManagedUserRole
+  ManagedUserRole,
+  GuestSessionPayload
 } from '../types';
 import { 
   GUEST_USER,
@@ -997,3 +998,12 @@ export const cloudinaryService = {
     });
   }
 };
+
+export const adminService = {
+  sendGuestSessionEmail: (payload: GuestSessionPayload) =>
+    request<{ success: boolean; message: string }>('/admin/send-guest-session-email', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+};
+
