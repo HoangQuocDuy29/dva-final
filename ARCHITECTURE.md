@@ -41,7 +41,8 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 | Đường dẫn Thư mục | Trách nhiệm Cốt lõi & Thành phần Chính |
 | :--- | :--- |
 | `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung.<br>• `layout/`: Navbar (Floating Capsule), Footer, Menu Drawer di động. |
-| `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: Quản trị tổng thể (Sân, Đặt chỗ, Hội viên, Khoá học, Cấu hình Sheets, Log sync).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và thông báo hoạt động.<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
+| `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: File re-export 1 dòng trỏ tới `src/pages/admin/AdminDashboardPage.tsx` (hỗ trợ `React.lazy` code-splitting).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và thông báo hoạt động.<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
+| `src/pages/admin/` | Kiến trúc Quản trị phân tách theo Tab (Tab-based Modular Architecture): <br>• `AdminDashboardPage.tsx`: Shell điều phối mỏng (114 dòng).<br>• `context/`, `layout/`, `tabs/`, `hooks/`, `components/`, `utils/`. |
 | `src/services/` | Lớp giao tiếp API máy khách (`api.ts`): Bao bọc hàm `request<T>()`, quản lý xác thực `authService`, điều phối đặt sân `bookingService`, huấn luyện `trainingService`, đồng bộ sheets `sheetsService`. |
 | `src/data/` | Dữ liệu tĩnh và mock fallback: `mockData.ts`, danh mục tỉnh thành `vietnamLocations.ts`. |
 | `src/types/` | Toàn bộ định nghĩa TypeScript (`index.ts`): User, Role, Player, Court, Booking, ClosedSlot, TrainingCourse, v.v. |
@@ -127,6 +128,22 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 | Sheets sync log | `tabName` → `timestamp DESC` | `GoogleSheetsSyncLog[tabName, timestamp DESC]` |
 
 - **Thứ tự sắp xếp VĐV được đảm bảo từ Server:** `GET /api/players` trả về danh sách đã sort sẵn theo `level` (thứ tự enum `SENIOR → JUNIOR → YOUTH`) → Captain đứng đầu → số áo tăng dần. Nhánh fallback JSON (khi DB lỗi) cũng sort cùng thứ tự. Frontend (`PlayersPage.tsx`) không cần sort lại.
+
+### 3.6. Kiến trúc Quản trị Module hóa (`src/pages/admin/`)
+- **Trạng thái Code sạch & Lazy Loading:**
+  - Đã xóa bỏ hoàn toàn kiến trúc nguyên khối (>5.500 dòng) trước đây, tách thành **38 modules** độc lập theo miền nghiệp vụ trong `src/pages/admin/`.
+  - File shell điều phối [`src/pages/admin/AdminDashboardPage.tsx`](src/pages/admin/AdminDashboardPage.tsx) chỉ còn **114 dòng** (bọc Provider, kiểm tra quyền `!isAdmin`, render Header/Banner/ActiveTab và `GuestSessionEmailModal`).
+  - File [`src/pages/AdminDashboardPage.tsx`](src/pages/AdminDashboardPage.tsx) giữ vai trò re-export 1 dòng, giúp `src/App.tsx` lazy-load toàn bộ cụm bundle Admin sạch sẽ mà không ảnh hưởng tới bundle trang khách hàng.
+- **Cấu trúc Thư mục (`src/pages/admin/`):**
+  - `context/`: `AdminDashboardContext.tsx` cung cấp state và hành vi dùng chung toàn trang quản trị.
+  - `layout/`: `AdminHeader.tsx`, `AdminTabNav.tsx` (thanh điều hướng 10 tab kèm badge số lượng), `FeedbackBanner.tsx`.
+  - `tabs/`: 10 component tab độc lập (`OverviewTab`, `CourtsTab`, `BookingsTab`, `ApplicationsTab`, `PlayersTab`, `TrainingTab`, `CoachesTab`, `NewsTab`, `UsersTab`, `SheetsTab`).
+  - `hooks/`: Các custom hook tách biệt logic khỏi UI (`useAdminData`, `useFeedback`, `useAdminMetrics`, `useApplicationActions`, `useCourtCrud`, `useCourtSlotLock`, `useUsersTab`).
+  - `components/`: Các modal và sub-component chuyên biệt theo từng miền (`courts/CourtCard`, `courts/SlotLockPanel`, `courts/WeeklyScheduleEditor`, `courts/CourtFormModal`, `bookings/BookingFormModal`, `players/PlayerFormModal`, `training/CourseFormModal`, `coaches/CoachFormModal`, `news/NewsFormModal`, `users/CreateUserModal`, `sheets/appsScriptTemplate`, `AthleteRosterAvatar`, `GuestSessionEmailModal`).
+  - `utils/`: `scheduleEditor.ts` chứa các hàm thuần túy (pure functions) xử lý thêm/xóa ca, sao chép lịch T2–T6 và đồng bộ lịch giữa các sân con (`subCourts`).
+- **Mô hình Quản lý State (Core Context + Domain Custom Hooks):**
+  - **`AdminDashboardContext`:** Quản lý các state dùng chung xuyên suốt các tab bao gồm: phiên đăng nhập (`currentUser`, `isAdmin`, `isSuperAdmin`), tab đang mở (`activeModule`), thông báo (`feedback`, `notify` / `setFeedback`), 9 tập dữ liệu cốt lõi từ `useAdminData` (`data`, `setData`), bộ chọn sân dùng chung giữa Courts & Bookings (`courtSelection`: `selectedManageCourtId`, `adminSelectedSubCourt`, `selectedManageDate`), và trạng thái mở modal gửi mail khách vãng lai.
+  - **Domain Custom Hooks:** Mỗi miền nghiệp vụ phức tạp sử dụng hook riêng kết nối vào Context (`useCourtCrud`, `useCourtSlotLock`, `useApplicationActions`, `useAdminMetrics`, `useUsersTab`), đảm bảo khi một tab cập nhật dữ liệu (ví dụ duyệt ứng viên ở `OverviewTab` hoặc `ApplicationsTab`), danh sách VĐV (`players`) và các chỉ số badge trên `AdminTabNav` tự động đồng bộ tức thì.
 
 ---
 
