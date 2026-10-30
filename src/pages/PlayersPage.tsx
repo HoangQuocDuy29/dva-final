@@ -79,34 +79,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     }
   };
 
-  // Level-scoped Sorting helper: Captain first, then alphabetical by Given Name (A-Z, Vietnamese standard)
-  const sortPlayersWithinLevel = (playerList: Player[]) => {
-    return [...playerList].sort((a, b) => {
-      // Cấp 1: Ưu tiên Captain của chính cấp độ đó lên đầu
-      const aCaptain = Boolean(a.isCaptain || a.captain || (a as any).role === 'CAPTAIN');
-      const bCaptain = Boolean(b.isCaptain || b.captain || (b as any).role === 'CAPTAIN');
-
-      if (aCaptain && !bCaptain) return -1;
-      if (!aCaptain && bCaptain) return 1;
-
-      // Cấp 2: Sắp xếp theo Tên riêng (từ cuối cùng trong họ tên) từ A -> Z chuẩn tiếng Việt
-      const getSortName = (fullName: string = '') => {
-        const parts = fullName.trim().split(/\s+/);
-        return (parts[parts.length - 1] || '').toLowerCase();
-      };
-
-      const nameA = getSortName(a.fullName || (a as any).name);
-      const nameB = getSortName(b.fullName || (b as any).name);
-
-      const diff = nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
-      if (diff !== 0) return diff;
-      return (a.fullName || (a as any).name || '').localeCompare(b.fullName || (b as any).name || '', 'vi', { sensitivity: 'base' });
-    });
-  };
-
-  // Filter & Level-scoped Sort helper
-  const filterAndSortList = (list: Player[]) => {
-    const filtered = list.filter((p) => {
+  // Filter helper: giữ nguyên thứ tự chuẩn từ Backend/Database
+  // (theo từng level: Captain đứng đầu, sau đó đến số áo tăng dần)
+  const filterPlayers = (list: Player[]) => {
+    return list.filter((p) => {
       if (selectedPosition !== 'ALL' && p.position !== selectedPosition) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -123,14 +99,12 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
       }
       return true;
     });
-
-    return sortPlayersWithinLevel(filtered);
   };
 
-  // Squad counts (alphabetically sorted)
-  const seniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'SENIOR')), [players, search, selectedPosition]);
-  const juniorPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'JUNIOR')), [players, search, selectedPosition]);
-  const youthPlayers = useMemo(() => filterAndSortList(players.filter(p => p.level === 'YOUTH')), [players, search, selectedPosition]);
+  // Squad counts by level (sử dụng trực tiếp thứ tự đã sắp xếp từ API)
+  const seniorPlayers = useMemo(() => filterPlayers(players.filter(p => p.level === 'SENIOR')), [players, search, selectedPosition]);
+  const juniorPlayers = useMemo(() => filterPlayers(players.filter(p => p.level === 'JUNIOR')), [players, search, selectedPosition]);
+  const youthPlayers = useMemo(() => filterPlayers(players.filter(p => p.level === 'YOUTH')), [players, search, selectedPosition]);
 
   // Active level list for Single Tab
   const activeLevelPlayers = useMemo(() => {
