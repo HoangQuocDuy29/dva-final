@@ -101,6 +101,7 @@ export default function App() {
               {/* Module 5: Services */}
               <Route path="/services/court-booking" element={<CourtBookingPage />} />
               <Route path="/services/training" element={<TrainingPage />} />
+              <Route path="/training" element={<TrainingPage />} />
 
               {/* Module 6: Member Registration */}
               <Route path="/register" element={<MemberRegisterPage />} />

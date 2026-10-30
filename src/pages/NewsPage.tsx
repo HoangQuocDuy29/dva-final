@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Search, 
-  Plus, 
-  Clock, 
   ArrowRight, 
   Calendar
 } from 'lucide-react';
 import { NewsPost, User as UserType } from '../types';
 import { newsService } from '../services/api';
+import { ShareButton } from '../components/common/ShareButton';
 
 interface NewsPageProps {
   currentUser: UserType;
@@ -141,15 +140,22 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser }) => {
                 </div>
               </div>
 
-              <div className="p-6 pt-0 border-t border-slate-800 flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">{article.authorName}</span>
-                <Link
-                  to={`/news/${article.id}`}
-                  className="font-bold text-orange-400 hover:underline flex items-center gap-1"
-                >
-                  <span>Read Article</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+              <div className="p-6 pt-4 border-t border-slate-800 flex items-center justify-between gap-2 text-xs">
+                <span className="text-slate-500 font-medium truncate">{article.authorName}</span>
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <ShareButton
+                    url={`${window.location.origin}/news/${article.id}`}
+                    title={article.title}
+                    text={article.excerpt}
+                  />
+                  <Link
+                    to={`/news/${article.id}`}
+                    className="font-bold text-orange-400 hover:underline flex items-center gap-1"
+                  >
+                    <span>Read Article</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
             </article>
           ))}

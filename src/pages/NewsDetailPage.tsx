@@ -1,141 +1,245 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, Clock, ArrowLeft, Share2, Check } from 'lucide-react';
+import { Calendar, ArrowLeft, User, Newspaper } from 'lucide-react';
 import { NewsPost } from '../types';
 import { newsService } from '../services/api';
+import { ShareButton } from '../components/common/ShareButton';
 
 const NEWS_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80';
+
+/** Định dạng ngày đăng sang chuẩn tiếng Việt: "24 Tháng 10, 2026" */
+const formatVietnameseDate = (raw?: string): string => {
+  if (!raw) return '';
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  const day = String(parsed.getDate()).padStart(2, '0');
+  const month = parsed.getMonth() + 1;
+  const year = parsed.getFullYear();
+  return `${day} Tháng ${month}, ${year}`;
+};
 
 export const NewsDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [article, setArticle] = useState<NewsPost | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      newsService.getNewsById(id).then((data) => {
-        setArticle(data);
+    if (!id) return;
+    setLoading(true);
+    newsService
+      .getNewsById(id)
+      .then((data) => {
+        setArticle(data && data.title ? data : null);
+      })
+      .catch(() => {
+        setArticle(null);
+      })
+      .finally(() => {
         setLoading(false);
       });
-    }
   }, [id]);
-
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0B0F19] text-white py-20 text-center text-slate-500">
-        Loading article...
+      <div className="min-h-screen bg-[#0B0F19] text-white py-16">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-6 animate-pulse">
+          <div className="flex justify-between items-center">
+            <div className="h-9 w-36 bg-slate-800/80 rounded-xl" />
+            <div className="h-9 w-24 bg-slate-800/80 rounded-xl" />
+          </div>
+          <div className="h-6 w-28 bg-slate-800/80 rounded-full" />
+          <div className="h-10 w-5/6 bg-slate-800/80 rounded-xl" />
+          <div className="h-14 w-full bg-slate-800/60 rounded-2xl" />
+          <div className="aspect-video w-full bg-slate-800/70 rounded-3xl" />
+          <div className="space-y-3 pt-4">
+            <div className="h-4 w-full bg-slate-800/60 rounded" />
+            <div className="h-4 w-11/12 bg-slate-800/60 rounded" />
+            <div className="h-4 w-4/5 bg-slate-800/60 rounded" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!article) {
     return (
-      <div className="min-h-screen bg-[#0B0F19] text-white py-20 text-center space-y-4">
-        <h2 className="text-xl font-bold">Article not found</h2>
-        <Link to="/news" className="text-orange-400 underline text-sm">Return to News Archive</Link>
+      <div className="min-h-screen bg-[#0B0F19] text-white py-24 px-4 flex flex-col items-center justify-center text-center space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-orange-400">
+          <Newspaper className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl sm:text-2xl font-heading font-black text-white">
+          Không tìm thấy bài viết
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-400 max-w-md">
+          Bài viết có thể đã bị xóa hoặc đường dẫn không chính xác.
+        </p>
+        <Link
+          to="/news"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-orange-400 hover:text-orange-300 transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Quay lại tất cả tin tức</span>
+        </Link>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[#0B0F19] text-white py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        
-        <Link
-          to="/news"
-          className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to All Articles</span>
-        </Link>
+  const shareUrl = `${window.location.origin}/news/${article.id}`;
+  const coverImage = (article.imageUrl || article.image || article.thumbnail || '').trim();
+  const formattedDate = formatVietnameseDate(
+    article.publishedAt || (article as unknown as { createdAt?: string }).createdAt
+  );
+  const authorInitial = (article.authorName || '').trim().charAt(0).toUpperCase();
+  const paragraphs = (article.content || '')
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
-        <article className="bg-[#161F30] rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
-          
-          <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 p-8 sm:p-12 text-white space-y-5 border-b border-slate-800">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="px-3 py-1 bg-red-600 text-white font-black text-xs rounded-lg uppercase tracking-wider">
+  return (
+    <div className="min-h-screen bg-[#0B0F19] text-white py-10 sm:py-14">
+      <article className="max-w-3xl mx-auto px-4 sm:px-6 space-y-8 sm:space-y-10">
+        {/* 1. BREADCRUMB & HEADER NAVIGATION */}
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            to="/news"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-700/60 hover:border-orange-500/50 text-xs font-bold text-slate-300 hover:text-orange-400 transition-all"
+          >
+            <ArrowLeft className="w-4 h-4 shrink-0" />
+            <span>Tất cả tin tức</span>
+          </Link>
+
+          <ShareButton
+            url={shareUrl}
+            title={article.title}
+            text={article.excerpt}
+          />
+        </div>
+
+        {/* 2. HERO SECTION & EDITORIAL TYPOGRAPHY */}
+        <header className="space-y-5">
+          {article.category && (
+            <div>
+              <span className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/40 shadow-sm shadow-orange-500/10">
                 {article.category}
               </span>
-              <span className="text-xs text-slate-300 flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-orange-400" />
-                <span>{article.publishedAt}</span>
-              </span>
-              <span className="text-slate-500">·</span>
-              <span className="text-xs text-slate-300 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-orange-400" />
-                <span>{article.readTimeMinutes} min read</span>
-              </span>
             </div>
+          )}
 
-            <h1 className="text-2xl sm:text-4xl font-black font-heading text-white leading-tight">
-              {article.title}
-            </h1>
+          <h1 className="font-heading text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+            {article.title}
+          </h1>
 
-            <div className="flex items-center justify-between border-t border-white/10 pt-4 text-xs text-slate-300">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-red-700 flex items-center justify-center font-bold text-white shadow">
-                  {article.authorName[0]}
-                </div>
-                <div>
-                  <span className="font-bold text-white block">{article.authorName}</span>
-                  <span className="text-slate-400 text-[11px]">{article.authorRole}</span>
-                </div>
+          {/* Author & Published Date Meta Bar */}
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-4 border-y border-slate-800/80 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center font-heading font-black text-sm text-white shadow-md shrink-0">
+                {authorInitial ? authorInitial : <User className="w-4 h-4" />}
               </div>
-
-              <button
-                onClick={handleShare}
-                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Link Copied' : 'Share Story'}</span>
-              </button>
+              <div>
+                {article.authorName && (
+                  <span className="font-bold text-sm text-white block leading-snug">
+                    {article.authorName}
+                  </span>
+                )}
+                {article.authorRole && (
+                  <span className="text-xs text-slate-400 block">
+                    {article.authorRole}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="w-full h-64 sm:h-96 bg-slate-950 border-b border-slate-800 overflow-hidden">
+            {formattedDate && (
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400 font-medium bg-slate-900/80 px-3.5 py-1.5 rounded-xl border border-slate-800">
+                <Calendar className="w-4 h-4 text-orange-400 shrink-0" />
+                <time dateTime={article.publishedAt}>{formattedDate}</time>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* 3. FEATURED IMAGE PRESENTATION */}
+        {coverImage && (
+          <figure className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950">
             <img
-              src={article.imageUrl || article.image || article.thumbnail || NEWS_FALLBACK_IMAGE}
+              src={coverImage}
               alt={article.title}
               referrerPolicy="no-referrer"
               onError={(e) => {
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = NEWS_FALLBACK_IMAGE;
               }}
-              className="w-full h-full object-cover"
+              className="w-full aspect-video max-h-[480px] object-cover"
             />
-          </div>
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0B0F19]/60 via-transparent to-transparent" />
+          </figure>
+        )}
 
-          <div className="p-8 pb-4 text-slate-300 font-medium text-base border-b border-slate-800/80 bg-[#0E1524] leading-relaxed italic">
-            "{article.excerpt}"
-          </div>
-
-          <div className="p-8 sm:p-12 text-slate-200 leading-relaxed space-y-4 text-sm whitespace-pre-line font-normal">
-            {article.content}
-          </div>
-
-          <div className="p-8 bg-[#0E1524] border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-            <div>
-              Published by DVA Volleyball Club Communications & Coaching Staff.
+        {/* 4. EDITORIAL BODY READING EXPERIENCE */}
+        <div className="space-y-6">
+          {article.excerpt && article.excerpt.trim() !== article.content.trim() && (
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/80 border-l-4 border-orange-500 text-slate-200 font-medium text-base sm:text-lg leading-relaxed">
+              {article.excerpt}
             </div>
+          )}
+
+          <div className="space-y-5 text-slate-300 text-base sm:text-lg leading-relaxed sm:leading-8 font-normal">
+            {paragraphs.length > 0 ? (
+              paragraphs.map((paragraph, idx) => (
+                <p key={idx} className="whitespace-pre-line">
+                  {paragraph}
+                </p>
+              ))
+            ) : (
+              <p className="whitespace-pre-line">{article.content}</p>
+            )}
+          </div>
+        </div>
+
+        {/* 5. ARTICLE FOOTER & CONTINUOUS SHARE BAR */}
+        <footer className="pt-8 border-t border-slate-800 space-y-6">
+          <div className="p-5 sm:p-6 rounded-2xl bg-[#111827] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-orange-500/20 to-red-600/20 border border-orange-500/40 flex items-center justify-center font-heading font-black text-orange-400 shrink-0">
+                {authorInitial ? authorInitial : <User className="w-5 h-5" />}
+              </div>
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Tác giả bài viết
+                </span>
+                <p className="font-bold text-white text-sm sm:text-base">
+                  {article.authorName || 'Ban Biên Tập DVA Volleyball'}
+                </p>
+                {article.authorRole && (
+                  <p className="text-xs text-slate-400">{article.authorRole}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 self-start sm:self-center">
+              <span className="text-xs text-slate-400 hidden md:inline">
+                Chia sẻ bài viết này:
+              </span>
+              <ShareButton
+                url={shareUrl}
+                title={article.title}
+                text={article.excerpt}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
             <Link
-              to="/services/court-booking"
-              className="font-bold text-orange-400 hover:underline"
+              to="/news"
+              className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-orange-400 hover:text-orange-300 transition-colors"
             >
-              Experience the tournament Taraflex courts →
+              <ArrowLeft className="w-4 h-4" />
+              <span>Xem các tin tức khác</span>
             </Link>
           </div>
-
-        </article>
-
-      </div>
+        </footer>
+      </article>
     </div>
   );
 };

@@ -1,24 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
-  Award, 
   Calendar, 
   Users, 
-  Clock, 
   CheckCircle2, 
   Check, 
-  UserCheck, 
-  Send,
   X,
   QrCode,
   Copy,
   ShieldCheck,
   Phone,
-  AlertCircle,
-  Sparkles,
-  ChevronRight
+  ChevronRight,
+  Eye
 } from 'lucide-react';
 import { TrainingCourse, CoachProfile } from '../types';
 import { trainingService, coachService, googleScriptSyncService } from '../services/api';
+import { CourseDetailModal } from '../components/training/CourseDetailModal';
 
 /** Đơn vị học phí: ưu tiên `priceUnit` do admin nhập; nếu trống thì suy ra gói năm. */
 const getPriceUnitLabel = (course: TrainingCourse): string => {
@@ -99,9 +96,11 @@ export const formatTrainingTransferContent = (
 };
 
 export const TrainingPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [courses, setCourses] = useState<TrainingCourse[]>([]);
   const [coaches, setCoaches] = useState<CoachProfile[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [detailCourse, setDetailCourse] = useState<TrainingCourse | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<TrainingCourse | null>(null);
   
   // Checkout modal states (Multi-step VietQR payment flow)
@@ -180,6 +179,44 @@ export const TrainingPage: React.FC = () => {
         setIsLoading(false);
       });
   }, []);
+
+  // Deep Link: Tự động mở CourseDetailModal khi URL có ?courseId=..., hoặc dọn sạch URL nếu ID không tồn tại
+  useEffect(() => {
+    if (isLoading) return;
+    const targetCourseId = searchParams.get('courseId');
+    if (!targetCourseId) {
+      setDetailCourse(null);
+      return;
+    }
+
+    const matchedCourse = courses.find((c) => c.id === targetCourseId);
+    if (matchedCourse) {
+      setDetailCourse(matchedCourse);
+    } else {
+      setDetailCourse(null);
+      setSearchParams({}, { replace: true });
+    }
+  }, [isLoading, courses, searchParams, setSearchParams]);
+
+  const handleOpenDetail = (course: TrainingCourse) => {
+    setDetailCourse(course);
+    setSearchParams({ courseId: course.id }, { replace: true });
+  };
+
+  const handleCloseDetail = () => {
+    setDetailCourse(null);
+    if (searchParams.has('courseId')) {
+      setSearchParams({}, { replace: true });
+    }
+  };
+
+  const handleEnrollFromDetail = (course: TrainingCourse) => {
+    setDetailCourse(null);
+    if (searchParams.has('courseId')) {
+      setSearchParams({}, { replace: true });
+    }
+    handleOpenRegister(course);
+  };
 
   const handleOpenRegister = (course: TrainingCourse) => {
     setSelectedCourse(course);
@@ -457,37 +494,50 @@ export const TrainingPage: React.FC = () => {
 
                     </div>
 
-                    {/* Footer: Price + Register Button */}
-                    <div className="pt-6 mt-6 border-t border-slate-800">
-                      <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                        <span>TUITION FEE:</span>
-                        {course.maxSlots > 0 && (
-                          <span className="text-amber-500/90 font-medium normal-case tracking-normal">
-                            Max {course.maxSlots} spots
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-baseline gap-1 whitespace-nowrap">
-                            <span className="font-heading font-black text-xl sm:text-2xl text-amber-400 tracking-tight font-mono">
-                              {new Intl.NumberFormat('vi-VN').format(course.price)}
+                    {/* Footer: Hàng trên hiển thị Giá tiền rõ ràng + Hàng dưới gồm 2 nút bấm tách biệt */}
+                    <div className="pt-5 mt-6 border-t border-slate-800 space-y-4">
+                      <div>
+                        <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          <span>TUITION FEE:</span>
+                          {course.maxSlots > 0 && (
+                            <span className="text-amber-500/90 font-medium normal-case tracking-normal">
+                              Max {course.maxSlots} spots
                             </span>
-                            <span className="text-sm font-bold text-amber-400">đ</span>
-                          </div>
-                          <span className="text-[11px] text-slate-400 font-medium truncate">
+                          )}
+                        </div>
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className="font-heading font-black text-2xl sm:text-3xl text-amber-400 tracking-tight font-mono">
+                            {new Intl.NumberFormat('vi-VN').format(course.price)}
+                          </span>
+                          <span className="text-sm font-bold text-amber-400">đ</span>
+                          <span className="text-xs text-slate-400 font-medium">
                             {getPriceUnitLabel(course)}
-                            {course.duration ? ` • ${course.duration}` : ''}
                           </span>
                         </div>
+                        {course.duration && (
+                          <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                            {course.duration}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(course)}
+                          className="w-full py-2.5 px-3 rounded-xl font-bold text-xs text-slate-200 hover:text-white bg-[#161F30] hover:bg-slate-800 border border-slate-700 hover:border-slate-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span>Xem chi tiết</span>
+                        </button>
 
                         <button
                           type="button"
                           onClick={() => handleOpenRegister(course)}
-                          className="px-5 py-2.5 rounded-full font-black text-xs text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 shadow-lg shadow-orange-950/40 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                          className="w-full py-2.5 px-3 rounded-xl font-black text-xs text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 shadow-lg shadow-orange-950/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                         >
-                          <span>Enroll Now</span>
-                          <Check className="w-3.5 h-3.5" />
+                          <span>Đăng ký ngay</span>
+                          <Check className="w-3.5 h-3.5 shrink-0" />
                         </button>
                       </div>
                     </div>
@@ -629,6 +679,15 @@ export const TrainingPage: React.FC = () => {
         </div>
 
       </div>
+
+      {/* COURSE DETAIL MODAL (Deep Link & Independent Package View) */}
+      <CourseDetailModal
+        course={detailCourse}
+        isOpen={Boolean(detailCourse)}
+        onClose={handleCloseDetail}
+        onEnroll={handleEnrollFromDetail}
+        getPriceUnitLabel={getPriceUnitLabel}
+      />
 
       {/* REGISTRATION & VIETQR PAYMENT MODAL (No Login Required) */}
       {isModalOpen && selectedCourse && (
