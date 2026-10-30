@@ -168,6 +168,7 @@ const PUBLIC_RULES: Rule[] = [
   rule('POST', /^\/auth\/forgot-password\/?$/),
   rule('POST', /^\/auth\/verify-otp\/?$/),
   rule('POST', /^\/bookings\/?$/),
+  rule('POST', /^\/courts\/book\/?$/),
   rule('POST', /^\/bookings\/[^/]+\/confirm-payment\/?$/),
   rule('POST', /^\/training\/register\/?$/),
   rule('POST', /^\/members\/(register|apply)\/?$/),

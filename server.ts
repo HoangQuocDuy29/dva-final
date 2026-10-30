@@ -239,16 +239,17 @@ async function getGoogleScriptUrl(): Promise<string> {
 async function forwardToGoogleSheetsWebhook(
   sheetName: string,
   payloadOrData: Record<string, any>
-) {
+): Promise<{ success: boolean; status?: number; error?: string }> {
   try {
     const url = await getGoogleScriptUrl();
     if (!url) {
-      return;
+      console.warn('[Google Sheets Remote Webhook] Google Script URL is not configured.');
+      return { success: false, error: 'Google Script URL is not configured' };
     }
     // Server-side fetch of an admin-supplied URL: restrict to Google Apps Script (SSRF protection)
     if (!isAllowedScriptUrl(url)) {
       console.warn('[Google Sheets Remote Webhook] Blocked non-Google Apps Script URL');
-      return;
+      return { success: false, error: 'Blocked non-Google Apps Script URL (SSRF protection)' };
     }
     const resolvedSheetName =
       typeof payloadOrData?.sheetName === 'string' && payloadOrData.sheetName.trim()
@@ -275,26 +276,39 @@ async function forwardToGoogleSheetsWebhook(
         }),
         signal: controller.signal,
       });
+      if (!response.ok) {
+        const errorText = `Google Apps Script returned HTTP ${response.status} ${response.statusText}`;
+        console.warn(`[Google Sheets Remote Webhook] Failed: ${errorText}`);
+        return { success: false, status: response.status, error: errorText };
+      }
       console.log(`[Google Sheets Remote Webhook] Forwarded to sheet: "${resolvedSheetName}", status: ${response.status}`);
+      return { success: true, status: response.status };
     } finally {
       clearTimeout(timeout);
     }
   } catch (err: any) {
-    console.warn(`[Google Sheets Remote Webhook Notice] ${err?.message || err}`);
+    const errMsg = err?.name === 'AbortError' ? 'Request timed out after 10 seconds' : (err?.message || String(err));
+    console.warn(`[Google Sheets Remote Webhook Notice] ${errMsg}`);
+    return { success: false, error: errMsg };
   }
 }
 
 async function logGoogleSheetsSync(
   tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations',
-  rowData: Record<string, any>
+  rowData: Record<string, any>,
+  status: 'SUCCESS' | 'FAILED' = 'SUCCESS',
+  errorMessage?: string
 ) {
   try {
+    const rowPayload = errorMessage
+      ? { ...rowData, _errorMessage: errorMessage }
+      : rowData;
     await prisma.googleSheetsSyncLog.create({
       data: {
         tabName,
         action: 'APPEND_ROW',
-        rowData: rowData as any,
-        status: 'SUCCESS',
+        rowData: rowPayload as any,
+        status,
       },
     });
   } catch (err) {
@@ -306,6 +320,7 @@ async function logGoogleSheetsSync(
  * Fire-and-forget Google Sheets webhook dispatcher.
  * Runs asynchronously in the background with full try/catch isolation so slow
  * Google Apps Script responses or network errors never block or fail client API requests.
+ * Records SUCCESS only after 2xx response, or FAILED if remote call fails.
  */
 function dispatchGoogleSheetsWebhookAsync(
   tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations',
@@ -314,10 +329,19 @@ function dispatchGoogleSheetsWebhookAsync(
 ): void {
   void (async () => {
     try {
-      await logGoogleSheetsSync(tabName, rowData);
-      await forwardToGoogleSheetsWebhook(sheetName, rowData);
+      const result = await forwardToGoogleSheetsWebhook(sheetName, rowData);
+      if (result.success) {
+        await logGoogleSheetsSync(tabName, rowData, 'SUCCESS');
+      } else {
+        await logGoogleSheetsSync(tabName, rowData, 'FAILED', result.error);
+      }
     } catch (err: any) {
       console.warn(`[Google Sheets Webhook Fire-and-Forget] Error syncing to ${sheetName}:`, err?.message || err);
+      try {
+        await logGoogleSheetsSync(tabName, rowData, 'FAILED', err?.message || String(err));
+      } catch {
+        // ignore
+      }
     }
   })();
 }
@@ -336,9 +360,15 @@ const loginLimiter = rateLimit({
   message: 'Too many login attempts. Please try again in 15 minutes.',
 });
 const publicWriteLimiter = rateLimit({ windowMs: 10 * 60_000, max: 30, message: 'Too many submissions. Please slow down.' });
+const vietQrLimiter = rateLimit({
+  windowMs: 10 * 60_000,
+  max: 60,
+  message: 'Too many QR generation requests. Please slow down.',
+});
 app.use(['/api/bookings', '/api/courts/book'], (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
 app.use('/api/training/register', publicWriteLimiter);
 app.use(['/api/members/register', '/api/members/apply'], publicWriteLimiter);
+app.use('/api/vietqr/generate', (req, res, next) => (req.method === 'POST' ? vietQrLimiter(req, res, next) : next()));
 
 // 1. Auth, Users & RBAC
 app.post('/api/auth/login', loginLimiter, ah(async (req, res) => {
@@ -2416,15 +2446,23 @@ app.post('/api/sheets/sync', ah(async (req, res) => {
       return res.status(400).json({ error: 'data must be an object' });
     }
 
+    const result = await forwardToGoogleSheetsWebhook(targetTab, targetData);
     if (
       targetTab === 'Member_Registrations' ||
       targetTab === 'Court_Bookings' ||
       targetTab === 'Training_Registrations'
     ) {
-      await logGoogleSheetsSync(targetTab, targetData);
+      await logGoogleSheetsSync(
+        targetTab,
+        targetData,
+        result.success ? 'SUCCESS' : 'FAILED',
+        result.error
+      );
     }
 
-    await forwardToGoogleSheetsWebhook(targetTab, targetData);
+    if (!result.success) {
+      return res.status(502).json({ success: false, error: result.error || 'Failed to dispatch to Google Sheets' });
+    }
     return res.json({ success: true, message: `Dispatched to ${targetTab}` });
   } catch (error) {
     console.error('[API ERROR] POST /api/sheets/sync:', error);
@@ -2518,7 +2556,7 @@ app.post('/api/admin/send-guest-session-email', ah(async (req, res) => {
 }));
 
 // 11. VietQR Generation API
-app.post('/api/vietqr/generate', (req, res) => {
+app.post('/api/vietqr/generate', vietQrLimiter, (req, res) => {
   const { amount, bookingCode, description } = sanitize(
     req.body,
     { amount: N(1000, 1_000_000_000), bookingCode: S(60), description: S(200) },
