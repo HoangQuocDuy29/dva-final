@@ -978,11 +978,13 @@ async function hasBookingConflict(
   start: string,
   end: string,
   subCourt?: string | null,
-  ignoreId?: string
+  ignoreId?: string,
+  tx?: any
 ): Promise<boolean> {
   const now = new Date();
+  const dbClient = tx?.booking ? tx : prisma;
   try {
-    const activeBookings = await prisma.booking.findMany({
+    const activeBookings = await dbClient.booking.findMany({
       where: {
         courtId,
         bookingDate: date,
@@ -1000,7 +1002,7 @@ async function hasBookingConflict(
       },
       select: { startTime: true, endTime: true, paymentStatus: true, holdExpiresAt: true, subCourt: true },
     });
-    return activeBookings.some((b) => {
+    return activeBookings.some((b: any) => {
       // If checking a specific sub-court (e.g. Sân A), bookings for a different sub-court (e.g. Sân B) do NOT conflict
       if (subCourt && b.subCourt && b.subCourt !== subCourt) {
         return false;
@@ -1031,14 +1033,16 @@ async function hasClosedSlotConflict(
   date: string,
   start: string,
   end: string,
-  subCourt?: string | null
+  subCourt?: string | null,
+  tx?: any
 ): Promise<boolean> {
+  const dbClient = tx?.closedSlot ? tx : prisma;
   try {
-    const slots = await prisma.closedSlot.findMany({
+    const slots = await dbClient.closedSlot.findMany({
       where: { courtId, date },
       select: { slotLabel: true, subCourt: true },
     });
-    return slots.some((cs) => {
+    return slots.some((cs: any) => {
       // If closed slot specifies a subCourt, it only affects that specific sub-court
       if (subCourt && cs.subCourt && cs.subCourt !== subCourt) {
         return false;
@@ -1179,20 +1183,6 @@ app.post(['/api/bookings', '/api/courts/book'], ah(async (req, res) => {
     return res.status(400).json({ error: 'The selected time is not an available session for this court and date.' });
   }
 
-  // 2. Double Booking Prevention: check PostgreSQL for PAID, CONFIRMED, or active HOLDING/PENDING on this subCourt
-  if (await hasBookingConflict(courtId, bookingDate, startTime, endTime, resolvedSubCourt)) {
-    return res.status(409).json({
-      success: false,
-      message: `Ca sân ${resolvedSubCourt ? `(${resolvedSubCourt}) ` : ''}này vừa có người giữ chỗ hoặc đã được đặt!`,
-    });
-  }
-  if (await hasClosedSlotConflict(courtId, bookingDate, startTime, endTime, resolvedSubCourt)) {
-    return res.status(409).json({
-      success: false,
-      message: `Ca sân ${resolvedSubCourt ? `(${resolvedSubCourt}) ` : ''}này hiện đang đóng hoặc bảo trì!`,
-    });
-  }
-
   // Server-side pricing calculation: NEVER trust courtPrice, addonsPrice, or totalPrice from req.body
   const hourlyRate = Number(targetCourt.hourlyRate);
   const totalHours = scheduleSlot?.durationHours ?? (toMinutes(endTime) - toMinutes(startTime)) / 60;
@@ -1211,42 +1201,92 @@ app.post(['/api/bookings', '/api/courts/book'], ah(async (req, res) => {
 
   const subTag = resolvedSubCourt ? (resolvedSubCourt.toUpperCase().includes('B') ? 'B' : 'A') : '';
   const courtTag = courtId === 'court-btl' ? (subTag ? `BTL-${subTag}` : 'BTL') : courtId === 'court-thecong' ? 'TC' : 'MD';
-  let bookingCode = '';
-  do {
-    bookingCode = `DVA-${courtTag}-${dateNum}-${crypto.randomInt(1000, 10000)}`;
-  } while (await prisma.booking.findUnique({ where: { bookingCode } }));
-
   const subMemo = resolvedSubCourt ? ` ${resolvedSubCourt.replace(/\s+/g, ' ').toUpperCase()}` : '';
-  const transferContent = `${bookingCode} ${courtShort}${subMemo} ${slotClean}`.toUpperCase();
 
-  // 3. Assign 15-minute hold expiration and HOLDING (PENDING) status
+  // 15-minute hold expiration and HOLDING (PENDING) status
   const paymentStatus = 'PENDING';
   const holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-  const createdBooking = await prisma.booking.create({
-    data: {
-      id: `b-${crypto.randomUUID()}`,
-      bookingCode,
-      courtId,
-      courtName: targetCourt.name,
-      subCourt: resolvedSubCourt ?? null,
-      customerName: data.customerName,
-      customerEmail: data.customerEmail,
-      customerPhone: data.customerPhone,
-      bookingDate,
-      startTime,
-      endTime,
-      totalHours,
-      courtPrice,
-      addons: addons as any,
-      addonsPrice,
-      totalPrice,
-      paymentStatus,
-      transferContent,
-      notes: data.notes ?? null,
-      holdExpiresAt,
-    },
-  });
+  // 2. Chống Race Condition (Double Booking) qua PostgreSQL Transaction + Advisory Lock
+  let createdBooking: any;
+  try {
+    createdBooking = await prisma.$transaction(async (tx) => {
+      // Khóa tuần tự hóa mức logic cho cặp (courtId + bookingDate + subCourt) bằng PostgreSQL Advisory Lock
+      try {
+        const lockKey = `booking:${courtId}:${bookingDate}:${resolvedSubCourt || ''}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+      } catch (lockErr) {
+        console.warn('[Booking Advisory Lock Notice]:', lockErr);
+      }
+
+      // Kiểm tra xung đột đặt chỗ trực tiếp bên trong Transaction
+      const isBookingConflicted = await hasBookingConflict(
+        courtId,
+        bookingDate,
+        startTime,
+        endTime,
+        resolvedSubCourt,
+        undefined,
+        tx
+      );
+      if (isBookingConflicted) {
+        throw new HttpError(409, 'Khung giờ này vừa có người đặt trước, vui lòng chọn khung giờ khác.');
+      }
+
+      const isClosedConflicted = await hasClosedSlotConflict(
+        courtId,
+        bookingDate,
+        startTime,
+        endTime,
+        resolvedSubCourt,
+        tx
+      );
+      if (isClosedConflicted) {
+        throw new HttpError(409, `Ca sân ${resolvedSubCourt ? `(${resolvedSubCourt}) ` : ''}này hiện đang đóng hoặc bảo trì!`);
+      }
+
+      let bookingCode = '';
+      do {
+        bookingCode = `DVA-${courtTag}-${dateNum}-${crypto.randomInt(1000, 10000)}`;
+      } while (await tx.booking.findUnique({ where: { bookingCode } }));
+
+      const transferContent = `${bookingCode} ${courtShort}${subMemo} ${slotClean}`.toUpperCase();
+
+      return await tx.booking.create({
+        data: {
+          id: `b-${crypto.randomUUID()}`,
+          bookingCode,
+          courtId,
+          courtName: targetCourt.name,
+          subCourt: resolvedSubCourt ?? null,
+          customerName: data.customerName,
+          customerEmail: data.customerEmail,
+          customerPhone: data.customerPhone,
+          bookingDate,
+          startTime,
+          endTime,
+          totalHours,
+          courtPrice,
+          addons: addons as any,
+          addonsPrice,
+          totalPrice,
+          paymentStatus,
+          transferContent,
+          notes: data.notes ?? null,
+          holdExpiresAt,
+        },
+      });
+    });
+  } catch (err: any) {
+    if (err instanceof HttpError) {
+      return res.status(err.status).json({
+        success: false,
+        error: err.message,
+        message: err.message,
+      });
+    }
+    throw err;
+  }
 
   const dto = toBookingDto(createdBooking);
 
@@ -2521,19 +2561,26 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
   ).trim();
   const providedToken = headerToken || altToken;
 
-  if (expectedApiKey) {
-    const expectedBuf = Buffer.from(expectedApiKey);
-    const providedBuf = Buffer.from(providedToken);
-    const isTokenValid =
-      expectedBuf.length === providedBuf.length &&
-      crypto.timingSafeEqual(expectedBuf, providedBuf);
+  // Fail-Closed: Bắt buộc webhook secret key phải được cấu hình trên server
+  if (!expectedApiKey) {
+    console.error('[Payment Webhook Security Error] PAYMENT_WEBHOOK_API_KEY is not configured on the server.');
+    return res.status(503).json({
+      success: false,
+      message: 'Webhook endpoint not configured',
+    });
+  }
 
-    if (!providedToken || !isTokenValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Unauthorized webhook token',
-      });
-    }
+  const expectedBuf = Buffer.from(expectedApiKey);
+  const providedBuf = Buffer.from(providedToken);
+  const isTokenValid =
+    expectedBuf.length === providedBuf.length &&
+    crypto.timingSafeEqual(expectedBuf, providedBuf);
+
+  if (!providedToken || !isTokenValid) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized webhook token',
+    });
   }
 
   // Hỗ trợ cả payload trực tiếp { content, amount, transactionDate } và định dạng chuẩn của SePay / Casso
@@ -2639,22 +2686,20 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
     },
   });
 
-  // Gọi hàm sendBookingConfirmationEmail (đã bọc try/catch bất đồng bộ bên trong và tại nơi gọi)
-  try {
-    await sendBookingConfirmationEmail(
-      {
-        ...updatedBooking,
-        timeSlot: `${updatedBooking.startTime} - ${updatedBooking.endTime}`,
-      },
-      booking.court
-    );
-  } catch (mailErr: any) {
-    console.error('[Webhook Mailer Warning]', mailErr?.message || mailErr);
-  }
+  // Gửi email xác nhận đặt sân dạng bất đồng bộ an toàn (fire-and-forget, không await làm treo response phía ngân hàng)
+  sendBookingConfirmationEmail(
+    {
+      ...updatedBooking,
+      timeSlot: `${updatedBooking.startTime} - ${updatedBooking.endTime}`,
+    },
+    booking.court
+  ).catch((mailErr: any) => {
+    console.error('[Webhook Mailer Fire-and-Forget Error]:', mailErr?.message || mailErr);
+  });
 
   return res.status(200).json({
     success: true,
-    message: 'Payment processed and email sent',
+    message: 'Payment processed and email queued',
   });
 }));
 

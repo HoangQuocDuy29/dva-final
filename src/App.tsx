@@ -1,21 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { AuthModal } from './components/auth/AuthModal';
 import { GoogleSheetsViewerModal } from './components/common/GoogleSheetsViewerModal';
 import { HomePage } from './pages/HomePage';
-import { PlayersPage } from './pages/PlayersPage';
-import { InformationPage } from './pages/InformationPage';
-import { NewsPage } from './pages/NewsPage';
-import { NewsDetailPage } from './pages/NewsDetailPage';
-import { CourtBookingPage } from './pages/CourtBookingPage';
-import { TrainingPage } from './pages/TrainingPage';
-import { MemberRegisterPage } from './pages/MemberRegisterPage';
-import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { authService } from './services/api';
 import { User } from './types';
 import { BackToTop } from './components/common/BackToTop';
+
+// Code Splitting / Lazy Loading cho các trang thứ cấp và module quản trị
+const PlayersPage = lazy(() => import('./pages/PlayersPage').then((m) => ({ default: m.PlayersPage })));
+const InformationPage = lazy(() => import('./pages/InformationPage').then((m) => ({ default: m.InformationPage })));
+const NewsPage = lazy(() => import('./pages/NewsPage').then((m) => ({ default: m.NewsPage })));
+const NewsDetailPage = lazy(() => import('./pages/NewsDetailPage').then((m) => ({ default: m.NewsDetailPage })));
+const CourtBookingPage = lazy(() => import('./pages/CourtBookingPage').then((m) => ({ default: m.CourtBookingPage })));
+const TrainingPage = lazy(() => import('./pages/TrainingPage').then((m) => ({ default: m.TrainingPage })));
+const MemberRegisterPage = lazy(() => import('./pages/MemberRegisterPage').then((m) => ({ default: m.MemberRegisterPage })));
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
+
+// Fallback loader chuẩn phong cách Dark Theme DVA (tránh giật trắng màn hình khi tải trang)
+const PageLoadingFallback: React.FC = () => (
+  <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-[#0B0F19] text-white">
+    <div className="relative flex items-center justify-center">
+      <div className="w-12 h-12 rounded-full border-2 border-slate-800 border-t-orange-500 animate-spin" />
+      <div className="absolute w-6 h-6 rounded-full bg-orange-500/20 animate-pulse" />
+    </div>
+    <div className="flex flex-col items-center gap-1">
+      <p className="text-sm font-semibold tracking-wide text-slate-300">Đang tải trang...</p>
+      <p className="text-xs text-slate-500 font-medium">DVA Sports Club</p>
+    </div>
+  </div>
+);
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -63,45 +79,47 @@ export default function App() {
 
         {/* Main Routes */}
         <main className="flex-1 pt-20">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            
-            {/* Module 2: Players */}
-            <Route path="/players" element={<PlayersPage currentUser={currentUser} />} />
-            <Route path="/players/:levelParam" element={<PlayersPage currentUser={currentUser} />} />
-            <Route path="/senior" element={<Navigate to="/players/senior" replace />} />
-            <Route path="/junior" element={<Navigate to="/players/junior" replace />} />
-            <Route path="/youth" element={<Navigate to="/players/youth" replace />} />
-            <Route path="/kid" element={<Navigate to="/players/youth" replace />} />
+          <Suspense fallback={<PageLoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              
+              {/* Module 2: Players */}
+              <Route path="/players" element={<PlayersPage currentUser={currentUser} />} />
+              <Route path="/players/:levelParam" element={<PlayersPage currentUser={currentUser} />} />
+              <Route path="/senior" element={<Navigate to="/players/senior" replace />} />
+              <Route path="/junior" element={<Navigate to="/players/junior" replace />} />
+              <Route path="/youth" element={<Navigate to="/players/youth" replace />} />
+              <Route path="/kid" element={<Navigate to="/players/youth" replace />} />
 
-            {/* Module 3: Information */}
-            <Route path="/information" element={<InformationPage />} />
+              {/* Module 3: Information */}
+              <Route path="/information" element={<InformationPage />} />
 
-            {/* Module 4: News */}
-            <Route path="/news" element={<NewsPage currentUser={currentUser} />} />
-            <Route path="/news/:id" element={<NewsDetailPage />} />
+              {/* Module 4: News */}
+              <Route path="/news" element={<NewsPage currentUser={currentUser} />} />
+              <Route path="/news/:id" element={<NewsDetailPage />} />
 
-            {/* Module 5: Services */}
-            <Route path="/services/court-booking" element={<CourtBookingPage />} />
-            <Route path="/services/training" element={<TrainingPage />} />
+              {/* Module 5: Services */}
+              <Route path="/services/court-booking" element={<CourtBookingPage />} />
+              <Route path="/services/training" element={<TrainingPage />} />
 
-            {/* Module 6: Member Registration */}
-            <Route path="/register" element={<MemberRegisterPage />} />
+              {/* Module 6: Member Registration */}
+              <Route path="/register" element={<MemberRegisterPage />} />
 
-            {/* Module 8: Admin Dedicated Dashboard */}
-            <Route
-              path="/admin/dashboard"
-              element={
-                <AdminDashboardPage
-                  currentUser={currentUser}
-                  onOpenSheets={() => setSheetsModalOpen(true)}
-                />
-              }
-            />
+              {/* Module 8: Admin Dedicated Dashboard */}
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <AdminDashboardPage
+                    currentUser={currentUser}
+                    onOpenSheets={() => setSheetsModalOpen(true)}
+                  />
+                }
+              />
 
-            {/* Catch-all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              {/* Catch-all */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </main>
 
         {/* Professional Footer with Embedded Arena Map */}

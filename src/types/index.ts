@@ -27,13 +27,6 @@ export const POSITION_LABELS: Record<VolleyballPosition, { code: VolleyballPosit
 };
 
 export type { CountryOption } from '../data/countries';
-export {
-  ALL_COUNTRIES,
-  PLAYER_COUNTRIES,
-  getCountryByCode,
-  searchCountries,
-  formatCountryLabel,
-} from '../data/countries';
 
 export function countryCodeToFlagEmoji(countryCode?: string): string {
   if (!countryCode || typeof countryCode !== 'string') return '🇻🇳';

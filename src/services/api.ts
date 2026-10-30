@@ -16,7 +16,6 @@ import {
 } from '../types';
 import { 
   GUEST_USER,
-  INITIAL_USERS,
 } from '../data/mockData';
 import { getDefaultWeeklyScheduleForCourt, normalizeCourtWeeklySchedule } from '../shared/schedule';
 import { API_BASE_URL, getApiUrl } from '../config/api';
@@ -48,12 +47,6 @@ function deduplicatedPost<T>(endpoint: string, payload: unknown, fallbackData?: 
   inflightSubmissions.set(key, promise);
   return promise;
 }
-
-const FALLBACK_CREDENTIALS: Record<string, string> = {
-  'quocduyhoang42@gmail.com': 'dva@2025',
-  'admin.dva@gmail.com': 'dva@2025',
-  'player.hung@gmail.com': 'dva@123',
-};
 
 /** Error carrying the HTTP status and the server's human readable message. */
 export class ApiError extends Error {
@@ -156,28 +149,13 @@ export const authService = {
 
   async login(email: string, password: string): Promise<{ token: string; user: User }> {
     const normalizedEmail = email.trim().toLowerCase();
-    try {
-      const res = await request<{ token: string; user: User }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: normalizedEmail, password }),
-      });
-      localStorage.setItem(TOKEN_KEY, res.token);
-      this.setCurrentUser(res.user);
-      return res;
-    } catch (err) {
-      if (err instanceof ApiError && (err.status === 0 || err.status === 404 || err.status >= 500)) {
-        const expectedPassword = FALLBACK_CREDENTIALS[normalizedEmail];
-        const matchedUser = INITIAL_USERS.find((u) => u.email.toLowerCase() === normalizedEmail);
-        if (!matchedUser || !expectedPassword || password !== expectedPassword) {
-          throw new ApiError(401, 'Invalid email or password.');
-        }
-        const token = `dva-local-token-${Date.now()}`;
-        localStorage.setItem(TOKEN_KEY, token);
-        this.setCurrentUser(matchedUser);
-        return { token, user: matchedUser };
-      }
-      throw err;
-    }
+    const res = await request<{ token: string; user: User }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: normalizedEmail, password }),
+    });
+    localStorage.setItem(TOKEN_KEY, res.token);
+    this.setCurrentUser(res.user);
+    return res;
   },
 
   async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {

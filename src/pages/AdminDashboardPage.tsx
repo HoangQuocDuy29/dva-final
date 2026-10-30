@@ -57,10 +57,10 @@ import {
   WeeklySchedule,
   CourtWeeklySchedule,
   DAYS_OF_WEEK,
-  PLAYER_COUNTRIES,
   countryCodeToFlagEmoji,
   GuestSessionPayload
 } from '../types';
+import { PLAYER_COUNTRIES } from '../data/countries';
 import { 
   bookingService, 
   courtService,
