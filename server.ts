@@ -488,9 +488,15 @@ app.get('/api/players', ah(async (req, res) => {
       ];
     }
 
+    // Khớp composite index @@index([level, isCaptain(sort: Desc), jerseyNumber(sort: Asc)]):
+    // theo từng level (enum order: SENIOR -> JUNIOR -> YOUTH), Captain đứng đầu, rồi số áo tăng dần.
     const dbPlayers = await prisma.player.findMany({
       where,
-      orderBy: [{ level: 'asc' }, { jerseyNumber: 'asc' }],
+      orderBy: [
+        { level: 'asc' },
+        { isCaptain: 'desc' },
+        { jerseyNumber: 'asc' },
+      ],
     });
     return res.json(dbPlayers.map(toPlayerDto));
   } catch (error) {
@@ -516,6 +522,17 @@ app.get('/api/players', ah(async (req, res) => {
           String(p.jerseyNumber) === q
       );
     }
+    // Giữ cùng thứ tự với nhánh Prisma: level (SENIOR -> JUNIOR -> YOUTH) -> Captain đầu -> số áo tăng dần
+    const levelRank = (lvl: string) => {
+      const idx = LEVELS.indexOf(lvl as any);
+      return idx === -1 ? LEVELS.length : idx;
+    };
+    mapped.sort(
+      (a, b) =>
+        levelRank(a.level) - levelRank(b.level) ||
+        Number(Boolean(b.isCaptain)) - Number(Boolean(a.isCaptain)) ||
+        a.jerseyNumber - b.jerseyNumber
+    );
     return res.json(mapped);
   }
 }));

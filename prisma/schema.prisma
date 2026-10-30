@@ -118,6 +118,10 @@ model Player {
 
   @@index([level, position])
   @@index([jerseyNumber])
+  // Performance: [level =] -> [isCaptain DESC] -> [jerseyNumber ASC] (đội trưởng lên đầu theo từng đội hình)
+  @@index([level, isCaptain(sort: Desc), jerseyNumber(sort: Asc)])
+  // Performance: sắp xếp / tìm kiếm theo tên trong từng đội hình
+  @@index([level, fullName(sort: Asc)])
   @@map("players")
 }
 
@@ -169,6 +173,10 @@ model ClosedSlot {
   @@unique([courtId, date, slotLabel, subCourt])
   @@index([courtId, date])
   @@index([courtId, date, subCourt])
+  // Performance: xem toàn bộ ca đóng sân theo ngày (không bắt buộc courtId)
+  @@index([date, courtId])
+  // Performance: ca đóng sân gần nhất theo sân + ngày
+  @@index([courtId, date, createdAt(sort: Desc)])
   @@map("closed_slots")
 }
 
@@ -208,6 +216,19 @@ model Booking {
   @@index([courtId, bookingDate, paymentStatus])
   @@index([courtId, bookingDate, subCourt])
   @@index([paymentStatus, holdExpiresAt])
+  // Performance: lịch đặt sân theo sân + ngày, sort theo giờ bắt đầu (hasBookingConflict, CourtBookingPage)
+  @@index([courtId, bookingDate, startTime(sort: Asc)])
+  // Performance: lịch đặt theo ngày trên toàn hệ thống
+  @@index([bookingDate, startTime(sort: Asc)])
+  // Performance: GET /api/bookings (lọc sân + ngày, sort createdAt DESC)
+  @@index([courtId, bookingDate, createdAt(sort: Desc)])
+  // Performance: webhook đối soát thanh toán - đơn PENDING mới nhất
+  @@index([paymentStatus, createdAt(sort: Desc)])
+  // Performance: Admin Dashboard - 100 đơn mới nhất
+  @@index([createdAt(sort: Desc)])
+  // Performance: tra cứu lịch sử đặt sân theo khách hàng
+  @@index([customerEmail])
+  @@index([customerPhone])
   @@map("bookings")
 }
 
@@ -286,6 +307,15 @@ model TrainingRegistration {
   updatedAt         DateTime           @updatedAt
 
   @@index([courseId, status])
+  // Performance: lọc khóa + trạng thái, sort ngày đăng ký DESC
+  @@index([courseId, status, createdAt(sort: Desc)])
+  // Performance: lọc trạng thái, danh sách mới nhất
+  @@index([status, createdAt(sort: Desc)])
+  // Performance: GET /api/training/registrations & Admin Dashboard (orderBy createdAt DESC)
+  @@index([createdAt(sort: Desc)])
+  // Performance: tra cứu học viên theo email / số điện thoại
+  @@index([email])
+  @@index([phone])
   @@map("training_registrations")
 }
 
@@ -313,6 +343,13 @@ model MemberApplication {
   updatedAt           DateTime           @updatedAt
 
   @@index([status, level])
+  // Performance: lọc trạng thái (+ đội hình), sort ngày nộp DESC
+  @@index([status, level, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  // Performance: GET member applications & Admin Dashboard (orderBy createdAt DESC)
+  @@index([createdAt(sort: Desc)])
+  // Performance: tra cứu hồ sơ theo gmail
+  @@index([gmail])
   @@map("member_applications")
 }
 
@@ -360,6 +397,12 @@ model GoogleSheetsSyncLog {
   status    String   @default("SUCCESS")
   timestamp DateTime @default(now())
 
-  @@index([tabName, timestamp])
+  // Performance: lịch sử đồng bộ mới nhất theo tab (thay thế index [tabName, timestamp] ASC cũ
+  // vì trùng tên mặc định `google_sheets_sync_logs_tabName_timestamp_idx`; B-tree DESC vẫn phục vụ được truy vấn ASC)
+  @@index([tabName, timestamp(sort: Desc)])
+  // Performance: tra cứu các lần đồng bộ FAILED gần nhất
+  @@index([status, timestamp(sort: Desc)])
+  // Performance: phân trang toàn bộ nhật ký
+  @@index([timestamp(sort: Desc)])
   @@map("google_sheets_sync_logs")
 }

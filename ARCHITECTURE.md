@@ -109,6 +109,25 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   3. `TuyenThanhVien`: Tiếp nhận đơn xin gia nhập câu lạc bộ, vị trí thi đấu, thông tin cá nhân.
   4. `LienHe`: Tiếp nhận thông tin phản hồi, yêu cầu hỗ trợ và liên hệ khẩn cấp từ khách hàng.
 
+### 3.5. Chiến lược Database Index & Quy trình Schema (`prisma/schema.prisma`)
+- **Quy trình áp dụng schema: `prisma db push`** (`npm run prisma:push`). Dự án **không có** thư mục `prisma/migrations`.
+  - ⚠️ **KHÔNG chạy `prisma migrate dev`** trên DB Render hiện tại: Prisma sẽ phát hiện drift và đề nghị reset → mất dữ liệu. Không dùng cờ `--accept-data-loss`.
+- **Quy tắc thứ tự cột composite index:** `[Cột lọc =]` → `[Cột lọc khoảng / Range]` → `[Cột ORDER BY]`. Khi viết query mới, `where` + `orderBy` phải khớp tiền tố (prefix) của một index sẵn có.
+- **Bản đồ Query ↔ Index chính:**
+
+| Query (vị trí) | `where` / `orderBy` | Index phục vụ |
+| :--- | :--- | :--- |
+| `GET /api/players` | `level?` → `level ASC, isCaptain DESC, jerseyNumber ASC` | `Player[level, isCaptain DESC, jerseyNumber ASC]` |
+| `GET /api/bookings` | `courtId, bookingDate` → `createdAt DESC` | `Booking[courtId, bookingDate, createdAt DESC]` |
+| `hasBookingConflict()` | `courtId, bookingDate, paymentStatus` | `Booking[courtId, bookingDate, paymentStatus]` / `[.., startTime]` |
+| `releaseExpiredHolds()` | `paymentStatus='PENDING', holdExpiresAt <= now` | `Booking[paymentStatus, holdExpiresAt]` |
+| Webhook thanh toán | `paymentStatus='PENDING'` → `createdAt DESC` | `Booking[paymentStatus, createdAt DESC]` |
+| `hasClosedSlotConflict()` | `courtId, date` | `ClosedSlot[courtId, date]` |
+| Training / Member / Admin lists | → `createdAt DESC` | `[createdAt DESC]` trên từng bảng |
+| Sheets sync log | `tabName` → `timestamp DESC` | `GoogleSheetsSyncLog[tabName, timestamp DESC]` |
+
+- **Thứ tự sắp xếp VĐV được đảm bảo từ Server:** `GET /api/players` trả về danh sách đã sort sẵn theo `level` (thứ tự enum `SENIOR → JUNIOR → YOUTH`) → Captain đứng đầu → số áo tăng dần. Nhánh fallback JSON (khi DB lỗi) cũng sort cùng thứ tự. Frontend (`PlayersPage.tsx`) không cần sort lại.
+
 ---
 
 ## 4. 🎨 Quy chuẩn Giao diện & Thiết kế (Design Tokens - Dark Theme DVA)
@@ -149,7 +168,7 @@ Mọi lập trình viên và AI Agent khi làm việc với codebase này bắt 
 
 2. **Bảo toàn Cơ sở Dữ liệu & Schema:**
    - **TUYỆT ĐỐI KHÔNG** tự ý can thiệp, chỉnh sửa cấu trúc `prisma/schema.prisma` hoặc thay đổi các controller đang chạy ổn định trong `server.ts` trừ khi có chỉ đạo rõ ràng từ yêu cầu của người dùng.
-   - Khi cần migration, phải dùng lệnh có kiểm soát và xác thực tính tương thích ngược.
+   - Áp dụng schema bằng `npm run prisma:push` (xem mục 3.5). Không chạy lệnh tác động DB production khi chưa được người dùng xác nhận.
 
 3. **Chống Ghi Đè & Xung Đột Dữ Liệu (Idempotency & Race Conditions):**
    - Đặt sân bóng và đóng slot phải luôn kiểm tra xung đột thời gian (`ClosedSlot` và `Booking` trùng lặp) trước khi ghi nhận.
