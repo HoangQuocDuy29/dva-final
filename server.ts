@@ -196,16 +196,6 @@ export function readJsonFileSafe<T>(filename: string, fallback: T): T {
   return fallback;
 }
 
-export function writeJsonFileSafe(filename: string, data: any): void {
-  try {
-    const filePath = path.join(DATA_DIR, filename);
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn(`[JSON Fallback] Could not write data/${filename}:`, err);
-  }
-}
-
 export function getGooglePrivateKey(): string | undefined {
   return process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 }
@@ -218,9 +208,7 @@ setUserLookup(async (id) => {
   } catch (error) {
     console.error("[API ERROR] setUserLookup:", error);
   }
-  const fileUsers = readJsonFileSafe<any[]>('users.json', []);
-  const found = fileUsers.find((u) => u.id === id);
-  return found ? toStoredUser(found) : undefined;
+  return undefined;
 });
 
 const isAllowedScriptUrl = (url: string) => /^https:\/\/script\.google(usercontent)?\.com\//i.test(url);
@@ -864,27 +852,15 @@ app.get('/api/courts/closed-slots', ah(async (req, res) => {
   const courtId = typeof req.query.courtId === 'string' ? req.query.courtId : undefined;
   const date = typeof req.query.date === 'string' ? req.query.date : undefined;
   const subCourt = typeof req.query.subCourt === 'string' ? req.query.subCourt : undefined;
-  try {
-    const dbSlots = await prisma.closedSlot.findMany({
-      where: {
-        ...(courtId ? { courtId } : {}),
-        ...(date ? { date } : {}),
-        ...(subCourt ? { subCourt } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    return res.json(dbSlots.map(toClosedSlotDto));
-  } catch (error) {
-    console.error('[API ERROR] GET /api/courts/closed-slots:', error);
-    const fileSlots = readJsonFileSafe<any[]>('closedSlots.json', []);
-    const filtered = fileSlots.filter((cs: any) => {
-      if (courtId && cs.courtId !== courtId) return false;
-      if (date && cs.date !== date) return false;
-      if (subCourt && cs.subCourt !== subCourt) return false;
-      return true;
-    });
-    return res.json(filtered.map(toClosedSlotDto));
-  }
+  const dbSlots = await prisma.closedSlot.findMany({
+    where: {
+      ...(courtId ? { courtId } : {}),
+      ...(date ? { date } : {}),
+      ...(subCourt ? { subCourt } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return res.json(dbSlots.map(toClosedSlotDto));
 }));
 
 app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
@@ -895,15 +871,7 @@ app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
   );
   const closedBy = req.user?.fullName || 'Admin';
 
-  let targetCourt: any = null;
-  try {
-    targetCourt = await prisma.court.findUnique({ where: { id: courtId } });
-  } catch (err) {
-    console.error('[API ERROR] POST /api/courts/closed-slots/toggle court lookup:', err);
-    const fileCourts = readJsonFileSafe<any[]>('courts.json', []);
-    targetCourt = fileCourts.find((c: any) => c.id === courtId);
-  }
-
+  const targetCourt = await prisma.court.findUnique({ where: { id: courtId } });
   if (!targetCourt) {
     return res.status(400).json({ error: 'Unknown court' });
   }
@@ -912,48 +880,23 @@ app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
   }
 
   const resolvedSubCourt = subCourt || '';
-  try {
-    const existing = await prisma.closedSlot.findUnique({
-      where: {
-        courtId_date_slotLabel_subCourt: {
-          courtId,
-          date,
-          slotLabel,
-          subCourt: resolvedSubCourt,
-        },
+  const existing = await prisma.closedSlot.findUnique({
+    where: {
+      courtId_date_slotLabel_subCourt: {
+        courtId,
+        date,
+        slotLabel,
+        subCourt: resolvedSubCourt,
       },
-    });
+    },
+  });
 
-    if (existing) {
-      await prisma.closedSlot.delete({ where: { id: existing.id } });
-      return res.json({ success: true, action: 'REOPENED', slot: toClosedSlotDto(existing) });
-    } else {
-      const created = await prisma.closedSlot.create({
-        data: {
-          id: `cs-${crypto.randomUUID()}`,
-          courtId,
-          courtName: targetCourt.name,
-          subCourt: resolvedSubCourt,
-          date,
-          slotLabel,
-          reason: reason || (resolvedSubCourt ? `Reserved / Maintenance (${resolvedSubCourt}) by Admin` : 'Reserved / Maintenance by Admin'),
-          closedBy,
-        },
-      });
-      return res.json({ success: true, action: 'CLOSED', slot: toClosedSlotDto(created) });
-    }
-  } catch (error) {
-    console.error('[API ERROR] POST /api/courts/closed-slots/toggle:', error);
-    const fileSlots = readJsonFileSafe<any[]>('closedSlots.json', []);
-    const idx = fileSlots.findIndex((cs: any) =>
-      cs.courtId === courtId && cs.date === date && cs.slotLabel === slotLabel && (cs.subCourt || '') === resolvedSubCourt
-    );
-    if (idx >= 0) {
-      const [removed] = fileSlots.splice(idx, 1);
-      writeJsonFileSafe('closedSlots.json', fileSlots);
-      return res.json({ success: true, action: 'REOPENED', slot: toClosedSlotDto(removed) });
-    } else {
-      const created = {
+  if (existing) {
+    await prisma.closedSlot.delete({ where: { id: existing.id } });
+    return res.json({ success: true, action: 'REOPENED', slot: toClosedSlotDto(existing) });
+  } else {
+    const created = await prisma.closedSlot.create({
+      data: {
         id: `cs-${crypto.randomUUID()}`,
         courtId,
         courtName: targetCourt.name,
@@ -962,12 +905,9 @@ app.post('/api/courts/closed-slots/toggle', ah(async (req, res) => {
         slotLabel,
         reason: reason || (resolvedSubCourt ? `Reserved / Maintenance (${resolvedSubCourt}) by Admin` : 'Reserved / Maintenance by Admin'),
         closedBy,
-        createdAt: new Date().toISOString(),
-      };
-      fileSlots.push(created);
-      writeJsonFileSafe('closedSlots.json', fileSlots);
-      return res.json({ success: true, action: 'CLOSED', slot: toClosedSlotDto(created) });
-    }
+      },
+    });
+    return res.json({ success: true, action: 'CLOSED', slot: toClosedSlotDto(created) });
   }
 }));
 
@@ -1013,49 +953,36 @@ async function hasBookingConflict(
 ): Promise<boolean> {
   const now = new Date();
   const dbClient = tx?.booking ? tx : prisma;
-  try {
-    const activeBookings = await dbClient.booking.findMany({
-      where: {
-        courtId,
-        bookingDate: date,
-        ...(ignoreId ? { id: { not: ignoreId } } : {}),
-        OR: [
-          { paymentStatus: 'PAID' },
-          {
-            paymentStatus: 'PENDING',
-            OR: [
-              { holdExpiresAt: { gt: now } },
-              { holdExpiresAt: null },
-            ],
-          },
-        ],
-      },
-      select: { startTime: true, endTime: true, paymentStatus: true, holdExpiresAt: true, subCourt: true },
-    });
-    return activeBookings.some((b: any) => {
-      // If checking a specific sub-court (e.g. Sân A), bookings for a different sub-court (e.g. Sân B) do NOT conflict
-      if (subCourt && b.subCourt && b.subCourt !== subCourt) {
-        return false;
-      }
-      const status = String(b.paymentStatus).toUpperCase();
-      const isBookedOrHolding =
-        status === 'PAID' ||
-        status === 'CONFIRMED' ||
-        ((status === 'HOLDING' || status === 'PENDING') && (!b.holdExpiresAt || b.holdExpiresAt > now));
-      return isBookedOrHolding && rangesOverlap(start, end, b.startTime, b.endTime);
-    });
-  } catch (error) {
-    console.error('[API ERROR] hasBookingConflict:', error);
-    const fileBookings = readJsonFileSafe<any[]>('bookings.json', []);
-    return fileBookings.some((b: any) => {
-      if (b.courtId !== courtId || b.bookingDate !== date) return false;
-      if (ignoreId && b.id === ignoreId) return false;
-      if (subCourt && b.subCourt && b.subCourt !== subCourt) return false;
-      const status = String(b.paymentStatus).toUpperCase();
-      if (status === 'CANCELLED') return false;
-      return rangesOverlap(start, end, b.startTime, b.endTime);
-    });
-  }
+  const activeBookings = await dbClient.booking.findMany({
+    where: {
+      courtId,
+      bookingDate: date,
+      ...(ignoreId ? { id: { not: ignoreId } } : {}),
+      OR: [
+        { paymentStatus: 'PAID' },
+        {
+          paymentStatus: 'PENDING',
+          OR: [
+            { holdExpiresAt: { gt: now } },
+            { holdExpiresAt: null },
+          ],
+        },
+      ],
+    },
+    select: { startTime: true, endTime: true, paymentStatus: true, holdExpiresAt: true, subCourt: true },
+  });
+  return activeBookings.some((b: any) => {
+    // If checking a specific sub-court (e.g. Sân A), bookings for a different sub-court (e.g. Sân B) do NOT conflict
+    if (subCourt && b.subCourt && b.subCourt !== subCourt) {
+      return false;
+    }
+    const status = String(b.paymentStatus).toUpperCase();
+    const isBookedOrHolding =
+      status === 'PAID' ||
+      status === 'CONFIRMED' ||
+      ((status === 'HOLDING' || status === 'PENDING') && (!b.holdExpiresAt || b.holdExpiresAt > now));
+    return isBookedOrHolding && rangesOverlap(start, end, b.startTime, b.endTime);
+  });
 }
 
 async function hasClosedSlotConflict(
@@ -1067,29 +994,18 @@ async function hasClosedSlotConflict(
   tx?: any
 ): Promise<boolean> {
   const dbClient = tx?.closedSlot ? tx : prisma;
-  try {
-    const slots = await dbClient.closedSlot.findMany({
-      where: { courtId, date },
-      select: { slotLabel: true, subCourt: true },
-    });
-    return slots.some((cs: any) => {
-      // If closed slot specifies a subCourt, it only affects that specific sub-court
-      if (subCourt && cs.subCourt && cs.subCourt !== subCourt) {
-        return false;
-      }
-      const range = parseSlotLabel(cs.slotLabel);
-      return !!range && rangesOverlap(start, end, range.start, range.end);
-    });
-  } catch (error) {
-    console.error('[API ERROR] hasClosedSlotConflict:', error);
-    const fileSlots = readJsonFileSafe<any[]>('closedSlots.json', []);
-    return fileSlots.some((cs: any) => {
-      if (cs.courtId !== courtId || cs.date !== date) return false;
-      if (subCourt && cs.subCourt && cs.subCourt !== subCourt) return false;
-      const range = parseSlotLabel(cs.slotLabel);
-      return !!range && rangesOverlap(start, end, range.start, range.end);
-    });
-  }
+  const slots = await dbClient.closedSlot.findMany({
+    where: { courtId, date },
+    select: { slotLabel: true, subCourt: true },
+  });
+  return slots.some((cs: any) => {
+    // If closed slot specifies a subCourt, it only affects that specific sub-court
+    if (subCourt && cs.subCourt && cs.subCourt !== subCourt) {
+      return false;
+    }
+    const range = parseSlotLabel(cs.slotLabel);
+    return !!range && rangesOverlap(start, end, range.start, range.end);
+  });
 }
 
 app.get('/api/bookings', ah(async (req, res) => {
@@ -1101,24 +1017,13 @@ app.get('/api/bookings', ah(async (req, res) => {
   const date = typeof req.query.date === 'string' ? req.query.date : undefined;
   const courtId = typeof req.query.courtId === 'string' ? req.query.courtId : undefined;
 
-  let dbBookings: any[] = [];
-  try {
-    dbBookings = await prisma.booking.findMany({
-      where: {
-        ...(date ? { bookingDate: date } : {}),
-        ...(courtId ? { courtId } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  } catch (error) {
-    console.error('[API ERROR] GET /api/bookings:', error);
-    const fileBookings = readJsonFileSafe<any[]>('bookings.json', []);
-    dbBookings = fileBookings.filter((b: any) => {
-      if (date && b.bookingDate !== date) return false;
-      if (courtId && b.courtId !== courtId) return false;
-      return true;
-    });
-  }
+  const dbBookings = await prisma.booking.findMany({
+    where: {
+      ...(date ? { bookingDate: date } : {}),
+      ...(courtId ? { courtId } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+  });
 
   // Public visitors only learn which slots are taken - never customer names, phones or emails.
   if (!isStaff(req.user)) {
@@ -1516,19 +1421,9 @@ app.put('/api/bookings/:id', ah(async (req, res) => {
 
 app.delete('/api/bookings/:id', ah(async (req, res) => {
   const { id } = req.params;
-  try {
-    const existing = await prisma.booking.findUnique({ where: { id } });
-    if (existing) {
-      await prisma.booking.delete({ where: { id } });
-    }
-  } catch (dbErr) {
-    console.warn('[DELETE /api/bookings/:id] DB error, will check JSON file:', dbErr);
-  }
-
-  const fileBookings = readJsonFileSafe<any[]>('bookings.json', []);
-  const nextBookings = fileBookings.filter((b: any) => b.id !== id);
-  if (nextBookings.length !== fileBookings.length) {
-    writeJsonFileSafe('bookings.json', nextBookings);
+  const existing = await prisma.booking.findUnique({ where: { id } });
+  if (existing) {
+    await prisma.booking.delete({ where: { id } });
   }
 
   res.json({ success: true, message: 'Booking deleted' });
@@ -1590,14 +1485,8 @@ app.delete('/api/training/courses/:id', ah(async (req, res) => {
 }));
 
 app.get('/api/training/registrations', ah(async (_req, res) => {
-  try {
-    const dbRegs = await prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' } });
-    return res.json(dbRegs.map(toRegistrationDto));
-  } catch (error) {
-    console.error('[API /training/registrations Error]:', error);
-    const fileRegs = readJsonFileSafe<any[]>('trainingRegistrations.json', []);
-    return res.json((fileRegs || []).map(toRegistrationDto));
-  }
+  const dbRegs = await prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' } });
+  return res.json(dbRegs.map(toRegistrationDto));
 }));
 
 app.post('/api/training/register', ah(async (req, res) => {
@@ -1839,19 +1728,8 @@ app.patch('/api/training/registrations/:id/status', ah(async (req, res) => {
 
 app.delete('/api/training/registrations/:id', ah(async (req, res) => {
   const { id } = req.params;
-  try {
-    const existing = await prisma.trainingRegistration.findUnique({ where: { id } });
-    if (existing) await prisma.trainingRegistration.delete({ where: { id } });
-  } catch (dbErr) {
-    console.warn('[DELETE /api/training/registrations/:id] DB error:', dbErr);
-  }
-
-  const fileRegs = readJsonFileSafe<any[]>('trainingRegistrations.json', []);
-  const nextRegs = fileRegs.filter((r: any) => r.id !== id);
-  if (nextRegs.length !== fileRegs.length) {
-    writeJsonFileSafe('trainingRegistrations.json', nextRegs);
-  }
-
+  const existing = await prisma.trainingRegistration.findUnique({ where: { id } });
+  if (existing) await prisma.trainingRegistration.delete({ where: { id } });
   res.json({ success: true, message: 'Registration deleted' });
 }));
 
@@ -1903,14 +1781,8 @@ app.delete('/api/coaches/:id', ah(async (req, res) => {
 
 // 6. Member Application & Auto-Player Promotion
 app.get('/api/members/applications', ah(async (_req, res) => {
-  try {
-    const dbApps = await prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' } });
-    return res.json(dbApps.map(toApplicationDto));
-  } catch (error) {
-    console.error('[API /members/applications Error]:', error);
-    let fallbackApps = readJsonFileSafe<any[]>('applications.json', []);
-    return res.json((fallbackApps || []).map(toApplicationDto));
-  }
+  const dbApps = await prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' } });
+  return res.json(dbApps.map(toApplicationDto));
 }));
 
 app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) => {
@@ -1918,32 +1790,9 @@ app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) =>
     required: ['fullName', 'dob', 'position', 'hometownCountry', 'level', 'height', 'weight', 'spikeReach', 'blockReach', 'gmail', 'zalo'],
   });
 
-  let created: any;
   const appId = `app-${crypto.randomUUID()}`;
-  try {
-    created = await prisma.memberApplication.create({
-      data: {
-        id: appId,
-        fullName: data.fullName,
-        dob: data.dob,
-        position: data.position,
-        hometownCountry: data.hometownCountry,
-        desiredJerseyNumber: data.desiredJerseyNumber ?? 0,
-        level: data.level,
-        height: data.height,
-        weight: data.weight,
-        spikeReach: data.spikeReach,
-        blockReach: data.blockReach,
-        gmail: data.gmail,
-        instagram: data.instagram || 'None',
-        zalo: data.zalo,
-        rotationKnowledge: toRotationEnum(data.rotationKnowledge),
-        status: 'PENDING',
-      },
-    });
-  } catch (dbError) {
-    console.error('[API /members/register DB Error, fallback to json]:', dbError);
-    created = {
+  const created = await prisma.memberApplication.create({
+    data: {
       id: appId,
       fullName: data.fullName,
       dob: data.dob,
@@ -1960,11 +1809,8 @@ app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) =>
       zalo: data.zalo,
       rotationKnowledge: toRotationEnum(data.rotationKnowledge),
       status: 'PENDING',
-      createdAt: new Date(),
-    };
-    const currentApps = readJsonFileSafe<any[]>('applications.json', []);
-    writeJsonFileSafe('applications.json', [created, ...currentApps]);
-  }
+    },
+  });
 
   const dto = toApplicationDto(created);
 
@@ -2104,19 +1950,8 @@ app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
 
 app.delete('/api/members/applications/:id', ah(async (req, res) => {
   const { id } = req.params;
-  try {
-    const existing = await prisma.memberApplication.findUnique({ where: { id } });
-    if (existing) await prisma.memberApplication.delete({ where: { id } });
-  } catch (dbErr) {
-    console.warn('[DELETE /api/members/applications/:id] DB error:', dbErr);
-  }
-
-  const fileApps = readJsonFileSafe<any[]>('applications.json', []);
-  const nextApps = fileApps.filter((a: any) => a.id !== id);
-  if (nextApps.length !== fileApps.length) {
-    writeJsonFileSafe('applications.json', nextApps);
-  }
-
+  const existing = await prisma.memberApplication.findUnique({ where: { id } });
+  if (existing) await prisma.memberApplication.delete({ where: { id } });
   res.json({ success: true, message: 'Application deleted' });
 }));
 
@@ -2358,22 +2193,11 @@ app.post('/api/sheets/config', ah(async (req, res) => {
 }));
 
 app.get('/api/sheets/data', ah(async (_req, res) => {
-  let apps: any[] = [];
-  let bookingsList: any[] = [];
-  let regs: any[] = [];
-
-  try {
-    [apps, bookingsList, regs] = await Promise.all([
-      prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
-      prisma.booking.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
-      prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
-    ]);
-  } catch (error) {
-    console.error('[API ERROR] GET /api/sheets/data:', error);
-    apps = readJsonFileSafe<any[]>('applications.json', []).slice(0, 100);
-    bookingsList = readJsonFileSafe<any[]>('bookings.json', []).slice(0, 100);
-    regs = readJsonFileSafe<any[]>('trainingRegistrations.json', []).slice(0, 100);
-  }
+  const [apps, bookingsList, regs] = await Promise.all([
+    prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.booking.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+  ]);
 
   const formatTimestamp = (d: any) => {
     if (!d) return new Date().toISOString().replace('T', ' ').substring(0, 19);

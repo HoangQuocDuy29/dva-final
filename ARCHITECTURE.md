@@ -176,3 +176,7 @@ Mọi lập trình viên và AI Agent khi làm việc với codebase này bắt 
 
 4. **Chuẩn hoá Chuỗi Thanh toán Ngân hàng:**
    - Mọi chuỗi thông tin chuyển khoản phát sinh khi tạo VietQR bắt buộc phải đi qua hàm `removeVietnameseTones()` để loại bỏ hoàn toàn ký tự có dấu, dấu cách thừa và ký tự đặc biệt, đảm bảo hệ thống tự động nhận diện thanh toán của ngân hàng hoạt động chính xác 100%.
+
+5. **PostgreSQL là Nguồn Chân lý Duy nhất (Single Source of Truth):**
+   - Mọi thao tác đọc/ghi dữ liệu nghiệp vụ (Bookings, Member Applications, Closed Slots, Training Registrations, Users) chạy trực tiếp 100% qua Prisma ORM tới PostgreSQL.
+   - Không duy trì cơ chế ghi file JSON dự phòng cục bộ (`bookings.json`, `applications.json`, `closedSlots.json`, `trainingRegistrations.json`) khi có mutation, tránh hiện tượng chia rẽ dữ liệu (split-brain) và hao tổn I/O trên môi trường container ephemeral disk (Render).
