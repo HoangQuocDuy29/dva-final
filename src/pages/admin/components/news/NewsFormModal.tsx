@@ -1,6 +1,6 @@
 import React from 'react';
-import { X, Image as ImageIcon, Loader2, Upload, Send } from 'lucide-react';
-import { NewsPost } from '../../../../types';
+import { X, Image as ImageIcon, Loader2, Upload, Send, Pin } from 'lucide-react';
+import { NewsPost, NEWS_CATEGORIES } from '../../../../types';
 import { uploadToCloudinary, buildCloudinaryFolder } from '../../../../utils/cloudinary';
 
 export interface NewsFormModalProps {
@@ -20,6 +20,8 @@ export interface NewsFormModalProps {
   setNewsAuthorName: React.Dispatch<React.SetStateAction<string>>;
   newsPublishedAt: string;
   setNewsPublishedAt: React.Dispatch<React.SetStateAction<string>>;
+  newsIsPinned: boolean;
+  setNewsIsPinned: React.Dispatch<React.SetStateAction<boolean>>;
   isUploadingNewsThumb: boolean;
   setIsUploadingNewsThumb: React.Dispatch<React.SetStateAction<boolean>>;
   onClose: () => void;
@@ -44,6 +46,8 @@ export const NewsFormModal: React.FC<NewsFormModalProps> = ({
   setNewsAuthorName,
   newsPublishedAt,
   setNewsPublishedAt,
+  newsIsPinned,
+  setNewsIsPinned,
   isUploadingNewsThumb,
   setIsUploadingNewsThumb,
   onClose,
@@ -94,13 +98,11 @@ export const NewsFormModal: React.FC<NewsFormModalProps> = ({
                 onChange={(e) => setNewsCategory(e.target.value as any)}
                 className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-red-500"
               >
-                <option value="TOURNAMENT">TOURNAMENT (Giải đấu & Trận đấu)</option>
-                <option value="TECHNIQUE">TECHNIQUE (Kỹ thuật & Biomechanics)</option>
-                <option value="TRYOUT">TRYOUT (Tuyển chọn & Tryout)</option>
-                <option value="CLUB_EVENT">CLUB_EVENT (Hoạt động CLB)</option>
-                <option value="TACTICAL">TACTICAL (Chiến thuật & Kỹ thuật)</option>
-                <option value="COMMUNITY">COMMUNITY (Cộng đồng & Hoạt động)</option>
-                <option value="PARTNERSHIP">PARTNERSHIP (Tài trợ & Đối tác)</option>
+                {NEWS_CATEGORIES.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.optionLabel}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -125,6 +127,46 @@ export const NewsFormModal: React.FC<NewsFormModalProps> = ({
               />
             </div>
           </div>
+
+          {/* PIN TO TOP SWITCH */}
+          <label
+            htmlFor="news-pin-toggle"
+            className={`flex items-center justify-between gap-3 p-3.5 rounded-2xl border transition-colors cursor-pointer select-none ${
+              newsIsPinned
+                ? 'bg-orange-500/10 border-orange-500/50'
+                : 'bg-[#0B0F19] border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
+                  newsIsPinned
+                    ? 'bg-orange-500/20 border-orange-500/40 text-orange-400'
+                    : 'bg-[#161F30] border-slate-700 text-slate-400'
+                }`}
+              >
+                <Pin className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-slate-200 font-semibold block text-xs">
+                  Ghim bài viết lên đầu trang Tất cả (Pin to Top)
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Bài viết được ghim sẽ luôn ưu tiên hiển thị ở đầu danh sách tại tab &ldquo;Tất cả bài viết&rdquo;.
+                </span>
+              </div>
+            </div>
+            <div className="relative inline-flex items-center shrink-0">
+              <input
+                id="news-pin-toggle"
+                type="checkbox"
+                checked={newsIsPinned}
+                onChange={(e) => setNewsIsPinned(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-10 h-5.5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-orange-500" />
+            </div>
+          </label>
 
           {/* COVER / THUMBNAIL PHOTO */}
           <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-slate-800 space-y-2">

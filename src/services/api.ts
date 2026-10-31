@@ -690,6 +690,7 @@ function normalizeNewsPost(post: NewsPost): NewsPost {
     imageUrl: resolvedImageUrl,
     image: resolvedImageUrl,
     thumbnail: resolvedImageUrl,
+    isPinned: Boolean(post.isPinned),
   };
 }
 
@@ -705,15 +706,24 @@ export const newsService = {
         fullFallback = [];
       }
     }
+    const categoryParam =
+      params?.category && params.category.trim() !== '' && params.category.trim().toUpperCase() !== 'ALL'
+        ? params.category.trim()
+        : undefined;
+    const searchParam = params?.search && params.search.trim() !== '' ? params.search.trim() : undefined;
+
     const filteredFallback = fullFallback.filter((item) => {
-      if (params?.category && item.category !== params.category) return false;
-      if (params?.search) {
-        const q = params.search.toLowerCase();
+      if (categoryParam && item.category !== categoryParam) return false;
+      if (searchParam) {
+        const q = searchParam.toLowerCase();
         if (!item.title.toLowerCase().includes(q) && !item.excerpt.toLowerCase().includes(q)) return false;
       }
       return true;
     });
-    const query = new URLSearchParams(params as any).toString();
+    const cleanParams: Record<string, string> = {};
+    if (categoryParam) cleanParams.category = categoryParam;
+    if (searchParam) cleanParams.search = searchParam;
+    const query = new URLSearchParams(cleanParams).toString();
     const res = await request<NewsPost[]>(`/news${query ? `?${query}` : ''}`, {}, filteredFallback);
     const normalizedRes = Array.isArray(res) ? res.map(normalizeNewsPost) : [];
     return normalizedRes;

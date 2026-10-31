@@ -364,7 +364,7 @@ export function toApplicationDto(a: DbMemberApplication | any): MemberApplicatio
   };
 }
 
-export function toNewsDto(n: DbNewsPost & { imageUrl?: string | null; image?: string | null }): NewsPost {
+export function toNewsDto(n: DbNewsPost & { imageUrl?: string | null; image?: string | null; isPinned?: boolean | null }): NewsPost {
   const resolvedImageUrl = (n.imageUrl || n.image || n.thumbnail || '').trim();
   const resolvedPublishedAt =
     (typeof n.publishedAt === 'string' && n.publishedAt.trim()) ||
@@ -384,7 +384,8 @@ export function toNewsDto(n: DbNewsPost & { imageUrl?: string | null; image?: st
     publishedAt: resolvedPublishedAt,
     createdAt: safeIsoString(n.createdAt),
     readTimeMinutes: n.readTimeMinutes,
-    featured: n.featured,
+    featured: Boolean(n.featured),
+    isPinned: Boolean(n.isPinned),
   };
 }
 
@@ -812,6 +813,7 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           publishedAt: n.publishedAt,
           readTimeMinutes: Number(n.readTimeMinutes) || 4,
           featured: Boolean(n.featured),
+          isPinned: Boolean(n.isPinned),
         },
       });
     }

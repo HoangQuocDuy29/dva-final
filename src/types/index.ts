@@ -230,6 +230,25 @@ export interface MemberApplication {
   createdAt: string;
 }
 
+export type NewsCategoryId =
+  | 'TOURNAMENT'
+  | 'TECHNIQUE'
+  | 'TRYOUT'
+  | 'CLUB_EVENT'
+  | 'TACTICAL'
+  | 'COMMUNITY'
+  | 'PARTNERSHIP';
+
+export const NEWS_CATEGORIES: { id: NewsCategoryId; label: string; optionLabel: string }[] = [
+  { id: 'TOURNAMENT', label: 'Giải đấu & Trận đấu', optionLabel: 'TOURNAMENT (Giải đấu & Trận đấu)' },
+  { id: 'TECHNIQUE', label: 'Kỹ thuật & Biomechanics', optionLabel: 'TECHNIQUE (Kỹ thuật & Biomechanics)' },
+  { id: 'TRYOUT', label: 'Tuyển chọn & Tryout', optionLabel: 'TRYOUT (Tuyển chọn & Tryout)' },
+  { id: 'CLUB_EVENT', label: 'Hoạt động CLB', optionLabel: 'CLUB_EVENT (Hoạt động CLB)' },
+  { id: 'TACTICAL', label: 'Chiến thuật & Kỹ thuật', optionLabel: 'TACTICAL (Chiến thuật & Kỹ thuật)' },
+  { id: 'COMMUNITY', label: 'Cộng đồng & Hoạt động', optionLabel: 'COMMUNITY (Cộng đồng & Hoạt động)' },
+  { id: 'PARTNERSHIP', label: 'Tài trợ & Đối tác', optionLabel: 'PARTNERSHIP (Tài trợ & Đối tác)' },
+];
+
 export interface NewsPost {
   id: string;
   title: string;
@@ -239,13 +258,14 @@ export interface NewsPost {
   imageUrl?: string;
   image?: string;
   thumbnail: string;
-  category: 'TOURNAMENT' | 'CLUB_EVENT' | 'TECHNIQUE' | 'TRYOUT' | string;
+  category: NewsCategoryId | string;
   authorName: string;
   authorRole: string;
   publishedAt: string;
   createdAt?: string;
   readTimeMinutes: number;
   featured?: boolean;
+  isPinned?: boolean;
 }
 
 export interface GoogleSheetsSyncLog {

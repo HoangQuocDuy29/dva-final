@@ -1984,12 +1984,15 @@ function writeNewsJsonFile(items: any[]): void {
 app.get('/api/news', ah(async (req, res) => {
   const { category, search } = req.query;
   const where: Record<string, any> = {};
+  const hasCategoryFilter =
+    typeof category === 'string' && category.trim() !== '' && category.trim().toUpperCase() !== 'ALL';
+  const hasSearchFilter = typeof search === 'string' && search.trim() !== '';
 
-  if (typeof category === 'string' && category.trim()) {
-    where.category = { equals: category.trim(), mode: 'insensitive' };
+  if (hasCategoryFilter) {
+    where.category = { equals: (category as string).trim(), mode: 'insensitive' };
   }
-  if (typeof search === 'string' && search.trim()) {
-    const q = search.trim();
+  if (hasSearchFilter) {
+    const q = (search as string).trim();
     where.OR = [
       { title: { contains: q, mode: 'insensitive' } },
       { excerpt: { contains: q, mode: 'insensitive' } },
@@ -1999,20 +2002,30 @@ app.get('/api/news', ah(async (req, res) => {
   try {
     const dbNews = await prisma.newsPost.findMany({
       where,
-      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      orderBy:
+        !hasCategoryFilter && !hasSearchFilter
+          ? [{ isPinned: 'desc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }]
+          : [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
     });
     return res.json(dbNews.map(toNewsDto));
   } catch {
     const fileNews = readNewsJsonFile().map((n) => toNewsDto(n));
     const filtered = fileNews.filter((item) => {
-      if (typeof category === 'string' && category.trim()) {
-        if (String(item.category).toUpperCase() !== category.trim().toUpperCase()) return false;
+      if (hasCategoryFilter) {
+        if (String(item.category).toUpperCase() !== (category as string).trim().toUpperCase()) return false;
       }
-      if (typeof search === 'string' && search.trim()) {
-        const q = search.trim().toLowerCase();
+      if (hasSearchFilter) {
+        const q = (search as string).trim().toLowerCase();
         if (!item.title.toLowerCase().includes(q) && !item.excerpt.toLowerCase().includes(q)) return false;
       }
       return true;
+    });
+    filtered.sort((a, b) => {
+      if (!hasCategoryFilter && !hasSearchFilter) {
+        const pinDiff = Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned));
+        if (pinDiff !== 0) return pinDiff;
+      }
+      return String(b.publishedAt || b.createdAt || '').localeCompare(String(a.publishedAt || a.createdAt || ''));
     });
     return res.json(filtered);
   }
@@ -2075,6 +2088,7 @@ app.post('/api/news', ah(async (req, res) => {
     ...(!Number.isNaN(parsedCreatedAt.getTime()) ? { createdAt: parsedCreatedAt } : {}),
     readTimeMinutes: data.readTimeMinutes || 4,
     featured: Boolean(data.featured),
+    isPinned: Boolean(data.isPinned),
   };
 
   try {

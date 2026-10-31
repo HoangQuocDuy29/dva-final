@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Edit3, Trash2, Pin } from 'lucide-react';
 import { NewsPost } from '../../../types';
 import { newsService } from '../../../services/api';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
@@ -42,6 +42,7 @@ export const NewsTab: React.FC = () => {
   const [newsAuthorName, setNewsAuthorName] = useState(currentUser.fullName);
   const [newsAuthorRole, setNewsAuthorRole] = useState('Club Administration');
   const [newsPublishedAt, setNewsPublishedAt] = useState(() => toDateInputValue());
+  const [newsIsPinned, setNewsIsPinned] = useState(false);
 
   const handleSaveNews = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +72,7 @@ export const NewsTab: React.FC = () => {
         authorName: newsAuthorName.trim() || currentUser.fullName,
         authorRole: newsAuthorRole.trim() || 'Club Administration',
         publishedAt: resolvedPublishDate,
+        isPinned: Boolean(newsIsPinned),
       };
       if (editingNews) {
         const updated = await newsService.updateNews(editingNews.id, payload);
@@ -90,6 +92,7 @@ export const NewsTab: React.FC = () => {
       setNewsExcerpt('');
       setNewsContent('');
       setNewsPublishedAt(toDateInputValue());
+      setNewsIsPinned(false);
     } catch (e) {
       alert('Lỗi lưu bài viết');
     }
@@ -128,6 +131,7 @@ export const NewsTab: React.FC = () => {
               setNewsAuthorName(currentUser.fullName);
               setNewsAuthorRole('Club Administration');
               setNewsPublishedAt(toDateInputValue());
+              setNewsIsPinned(false);
               setIsNewsModalOpen(true);
             }}
             className="px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow cursor-pointer shrink-0"
@@ -141,7 +145,9 @@ export const NewsTab: React.FC = () => {
           {newsList.map((story) => (
             <div
               key={story.id}
-              className="p-5 rounded-2xl border border-slate-800 bg-[#0E1524] flex flex-col justify-between space-y-4"
+              className={`p-5 rounded-2xl border bg-[#0E1524] flex flex-col justify-between space-y-4 ${
+                story.isPinned ? 'border-orange-500/40' : 'border-slate-800'
+              }`}
             >
               <div className="space-y-2">
                 {(story.imageUrl || story.image || story.thumbnail) && (
@@ -159,11 +165,19 @@ export const NewsTab: React.FC = () => {
                     />
                   </div>
                 )}
-                <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-red-950 text-red-400 border border-red-800">
-                    {story.category}
-                  </span>
-                  <span className="text-[11px] text-slate-500 font-mono">{story.publishedAt}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-red-950 text-red-400 border border-red-800">
+                      {story.category}
+                    </span>
+                    {story.isPinned && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-500/15 text-orange-400 border border-orange-500/40">
+                        <Pin className="w-3 h-3" />
+                        <span>Pinned</span>
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-mono shrink-0">{story.publishedAt}</span>
                 </div>
 
                 <h4 className="font-heading font-black text-base text-white line-clamp-2">
@@ -200,6 +214,7 @@ export const NewsTab: React.FC = () => {
                       setNewsAuthorName(story.authorName);
                       setNewsAuthorRole(story.authorRole || 'Club Administration');
                       setNewsPublishedAt(toDateInputValue(story.publishedAt || story.createdAt));
+                      setNewsIsPinned(Boolean(story.isPinned));
                       setIsNewsModalOpen(true);
                     }}
                     className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-300 hover:text-white rounded-xl bg-slate-800/80 hover:bg-slate-700 cursor-pointer transition-colors"
@@ -239,6 +254,8 @@ export const NewsTab: React.FC = () => {
         setNewsAuthorName={setNewsAuthorName}
         newsPublishedAt={newsPublishedAt}
         setNewsPublishedAt={setNewsPublishedAt}
+        newsIsPinned={newsIsPinned}
+        setNewsIsPinned={setNewsIsPinned}
         isUploadingNewsThumb={isUploadingNewsThumb}
         setIsUploadingNewsThumb={setIsUploadingNewsThumb}
         onClose={() => {

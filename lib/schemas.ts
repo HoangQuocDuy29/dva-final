@@ -214,6 +214,7 @@ export const NEWS_SCHEMA: Schema = {
   createdAt: OPTIONAL_DATE,
   readTimeMinutes: I(1, 120),
   featured: B,
+  isPinned: B,
 };
 
 export const OPTIONAL_EMAIL: Rule = (v, k) => {
