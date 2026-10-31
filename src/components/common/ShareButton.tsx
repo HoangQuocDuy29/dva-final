@@ -5,6 +5,7 @@ export interface ShareButtonProps {
   url: string;
   title: string;
   text?: string;
+  label?: string;
   className?: string;
 }
 
@@ -12,6 +13,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
   url,
   title,
   text,
+  label = 'Share',
   className = '',
 }) => {
   const [copied, setCopied] = useState(false);
@@ -79,7 +81,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
     <button
       type="button"
       onClick={handleShare}
-      title={copied ? 'Đã chép link' : 'Chia sẻ đường dẫn'}
+      title={copied ? 'Link Copied!' : 'Share article link'}
       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shrink-0 ${
         copied
           ? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-400'
@@ -89,12 +91,12 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       {copied ? (
         <>
           <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span>Đã chép link</span>
+          <span>Link Copied!</span>
         </>
       ) : (
         <>
           <Share2 className="w-3.5 h-3.5 shrink-0" />
-          <span>Chia sẻ</span>
+          <span>{label}</span>
         </>
       )}
     </button>

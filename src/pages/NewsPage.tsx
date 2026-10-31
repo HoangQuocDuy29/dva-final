@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search,
-  ArrowRight,
   Calendar,
   Pin,
   ChevronLeft,
@@ -23,7 +22,7 @@ const NEWS_FALLBACK_IMAGE =
 const ITEMS_PER_PAGE = 6;
 
 const FILTER_TABS: { id: string; label: string }[] = [
-  { id: 'ALL', label: 'Tất cả bài viết' },
+  { id: 'ALL', label: 'All Articles' },
   ...NEWS_CATEGORIES.map((cat) => ({ id: cat.id, label: cat.label })),
 ];
 
@@ -169,9 +168,9 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
         {/* News Grid (Responsive: 1 col on mobile, 2 cols on tablet, 3 cols on desktop) */}
         {paginatedNews.length === 0 ? (
           <div className="bg-[#111827] border border-slate-800 rounded-3xl p-12 text-center space-y-2">
-            <p className="text-sm font-bold text-slate-300">Không tìm thấy bài viết phù hợp</p>
+            <p className="text-sm font-bold text-slate-300">No matching articles found</p>
             <p className="text-xs text-slate-500">
-              Thử chuyển sang danh mục &ldquo;Tất cả bài viết&rdquo; hoặc thay đổi từ khóa tìm kiếm.
+              Try switching to &ldquo;All Articles&rdquo; or adjusting your search keywords.
             </p>
           </div>
         ) : (
@@ -200,7 +199,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/50 to-slate-950/30" />
                     <div className="relative z-10 flex items-center justify-between gap-2 w-full">
                       <span className="px-2.5 py-0.5 rounded bg-red-600 text-white font-black text-[10px] uppercase">
-                        {article.category}
+                        {NEWS_CATEGORIES.find((c) => c.id === article.category)?.label || article.category}
                       </span>
                       {article.isPinned && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/90 text-white font-black text-[10px] uppercase tracking-wider shadow-md backdrop-blur-sm">
@@ -236,13 +235,13 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                       url={`${window.location.origin}/news/${article.id}`}
                       title={article.title}
                       text={article.excerpt}
+                      label="Share"
                     />
                     <Link
                       to={`/news/${article.id}`}
                       className="font-bold text-orange-400 hover:underline flex items-center gap-1"
                     >
-                      <span>Read Article</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>Read Article →</span>
                     </Link>
                   </div>
                 </div>
@@ -255,12 +254,8 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
         {sortedAndFilteredNews.length > 0 && (
           <div className="pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs text-slate-400">
-              Hiển thị{' '}
-              <span className="font-bold text-white">
-                {(safeCurrentPage - 1) * ITEMS_PER_PAGE + 1}–
-                {Math.min(safeCurrentPage * ITEMS_PER_PAGE, sortedAndFilteredNews.length)}
-              </span>{' '}
-              trong tổng số <span className="font-bold text-white">{sortedAndFilteredNews.length}</span> bài viết
+              Page <span className="font-bold text-white">{safeCurrentPage}</span> of{' '}
+              <span className="font-bold text-white">{totalPages}</span>
             </p>
 
             <div className="flex items-center gap-1.5">

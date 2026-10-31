@@ -240,13 +240,13 @@ export type NewsCategoryId =
   | 'PARTNERSHIP';
 
 export const NEWS_CATEGORIES: { id: NewsCategoryId; label: string; optionLabel: string }[] = [
-  { id: 'TOURNAMENT', label: 'Giải đấu & Trận đấu', optionLabel: 'TOURNAMENT (Giải đấu & Trận đấu)' },
-  { id: 'TECHNIQUE', label: 'Kỹ thuật & Biomechanics', optionLabel: 'TECHNIQUE (Kỹ thuật & Biomechanics)' },
-  { id: 'TRYOUT', label: 'Tuyển chọn & Tryout', optionLabel: 'TRYOUT (Tuyển chọn & Tryout)' },
-  { id: 'CLUB_EVENT', label: 'Hoạt động CLB', optionLabel: 'CLUB_EVENT (Hoạt động CLB)' },
-  { id: 'TACTICAL', label: 'Chiến thuật & Kỹ thuật', optionLabel: 'TACTICAL (Chiến thuật & Kỹ thuật)' },
-  { id: 'COMMUNITY', label: 'Cộng đồng & Hoạt động', optionLabel: 'COMMUNITY (Cộng đồng & Hoạt động)' },
-  { id: 'PARTNERSHIP', label: 'Tài trợ & Đối tác', optionLabel: 'PARTNERSHIP (Tài trợ & Đối tác)' },
+  { id: 'TOURNAMENT', label: 'Tournaments & Matches', optionLabel: 'TOURNAMENT (Tournaments & Matches)' },
+  { id: 'TECHNIQUE', label: 'Technique & Biomechanics', optionLabel: 'TECHNIQUE (Technique & Biomechanics)' },
+  { id: 'TRYOUT', label: 'Tryouts & Recruiting', optionLabel: 'TRYOUT (Tryouts & Recruiting)' },
+  { id: 'CLUB_EVENT', label: 'Club Events', optionLabel: 'CLUB_EVENT (Club Events)' },
+  { id: 'TACTICAL', label: 'Tactics & Strategy', optionLabel: 'TACTICAL (Tactics & Strategy)' },
+  { id: 'COMMUNITY', label: 'Community & Activities', optionLabel: 'COMMUNITY (Community & Activities)' },
+  { id: 'PARTNERSHIP', label: 'Partnerships & Sponsors', optionLabel: 'PARTNERSHIP (Partnerships & Sponsors)' },
 ];
 
 export interface NewsPost {

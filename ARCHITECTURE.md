@@ -149,7 +149,7 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 ### 3.7. Luồng Chia sẻ (`ShareButton`), Deep Linking & Module Tin tức (`News`)
 - **Component Chia sẻ Dùng chung (`src/components/common/ShareButton.tsx`):**
   - Tự động nhận diện thiết bị di động để kích hoạt menu chia sẻ bản địa (`navigator.share({ title, text, url })`).
-  - Trên máy tính (hoặc khi trình duyệt không hỗ trợ Web Share API), tự động sao chép đường dẫn vào Clipboard (`navigator.clipboard.writeText`) và chuyển sang trạng thái phản hồi trực quan `"Đã chép link"` (màu Emerald) trong 2 giây.
+  - Trên máy tính (hoặc khi trình duyệt không hỗ trợ Web Share API), tự động sao chép đường dẫn vào Clipboard (`navigator.clipboard.writeText`), hiển thị nút mặc định `"Share"` (hoặc `"Share Article"` qua prop `label`) và chuyển sang trạng thái phản hồi trực quan `"Link Copied!"` (màu Emerald) trong 2 giây.
 - **Deep Linking & Chi tiết Khoá học (`src/components/training/CourseDetailModal.tsx` & `src/pages/TrainingPage.tsx`):**
   - Mỗi gói huấn luyện trên `TrainingPage.tsx` hỗ trợ đường dẫn chia sẻ trực tiếp `/training?courseId=<id>`.
   - Khi người dùng truy cập URL có `?courseId=...`, `TrainingPage.tsx` tự động đối chiếu danh sách khóa học và mở `CourseDetailModal` tương ứng; nếu `courseId` không tồn tại hoặc khi người dùng đóng modal / chuyển sang bước đăng ký, query param được dọn sạch (`setSearchParams({}, { replace: true })`).
@@ -158,19 +158,28 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
     - Model `NewsPost` lưu trữ trường `publishedAt` (`YYYY-MM-DD`), `createdAt` (`DateTime @default(now())`), `featured` (`Boolean @default(false)`) và **`isPinned`** (`Boolean @default(false)`), phục vụ qua composite index `@@index([isPinned, publishedAt(sort: Desc)])`.
     - Schema kiểm duyệt `NEWS_SCHEMA` sử dụng rule `OPTIONAL_DATE` cho phép client gửi `publishedAt` (hoặc `createdAt`) tùy chỉnh và rule `B` cho phép gửi `isPinned` (boolean tùy chọn) khi tạo mới (`POST /api/news`) và chỉnh sửa (`PUT /api/news/:id`). Khi có ngày tùy chỉnh gửi lên, backend cập nhật đồng bộ cả `publishedAt` lẫn `createdAt`; mapper `toNewsDto` luôn chuẩn hóa và trả về `isPinned: Boolean(n.isPinned)`.
     - `GET /api/news`: Khi truy vấn toàn bộ (không lọc `category` hoặc `category=ALL` và không có `search`), dữ liệu sắp xếp theo `[{ isPinned: 'desc' }, { publishedAt: 'desc' }, { createdAt: 'desc' }]`; khi lọc theo danh mục cụ thể hoặc từ khóa tìm kiếm, dữ liệu sắp xếp thuần túy theo `[{ publishedAt: 'desc' }, { createdAt: 'desc' }]`.
+  - **Hằng số Danh mục Chuẩn Tiếng Anh (`NEWS_CATEGORIES` trong `src/types/index.ts`):**
+    - `ALL`: `"All Articles"`
+    - `TOURNAMENT`: `"Tournaments & Matches"`
+    - `TECHNIQUE`: `"Technique & Biomechanics"`
+    - `TRYOUT`: `"Tryouts & Recruiting"`
+    - `CLUB_EVENT`: `"Club Events"`
+    - `TACTICAL`: `"Tactics & Strategy"`
+    - `COMMUNITY`: `"Community & Activities"`
+    - `PARTNERSHIP`: `"Partnerships & Sponsors"`
   - **Form Quản trị News trong Admin (`src/pages/admin/components/news/NewsFormModal.tsx` & `src/pages/admin/tabs/NewsTab.tsx`):**
-    - Danh sách 7 danh mục chuẩn được đồng bộ từ hằng số dùng chung `NEWS_CATEGORIES` (`src/types/index.ts`): `TOURNAMENT`, `TECHNIQUE`, `TRYOUT`, `CLUB_EVENT`, `TACTICAL`, `COMMUNITY`, `PARTNERSHIP`.
+    - Danh sách 7 danh mục chuẩn được đồng bộ từ hằng số dùng chung `NEWS_CATEGORIES` (`src/types/index.ts`).
     - Tích hợp trường chỉnh sửa **"Ngày đăng bài (Publish Date)"** (`input[type="date"]`) vào `NewsFormModal.tsx`, bố trí trên hàng thông tin 3 cột cân đối: `Category` | `Author Name` | `Ngày đăng bài (Publish Date)`.
     - Tích hợp Switch trực quan **"Ghim bài viết lên đầu trang Tất cả (Pin to Top)"** (`newsIsPinned`) ngay phía trên khu vực Cover Image, nạp tự động trạng thái `isPinned` khi chỉnh sửa và gửi lên API khi lưu.
     - Trên danh sách bài viết tại `NewsTab.tsx`, các bài đang ghim được đánh dấu viền nổi bật kèm badge icon `Pin` (`Pinned`) giúp quản trị viên nhận diện tức thì.
   - **Bộ lọc Động, Sorting Engine, Phân trang & Định dạng Ngày Công khai (`src/pages/NewsPage.tsx`, `src/pages/NewsDetailPage.tsx`, `src/pages/HomePage.tsx` & `src/utils/date.ts`):**
-    - **Đồng bộ Bộ lọc Category & Nút "Tất cả":** `NewsPage.tsx` render động thanh bộ lọc gồm nút đầu tiên **"Tất cả bài viết" (`ALL`)** cùng đầy đủ **7 danh mục chuẩn** từ `NEWS_CATEGORIES`, kết hợp mượt mà với ô tìm kiếm từ khóa (`Search articles...`).
+    - **Đồng bộ Bộ lọc Category & Nút "All Articles" (100% English Public UI):** `NewsPage.tsx` render động thanh bộ lọc gồm nút đầu tiên **"All Articles" (`ALL`)** cùng đầy đủ **7 danh mục tiếng Anh** từ `NEWS_CATEGORIES`, kết hợp mượt mà với ô tìm kiếm từ khóa (`Search articles...`). Các Card bài viết sử dụng nút `"Read Article →"` và `"Share"` (`"Link Copied!"`).
     - **Sorting Engine (Quy tắc Sắp xếp):**
-      - Khi ở tab **"Tất cả bài viết" (`ALL`)** (và không tìm kiếm): Nhóm bài có `isPinned = true` luôn được ưu tiên hiển thị lên đầu trang (nếu có nhiều bài ghim thì xếp theo `publishedAt` mới nhất), tiếp theo là các bài viết thường sắp xếp theo `publishedAt` giảm dần (mới nhất → cũ nhất). Các bài ghim hiển thị nhãn `PINNED` kèm icon ghim tinh tế trên Card.
+      - Khi ở tab **"All Articles" (`ALL`)** (và không tìm kiếm): Nhóm bài có `isPinned = true` luôn được ưu tiên hiển thị lên đầu trang (nếu có nhiều bài ghim thì xếp theo `publishedAt` mới nhất), tiếp theo là các bài viết thường sắp xếp theo `publishedAt` giảm dần (mới nhất → cũ nhất). Các bài ghim hiển thị nhãn `PINNED` kèm icon ghim tinh tế trên Card.
       - Khi chọn **Tab Category cụ thể** hoặc khi đang nhập từ khóa tìm kiếm: Tắt độ ưu tiên ghim, sắp xếp toàn bộ thuần túy theo ngày xuất bản mới nhất → cũ nhất.
-    - **Phân trang (Pagination):** Giới hạn hiển thị `ITEMS_PER_PAGE = 6` bài/trang (lưới 3 cột cân đối), tích hợp thanh phân trang chuẩn Dark Theme (`Previous`, danh sách số trang `[1, 2, 3...]`, `Next`), tự động reset về trang 1 khi đổi bộ lọc/từ khóa và tự động cuộn mượt (`scrollIntoView({ behavior: 'smooth' })`) lên đầu danh sách khi chuyển trang.
-    - `NewsDetailPage.tsx` được thiết kế theo chuẩn Editorial (breadcrumb điều hướng, badge danh mục, thanh meta tác giả & ngày đăng, ảnh bìa `aspect-video`, khối trích dẫn `excerpt` và nội dung phân đoạn, kèm `ShareButton` ở cả đầu và chân bài viết).
-    - Chuyển đổi hiển thị ngày xuất bản bài viết (`publishedAt` / `createdAt`) từ tiếng Việt sang định dạng tiếng Anh chuẩn Anh - Mỹ: `Month DD, YYYY` (ví dụ: `"February 28, 2025"`) thông qua hàm `formatEnglishDate()` (`Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })`) tại `NewsPage.tsx`, `NewsDetailPage.tsx` và `HomePage.tsx`.
+    - **Phân trang (Pagination):** Giới hạn hiển thị `ITEMS_PER_PAGE = 6` bài/trang (lưới 3 cột cân đối), tích hợp thanh phân trang chuẩn Dark Theme hiển thị `Page X of Y` cùng nút `Previous`, danh sách số trang `[1, 2, 3...]`, `Next`, tự động reset về trang 1 khi đổi bộ lọc/từ khóa và tự động cuộn mượt (`scrollIntoView({ behavior: 'smooth' })`) lên đầu danh sách khi chuyển trang.
+    - `NewsDetailPage.tsx` được thiết kế theo chuẩn Editorial 100% tiếng Anh (`← Back to News`, `All Articles`, nhãn `Author`, `Published on`, `Share Article`, ảnh bìa `aspect-video`, khối trích dẫn `excerpt` và nội dung phân đoạn).
+    - Chuyển đổi hiển thị ngày xuất bản bài viết (`publishedAt` / `createdAt`) sang định dạng tiếng Anh chuẩn Anh - Mỹ: `Month DD, YYYY` (ví dụ: `"February 28, 2025"`) thông qua hàm `formatEnglishDate()` (`Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })`) tại `NewsPage.tsx`, `NewsDetailPage.tsx` và `HomePage.tsx`.
     - **Cơ chế xử lý Timezone:** Khi parse chuỗi ngày dạng `YYYY-MM-DD` từ database/API, hàm tách trực tiếp `year, month - 1, day` để khởi tạo `new Date(year, month - 1, day)` theo giờ địa phương (local time) thay vì parse UTC mặc định của `new Date("YYYY-MM-DD")`, ngăn chặn triệt để lỗi lùi 1 ngày ở các múi giờ khác nhau.
 
 ---
@@ -195,10 +204,12 @@ Giao diện áp dụng phong cách **Thể thao Hiện đại Cao cấp (Premium
   - **Trạng thái ở Đỉnh trang (`scrollY <= 20px`):** Dàn rộng `max-w-7xl`, chiều cao `h-20`, bo góc thẳng `rounded-none`, nền `bg-[#0B0F19]/90`, đường viền đáy `border-b border-slate-800/80`.
   - **Trạng thái Cuộn trang (`scrollY > 20px`):** Thu gọn thành Capsule nổi `max-w-6xl`, chiều cao `h-14`, bo góc bầu dục `rounded-2xl`, hiệu ứng kính mờ `backdrop-blur-md` (`16px`), viền nổi `border border-slate-700/60`, đổ bóng `shadow-2xl shadow-black/50`, nền trong suốt `bg-[#0B0F19]/70`.
 
-### 4.3. Quy chuẩn Hiển thị Song ngữ (Bilingual UI & Emails)
-- Toàn bộ giao diện khách hàng (Website) và toàn bộ thông báo gửi đi (Email HTML) phải tuân thủ layout **Song ngữ Anh - Việt (Bilingual)**:
-  - Khối Tiếng Việt nằm trước/trên, khối Tiếng Anh giải thích nằm ngay sau/dưới hoặc hiển thị song song nhãn (ví dụ: `Đặt Sân / Court Booking`, `Huấn Luyện / Training`).
-  - Trong email HTML: Tiêu đề và lời chào phải gồm cả 2 ngôn ngữ; bảng thông tin tóm tắt có nhãn song ngữ rõ ràng để người nước ngoài có thể tham gia thi đấu tại CLB một cách thuận lợi.
+### 4.3. Quy chuẩn Ngôn ngữ Giao diện Công khai & Email (Public UI English-Only Policy & Bilingual Emails)
+- **Public UI English-Only Policy (Giao diện Khách hàng Công khai):**
+  - Toàn bộ phần giao diện hiển thị cho người dùng đọc trên các trang Public (Tiêu đề mục, Nhãn/Labels, Nút bấm/Buttons, Bộ lọc/Filter tabs, Thông báo/Toasts, Placeholders và Phân trang/Pagination) **BẮT BUỘC PHẢI DÙNG 100% TIẾNG ANH (English-first)**.
+  - Tuyệt đối không dùng tiếng Việt hoặc nửa Anh nửa Việt ở các thành phần điều hướng và tương tác ngoài trang Public.
+- **Email HTML (Bilingual):**
+  - Trong email HTML gửi tự động qua Resend: Tiêu đề, lời chào và bảng thông tin tóm tắt giữ định dạng song ngữ Anh - Việt rõ ràng để phục vụ cả hội viên quốc tế lẫn nội địa.
 
 ---
 
@@ -226,5 +237,9 @@ Mọi lập trình viên và AI Agent khi làm việc với codebase này bắt 
    - Mọi thao tác đọc/ghi dữ liệu nghiệp vụ (Bookings, Member Applications, Closed Slots, Training Registrations, Users) chạy trực tiếp 100% qua Prisma ORM tới PostgreSQL.
    - Không duy trì cơ chế ghi file JSON dự phòng cục bộ (`bookings.json`, `applications.json`, `closedSlots.json`, `trainingRegistrations.json`) khi có mutation, tránh hiện tượng chia rẽ dữ liệu (split-brain) và hao tổn I/O trên môi trường container ephemeral disk (Render).
 
-6. **Đồng bộ Tài liệu Kiến trúc (`./ARCHITECTURE.md`) Bắt buộc:**
+6. **Public UI English-Only Policy (Chuẩn hóa Tiếng Anh 100% cho Giao diện Public):**
+   - Toàn bộ phần giao diện hiển thị cho người dùng đọc trên các trang Public (Tiêu đề mục, Nhãn `labels`, Nút bấm `buttons`, Bộ lọc `filter tabs`, Thông báo `toast/placeholders` và Phân trang `pagination`) **BẮT BUỘC PHẢI DÙNG TIẾNG ANH (English-first)**.
+   - Tuyệt đối không dùng tiếng Việt hoặc pha trộn nửa Anh nửa Việt ở các thành phần điều hướng và tương tác ngoài trang Public.
+
+7. **Đồng bộ Tài liệu Kiến trúc (`./ARCHITECTURE.md`) Bắt buộc:**
    - Bất kỳ khi nào thêm mới, chỉnh sửa hay mở rộng tính năng trên hệ thống, **BẮT BUỘC** phải cập nhật lại file `./ARCHITECTURE.md` tương ứng để các phiên làm việc tiếp theo luôn nắm bắt chuẩn xác kiến trúc, luồng dữ liệu và quy ước của dự án.

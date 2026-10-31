@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Calendar, ArrowLeft, User, Newspaper } from 'lucide-react';
-import { NewsPost } from '../types';
+import { NewsPost, NEWS_CATEGORIES } from '../types';
 import { newsService } from '../services/api';
 import { ShareButton } from '../components/common/ShareButton';
 import { formatEnglishDate, formatPublishDate } from '../utils/date';
@@ -61,17 +61,16 @@ export const NewsDetailPage: React.FC = () => {
           <Newspaper className="w-7 h-7" />
         </div>
         <h2 className="text-xl sm:text-2xl font-heading font-black text-white">
-          Không tìm thấy bài viết
+          Article Not Found
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 max-w-md">
-          Bài viết có thể đã bị xóa hoặc đường dẫn không chính xác.
+          This article may have been removed or the link is invalid.
         </p>
         <Link
           to="/news"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-orange-400 hover:text-orange-300 transition-all"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại tất cả tin tức</span>
+          <span>← Back to News</span>
         </Link>
       </div>
     );
@@ -87,6 +86,8 @@ export const NewsDetailPage: React.FC = () => {
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean);
+  const categoryLabel =
+    NEWS_CATEGORIES.find((c) => c.id === article.category)?.label || article.category;
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white py-10 sm:py-14">
@@ -97,14 +98,14 @@ export const NewsDetailPage: React.FC = () => {
             to="/news"
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-700/60 hover:border-orange-500/50 text-xs font-bold text-slate-300 hover:text-orange-400 transition-all"
           >
-            <ArrowLeft className="w-4 h-4 shrink-0" />
-            <span>Tất cả tin tức</span>
+            <span>← Back to News</span>
           </Link>
 
           <ShareButton
             url={shareUrl}
             title={article.title}
             text={article.excerpt}
+            label="Share Article"
           />
         </div>
 
@@ -113,7 +114,7 @@ export const NewsDetailPage: React.FC = () => {
           {article.category && (
             <div>
               <span className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/40 shadow-sm shadow-orange-500/10">
-                {article.category}
+                {categoryLabel}
               </span>
             </div>
           )}
@@ -129,6 +130,9 @@ export const NewsDetailPage: React.FC = () => {
                 {authorInitial ? authorInitial : <User className="w-4 h-4" />}
               </div>
               <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                  Author
+                </span>
                 {article.authorName && (
                   <span className="font-bold text-sm text-white block leading-snug">
                     {article.authorName}
@@ -145,7 +149,9 @@ export const NewsDetailPage: React.FC = () => {
             {formattedDate && (
               <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400 font-medium bg-slate-900/80 px-3.5 py-1.5 rounded-xl border border-slate-800">
                 <Calendar className="w-4 h-4 text-orange-400 shrink-0" />
-                <time dateTime={article.publishedAt}>{formattedDate}</time>
+                <span>
+                  Published on <time dateTime={article.publishedAt} className="text-slate-200 font-semibold">{formattedDate}</time>
+                </span>
               </div>
             )}
           </div>
@@ -198,10 +204,10 @@ export const NewsDetailPage: React.FC = () => {
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Tác giả bài viết
+                  Author
                 </span>
                 <p className="font-bold text-white text-sm sm:text-base">
-                  {article.authorName || 'Ban Biên Tập DVA Volleyball'}
+                  {article.authorName || 'DVA Volleyball Editorial Team'}
                 </p>
                 {article.authorRole && (
                   <p className="text-xs text-slate-400">{article.authorRole}</p>
@@ -211,12 +217,13 @@ export const NewsDetailPage: React.FC = () => {
 
             <div className="flex items-center gap-2.5 self-start sm:self-center">
               <span className="text-xs text-slate-400 hidden md:inline">
-                Chia sẻ bài viết này:
+                Share Article:
               </span>
               <ShareButton
                 url={shareUrl}
                 title={article.title}
                 text={article.excerpt}
+                label="Share Article"
               />
             </div>
           </div>
@@ -227,7 +234,7 @@ export const NewsDetailPage: React.FC = () => {
               className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-orange-400 hover:text-orange-300 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Xem các tin tức khác</span>
+              <span>All Articles</span>
             </Link>
           </div>
         </footer>
