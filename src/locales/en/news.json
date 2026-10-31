@@ -1,0 +1,49 @@
+{
+  "header": {
+    "badge": "DVA Press & Tactical Analysis",
+    "title": "Club News & Match Reports",
+    "subtitle": "Tournament recaps, vertical jump biomechanics, and official club announcements."
+  },
+  "categories": {
+    "ALL": "All Articles",
+    "TOURNAMENT": "Tournaments & Matches",
+    "TECHNIQUE": "Technique & Biomechanics",
+    "TRYOUT": "Tryouts & Recruiting",
+    "CLUB_EVENT": "Club Events",
+    "TACTICAL": "Tactics & Strategy",
+    "COMMUNITY": "Community & Activities",
+    "PARTNERSHIP": "Partnerships & Sponsors"
+  },
+  "search": {
+    "placeholder": "Search articles...",
+    "emptyTitle": "No matching articles found",
+    "emptyHint": "Try switching to “All Articles” or adjusting your search keywords."
+  },
+  "card": {
+    "pinned": "PINNED",
+    "minRead": "{{count}} min read",
+    "readArticle": "Read Article →"
+  },
+  "pagination": {
+    "page": "Page",
+    "of": "of",
+    "pageOf": "Page {{current}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "share": {
+    "button": "Share",
+    "articleButton": "Share Article",
+    "label": "Share Article:",
+    "copiedToast": "Link Copied!",
+    "tooltip": "Share article link"
+  },
+  "detail": {
+    "backToNews": "← Back to News",
+    "allArticles": "All Articles",
+    "author": "Author",
+    "publishedOn": "Published on",
+    "notFoundTitle": "Article Not Found",
+    "notFoundDesc": "This article may have been removed or the link is invalid."
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "Home",
+    "players": "Players",
+    "courtBooking": "Court Booking",
+    "training": "Training & Scrimmage",
+    "clubInfo": "Club Info & Fees",
+    "news": "News",
+    "signIn": "Sign In",
+    "signInPortal": "Sign In to Member Portal",
+    "signOut": "Sign Out",
+    "joinDva": "Join DVA",
+    "applyTryouts": "Apply for DVA Squad Tryouts",
+    "loggedInAs": "Logged in as:",
+    "openAdminDashboard": "Open Admin Dashboard",
+    "goToAdminDashboard": "Go to Admin Dashboard",
+    "sportsArena": "Sports Arena",
+    "language": "Language"
+  },
+  "footer": {
+    "subtitle": "Premier Volleyball Center",
+    "description": "Hanoi volleyball community hub and training academy. Connecting local passion with international players, from weekly friendly games to youth squad development.",
+    "ballStandard": "100% Olympic Match Ball Standard (Mikasa V200W)",
+    "operatingHours": "Operating Hours: 06:00 - 21:30 (Mon – Sun)",
+    "paymentTitle": "Official VietQR Payment Account:",
+    "bankLabel": "Bank:",
+    "accountNoLabel": "Account No:",
+    "beneficiaryLabel": "Beneficiary:",
+    "quickLinksTitle": "Quick Links",
+    "links": {
+      "squadRosters": "Squad Rosters",
+      "courtBooking": "Court Booking",
+      "training": "Training & Scrimmage",
+      "feesSchedules": "Fees & Schedules",
+      "clubNews": "Club Bulletin & News",
+      "joinSquad": "Join DVA Squad"
+    },
+    "facilityLocationTitle": "Facility Location",
+    "address": "155 Truong Chinh, Thanh Xuan, Hanoi, Vietnam",
+    "facilityDesc": "Offering quality indoor courts with standard vinyl flooring, bright lighting, dedicated changing areas, and courtside seating.",
+    "arenaMapTitle": "Arena Location Map",
+    "directions": "Directions",
+    "copyright": "© {{year}} DVA Volleyball Club. All Rights Reserved."
+  },
+  "buttons": {
+    "share": "Share",
+    "shareArticle": "Share Article",
+    "linkCopied": "Link Copied!",
+    "readMore": "Read More",
+    "back": "Back",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close"
+  }
+}

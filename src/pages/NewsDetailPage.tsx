@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Calendar, ArrowLeft, User, Newspaper } from 'lucide-react';
 import { NewsPost, NEWS_CATEGORIES } from '../types';
 import { newsService } from '../services/api';
@@ -12,6 +13,7 @@ const NEWS_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80';
 
 export const NewsDetailPage: React.FC = () => {
+  const { t } = useTranslation('news');
   const { id } = useParams<{ id: string }>();
   const [article, setArticle] = useState<NewsPost | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,16 +63,16 @@ export const NewsDetailPage: React.FC = () => {
           <Newspaper className="w-7 h-7" />
         </div>
         <h2 className="text-xl sm:text-2xl font-heading font-black text-white">
-          Article Not Found
+          {t('detail.notFoundTitle')}
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 max-w-md">
-          This article may have been removed or the link is invalid.
+          {t('detail.notFoundDesc')}
         </p>
         <Link
           to="/news"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-orange-400 hover:text-orange-300 transition-all"
         >
-          <span>← Back to News</span>
+          <span>{t('detail.backToNews')}</span>
         </Link>
       </div>
     );
@@ -86,8 +88,10 @@ export const NewsDetailPage: React.FC = () => {
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean);
-  const categoryLabel =
-    NEWS_CATEGORIES.find((c) => c.id === article.category)?.label || article.category;
+  const categoryLabel = t(`categories.${article.category}`, {
+    defaultValue:
+      NEWS_CATEGORIES.find((c) => c.id === article.category)?.label || article.category,
+  });
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white py-10 sm:py-14">
@@ -98,14 +102,14 @@ export const NewsDetailPage: React.FC = () => {
             to="/news"
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-700/60 hover:border-orange-500/50 text-xs font-bold text-slate-300 hover:text-orange-400 transition-all"
           >
-            <span>← Back to News</span>
+            <span>{t('detail.backToNews')}</span>
           </Link>
 
           <ShareButton
             url={shareUrl}
             title={article.title}
             text={article.excerpt}
-            label="Share Article"
+            label={t('share.articleButton')}
           />
         </div>
 
@@ -131,7 +135,7 @@ export const NewsDetailPage: React.FC = () => {
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                  Author
+                  {t('detail.author')}
                 </span>
                 {article.authorName && (
                   <span className="font-bold text-sm text-white block leading-snug">
@@ -150,7 +154,10 @@ export const NewsDetailPage: React.FC = () => {
               <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400 font-medium bg-slate-900/80 px-3.5 py-1.5 rounded-xl border border-slate-800">
                 <Calendar className="w-4 h-4 text-orange-400 shrink-0" />
                 <span>
-                  Published on <time dateTime={article.publishedAt} className="text-slate-200 font-semibold">{formattedDate}</time>
+                  {t('detail.publishedOn')}{' '}
+                  <time dateTime={article.publishedAt} className="text-slate-200 font-semibold">
+                    {formattedDate}
+                  </time>
                 </span>
               </div>
             )}
@@ -204,7 +211,7 @@ export const NewsDetailPage: React.FC = () => {
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Author
+                  {t('detail.author')}
                 </span>
                 <p className="font-bold text-white text-sm sm:text-base">
                   {article.authorName || 'DVA Volleyball Editorial Team'}
@@ -217,13 +224,13 @@ export const NewsDetailPage: React.FC = () => {
 
             <div className="flex items-center gap-2.5 self-start sm:self-center">
               <span className="text-xs text-slate-400 hidden md:inline">
-                Share Article:
+                {t('share.label')}
               </span>
               <ShareButton
                 url={shareUrl}
                 title={article.title}
                 text={article.excerpt}
-                label="Share Article"
+                label={t('share.articleButton')}
               />
             </div>
           </div>
@@ -234,7 +241,7 @@ export const NewsDetailPage: React.FC = () => {
               className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-orange-400 hover:text-orange-300 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>All Articles</span>
+              <span>{t('detail.allArticles')}</span>
             </Link>
           </div>
         </footer>

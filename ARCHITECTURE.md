@@ -24,6 +24,7 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   - Core: React 19, TypeScript, Vite 8.
   - UI & Styling: Tailwind CSS v4, Motion (Framer Motion v12), Lucide React.
   - Router: React Router v7 (`react-router-dom`).
+  - Internationalization (i18n): `i18next`, `react-i18next`, `i18next-browser-languagedetector` (English-first `'en'` mặc định, hỗ trợ chuyển đổi song ngữ `'en' | 'vi'`, lưu cache `localStorage` qua key `'dva_lang'`).
 - **Backend:**
   - Runtime & Framework: Node.js, Express v4 (`server.ts`).
   - Database & ORM: PostgreSQL (Deploy trên Render), Prisma ORM v7 (`@prisma/client`, `@prisma/adapter-pg`).
@@ -40,7 +41,9 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 
 | Đường dẫn Thư mục | Trách nhiệm Cốt lõi & Thành phần Chính |
 | :--- | :--- |
-| `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung, `ShareButton.tsx` (nút chia sẻ link thông minh).<br>• `training/`: `CourseDetailModal.tsx` (modal chi tiết khoá học & học viện hỗ trợ deep-linking).<br>• `layout/`: Navbar (Floating Capsule), Footer, Menu Drawer di động. |
+| `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung, `ShareButton.tsx` (nút chia sẻ link thông minh), `LanguageSwitcher.tsx` (nút chuyển đổi ngôn ngữ dạng Micro Segmented Pill `EN | VI` kèm cờ SVG).<br>• `training/`: `CourseDetailModal.tsx` (modal chi tiết khoá học & học viện hỗ trợ deep-linking).<br>• `layout/`: Navbar (Floating Capsule tích hợp `LanguageSwitcher` trên Desktop & chân Mobile Drawer), Footer, Menu Drawer di động. |
+| `src/lib/` | Khởi tạo thư viện dùng chung phía Client: <br>• `i18n.ts`: Cấu hình `i18next` + `react-i18next` + `LanguageDetector` (hỗ trợ `'en'` & `'vi'`, `fallbackLng: 'en'`, lưu `localStorage` với key `'dva_lang'`). |
+| `src/locales/` | Từ điển bản dịch tĩnh đa ngôn ngữ (`src/locales/{en,vi}/`): <br>• `common.json`: Nhãn điều hướng Navbar, Footer, các nút bấm dùng chung.<br>• `news.json`: Nhãn 7 danh mục tin tức (`NEWS_CATEGORIES`), ô tìm kiếm, phân trang, trạng thái chia sẻ bài viết. |
 | `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: File re-export 1 dòng trỏ tới `src/pages/admin/AdminDashboardPage.tsx` (hỗ trợ `React.lazy` code-splitting).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV, hỗ trợ deep-linking mở `CourseDetailModal` qua `?courseId=`.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và bài viết chuyên sâu (Editorial layout, chia sẻ bài viết, hiển thị ngày đăng tiếng Anh chuẩn US).<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
 | `src/pages/admin/` | Kiến trúc Quản trị phân tách theo Tab (Tab-based Modular Architecture): <br>• `AdminDashboardPage.tsx`: Shell điều phối mỏng (114 dòng).<br>• `context/`, `layout/`, `tabs/`, `hooks/`, `components/`, `utils/`. |
 | `src/services/` | Lớp giao tiếp API máy khách (`api.ts`): Bao bọc hàm `request<T>()`, quản lý xác thực `authService`, điều phối đặt sân `bookingService`, huấn luyện `trainingService`, đồng bộ sheets `sheetsService`. |
@@ -182,6 +185,22 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
     - Chuyển đổi hiển thị ngày xuất bản bài viết (`publishedAt` / `createdAt`) sang định dạng tiếng Anh chuẩn Anh - Mỹ: `Month DD, YYYY` (ví dụ: `"February 28, 2025"`) thông qua hàm `formatEnglishDate()` (`Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })`) tại `NewsPage.tsx`, `NewsDetailPage.tsx` và `HomePage.tsx`.
     - **Cơ chế xử lý Timezone:** Khi parse chuỗi ngày dạng `YYYY-MM-DD` từ database/API, hàm tách trực tiếp `year, month - 1, day` để khởi tạo `new Date(year, month - 1, day)` theo giờ địa phương (local time) thay vì parse UTC mặc định của `new Date("YYYY-MM-DD")`, ngăn chặn triệt để lỗi lùi 1 ngày ở các múi giờ khác nhau.
 
+### 3.8. Kiến trúc Đa ngôn ngữ (i18next) & `LanguageSwitcher` (`src/lib/i18n.ts`, `src/locales/`, `src/components/common/LanguageSwitcher.tsx`)
+- **Khởi tạo & Cơ chế Lưu trữ (`src/lib/i18n.ts`):**
+  - Tích hợp bộ 3 thư viện `i18next`, `react-i18next` và `i18next-browser-languagedetector`, được nạp trực tiếp tại entry point `src/main.tsx`.
+  - Hỗ trợ 2 ngôn ngữ: Tiếng Anh (`en` - mặc định ưu tiên theo tôn chỉ **English-first**) và Tiếng Việt (`vi`).
+  - Cấu hình `detection` chỉ đọc lựa chọn tường minh của người dùng từ `localStorage` (`order: ['localStorage']`, `lookupLocalStorage: 'dva_lang'`, `caches: ['localStorage']`) và luôn fallback về `'en'` nếu người dùng chưa từng chọn ngôn ngữ.
+  - Việc dịch ngôn ngữ chỉ áp dụng cho **Static UI** (Navbar, Footer, nút bấm, nhãn bộ lọc, placeholder, phân trang, thông báo chia sẻ), hoàn toàn độc lập và không can thiệp vào database hay schema Prisma.
+- **Quy chuẩn Cấu trúc Từ điển (`src/locales/{en,vi}/`):**
+  - `src/locales/en/common.json` & `src/locales/vi/common.json`: Chứa bản dịch cho `nav` (các liên kết điều hướng trên Navbar, trạng thái tài khoản, nút CTA), `footer` (thông tin CLB, tài khoản VietQR, liên kết nhanh, địa chỉ) và `buttons` dùng chung.
+  - `src/locales/en/news.json` & `src/locales/vi/news.json`: Chứa bản dịch cho `header`, `categories` (nhãn `"All Articles"` và 7 danh mục chuẩn `NEWS_CATEGORIES`), `search` (placeholder & empty state), `card`, `pagination` (`Page X of Y`, `Previous`, `Next`), `share` (nút chia sẻ & toast `"Link Copied!"`) và `detail` (`NewsDetailPage`).
+- **Component `LanguageSwitcher.tsx` (Micro Segmented Pill):**
+  - Thiết kế dạng viên thuốc 2 nấc (`EN` | `VI`) siêu nhỏ gọn (`h-8 sm:h-7.5 p-0.5 sm:p-1 rounded-full bg-slate-900/90 border border-slate-800`) tối ưu diện tích trên thanh Navbar và diện tích chạm (touch target `min-w-[36px] sm:min-w-[38px] px-2.5`) trên thiết bị di động.
+  - **Tối ưu Cảm ứng Di động & Z-Index:** Khung bọc và nút dùng `relative z-30 pointer-events-auto cursor-pointer select-none touch-manipulation`, các phần tử con (`<svg>`, `<span>`) gắn `pointer-events-none` để mọi thao tác chạm luôn kích hoạt trực tiếp lên `<button>`.
+  - **Nấc đang chọn (Active):** Nền chuyển sắc cam thương hiệu (`bg-gradient-to-r from-orange-500 to-amber-500 text-white font-extrabold shadow-sm`), hiển thị kèm cờ SVG inline sắc nét (`w-3.5 h-2.5 rounded-[2px]`): cờ Vương Quốc Anh (`UkFlagIcon` 🇬🇧) khi `EN` active và cờ Việt Nam (`VnFlagIcon` 🇻🇳) khi `VI` active.
+  - **Nấc không chọn (Inactive):** Chữ xám mờ (`text-slate-400 hover:text-slate-200 text-xs font-semibold`), tự động ẩn cờ để tiết kiệm không gian và tạo độ tương phản rõ nét, chuyển cảnh mượt (`transition-all duration-200 ease-out`).
+  - **Vị trí Tích hợp trên `Navbar.tsx`:** Hiển thị trực tiếp trên thanh Topbar cố định (cả Mobile lẫn Desktop/Tablet, nằm ngay cạnh nút Hamburger / cụm tài khoản) để người dùng đổi ngôn ngữ tức thì mà không cần mở menu, đồng thời hiển thị thêm ở phần chân (footer) của Mobile Menu Drawer.
+
 ---
 
 ## 4. 🎨 Quy chuẩn Giao diện & Thiết kế (Design Tokens - Dark Theme DVA)
@@ -204,10 +223,10 @@ Giao diện áp dụng phong cách **Thể thao Hiện đại Cao cấp (Premium
   - **Trạng thái ở Đỉnh trang (`scrollY <= 20px`):** Dàn rộng `max-w-7xl`, chiều cao `h-20`, bo góc thẳng `rounded-none`, nền `bg-[#0B0F19]/90`, đường viền đáy `border-b border-slate-800/80`.
   - **Trạng thái Cuộn trang (`scrollY > 20px`):** Thu gọn thành Capsule nổi `max-w-6xl`, chiều cao `h-14`, bo góc bầu dục `rounded-2xl`, hiệu ứng kính mờ `backdrop-blur-md` (`16px`), viền nổi `border border-slate-700/60`, đổ bóng `shadow-2xl shadow-black/50`, nền trong suốt `bg-[#0B0F19]/70`.
 
-### 4.3. Quy chuẩn Ngôn ngữ Giao diện Công khai & Email (Public UI English-Only Policy & Bilingual Emails)
-- **Public UI English-Only Policy (Giao diện Khách hàng Công khai):**
-  - Toàn bộ phần giao diện hiển thị cho người dùng đọc trên các trang Public (Tiêu đề mục, Nhãn/Labels, Nút bấm/Buttons, Bộ lọc/Filter tabs, Thông báo/Toasts, Placeholders và Phân trang/Pagination) **BẮT BUỘC PHẢI DÙNG 100% TIẾNG ANH (English-first)**.
-  - Tuyệt đối không dùng tiếng Việt hoặc nửa Anh nửa Việt ở các thành phần điều hướng và tương tác ngoài trang Public.
+### 4.3. Quy chuẩn Ngôn ngữ Giao diện Công khai & Email (English-First i18n Policy & Bilingual Emails)
+- **English-First Public UI Policy & Đa ngôn ngữ Tĩnh (`i18next`):**
+  - Giao diện Public khởi tạo mặc định 100% bằng **Tiếng Anh (`en` - English-first)**, đồng thời hỗ trợ người dùng chuyển đổi sang **Tiếng Việt (`vi`)** thông qua nút `LanguageSwitcher` dạng Segmented Pill trên Navbar (lưu lựa chọn vào `localStorage` với key `'dva_lang'`).
+  - Toàn bộ nhãn điều hướng và tương tác tĩnh sử dụng từ điển chuẩn hóa tại `src/locales/{en,vi}/{common,news}.json`, tuyệt đối không pha trộn nửa Anh nửa Việt trong cùng một chế độ ngôn ngữ.
 - **Email HTML (Bilingual):**
   - Trong email HTML gửi tự động qua Resend: Tiêu đề, lời chào và bảng thông tin tóm tắt giữ định dạng song ngữ Anh - Việt rõ ràng để phục vụ cả hội viên quốc tế lẫn nội địa.
 

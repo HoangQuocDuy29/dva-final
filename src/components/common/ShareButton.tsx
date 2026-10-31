@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Share2, Check } from 'lucide-react';
 
 export interface ShareButtonProps {
@@ -13,11 +14,14 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
   url,
   title,
   text,
-  label = 'Share',
+  label,
   className = '',
 }) => {
+  const { t } = useTranslation('news');
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<number | null>(null);
+  const resolvedLabel = label ?? t('share.button');
+  const copiedToastText = t('share.copiedToast');
 
   useEffect(() => {
     return () => {
@@ -81,7 +85,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
     <button
       type="button"
       onClick={handleShare}
-      title={copied ? 'Link Copied!' : 'Share article link'}
+      title={copied ? copiedToastText : t('share.tooltip')}
       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shrink-0 ${
         copied
           ? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-400'
@@ -91,12 +95,12 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       {copied ? (
         <>
           <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span>Link Copied!</span>
+          <span>{copiedToastText}</span>
         </>
       ) : (
         <>
           <Share2 className="w-3.5 h-3.5 shrink-0" />
-          <span>{label}</span>
+          <span>{resolvedLabel}</span>
         </>
       )}
     </button>

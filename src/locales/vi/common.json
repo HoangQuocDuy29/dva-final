@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "Trang chủ",
+    "players": "Vận động viên",
+    "courtBooking": "Đặt sân",
+    "training": "Huấn luyện & Giao lưu",
+    "clubInfo": "Thông tin & Bảng giá",
+    "news": "Tin tức",
+    "signIn": "Đăng nhập",
+    "signInPortal": "Đăng nhập Cổng Hội viên",
+    "signOut": "Đăng xuất",
+    "joinDva": "Gia nhập DVA",
+    "applyTryouts": "Ứng tuyển Đội hình DVA",
+    "loggedInAs": "Đang đăng nhập:",
+    "openAdminDashboard": "Mở Trang Quản trị",
+    "goToAdminDashboard": "Đi tới Trang Quản trị",
+    "sportsArena": "Tổ hợp Thể thao",
+    "language": "Ngôn ngữ"
+  },
+  "footer": {
+    "subtitle": "Trung tâm Bóng chuyền Hàng đầu",
+    "description": "Trung tâm cộng đồng và học viện huấn luyện bóng chuyền tại Hà Nội. Kết nối đam mê bản địa với các VĐV quốc tế, từ các buổi giao lưu hàng tuần đến đào tạo đội tuyển trẻ.",
+    "ballStandard": "100% Chuẩn Bóng Thi đấu Olympic (Mikasa V200W)",
+    "operatingHours": "Giờ hoạt động: 06:00 - 21:30 (Thứ 2 – Chủ Nhật)",
+    "paymentTitle": "Tài khoản Thanh toán VietQR Chính thức:",
+    "bankLabel": "Ngân hàng:",
+    "accountNoLabel": "Số tài khoản:",
+    "beneficiaryLabel": "Chủ tài khoản:",
+    "quickLinksTitle": "Liên kết Nhanh",
+    "links": {
+      "squadRosters": "Danh sách Đội hình",
+      "courtBooking": "Đặt sân",
+      "training": "Huấn luyện & Giao lưu",
+      "feesSchedules": "Bảng giá & Lịch trình",
+      "clubNews": "Bản tin & Tin tức CLB",
+      "joinSquad": "Gia nhập Đội hình DVA"
+    },
+    "facilityLocationTitle": "Địa điểm Cụm sân",
+    "address": "155 Trường Chinh, Thanh Xuân, Hà Nội, Việt Nam",
+    "facilityDesc": "Hệ thống sân trong nhà tiêu chuẩn với thảm sàn vinyl cao cấp, ánh sáng đạt chuẩn thi đấu, khu vực thay đồ riêng biệt và ghế ngồi dọc sân.",
+    "arenaMapTitle": "Bản đồ Vị trí Sân",
+    "directions": "Chỉ đường",
+    "copyright": "© {{year}} Câu lạc bộ Bóng chuyền DVA. Bảo lưu mọi quyền."
+  },
+  "buttons": {
+    "share": "Chia sẻ",
+    "shareArticle": "Chia sẻ bài viết",
+    "linkCopied": "Đã sao chép liên kết!",
+    "readMore": "Xem thêm",
+    "back": "Quay lại",
+    "submit": "Gửi",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "close": "Đóng"
+  }
+}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   User, 
   Menu, 
@@ -7,12 +8,11 @@ import {
   ChevronDown, 
   UserPlus,
   LogOut,
-  Shield,
-  ShieldCheck,
   LayoutDashboard
 } from 'lucide-react';
-import { User as UserType, UserRole } from '../../types';
+import { User as UserType } from '../../types';
 import { authService } from '../../services/api';
+import { LanguageSwitcher } from '../common/LanguageSwitcher';
 
 interface NavbarProps {
   currentUser: UserType;
@@ -25,6 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onUserChange, 
   onOpenAuth 
 }) => {
+  const { t } = useTranslation('common');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -69,12 +70,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [userDropdownOpen]);
 
   const navLinks = [
-    { label: 'Home', path: '/' },
-    { label: 'Players', path: '/players' },
-    { label: 'Court Booking', path: '/services/court-booking' },
-    { label: 'Training & Scrimmage', path: '/services/training' },
-    { label: 'Club Info & Fees', path: '/information' },
-    { label: 'News', path: '/news' },
+    { label: t('nav.home'), path: '/' },
+    { label: t('nav.players'), path: '/players' },
+    { label: t('nav.courtBooking'), path: '/services/court-booking' },
+    { label: t('nav.training'), path: '/services/training' },
+    { label: t('nav.clubInfo'), path: '/information' },
+    { label: t('nav.news'), path: '/news' },
   ];
 
   const isActive = (path: string) => {
@@ -144,7 +145,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 isScrolled ? 'text-[8px] leading-tight' : 'text-[9px] sm:text-[10px] leading-normal'
               }`}
             >
-              Sports Arena
+              {t('nav.sportsArena')}
             </span>
           </div>
         </Link>
@@ -176,7 +177,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Action Area */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        <div className="relative z-30 pointer-events-auto flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Segmented Pill Language Switcher (Visible on both Mobile Topbar & Desktop) */}
+          <LanguageSwitcher />
+
           {/* User Account / Role Pill (Desktop & Tablet) */}
           <div ref={dropdownRef} className="relative shrink-0">
             {currentUser.role === 'GUEST' ? (
@@ -187,7 +191,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>Sign In</span>
+                <span>{t('nav.signIn')}</span>
               </button>
             ) : (
               <button
@@ -225,7 +229,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="absolute right-0 mt-2 w-64 sm:w-72 bg-[#121826]/95 border border-slate-700 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-in fade-in"
               >
                 <div className="px-4 py-2.5 border-b border-slate-800">
-                  <div className="text-[11px] text-slate-400 font-medium">Logged in as:</div>
+                  <div className="text-[11px] text-slate-400 font-medium">{t('nav.loggedInAs')}</div>
                   <div className="font-bold text-white text-sm">{currentUser.fullName}</div>
                   <div className="text-slate-400 text-[11px]">{currentUser.email}</div>
                 </div>
@@ -241,7 +245,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       className="w-full text-left px-3 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold flex items-center gap-2 hover:brightness-110 shadow cursor-pointer"
                     >
                       <LayoutDashboard className="w-4 h-4" />
-                      <span>Open Admin Dashboard</span>
+                      <span>{t('nav.openAdminDashboard')}</span>
                     </button>
                   </div>
                 )}
@@ -257,7 +261,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="w-full text-left px-3 py-2 rounded-xl text-red-400 hover:bg-red-950/40 hover:text-red-300 font-semibold flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Sign Out</span>
+                    <span>{t('nav.signOut')}</span>
                   </button>
                 </div>
               </div>
@@ -274,7 +278,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <UserPlus className="w-3.5 h-3.5 shrink-0" />
-            <span>Join DVA</span>
+            <span>{t('nav.joinDva')}</span>
           </Link>
 
           {/* Mobile hamburger button (< 768px: md:hidden) */}
@@ -308,7 +312,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {currentUser.role !== 'GUEST' ? (
             <div className="p-3 bg-[#161F30] rounded-2xl border border-slate-800 flex items-center justify-between">
               <div>
-                <div className="text-[10px] text-slate-400 font-medium">Logged in as:</div>
+                <div className="text-[10px] text-slate-400 font-medium">{t('nav.loggedInAs')}</div>
                 <div className="font-bold text-white text-xs">{currentUser.fullName}</div>
                 <div className="text-[10px] text-slate-400">{currentUser.email}</div>
               </div>
@@ -332,7 +336,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="w-full py-2.5 px-4 text-xs font-bold text-center text-slate-200 bg-[#161F30] border border-slate-700 hover:bg-slate-800 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow"
               >
                 <User className="w-4 h-4 text-orange-400" />
-                <span>Sign In to Member Portal</span>
+                <span>{t('nav.signInPortal')}</span>
               </button>
             </div>
           )}
@@ -364,7 +368,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="w-full py-2.5 px-4 text-xs font-bold text-center text-white bg-red-950/90 hover:bg-red-900 border border-red-700 rounded-xl flex items-center justify-center gap-2 shadow"
               >
                 <LayoutDashboard className="w-4 h-4 text-red-400" />
-                <span>Go to Admin Dashboard</span>
+                <span>{t('nav.goToAdminDashboard')}</span>
               </Link>
             </div>
           )}
@@ -382,7 +386,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="w-full py-2 px-3 text-xs font-semibold text-red-400 hover:bg-red-950/40 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
+                <span>{t('nav.signOut')}</span>
               </button>
             </div>
           )}
@@ -394,8 +398,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setMobileMenuOpen(false)}
               className="w-full py-3 px-4 text-xs font-bold text-center text-white bg-gradient-to-r from-red-600 to-orange-500 rounded-xl block shadow-lg shadow-red-900/30"
             >
-              Apply for DVA Squad Tryouts
+              {t('nav.applyTryouts')}
             </Link>
+          </div>
+
+          {/* Mobile Drawer Footer: Language Switcher */}
+          <div className="relative z-30 pointer-events-auto pt-3 border-t border-slate-800/80 flex items-center justify-between px-1">
+            <span className="text-xs font-semibold text-slate-400 select-none">
+              {t('nav.language')}
+            </span>
+            <LanguageSwitcher />
           </div>
         </div>
       )}

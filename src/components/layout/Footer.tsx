@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Phone, Mail, Clock, ShieldCheck, ExternalLink, QrCode, ChevronRight } from 'lucide-react';
 
 export const Footer: React.FC = () => {
+  const { t } = useTranslation('common');
+
   return (
     <footer className="bg-[#080C14] text-slate-400 border-t border-slate-800 text-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16 space-y-12">
@@ -31,23 +34,23 @@ export const Footer: React.FC = () => {
                   DVA VOLLEYBALL CLUB
                 </span>
                 <span className="text-[10px] tracking-widest text-slate-500 uppercase font-bold">
-                  Premier Volleyball Center
+                  {t('footer.subtitle')}
                 </span>
               </div>
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Hanoi volleyball community hub and training academy. Connecting local passion with international players, from weekly friendly games to youth squad development.
+              {t('footer.description')}
             </p>
 
             <div className="space-y-2 text-xs text-slate-400 pt-1">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-orange-500 shrink-0" />
-                <span>100% Olympic Match Ball Standard (Mikasa V200W)</span>
+                <span>{t('footer.ballStandard')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-orange-500 shrink-0" />
-                <span>Operating Hours: 06:00 - 21:30 (Mon – Sun)</span>
+                <span>{t('footer.operatingHours')}</span>
               </div>
             </div>
 
@@ -55,18 +58,18 @@ export const Footer: React.FC = () => {
             <div className="bg-[#121826] border border-slate-800 rounded-2xl p-4 space-y-1.5 text-xs">
               <div className="flex items-center gap-2 text-slate-300 font-bold">
                 <QrCode className="w-4 h-4 text-red-500" />
-                <span>Official VietQR Payment Account:</span>
+                <span>{t('footer.paymentTitle')}</span>
               </div>
               <div className="flex justify-between text-[11px]">
-                <span className="text-slate-500">Bank:</span>
+                <span className="text-slate-500">{t('footer.bankLabel')}</span>
                 <span className="font-semibold text-white">MB Bank (Military Bank)</span>
               </div>
               <div className="flex justify-between text-[11px]">
-                <span className="text-slate-500">Account No:</span>
+                <span className="text-slate-500">{t('footer.accountNoLabel')}</span>
                 <span className="font-mono font-bold text-orange-400">0002090671521</span>
               </div>
               <div className="flex justify-between text-[11px]">
-                <span className="text-slate-500">Beneficiary:</span>
+                <span className="text-slate-500">{t('footer.beneficiaryLabel')}</span>
                 <span className="font-bold text-white uppercase">HOANG QUOC DUY</span>
               </div>
             </div>
@@ -75,16 +78,16 @@ export const Footer: React.FC = () => {
           {/* Col 2: Quick Links */}
           <div className="space-y-3.5">
             <h4 className="text-white font-bold text-xs uppercase tracking-wider">
-              Quick Links
+              {t('footer.quickLinksTitle')}
             </h4>
             <div className="grid grid-cols-1 gap-1.5">
               {[
-                { label: 'Squad Rosters', path: '/players' },
-                { label: 'Court Booking', path: '/services/court-booking' },
-                { label: 'Training & Scrimmage', path: '/services/training' },
-                { label: 'Fees & Schedules', path: '/information' },
-                { label: 'Club Bulletin & News', path: '/news' },
-                { label: 'Join DVA Squad', path: '/register' },
+                { label: t('footer.links.squadRosters'), path: '/players' },
+                { label: t('footer.links.courtBooking'), path: '/services/court-booking' },
+                { label: t('footer.links.training'), path: '/services/training' },
+                { label: t('footer.links.feesSchedules'), path: '/information' },
+                { label: t('footer.links.clubNews'), path: '/news' },
+                { label: t('footer.links.joinSquad'), path: '/register' },
               ].map((link) => (
                 <Link
                   key={link.path}
@@ -101,12 +104,12 @@ export const Footer: React.FC = () => {
           {/* Col 3: Facility Location & Contact */}
           <div className="space-y-4">
             <h4 className="text-white font-bold text-xs uppercase tracking-wider">
-              Facility Location
+              {t('footer.facilityLocationTitle')}
             </h4>
             <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                <span>155 Truong Chinh, Thanh Xuan, Hanoi, Vietnam</span>
+                <span>{t('footer.address')}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-red-500 shrink-0" />
@@ -119,7 +122,7 @@ export const Footer: React.FC = () => {
             </div>
 
             <div className="pt-2 text-[11px] text-slate-500 leading-relaxed border-t border-slate-800/80">
-              Offering quality indoor courts with standard vinyl flooring, bright lighting, dedicated changing areas, and courtside seating.
+              {t('footer.facilityDesc')}
             </div>
           </div>
 
@@ -128,7 +131,7 @@ export const Footer: React.FC = () => {
             <div className="flex items-center justify-between">
               <h4 className="text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                <span>Arena Location Map</span>
+                <span>{t('footer.arenaMapTitle')}</span>
               </h4>
               <a
                 href="https://maps.google.com/?q=155+Truong+Chinh+Thanh+Xuan+Hanoi"
@@ -136,7 +139,7 @@ export const Footer: React.FC = () => {
                 rel="noreferrer"
                 className="text-[11px] text-orange-400 hover:underline flex items-center gap-1"
               >
-                <span>Directions</span>
+                <span>{t('footer.directions')}</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
@@ -155,7 +158,7 @@ export const Footer: React.FC = () => {
               />
             </div>
             <div className="text-[10px] text-slate-500 text-center">
-              155 Truong Chinh, Thanh Xuan, Hanoi, Vietnam
+              {t('footer.address')}
             </div>
           </div>
 
@@ -163,7 +166,7 @@ export const Footer: React.FC = () => {
 
         <div className="mt-14 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div>
-            © {new Date().getFullYear()} DVA Volleyball Club. All Rights Reserved.
+            {t('footer.copyright', { year: new Date().getFullYear() })}
           </div>
           <div className="flex items-center gap-4 text-xs">
             <span>·</span>

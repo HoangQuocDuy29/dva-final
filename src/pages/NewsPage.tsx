@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   Calendar,
@@ -21,11 +22,6 @@ const NEWS_FALLBACK_IMAGE =
 
 const ITEMS_PER_PAGE = 6;
 
-const FILTER_TABS: { id: string; label: string }[] = [
-  { id: 'ALL', label: 'All Articles' },
-  ...NEWS_CATEGORIES.map((cat) => ({ id: cat.id, label: cat.label })),
-];
-
 function getArticleTimestamp(post: NewsPost): number {
   const raw = (post.publishedAt || post.createdAt || '').trim();
   if (!raw) return 0;
@@ -41,11 +37,23 @@ function getArticleTimestamp(post: NewsPost): number {
 }
 
 export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser }) => {
+  const { t } = useTranslation('news');
   const [newsList, setNewsList] = useState<NewsPost[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const listTopRef = useRef<HTMLDivElement | null>(null);
+
+  const filterTabs = useMemo(
+    () => [
+      { id: 'ALL', label: t('categories.ALL') },
+      ...NEWS_CATEGORIES.map((cat) => ({
+        id: cat.id,
+        label: t(`categories.${cat.id}`, { defaultValue: cat.label }),
+      })),
+    ],
+    [t]
+  );
 
   const fetchNews = async () => {
     try {
@@ -124,20 +132,20 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
         {/* Header */}
         <div ref={listTopRef} className="border-b border-slate-800 pb-6 scroll-mt-24">
           <span className="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-950/60 border border-red-800 px-3 py-1 rounded-full">
-            DVA Press & Tactical Analysis
+            {t('header.badge')}
           </span>
           <h1 className="text-3xl sm:text-4xl font-black text-white font-heading mt-3">
-            Club News & Match Reports
+            {t('header.title')}
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Tournament recaps, vertical jump biomechanics, and official club announcements.
+            {t('header.subtitle')}
           </p>
         </div>
 
         {/* Filter Bar & Search */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-[#111827] border border-slate-800 rounded-2xl w-full lg:w-auto">
-            {FILTER_TABS.map((cat) => (
+            {filterTabs.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
@@ -159,7 +167,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search articles..."
+              placeholder={t('search.placeholder')}
               className="w-full pl-9 pr-3 py-2 text-xs bg-[#111827] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
@@ -168,9 +176,9 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
         {/* News Grid (Responsive: 1 col on mobile, 2 cols on tablet, 3 cols on desktop) */}
         {paginatedNews.length === 0 ? (
           <div className="bg-[#111827] border border-slate-800 rounded-3xl p-12 text-center space-y-2">
-            <p className="text-sm font-bold text-slate-300">No matching articles found</p>
+            <p className="text-sm font-bold text-slate-300">{t('search.emptyTitle')}</p>
             <p className="text-xs text-slate-500">
-              Try switching to &ldquo;All Articles&rdquo; or adjusting your search keywords.
+              {t('search.emptyHint')}
             </p>
           </div>
         ) : (
@@ -199,12 +207,16 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/50 to-slate-950/30" />
                     <div className="relative z-10 flex items-center justify-between gap-2 w-full">
                       <span className="px-2.5 py-0.5 rounded bg-red-600 text-white font-black text-[10px] uppercase">
-                        {NEWS_CATEGORIES.find((c) => c.id === article.category)?.label || article.category}
+                        {t(`categories.${article.category}`, {
+                          defaultValue:
+                            NEWS_CATEGORIES.find((c) => c.id === article.category)?.label ||
+                            article.category,
+                        })}
                       </span>
                       {article.isPinned && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-500/90 text-white font-black text-[10px] uppercase tracking-wider shadow-md backdrop-blur-sm">
                           <Pin className="w-3 h-3" />
-                          <span>PINNED</span>
+                          <span>{t('card.pinned')}</span>
                         </span>
                       )}
                     </div>
@@ -213,7 +225,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                         <Calendar className="w-3.5 h-3.5 text-orange-400" />
                         <span>{formatEnglishDate(article.publishedAt || article.createdAt)}</span>
                         <span>·</span>
-                        <span>{article.readTimeMinutes} min read</span>
+                        <span>{t('card.minRead', { count: article.readTimeMinutes })}</span>
                       </span>
                       <h2 className="font-heading font-black text-lg text-white line-clamp-2 group-hover:text-orange-400 transition-colors">
                         <Link to={`/news/${article.id}`}>{article.title}</Link>
@@ -235,13 +247,13 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                       url={`${window.location.origin}/news/${article.id}`}
                       title={article.title}
                       text={article.excerpt}
-                      label="Share"
+                      label={t('share.button')}
                     />
                     <Link
                       to={`/news/${article.id}`}
                       className="font-bold text-orange-400 hover:underline flex items-center gap-1"
                     >
-                      <span>Read Article →</span>
+                      <span>{t('card.readArticle')}</span>
                     </Link>
                   </div>
                 </div>
@@ -254,7 +266,8 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
         {sortedAndFilteredNews.length > 0 && (
           <div className="pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs text-slate-400">
-              Page <span className="font-bold text-white">{safeCurrentPage}</span> of{' '}
+              {t('pagination.page')} <span className="font-bold text-white">{safeCurrentPage}</span>{' '}
+              {t('pagination.of')}{' '}
               <span className="font-bold text-white">{totalPages}</span>
             </p>
 
@@ -266,7 +279,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                 className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold bg-[#111827] border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
-                <span>Previous</span>
+                <span>{t('pagination.previous')}</span>
               </button>
 
               <div className="flex items-center gap-1">
@@ -295,7 +308,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                 disabled={safeCurrentPage >= totalPages}
                 className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold bg-[#111827] border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
               >
-                <span>Next</span>
+                <span>{t('pagination.next')}</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>

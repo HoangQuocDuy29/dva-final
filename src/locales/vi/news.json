@@ -1,0 +1,49 @@
+{
+  "header": {
+    "badge": "Báo chí & Phân tích Chiến thuật DVA",
+    "title": "Tin tức CLB & Báo cáo Trận đấu",
+    "subtitle": "Tổng hợp giải đấu, cơ sinh học bật nhảy và thông báo chính thức từ câu lạc bộ."
+  },
+  "categories": {
+    "ALL": "Tất cả bài viết",
+    "TOURNAMENT": "Giải đấu & Trận đấu",
+    "TECHNIQUE": "Kỹ thuật & Cơ sinh học",
+    "TRYOUT": "Tuyển chọn & Chiêu mộ",
+    "CLUB_EVENT": "Sự kiện CLB",
+    "TACTICAL": "Chiến thuật & Chiến lược",
+    "COMMUNITY": "Cộng đồng & Hoạt động",
+    "PARTNERSHIP": "Đối tác & Nhà tài trợ"
+  },
+  "search": {
+    "placeholder": "Tìm kiếm bài viết...",
+    "emptyTitle": "Không tìm thấy bài viết phù hợp",
+    "emptyHint": "Hãy thử chuyển sang mục “Tất cả bài viết” hoặc điều chỉnh từ khóa tìm kiếm."
+  },
+  "card": {
+    "pinned": "ĐÃ GHIM",
+    "minRead": "{{count}} phút đọc",
+    "readArticle": "Đọc bài viết →"
+  },
+  "pagination": {
+    "page": "Trang",
+    "of": "trên",
+    "pageOf": "Trang {{current}} / {{total}}",
+    "previous": "Trước",
+    "next": "Tiếp"
+  },
+  "share": {
+    "button": "Chia sẻ",
+    "articleButton": "Chia sẻ bài viết",
+    "label": "Chia sẻ bài viết:",
+    "copiedToast": "Đã sao chép liên kết!",
+    "tooltip": "Chia sẻ liên kết bài viết"
+  },
+  "detail": {
+    "backToNews": "← Quay lại Tin tức",
+    "allArticles": "Tất cả bài viết",
+    "author": "Tác giả",
+    "publishedOn": "Đăng ngày",
+    "notFoundTitle": "Không tìm thấy bài viết",
+    "notFoundDesc": "Bài viết này có thể đã bị xóa hoặc đường dẫn không hợp lệ."
+  }
+}
