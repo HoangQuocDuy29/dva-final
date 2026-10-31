@@ -6,6 +6,23 @@ import { newsService } from '../../../services/api';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { NewsFormModal } from '../components/news/NewsFormModal';
 
+/** Chuyển đổi chuỗi ngày của bài viết sang định dạng YYYY-MM-DD cho input[type="date"] */
+const toDateInputValue = (raw?: string): string => {
+  if (!raw) return new Date().toISOString().split('T')[0];
+  const trimmed = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    return trimmed.slice(0, 10);
+  }
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return new Date().toISOString().split('T')[0];
+};
+
 export const NewsTab: React.FC = () => {
   const {
     currentUser,
@@ -24,6 +41,7 @@ export const NewsTab: React.FC = () => {
   const [newsContent, setNewsContent] = useState('');
   const [newsAuthorName, setNewsAuthorName] = useState(currentUser.fullName);
   const [newsAuthorRole, setNewsAuthorRole] = useState('Club Administration');
+  const [newsPublishedAt, setNewsPublishedAt] = useState(() => toDateInputValue());
 
   const handleSaveNews = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +56,9 @@ export const NewsTab: React.FC = () => {
       editingNews?.image ||
       editingNews?.thumbnail ||
       'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80';
+    const resolvedPublishDate =
+      newsPublishedAt.trim() ||
+      toDateInputValue(editingNews?.publishedAt || editingNews?.createdAt);
     try {
       const payload = {
         title: newsTitle.trim(),
@@ -49,6 +70,7 @@ export const NewsTab: React.FC = () => {
         content: newsContent.trim(),
         authorName: newsAuthorName.trim() || currentUser.fullName,
         authorRole: newsAuthorRole.trim() || 'Club Administration',
+        publishedAt: resolvedPublishDate,
       };
       if (editingNews) {
         const updated = await newsService.updateNews(editingNews.id, payload);
@@ -67,6 +89,7 @@ export const NewsTab: React.FC = () => {
       setNewsThumbnail('');
       setNewsExcerpt('');
       setNewsContent('');
+      setNewsPublishedAt(toDateInputValue());
     } catch (e) {
       alert('Lỗi lưu bài viết');
     }
@@ -104,6 +127,7 @@ export const NewsTab: React.FC = () => {
               setNewsContent('');
               setNewsAuthorName(currentUser.fullName);
               setNewsAuthorRole('Club Administration');
+              setNewsPublishedAt(toDateInputValue());
               setIsNewsModalOpen(true);
             }}
             className="px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow cursor-pointer shrink-0"
@@ -175,6 +199,7 @@ export const NewsTab: React.FC = () => {
                       setNewsContent(story.content);
                       setNewsAuthorName(story.authorName);
                       setNewsAuthorRole(story.authorRole || 'Club Administration');
+                      setNewsPublishedAt(toDateInputValue(story.publishedAt || story.createdAt));
                       setIsNewsModalOpen(true);
                     }}
                     className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-300 hover:text-white rounded-xl bg-slate-800/80 hover:bg-slate-700 cursor-pointer transition-colors"
@@ -212,6 +237,8 @@ export const NewsTab: React.FC = () => {
         setNewsContent={setNewsContent}
         newsAuthorName={newsAuthorName}
         setNewsAuthorName={setNewsAuthorName}
+        newsPublishedAt={newsPublishedAt}
+        setNewsPublishedAt={setNewsPublishedAt}
         isUploadingNewsThumb={isUploadingNewsThumb}
         setIsUploadingNewsThumb={setIsUploadingNewsThumb}
         onClose={() => {

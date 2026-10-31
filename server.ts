@@ -1999,7 +1999,7 @@ app.get('/api/news', ah(async (req, res) => {
   try {
     const dbNews = await prisma.newsPost.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
     });
     return res.json(dbNews.map(toNewsDto));
   } catch {
@@ -2054,6 +2054,12 @@ app.post('/api/news', ah(async (req, res) => {
     (data.thumbnail && data.thumbnail.trim()) ||
     DEFAULT_NEWS_IMAGE_URL;
 
+  const resolvedPublishedAt =
+    data.publishedAt ||
+    data.createdAt ||
+    new Date().toISOString().split('T')[0];
+  const parsedCreatedAt = new Date(`${resolvedPublishedAt}T00:00:00.000Z`);
+
   const newRecord = {
     id: `news-${crypto.randomUUID()}`,
     title: data.title,
@@ -2065,7 +2071,8 @@ app.post('/api/news', ah(async (req, res) => {
     authorId: req.user?.id ?? null,
     authorName: data.authorName || req.user?.fullName || 'DVA',
     authorRole: data.authorRole || 'Club Administration',
-    publishedAt: new Date().toISOString().split('T')[0],
+    publishedAt: resolvedPublishedAt,
+    ...(!Number.isNaN(parsedCreatedAt.getTime()) ? { createdAt: parsedCreatedAt } : {}),
     readTimeMinutes: data.readTimeMinutes || 4,
     featured: Boolean(data.featured),
   };
@@ -2087,12 +2094,14 @@ app.post('/api/news', ah(async (req, res) => {
 app.put('/api/news/:id', ah(async (req, res) => {
   const { id } = req.params;
   const data = sanitize(req.body, NEWS_SCHEMA, { partial: true });
-  const { imageUrl, image, thumbnail, ...restData } = data;
+  const { imageUrl, image, thumbnail, publishedAt, createdAt, ...restData } = data;
   const incomingImageUrl =
     (imageUrl && imageUrl.trim()) ||
     (image && image.trim()) ||
     (thumbnail && thumbnail.trim()) ||
     '';
+  const incomingDate = publishedAt || createdAt;
+  const parsedCreatedAt = incomingDate ? new Date(`${incomingDate}T00:00:00.000Z`) : undefined;
 
   try {
     const existing = await prisma.newsPost.findFirst({
@@ -2107,6 +2116,8 @@ app.put('/api/news/:id', ah(async (req, res) => {
       data: {
         ...restData,
         thumbnail: resolvedImageUrl,
+        ...(incomingDate ? { publishedAt: incomingDate } : {}),
+        ...(parsedCreatedAt && !Number.isNaN(parsedCreatedAt.getTime()) ? { createdAt: parsedCreatedAt } : {}),
       },
     });
     const dto = toNewsDto(updated);
@@ -2131,6 +2142,10 @@ app.put('/api/news/:id', ah(async (req, res) => {
     const merged = {
       ...existing,
       ...restData,
+      ...(incomingDate ? { publishedAt: incomingDate } : {}),
+      ...(parsedCreatedAt && !Number.isNaN(parsedCreatedAt.getTime())
+        ? { createdAt: parsedCreatedAt.toISOString() }
+        : {}),
       imageUrl: resolvedImageUrl,
       image: resolvedImageUrl,
       thumbnail: resolvedImageUrl,

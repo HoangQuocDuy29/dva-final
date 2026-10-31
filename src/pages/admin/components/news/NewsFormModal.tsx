@@ -18,6 +18,8 @@ export interface NewsFormModalProps {
   setNewsContent: React.Dispatch<React.SetStateAction<string>>;
   newsAuthorName: string;
   setNewsAuthorName: React.Dispatch<React.SetStateAction<string>>;
+  newsPublishedAt: string;
+  setNewsPublishedAt: React.Dispatch<React.SetStateAction<string>>;
   isUploadingNewsThumb: boolean;
   setIsUploadingNewsThumb: React.Dispatch<React.SetStateAction<boolean>>;
   onClose: () => void;
@@ -40,6 +42,8 @@ export const NewsFormModal: React.FC<NewsFormModalProps> = ({
   setNewsContent,
   newsAuthorName,
   setNewsAuthorName,
+  newsPublishedAt,
+  setNewsPublishedAt,
   isUploadingNewsThumb,
   setIsUploadingNewsThumb,
   onClose,
@@ -82,7 +86,7 @@ export const NewsFormModal: React.FC<NewsFormModalProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-slate-300 font-semibold mb-1">Category *</label>
               <select
@@ -107,7 +111,17 @@ export const NewsFormModal: React.FC<NewsFormModalProps> = ({
                 value={newsAuthorName}
                 onChange={(e) => setNewsAuthorName(e.target.value)}
                 placeholder="Author name"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">Ngày đăng bài (Publish Date)</label>
+              <input
+                type="date"
+                value={newsPublishedAt}
+                onChange={(e) => setNewsPublishedAt(e.target.value)}
+                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-red-500 [color-scheme:dark]"
               />
             </div>
           </div>

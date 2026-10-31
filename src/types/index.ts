@@ -243,6 +243,7 @@ export interface NewsPost {
   authorName: string;
   authorRole: string;
   publishedAt: string;
+  createdAt?: string;
   readTimeMinutes: number;
   featured?: boolean;
 }

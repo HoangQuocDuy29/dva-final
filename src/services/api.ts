@@ -729,8 +729,12 @@ export const newsService = {
 
   async createNews(postData: Partial<NewsPost>): Promise<NewsPost> {
     const resolvedImageUrl = (postData.imageUrl || postData.image || postData.thumbnail || '').trim();
+    const resolvedPublishedAt =
+      (postData.publishedAt && postData.publishedAt.trim()) ||
+      new Date().toISOString().split('T')[0];
     const payload = {
       ...postData,
+      publishedAt: resolvedPublishedAt,
       imageUrl: resolvedImageUrl,
       image: resolvedImageUrl,
       thumbnail: resolvedImageUrl,
@@ -739,7 +743,7 @@ export const newsService = {
       ...payload,
       id: `news-${Date.now()}`,
       slug: postData.slug || `news-${Date.now()}`,
-      publishedAt: new Date().toISOString().split('T')[0],
+      publishedAt: resolvedPublishedAt,
       readTimeMinutes: 4,
     } as NewsPost);
 

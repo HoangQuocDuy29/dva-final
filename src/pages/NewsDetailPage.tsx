@@ -4,20 +4,12 @@ import { Calendar, ArrowLeft, User, Newspaper } from 'lucide-react';
 import { NewsPost } from '../types';
 import { newsService } from '../services/api';
 import { ShareButton } from '../components/common/ShareButton';
+import { formatEnglishDate, formatPublishDate } from '../utils/date';
+
+export { formatEnglishDate, formatPublishDate };
 
 const NEWS_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80';
-
-/** Định dạng ngày đăng sang chuẩn tiếng Việt: "24 Tháng 10, 2026" */
-const formatVietnameseDate = (raw?: string): string => {
-  if (!raw) return '';
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return raw;
-  const day = String(parsed.getDate()).padStart(2, '0');
-  const month = parsed.getMonth() + 1;
-  const year = parsed.getFullYear();
-  return `${day} Tháng ${month}, ${year}`;
-};
 
 export const NewsDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -87,7 +79,7 @@ export const NewsDetailPage: React.FC = () => {
 
   const shareUrl = `${window.location.origin}/news/${article.id}`;
   const coverImage = (article.imageUrl || article.image || article.thumbnail || '').trim();
-  const formattedDate = formatVietnameseDate(
+  const formattedDate = formatEnglishDate(
     article.publishedAt || (article as unknown as { createdAt?: string }).createdAt
   );
   const authorInitial = (article.authorName || '').trim().charAt(0).toUpperCase();

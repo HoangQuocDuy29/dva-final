@@ -8,6 +8,7 @@ import {
 import { NewsPost, User as UserType } from '../types';
 import { newsService } from '../services/api';
 import { ShareButton } from '../components/common/ShareButton';
+import { formatEnglishDate } from '../utils/date';
 
 interface NewsPageProps {
   currentUser: UserType;
@@ -123,7 +124,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser }) => {
                   <div className="relative z-10">
                     <span className="text-[11px] text-slate-300 flex items-center gap-1.5 mb-1">
                       <Calendar className="w-3.5 h-3.5 text-orange-400" />
-                      <span>{article.publishedAt}</span>
+                      <span>{formatEnglishDate(article.publishedAt || article.createdAt)}</span>
                       <span>·</span>
                       <span>{article.readTimeMinutes} min read</span>
                     </span>

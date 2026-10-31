@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Court, Player, NewsPost } from '../types';
 import { courtService, playerService, newsService } from '../services/api';
+import { formatEnglishDate } from '../utils/date';
 
 interface LeadershipMember {
   name: string;
@@ -968,7 +969,7 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 <div className="pt-3 border-t border-slate-800 flex justify-between items-center text-xs">
-                  <span className="text-slate-500">{news.publishedAt}</span>
+                  <span className="text-slate-500">{formatEnglishDate(news.publishedAt || news.createdAt)}</span>
                   <Link
                     to={`/news/${news.id}`}
                     className="font-bold text-orange-400 hover:underline flex items-center gap-1"

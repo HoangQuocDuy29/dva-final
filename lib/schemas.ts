@@ -190,6 +190,15 @@ export const COACH_SCHEMA: Schema = {
   certifications: SA(20, 200),
 };
 
+export const OPTIONAL_DATE: Rule = (v, k) => {
+  if (v === undefined || v === null) return undefined;
+  if (typeof v === 'string' && v.trim() === '') return undefined;
+  if (typeof v !== 'string') throw new HttpError(400, `${k} must be a date string`);
+  const trimmed = v.trim();
+  const ymd = trimmed.slice(0, 10);
+  return D(ymd, k);
+};
+
 export const NEWS_SCHEMA: Schema = {
   title: S(200, 3),
   slug: S(200),
@@ -201,6 +210,8 @@ export const NEWS_SCHEMA: Schema = {
   category: S(50),
   authorName: S(100),
   authorRole: S(100),
+  publishedAt: OPTIONAL_DATE,
+  createdAt: OPTIONAL_DATE,
   readTimeMinutes: I(1, 120),
   featured: B,
 };

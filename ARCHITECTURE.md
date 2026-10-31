@@ -40,12 +40,13 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 
 | Đường dẫn Thư mục | Trách nhiệm Cốt lõi & Thành phần Chính |
 | :--- | :--- |
-| `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung.<br>• `layout/`: Navbar (Floating Capsule), Footer, Menu Drawer di động. |
-| `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: File re-export 1 dòng trỏ tới `src/pages/admin/AdminDashboardPage.tsx` (hỗ trợ `React.lazy` code-splitting).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và thông báo hoạt động.<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
+| `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung, `ShareButton.tsx` (nút chia sẻ link thông minh).<br>• `training/`: `CourseDetailModal.tsx` (modal chi tiết khoá học & học viện hỗ trợ deep-linking).<br>• `layout/`: Navbar (Floating Capsule), Footer, Menu Drawer di động. |
+| `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: File re-export 1 dòng trỏ tới `src/pages/admin/AdminDashboardPage.tsx` (hỗ trợ `React.lazy` code-splitting).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV, hỗ trợ deep-linking mở `CourseDetailModal` qua `?courseId=`.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và bài viết chuyên sâu (Editorial layout, chia sẻ bài viết, hiển thị ngày đăng tiếng Anh chuẩn US).<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
 | `src/pages/admin/` | Kiến trúc Quản trị phân tách theo Tab (Tab-based Modular Architecture): <br>• `AdminDashboardPage.tsx`: Shell điều phối mỏng (114 dòng).<br>• `context/`, `layout/`, `tabs/`, `hooks/`, `components/`, `utils/`. |
 | `src/services/` | Lớp giao tiếp API máy khách (`api.ts`): Bao bọc hàm `request<T>()`, quản lý xác thực `authService`, điều phối đặt sân `bookingService`, huấn luyện `trainingService`, đồng bộ sheets `sheetsService`. |
 | `src/data/` | Dữ liệu tĩnh và mock fallback: `mockData.ts`, danh mục tỉnh thành `vietnamLocations.ts`. |
 | `src/types/` | Toàn bộ định nghĩa TypeScript (`index.ts`): User, Role, Player, Court, Booking, ClosedSlot, TrainingCourse, v.v. |
+| `src/utils/` | Tiện ích dùng chung phía Client: `cloudinary.ts` (upload ảnh CDN), `date.ts` (`formatEnglishDate` / `formatPublishDate` chuẩn Anh - Mỹ `Month DD, YYYY`). |
 | `src/shared/` | Logic dùng chung giữa FE và BE: Chuẩn hóa lịch tuần sân bóng (`schedule.ts`). |
 | `src/config/` | Cấu hình frontend: Đường dẫn API gốc (`api.ts`). |
 | `lib/` | Thư viện dịch vụ cốt lõi Backend: <br>• `mailer.ts`: Khởi tạo Resend, template email song ngữ, VietQR URL builder.<br>• `prisma.ts`: Singleton kết nối Prisma Client qua PostgreSQL pool adapter.<br>• `security.ts`: RBAC Default-Deny, JWT sign/verify, mã hoá bcrypt, rate limiter, security headers.<br>• `schemas.ts` & `validation.ts`: Xác thực và làm sạch dữ liệu đầu vào. |
@@ -145,6 +146,26 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   - **`AdminDashboardContext`:** Quản lý các state dùng chung xuyên suốt các tab bao gồm: phiên đăng nhập (`currentUser`, `isAdmin`, `isSuperAdmin`), tab đang mở (`activeModule`), thông báo (`feedback`, `notify` / `setFeedback`), 9 tập dữ liệu cốt lõi từ `useAdminData` (`data`, `setData`), bộ chọn sân dùng chung giữa Courts & Bookings (`courtSelection`: `selectedManageCourtId`, `adminSelectedSubCourt`, `selectedManageDate`), và trạng thái mở modal gửi mail khách vãng lai.
   - **Domain Custom Hooks:** Mỗi miền nghiệp vụ phức tạp sử dụng hook riêng kết nối vào Context (`useCourtCrud`, `useCourtSlotLock`, `useApplicationActions`, `useAdminMetrics`, `useUsersTab`), đảm bảo khi một tab cập nhật dữ liệu (ví dụ duyệt ứng viên ở `OverviewTab` hoặc `ApplicationsTab`), danh sách VĐV (`players`) và các chỉ số badge trên `AdminTabNav` tự động đồng bộ tức thì.
 
+### 3.7. Luồng Chia sẻ (`ShareButton`), Deep Linking & Module Tin tức (`News`)
+- **Component Chia sẻ Dùng chung (`src/components/common/ShareButton.tsx`):**
+  - Tự động nhận diện thiết bị di động để kích hoạt menu chia sẻ bản địa (`navigator.share({ title, text, url })`).
+  - Trên máy tính (hoặc khi trình duyệt không hỗ trợ Web Share API), tự động sao chép đường dẫn vào Clipboard (`navigator.clipboard.writeText`) và chuyển sang trạng thái phản hồi trực quan `"Đã chép link"` (màu Emerald) trong 2 giây.
+- **Deep Linking & Chi tiết Khoá học (`src/components/training/CourseDetailModal.tsx` & `src/pages/TrainingPage.tsx`):**
+  - Mỗi gói huấn luyện trên `TrainingPage.tsx` hỗ trợ đường dẫn chia sẻ trực tiếp `/training?courseId=<id>`.
+  - Khi người dùng truy cập URL có `?courseId=...`, `TrainingPage.tsx` tự động đối chiếu danh sách khóa học và mở `CourseDetailModal` tương ứng; nếu `courseId` không tồn tại hoặc khi người dùng đóng modal / chuyển sang bước đăng ký, query param được dọn sạch (`setSearchParams({}, { replace: true })`).
+- **Luồng Quản trị & Hiển thị Tin tức (`NewsPost`):**
+  - **Database & API (`prisma/schema.prisma`, `lib/schemas.ts`, `server.ts`, `src/services/api.ts`):**
+    - Model `NewsPost` lưu trữ trường `publishedAt` (`YYYY-MM-DD`) và `createdAt` (`DateTime @default(now())`).
+    - Schema kiểm duyệt `NEWS_SCHEMA` sử dụng rule `OPTIONAL_DATE` cho phép client gửi `publishedAt` (hoặc `createdAt`) tùy chỉnh khi tạo mới (`POST /api/news`) và chỉnh sửa (`PUT /api/news/:id`). Khi có ngày tùy chỉnh gửi lên, backend cập nhật đồng bộ cả `publishedAt` lẫn `createdAt` (nếu không gửi thì giữ nguyên hoặc lấy ngày hiện tại khi tạo mới).
+    - `GET /api/news` sắp xếp bài viết theo `[{ publishedAt: 'desc' }, { createdAt: 'desc' }]`.
+  - **Form Quản trị News trong Admin (`src/pages/admin/components/news/NewsFormModal.tsx` & `src/pages/admin/tabs/NewsTab.tsx`):**
+    - Tích hợp trường chỉnh sửa **"Ngày đăng bài (Publish Date)"** (`input[type="date"]`) vào `NewsFormModal.tsx`, bố trí trên hàng thông tin 3 cột cân đối: `Category` | `Author Name` | `Ngày đăng bài (Publish Date)`.
+    - Khi mở modal chỉnh sửa bài viết, hàm `toDateInputValue()` tự động chuẩn hóa và nạp ngày hiện tại của bài viết (`YYYY-MM-DD`) vào ô chọn ngày; khi lưu thay đổi, giá trị được gửi qua API và đồng bộ xuống PostgreSQL thông qua Prisma.
+  - **Định dạng Hiển thị Ngày Công khai (`Public News Date Formatting` - `src/utils/date.ts`, `src/pages/NewsPage.tsx`, `src/pages/NewsDetailPage.tsx` & `src/pages/HomePage.tsx`):**
+    - `NewsDetailPage.tsx` được thiết kế theo chuẩn Editorial (breadcrumb điều hướng, badge danh mục, thanh meta tác giả & ngày đăng, ảnh bìa `aspect-video`, khối trích dẫn `excerpt` và nội dung phân đoạn, kèm `ShareButton` ở cả đầu và chân bài viết).
+    - Chuyển đổi hiển thị ngày xuất bản bài viết (`publishedAt` / `createdAt`) từ tiếng Việt sang định dạng tiếng Anh chuẩn Anh - Mỹ: `Month DD, YYYY` (ví dụ: `"February 28, 2025"`) thông qua hàm `formatEnglishDate()` (`Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })`) tại `NewsPage.tsx`, `NewsDetailPage.tsx` và `HomePage.tsx`.
+    - **Cơ chế xử lý Timezone:** Khi parse chuỗi ngày dạng `YYYY-MM-DD` từ database/API, hàm tách trực tiếp `year, month - 1, day` để khởi tạo `new Date(year, month - 1, day)` theo giờ địa phương (local time) thay vì parse UTC mặc định của `new Date("YYYY-MM-DD")`, ngăn chặn triệt để lỗi lùi 1 ngày ở các múi giờ khác nhau.
+
 ---
 
 ## 4. 🎨 Quy chuẩn Giao diện & Thiết kế (Design Tokens - Dark Theme DVA)
@@ -197,3 +218,6 @@ Mọi lập trình viên và AI Agent khi làm việc với codebase này bắt 
 5. **PostgreSQL là Nguồn Chân lý Duy nhất (Single Source of Truth):**
    - Mọi thao tác đọc/ghi dữ liệu nghiệp vụ (Bookings, Member Applications, Closed Slots, Training Registrations, Users) chạy trực tiếp 100% qua Prisma ORM tới PostgreSQL.
    - Không duy trì cơ chế ghi file JSON dự phòng cục bộ (`bookings.json`, `applications.json`, `closedSlots.json`, `trainingRegistrations.json`) khi có mutation, tránh hiện tượng chia rẽ dữ liệu (split-brain) và hao tổn I/O trên môi trường container ephemeral disk (Render).
+
+6. **Đồng bộ Tài liệu Kiến trúc (`./ARCHITECTURE.md`) Bắt buộc:**
+   - Bất kỳ khi nào thêm mới, chỉnh sửa hay mở rộng tính năng trên hệ thống, **BẮT BUỘC** phải cập nhật lại file `./ARCHITECTURE.md` tương ứng để các phiên làm việc tiếp theo luôn nắm bắt chuẩn xác kiến trúc, luồng dữ liệu và quy ước của dự án.

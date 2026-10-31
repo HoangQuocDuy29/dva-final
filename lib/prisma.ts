@@ -366,6 +366,9 @@ export function toApplicationDto(a: DbMemberApplication | any): MemberApplicatio
 
 export function toNewsDto(n: DbNewsPost & { imageUrl?: string | null; image?: string | null }): NewsPost {
   const resolvedImageUrl = (n.imageUrl || n.image || n.thumbnail || '').trim();
+  const resolvedPublishedAt =
+    (typeof n.publishedAt === 'string' && n.publishedAt.trim()) ||
+    safeIsoString(n.createdAt).slice(0, 10);
   return {
     id: n.id,
     title: n.title,
@@ -378,7 +381,8 @@ export function toNewsDto(n: DbNewsPost & { imageUrl?: string | null; image?: st
     category: n.category,
     authorName: n.authorName,
     authorRole: n.authorRole,
-    publishedAt: n.publishedAt,
+    publishedAt: resolvedPublishedAt,
+    createdAt: safeIsoString(n.createdAt),
     readTimeMinutes: n.readTimeMinutes,
     featured: n.featured,
   };
