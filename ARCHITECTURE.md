@@ -153,9 +153,14 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 - **Component Chia sẻ Dùng chung (`src/components/common/ShareButton.tsx`):**
   - Tự động nhận diện thiết bị di động để kích hoạt menu chia sẻ bản địa (`navigator.share({ title, text, url })`).
   - Trên máy tính (hoặc khi trình duyệt không hỗ trợ Web Share API), tự động sao chép đường dẫn vào Clipboard (`navigator.clipboard.writeText`), hiển thị nút mặc định `"Share"` (hoặc `"Share Article"` qua prop `label`) và chuyển sang trạng thái phản hồi trực quan `"Link Copied!"` (màu Emerald) trong 2 giây.
-- **Deep Linking & Chi tiết Khoá học (`src/components/training/CourseDetailModal.tsx` & `src/pages/TrainingPage.tsx`):**
+- **Deep Linking, Bộ lọc Cấp độ & Chi tiết Khoá học (`src/components/training/CourseDetailModal.tsx` & `src/pages/TrainingPage.tsx`):**
   - Mỗi gói huấn luyện trên `TrainingPage.tsx` hỗ trợ đường dẫn chia sẻ trực tiếp `/training?courseId=<id>`.
   - Khi người dùng truy cập URL có `?courseId=...`, `TrainingPage.tsx` tự động đối chiếu danh sách khóa học và mở `CourseDetailModal` tương ứng; nếu `courseId` không tồn tại hoặc khi người dùng đóng modal / chuyển sang bước đăng ký, query param được dọn sạch (`setSearchParams({}, { replace: true })`).
+  - **Bộ lọc Cấp độ (`Filter by Level`):** Cung cấp 4 nấc lọc chuẩn tiếng Anh: `"All Levels"`, `"Beginner / Fundamentals"`, `"Intermediate"`, `"Senior / Advanced & Tactics"`.
+  - **Chuẩn hóa Trường Thông số & Nút bấm 100% Tiếng Anh:**
+    - Trên thẻ gói tập (`TrainingPage.tsx`): Hiển thị `Target Audience`, `Package Inclusions`, `Schedule`, `Tuition Fee`, `Billing Unit` (ví dụ `/ player / session`), `Max Slots`, `Registered`, `Duration` và nút bấm duy nhất **`"View Details"`** để mở modal chi tiết.
+    - Trong `CourseDetailModal.tsx`: Hiển thị đầy đủ `Schedule`, `Duration`, `Max Slots`, `Registered`, `Target Audience`, `Coach In Charge`, `Coach Title`, `Program Overview`, `Package Inclusions`, `Tuition Fee`, `Billing Unit` và nút hành động chính **`"Enroll Now"`** (duy nhất tại modal chi tiết).
+    - Tự động chuẩn hóa mọi dữ liệu đơn vị tính học phí (`priceUnit`) và tên khóa học từ DB/fallback sang tiếng Anh thông qua `getPriceUnitLabel()`, `normalizeCoursePublicData()` và `toCourseDto()` (`lib/prisma.ts`).
 - **Luồng Quản trị & Hiển thị Tin tức (`NewsPost`):**
   - **Database & API (`prisma/schema.prisma`, `lib/schemas.ts`, `lib/prisma.ts`, `server.ts`, `src/services/api.ts`):**
     - Model `NewsPost` lưu trữ trường `publishedAt` (`YYYY-MM-DD`), `createdAt` (`DateTime @default(now())`), `featured` (`Boolean @default(false)`) và **`isPinned`** (`Boolean @default(false)`), phục vụ qua composite index `@@index([isPinned, publishedAt(sort: Desc)])`.
@@ -223,10 +228,14 @@ Giao diện áp dụng phong cách **Thể thao Hiện đại Cao cấp (Premium
   - **Trạng thái ở Đỉnh trang (`scrollY <= 20px`):** Dàn rộng `max-w-7xl`, chiều cao `h-20`, bo góc thẳng `rounded-none`, nền `bg-[#0B0F19]/90`, đường viền đáy `border-b border-slate-800/80`.
   - **Trạng thái Cuộn trang (`scrollY > 20px`):** Thu gọn thành Capsule nổi `max-w-6xl`, chiều cao `h-14`, bo góc bầu dục `rounded-2xl`, hiệu ứng kính mờ `backdrop-blur-md` (`16px`), viền nổi `border border-slate-700/60`, đổ bóng `shadow-2xl shadow-black/50`, nền trong suốt `bg-[#0B0F19]/70`.
 
-### 4.3. Quy chuẩn Ngôn ngữ Giao diện Công khai & Email (English-First i18n Policy & Bilingual Emails)
-- **English-First Public UI Policy & Đa ngôn ngữ Tĩnh (`i18next`):**
-  - Giao diện Public khởi tạo mặc định 100% bằng **Tiếng Anh (`en` - English-first)**, đồng thời hỗ trợ người dùng chuyển đổi sang **Tiếng Việt (`vi`)** thông qua nút `LanguageSwitcher` dạng Segmented Pill trên Navbar (lưu lựa chọn vào `localStorage` với key `'dva_lang'`).
-  - Toàn bộ nhãn điều hướng và tương tác tĩnh sử dụng từ điển chuẩn hóa tại `src/locales/{en,vi}/{common,news}.json`, tuyệt đối không pha trộn nửa Anh nửa Việt trong cùng một chế độ ngôn ngữ.
+### 4.3. Quy chuẩn Ngôn ngữ Giao diện Công khai & Email (English-First & Public UI 100% English Policy)
+- **English-First & Public UI 100% English Policy (`i18next` & Dynamic Data Normalization):**
+  - Toàn bộ giao diện người dùng đọc (Public Facing UI) trên tất cả các trang (`HomePage`, `Navbar`, `Footer`, `NewsPage`, `NewsDetailPage`, `TrainingPage`, `CourseDetailModal`, `CourtBookingPage`, `PlayersPage`, `InformationPage`, `MemberRegisterPage`, `CountrySelect`, `VietQRModal`, `AuthModal`) khởi tạo và hiển thị **100% bằng Tiếng Anh (`lng: 'en'`, `fallbackLng: 'en'`)**.
+  - **Static UI:** Toàn bộ Header, Footer (`Opening Hours`, `Court Location`, `All rights reserved`), Navbar, Menu, Nút bấm (CTA), Nhãn (`labels`), Bộ lọc (`filters`), Thanh phân trang (`pagination`), Placeholders ô nhập liệu, Tiêu đề modal và Thông báo toast/alert đều chuẩn hóa 100% tiếng Anh thể thao chuyên nghiệp.
+  - **Dynamic UI & Seed/Mock/DB Fallback:**
+    - Dữ liệu mẫu (`src/data/mockData.ts`, `data/trainingCourses.json`, `data/players.json`, `data/courts.json`) và các DTO mapper (`lib/prisma.ts`, `src/services/api.ts`) chuẩn hóa 100% sang tiếng Anh cho các trường hiển thị công khai (tên khóa học, đơn vị học phí `/ player / session`, địa chỉ sân, quê quán cầu thủ `Hanoi`, `Ho Chi Minh City`, `Da Nang`...).
+    - Vị trí thi đấu chuẩn hóa thống nhất: `Setter`, `Outside Hitter`, `Opposite Spiker`, `Middle Blocker`, `Libero`, `Head Coach`.
+    - Trang Đặt sân (`CourtBookingPage.tsx`) hiển thị 100% tiếng Anh cho trạng thái sân (`Available`, `Booked`, `Maintenance`, `Peak Hours`, `Standard Hours`), quy trình đặt sân (`Select Court`, `Select Date & Time`, `Full Name`, `Phone Number`, `Confirm Reservation`) và tên sân con (`Court A`, `Court B` qua helper `formatSubCourtLabel` trong khi vẫn bảo toàn giá trị nội bộ `'Sân A'` / `'Sân B'` để tương thích tuyệt đối với API/DB).
 - **Email HTML (Bilingual):**
   - Trong email HTML gửi tự động qua Resend: Tiêu đề, lời chào và bảng thông tin tóm tắt giữ định dạng song ngữ Anh - Việt rõ ràng để phục vụ cả hội viên quốc tế lẫn nội địa.
 
@@ -256,9 +265,9 @@ Mọi lập trình viên và AI Agent khi làm việc với codebase này bắt 
    - Mọi thao tác đọc/ghi dữ liệu nghiệp vụ (Bookings, Member Applications, Closed Slots, Training Registrations, Users) chạy trực tiếp 100% qua Prisma ORM tới PostgreSQL.
    - Không duy trì cơ chế ghi file JSON dự phòng cục bộ (`bookings.json`, `applications.json`, `closedSlots.json`, `trainingRegistrations.json`) khi có mutation, tránh hiện tượng chia rẽ dữ liệu (split-brain) và hao tổn I/O trên môi trường container ephemeral disk (Render).
 
-6. **Public UI English-Only Policy (Chuẩn hóa Tiếng Anh 100% cho Giao diện Public):**
-   - Toàn bộ phần giao diện hiển thị cho người dùng đọc trên các trang Public (Tiêu đề mục, Nhãn `labels`, Nút bấm `buttons`, Bộ lọc `filter tabs`, Thông báo `toast/placeholders` và Phân trang `pagination`) **BẮT BUỘC PHẢI DÙNG TIẾNG ANH (English-first)**.
-   - Tuyệt đối không dùng tiếng Việt hoặc pha trộn nửa Anh nửa Việt ở các thành phần điều hướng và tương tác ngoài trang Public.
+6. **English-First & Public UI 100% English Policy (Chuẩn hóa Tiếng Anh 100% cho Giao diện Public):**
+   - Toàn bộ phần giao diện hiển thị cho người dùng cuối trên các trang Public — bao gồm cả **Static UI** (Header, Footer, Navbar, Menu, CTA buttons, labels, filters, pagination, input placeholders, modal titles, toast/alert messages) lẫn **Dynamic UI / Seed / Fallback Data** (định dạng ngày tháng, đơn vị tính học phí, trạng thái sân, cấp độ lớp học, vị trí thi đấu, quyền lợi gói tập mẫu) — **BẮT BUỘC PHẢI VIẾT BẰNG TIẾNG ANH 100%**.
+   - Từ nay, mọi component mới hoặc dữ liệu hiển thị cho người dùng cuối bắt buộc phải viết bằng tiếng Anh; tuyệt đối không dùng tiếng Việt hoặc pha trộn song ngữ nửa Anh nửa Việt trên màn hình Public UI.
 
 7. **Đồng bộ Tài liệu Kiến trúc (`./ARCHITECTURE.md`) Bắt buộc:**
    - Bất kỳ khi nào thêm mới, chỉnh sửa hay mở rộng tính năng trên hệ thống, **BẮT BUỘC** phải cập nhật lại file `./ARCHITECTURE.md` tương ứng để các phiên làm việc tiếp theo luôn nắm bắt chuẩn xác kiến trúc, luồng dữ liệu và quy ước của dự án.

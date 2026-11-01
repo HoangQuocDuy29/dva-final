@@ -430,7 +430,7 @@ export const HomePage: React.FC = () => {
                 <div className="relative h-64 rounded-2xl overflow-hidden bg-gradient-to-br from-red-950 via-slate-900 to-[#121826] border border-slate-700/80 flex flex-col justify-between p-5">
                   <div className="flex justify-between items-start">
                     <span className="px-3 py-1 bg-red-600 text-white font-extrabold text-xs rounded-lg uppercase tracking-wider shadow">
-                      CENTRAL COURT · SÂN TT
+                      CENTRAL COURT · MAIN ARENA
                     </span>
                     <span className="text-xs text-slate-300 font-mono bg-black/50 px-2 py-1 rounded backdrop-blur border border-white/10">
                       Taraflex 7.5mm
@@ -948,7 +948,7 @@ export const HomePage: React.FC = () => {
             ))
           ) : latestNews.length === 0 ? (
             <div className="col-span-full py-12 text-center text-slate-500 bg-[#161F30]/50 border border-slate-800 rounded-3xl">
-              Chưa có tin tức nào được xuất bản.
+              No articles have been published yet.
             </div>
           ) : (
             latestNews.map((news) => (

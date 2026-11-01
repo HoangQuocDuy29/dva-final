@@ -27,7 +27,7 @@ const PageLoadingFallback: React.FC = () => (
       <div className="absolute w-6 h-6 rounded-full bg-orange-500/20 animate-pulse" />
     </div>
     <div className="flex flex-col items-center gap-1">
-      <p className="text-sm font-semibold tracking-wide text-slate-300">Đang tải trang...</p>
+      <p className="text-sm font-semibold tracking-wide text-slate-300">Loading page...</p>
       <p className="text-xs text-slate-500 font-medium">DVA Sports Club</p>
     </div>
   </div>

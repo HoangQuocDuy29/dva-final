@@ -66,7 +66,7 @@ export const MemberRegisterPage: React.FC = () => {
     if (!/^\d+$/.test(val)) {
       setFieldErrors((prev) => ({
         ...prev,
-        [field]: `Vui lòng chỉ nhập số nguyên (ví dụ: ${errorExample})`,
+        [field]: `Please enter a whole number only (e.g., ${errorExample})`,
       }));
       setFormData((prev) => ({ ...prev, [field]: val }));
     } else {
@@ -102,7 +102,7 @@ export const MemberRegisterPage: React.FC = () => {
       e.preventDefault();
       setFieldErrors((prev) => ({
         ...prev,
-        [field]: `Vui lòng chỉ nhập số nguyên (ví dụ: ${errorExample})`,
+        [field]: `Please enter a whole number only (e.g., ${errorExample})`,
       }));
     }
   };
@@ -113,62 +113,62 @@ export const MemberRegisterPage: React.FC = () => {
     const errors: Record<string, string> = {};
 
     if (!formData.fullName.trim()) {
-      errors.fullName = 'Vui lòng nhập Họ và tên / Please enter Full Name';
+      errors.fullName = 'Please enter your Full Name';
     }
     if (!formData.dob) {
-      errors.dob = 'Vui lòng chọn Ngày sinh / Please select Date of Birth';
+      errors.dob = 'Please select your Date of Birth';
     }
     if (!formData.hometownCountry.trim()) {
-      errors.hometownCountry = 'Vui lòng nhập Quê quán / Please enter Hometown';
+      errors.hometownCountry = 'Please enter your Hometown / City';
     }
     if (!formData.gmail.trim()) {
-      errors.gmail = 'Vui lòng nhập Email / Please enter Email';
+      errors.gmail = 'Please enter your Email Address';
     }
     if (!formData.zalo.trim()) {
-      errors.zalo = 'Vui lòng nhập Số điện thoại hoặc Zalo / Please enter Phone/Zalo';
+      errors.zalo = 'Please enter your Phone / Zalo Number';
     }
 
     // Height validation
     const heightStr = String(formData.height).trim();
     if (!heightStr) {
-      errors.height = 'Vui lòng nhập Chiều cao / Please enter Height';
+      errors.height = 'Please enter your Height';
     } else if (!/^\d+$/.test(heightStr)) {
-      errors.height = 'Vui lòng chỉ nhập số nguyên (ví dụ: 160 thay vì 1m6)';
+      errors.height = 'Please enter a whole number only (e.g., 178 instead of 1.78m)';
     }
 
     // Weight validation
     const weightStr = String(formData.weight).trim();
     if (!weightStr) {
-      errors.weight = 'Vui lòng nhập Cân nặng / Please enter Weight';
+      errors.weight = 'Please enter your Weight';
     } else if (!/^\d+$/.test(weightStr)) {
-      errors.weight = 'Vui lòng chỉ nhập số nguyên (ví dụ: 55 thay vì 55kg)';
+      errors.weight = 'Please enter a whole number only (e.g., 70 instead of 70kg)';
     }
 
     // Spike reach validation
     const spikeStr = String(formData.spikeReach).trim();
     if (!spikeStr) {
-      errors.spikeReach = 'Vui lòng nhập Tầm bật đà / Please enter Spike Reach';
+      errors.spikeReach = 'Please enter your Spike Reach';
     } else if (!/^\d+$/.test(spikeStr)) {
-      errors.spikeReach = 'Vui lòng chỉ nhập số nguyên (ví dụ: 300 thay vì 3m)';
+      errors.spikeReach = 'Please enter a whole number only (e.g., 305 instead of 3.05m)';
     }
 
     // Block reach validation
     const blockStr = String(formData.blockReach).trim();
     if (!blockStr) {
-      errors.blockReach = 'Vui lòng nhập Tầm bật chắn / Please enter Block Reach';
+      errors.blockReach = 'Please enter your Block Reach';
     } else if (!/^\d+$/.test(blockStr)) {
-      errors.blockReach = 'Vui lòng chỉ nhập số nguyên (ví dụ: 285 thay vì 2m85)';
+      errors.blockReach = 'Please enter a whole number only (e.g., 290 instead of 2.90m)';
     }
 
     // Preferred Jersey validation (if provided)
     const jerseyStr = String(formData.desiredJerseyNumber).trim();
     if (jerseyStr && !/^\d+$/.test(jerseyStr)) {
-      errors.desiredJerseyNumber = 'Vui lòng chỉ nhập số nguyên (ví dụ: 15)';
+      errors.desiredJerseyNumber = 'Please enter a whole number only (e.g., 15)';
     }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      alert('Vui lòng kiểm tra và hoàn thiện các trường thông tin hợp lệ (*) / Please complete all required fields.');
+      alert('Please fill in all required fields (*) with valid values.');
       return;
     }
 
@@ -215,7 +215,7 @@ export const MemberRegisterPage: React.FC = () => {
         'Thời gian gửi': new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })
       });
     } catch (err) {
-      alert('Lỗi gửi hồ sơ. Vui lòng thử lại. / Error submitting application. Please try again.');
+      alert('Failed to submit application. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -228,14 +228,13 @@ export const MemberRegisterPage: React.FC = () => {
         {/* Header */}
         <div className="text-center space-y-2.5 sm:space-y-3">
           <span className="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-950/60 border border-red-800 px-3 py-1 rounded-full">
-            Mùa Giải 2026 / Season 2026
+            Season 2026 Tryouts & Registration
           </span>
           <h1 className="text-2xl sm:text-4xl font-black text-white font-heading">
-            Player Registration / Đăng Ký
+            Official Player Registration
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
-            Submit your athletic profile and reach metrics. Applications will be reviewed directly by the coaching staff within 24 hours. / 
-            Điền hồ sơ thể hình và tầm với của bạn. Chúng tôi sẽ xét duyệt và phản hồi trong 24 giờ.
+            Submit your athletic profile and jump reach metrics. Applications are reviewed directly by the DVA coaching staff within 24 hours.
           </p>
         </div>
 
@@ -255,10 +254,10 @@ export const MemberRegisterPage: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-heading font-black text-sm sm:text-base text-white tracking-wide">
-                      REGISTRATION SUBMITTED / ĐÃ GỬI HỒ SƠ!
+                      APPLICATION SUBMITTED SUCCESSFULLY!
                     </h3>
                     <p className="text-[11px] text-amber-400 font-semibold">
-                      DVA Volleyball Club · Athlete Membership Pass / Thẻ Vận Động Viên
+                      DVA Volleyball Club · Official Athlete Membership Pass
                     </p>
                   </div>
                 </div>
@@ -335,21 +334,21 @@ export const MemberRegisterPage: React.FC = () => {
                     to="/players"
                     className="w-full sm:flex-1 py-3 px-4 rounded-xl font-black text-xs text-white bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 shadow-lg text-center transition-all cursor-pointer"
                   >
-                    View Squad Roster / Xem Đội Hình
+                    View Squad Roster
                   </Link>
                   <button
                     type="button"
                     onClick={() => window.print()}
                     className="w-full sm:w-auto py-3 px-5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all cursor-pointer"
                   >
-                    Print / Lưu Thẻ
+                    Print / Save Pass
                   </button>
                   <button
                     type="button"
                     onClick={handleClosePass}
                     className="w-full sm:w-auto py-3 px-5 rounded-xl font-bold text-xs bg-transparent border border-slate-700 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
                   >
-                    Close / Đóng
+                    Close
                   </button>
                 </div>
 
@@ -364,13 +363,13 @@ export const MemberRegisterPage: React.FC = () => {
           <div className="my-4 sm:my-6 space-y-3.5 sm:space-y-5">
             <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider border-b border-slate-800 pb-2.5 sm:pb-3 flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center font-bold shrink-0">1</span>
-              <span>PERSONAL INFORMATION & DESIRED PLAYING POSITION / THÔNG TIN CÁ NHÂN & VỊ TRÍ THI ĐẤU</span>
+              <span>PERSONAL INFORMATION & PREFERRED PLAYING POSITION</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Full Name / Họ và tên *
+                  Full Name *
                 </label>
                 <input
                   type="text"
@@ -385,7 +384,7 @@ export const MemberRegisterPage: React.FC = () => {
                       setFieldErrors((prev) => ({ ...prev, fullName: '' }));
                     }
                   }}
-                  placeholder="VD: Nguyễn Văn A / Marcus Tran"
+                  placeholder="e.g., Marcus Tran / Alex Nguyen"
                   className={`w-full py-2.5 sm:py-3 px-3.5 text-sm placeholder:text-sm placeholder:text-slate-500 rounded-lg bg-slate-900/60 border ${
                     fieldErrors.fullName ? 'border-red-500 focus:ring-red-500' : 'border-slate-700/80 focus:ring-red-600'
                   } focus:ring-2 text-white outline-none transition-colors`}
@@ -400,7 +399,7 @@ export const MemberRegisterPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Date of Birth / Ngày sinh *
+                  Date of Birth *
                 </label>
                 <input
                   type="date"
@@ -426,39 +425,39 @@ export const MemberRegisterPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Primary Position / Vị trí thi đấu chính *
+                  Primary Playing Position *
                 </label>
                 <select
                   value={formData.position}
                   onChange={(e) => setFormData({ ...formData, position: e.target.value as VolleyballPosition })}
                   className="w-full py-2.5 sm:py-3 px-3.5 text-sm rounded-lg bg-slate-900/60 border border-slate-700/80 focus:ring-2 focus:ring-red-600 text-white outline-none font-semibold cursor-pointer transition-colors"
                 >
-                  <option value="OH">Outside Hitter (OH) / Chủ công</option>
-                  <option value="OP">Opposite Hitter (OP) / Đối chuyền</option>
-                  <option value="MB">Middle Blocker (MB) / Phụ công</option>
-                  <option value="S">Setter (S) / Chuyền hai</option>
-                  <option value="L">Libero (L) / Libero</option>
+                  <option value="OH">Outside Hitter (OH)</option>
+                  <option value="OP">Opposite Spiker (OP)</option>
+                  <option value="MB">Middle Blocker (MB)</option>
+                  <option value="S">Setter (S)</option>
+                  <option value="L">Libero (L)</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Playing Level / Cấp độ thi đấu *
+                  Competitive Squad Level *
                 </label>
                 <select
                   value={formData.level}
                   onChange={(e) => setFormData({ ...formData, level: e.target.value as PlayerLevel })}
                   className="w-full py-2.5 sm:py-3 px-3.5 text-sm rounded-lg bg-slate-900/60 border border-slate-700/80 focus:ring-2 focus:ring-red-600 text-white outline-none font-semibold cursor-pointer transition-colors"
                 >
-                  <option value="SENIOR">SENIOR (Nâng cao / Advanced - 3+ năm kinh nghiệm)</option>
-                  <option value="JUNIOR">JUNIOR (Trung bình / Intermediate)</option>
-                  <option value="YOUTH">YOUTH (Người mới / Cơ bản - Trẻ)</option>
+                  <option value="SENIOR">SENIOR (Advanced & Tactics · 3+ Years Experience)</option>
+                  <option value="JUNIOR">JUNIOR (Intermediate Development Squad)</option>
+                  <option value="YOUTH">YOUTH (Beginner / Fundamentals · U14 - U18)</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Preferred Jersey Number (#) / Số áo mong muốn (#)
+                  Preferred Jersey Number (#)
                 </label>
                 <input
                   type="text"
@@ -467,7 +466,7 @@ export const MemberRegisterPage: React.FC = () => {
                   value={formData.desiredJerseyNumber}
                   onKeyDown={(e) => handleNumericKeyDown(e, 'desiredJerseyNumber', '15')}
                   onChange={(e) => handleNumericInput('desiredJerseyNumber', e.target.value, '15')}
-                  placeholder="VD: 15"
+                  placeholder="e.g., 15"
                   className={`w-full py-2.5 sm:py-3 px-3.5 text-sm placeholder:text-sm placeholder:text-slate-500 rounded-lg bg-slate-900/60 border ${
                     fieldErrors.desiredJerseyNumber ? 'border-red-500 focus:ring-red-500' : 'border-slate-700/80 focus:ring-red-600'
                   } focus:ring-2 text-white outline-none font-mono appearance-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-colors`}
@@ -483,7 +482,7 @@ export const MemberRegisterPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Hometown / City / Quê quán / Thành phố *
+                  Hometown / City *
                 </label>
                 <input
                   type="text"
@@ -495,7 +494,7 @@ export const MemberRegisterPage: React.FC = () => {
                       setFieldErrors((prev) => ({ ...prev, hometownCountry: '' }));
                     }
                   }}
-                  placeholder="VD: Hà Nội, TP. Hồ Chí Minh..."
+                  placeholder="e.g., Hanoi, Ho Chi Minh City, Da Nang..."
                   className={`w-full py-2.5 sm:py-3 px-3.5 text-sm placeholder:text-sm placeholder:text-slate-500 rounded-lg bg-slate-900/60 border ${
                     fieldErrors.hometownCountry ? 'border-red-500 focus:ring-red-500' : 'border-slate-700/80 focus:ring-red-600'
                   } focus:ring-2 text-white outline-none transition-colors`}
@@ -514,13 +513,13 @@ export const MemberRegisterPage: React.FC = () => {
           <div className="my-4 sm:my-6 space-y-3.5 sm:space-y-5">
             <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider border-b border-slate-800 pb-2.5 sm:pb-3 flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center font-bold shrink-0">2</span>
-              <span>PHYSICAL MEASUREMENTS & JUMP REACH / CHỈ SỐ THỂ HÌNH & TẦM VỚI</span>
+              <span>PHYSICAL MEASUREMENTS & JUMP REACH</span>
             </h2>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div className="flex flex-col">
                 <label className="text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5 min-h-[38px] sm:min-h-[44px] flex items-end leading-snug">
-                  <span>Height (cm) / Chiều cao (cm) *</span>
+                  <span>Height (cm) *</span>
                 </label>
                 <input
                   type="text"
@@ -528,9 +527,9 @@ export const MemberRegisterPage: React.FC = () => {
                   pattern="[0-9]*"
                   required
                   value={formData.height}
-                  onKeyDown={(e) => handleNumericKeyDown(e, 'height', '160 thay vì 1m6')}
-                  onChange={(e) => handleNumericInput('height', e.target.value, '160 thay vì 1m6')}
-                  placeholder="VD: 160"
+                  onKeyDown={(e) => handleNumericKeyDown(e, 'height', '178 instead of 1.78m')}
+                  onChange={(e) => handleNumericInput('height', e.target.value, '178 instead of 1.78m')}
+                  placeholder="e.g., 178"
                   className={`w-full py-2.5 sm:py-3 px-3.5 text-sm placeholder:text-sm placeholder:text-slate-500 rounded-lg bg-slate-900/60 border ${
                     fieldErrors.height 
                       ? 'border-red-500 focus:ring-2 focus:ring-red-500' 
@@ -548,7 +547,7 @@ export const MemberRegisterPage: React.FC = () => {
 
               <div className="flex flex-col">
                 <label className="text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5 min-h-[38px] sm:min-h-[44px] flex items-end leading-snug">
-                  <span>Weight (kg) / Cân nặng (kg) *</span>
+                  <span>Weight (kg) *</span>
                 </label>
                 <input
                   type="text"
@@ -556,9 +555,9 @@ export const MemberRegisterPage: React.FC = () => {
                   pattern="[0-9]*"
                   required
                   value={formData.weight}
-                  onKeyDown={(e) => handleNumericKeyDown(e, 'weight', '55 thay vì 55kg')}
-                  onChange={(e) => handleNumericInput('weight', e.target.value, '55 thay vì 55kg')}
-                  placeholder="VD: 55"
+                  onKeyDown={(e) => handleNumericKeyDown(e, 'weight', '70 instead of 70kg')}
+                  onChange={(e) => handleNumericInput('weight', e.target.value, '70 instead of 70kg')}
+                  placeholder="e.g., 70"
                   className={`w-full py-2.5 sm:py-3 px-3.5 text-sm placeholder:text-sm placeholder:text-slate-500 rounded-lg bg-slate-900/60 border ${
                     fieldErrors.weight 
                       ? 'border-red-500 focus:ring-2 focus:ring-red-500' 
@@ -576,7 +575,7 @@ export const MemberRegisterPage: React.FC = () => {
 
               <div className="flex flex-col">
                 <label className="text-xs sm:text-sm font-medium text-red-400 mb-1 sm:mb-1.5 min-h-[38px] sm:min-h-[44px] flex items-end leading-snug">
-                  <span>Spike Reach (cm) / Tầm bật đà tấn công (cm) *</span>
+                  <span>Spike Reach (cm) *</span>
                 </label>
                 <input
                   type="text"
@@ -584,9 +583,9 @@ export const MemberRegisterPage: React.FC = () => {
                   pattern="[0-9]*"
                   required
                   value={formData.spikeReach}
-                  onKeyDown={(e) => handleNumericKeyDown(e, 'spikeReach', '300 thay vì 3m')}
-                  onChange={(e) => handleNumericInput('spikeReach', e.target.value, '300 thay vì 3m')}
-                  placeholder="VD: 300"
+                  onKeyDown={(e) => handleNumericKeyDown(e, 'spikeReach', '305 instead of 3.05m')}
+                  onChange={(e) => handleNumericInput('spikeReach', e.target.value, '305 instead of 3.05m')}
+                  placeholder="e.g., 305"
                   className={`w-full py-2.5 sm:py-3 px-3.5 text-sm placeholder:text-sm placeholder:text-slate-500 rounded-lg bg-slate-900/60 border ${
                     fieldErrors.spikeReach 
                       ? 'border-red-500 focus:ring-2 focus:ring-red-500' 
@@ -604,7 +603,7 @@ export const MemberRegisterPage: React.FC = () => {
 
               <div className="flex flex-col">
                 <label className="text-xs sm:text-sm font-medium text-orange-400 mb-1 sm:mb-1.5 min-h-[38px] sm:min-h-[44px] flex items-end leading-snug">
-                  <span>Block Reach (cm) / Tầm bật chắn bóng (cm) *</span>
+                  <span>Block Reach (cm) *</span>
                 </label>
                 <input
                   type="text"
@@ -612,9 +611,9 @@ export const MemberRegisterPage: React.FC = () => {
                   pattern="[0-9]*"
                   required
                   value={formData.blockReach}
-                  onKeyDown={(e) => handleNumericKeyDown(e, 'blockReach', '285 thay vì 2m85')}
-                  onChange={(e) => handleNumericInput('blockReach', e.target.value, '285 thay vì 2m85')}
-                  placeholder="VD: 285"
+                  onKeyDown={(e) => handleNumericKeyDown(e, 'blockReach', '290 instead of 2.90m')}
+                  onChange={(e) => handleNumericInput('blockReach', e.target.value, '290 instead of 2.90m')}
+                  placeholder="e.g., 290"
                   className={`w-full py-2.5 sm:py-3 px-3.5 text-sm placeholder:text-sm placeholder:text-slate-500 rounded-lg bg-slate-900/60 border ${
                     fieldErrors.blockReach 
                       ? 'border-red-500 focus:ring-2 focus:ring-red-500' 
@@ -636,35 +635,35 @@ export const MemberRegisterPage: React.FC = () => {
           <div className="my-4 sm:my-6 space-y-3.5 sm:space-y-5">
             <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider border-b border-slate-800 pb-2.5 sm:pb-3 flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center font-bold shrink-0">3</span>
-              <span>TACTICAL SYSTEMS & CONTACT / CHIẾN THUẬT & LIÊN HỆ</span>
+              <span>TACTICAL ROTATION SYSTEMS & CONTACT</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
-                  Familiarity with Volleyball Rotational Systems / Mức độ hiểu biết về chiến thuật xoay vòng:
+                  Familiarity with Volleyball Rotational Systems:
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                   {[
                     { 
                       id: '5-1', 
-                      label: '5-1 System / Chiến thuật 5-1', 
-                      desc: '1 dedicated setter / 1 chuyền hai cố định' 
+                      label: '5-1 System', 
+                      desc: '1 dedicated setter across all 6 rotations' 
                     },
                     { 
                       id: '6-2', 
-                      label: '6-2 System / Chiến thuật 6-2', 
-                      desc: 'Back-row setters / 2 chuyền hai hàng sau' 
+                      label: '6-2 System', 
+                      desc: '2 back-row setters with 3 front-row hitters' 
                     },
                     { 
                       id: '4-2', 
-                      label: '4-2 System / Chiến thuật 4-2', 
-                      desc: 'Front-row setters / 2 chuyền hai hàng trước' 
+                      label: '4-2 System', 
+                      desc: '2 front-row setters' 
                     },
                     { 
                       id: 'BEGINNER', 
-                      label: 'Beginner / Người mới', 
-                      desc: 'Will learn at tryout / Sẽ được hướng dẫn khi tham gia' 
+                      label: 'Beginner / Fundamentals', 
+                      desc: 'Will learn court rotations during training' 
                     },
                   ].map((item) => (
                     <button
@@ -686,7 +685,7 @@ export const MemberRegisterPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Contact Email / Email liên hệ *
+                  Contact Email *
                 </label>
                 <input
                   type="email"
@@ -716,7 +715,7 @@ export const MemberRegisterPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Phone / Zalo Number / Số điện thoại hoặc Zalo *
+                  Phone Number (WhatsApp / Zalo) *
                 </label>
                 <input
                   type="tel"
@@ -731,7 +730,7 @@ export const MemberRegisterPage: React.FC = () => {
                       setFieldErrors((prev) => ({ ...prev, zalo: '' }));
                     }
                   }}
-                  placeholder="VD: 0912 345 678"
+                  placeholder="e.g., 0912 345 678"
                   className={`w-full py-2.5 sm:py-3 px-3.5 text-sm placeholder:text-sm placeholder:text-slate-500 rounded-lg bg-slate-900/60 border ${
                     fieldErrors.zalo ? 'border-red-500 focus:ring-red-500' : 'border-slate-700/80 focus:ring-red-600'
                   } focus:ring-2 text-white outline-none transition-colors`}
@@ -746,13 +745,13 @@ export const MemberRegisterPage: React.FC = () => {
 
               <div className="sm:col-span-2">
                 <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Instagram Handle / Tên tài khoản Instagram
+                  Instagram Handle (Optional)
                 </label>
                 <input
                   type="text"
                   value={formData.instagram}
                   onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
-                  placeholder="@your_handle hoặc None"
+                  placeholder="@your_handle or None"
                   className="w-full py-2.5 sm:py-3 px-3.5 text-sm placeholder:text-sm placeholder:text-slate-500 rounded-lg bg-slate-900/60 border border-slate-700/80 focus:ring-2 focus:ring-red-600 text-white outline-none transition-colors"
                 />
               </div>
@@ -767,20 +766,15 @@ export const MemberRegisterPage: React.FC = () => {
           >
             {isSubmitting ? (
               <div className="flex flex-col items-center text-center">
-                <span className="text-sm font-bold tracking-wide uppercase leading-tight">Submitting...</span>
-                <span className="text-xs font-medium text-white/90 leading-tight">Đang gửi hồ sơ... / Submitting & Syncing...</span>
+                <span className="text-sm font-bold tracking-wide uppercase leading-tight">Submitting Application...</span>
+                <span className="text-xs font-medium text-white/90 leading-tight">Syncing your athlete profile...</span>
               </div>
             ) : (
               <>
                 <UserPlus className="w-5 h-5 flex-shrink-0" />
-                <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-                  <span className="text-sm font-bold tracking-wide uppercase leading-tight text-white">
-                    Submit Registration
-                  </span>
-                  <span className="text-xs font-medium text-white/90 leading-tight">
-                    Gửi Hồ Sơ Đăng Ký
-                  </span>
-                </div>
+                <span className="text-sm font-bold tracking-wide uppercase leading-tight text-white">
+                  Submit Registration
+                </span>
               </>
             )}
           </button>

@@ -96,7 +96,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Đóng chi tiết gói tập"
+                aria-label="Close course details"
                 className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -113,7 +113,9 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
           {course.targetAudience && (
             <div className="mt-2.5 flex items-start sm:items-center gap-2 text-xs sm:text-sm text-slate-300">
               <Target className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5 sm:mt-0" />
-              <span className="leading-relaxed">{course.targetAudience}</span>
+              <span className="leading-relaxed">
+                <strong className="text-slate-200 font-semibold">Target Audience:</strong> {course.targetAudience}
+              </span>
             </div>
           )}
         </div>
@@ -122,12 +124,12 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
         <div className="p-5 sm:p-7 space-y-6">
           {/* 2. QUICK STATS GRID */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {/* Card 1: Lịch học */}
+            {/* Card 1: Schedule */}
             {course.schedule && (
               <div className="col-span-2 sm:col-span-1 bg-slate-800/60 rounded-xl border border-slate-700/50 p-3.5 flex flex-col justify-between gap-2">
                 <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   <Calendar className="w-4 h-4 text-cyan-400 shrink-0" />
-                  <span>Lịch tập</span>
+                  <span>Schedule</span>
                 </div>
                 <p className="text-xs sm:text-sm font-bold text-white leading-snug">
                   {course.schedule}
@@ -135,12 +137,12 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
               </div>
             )}
 
-            {/* Card 2: Thời lượng */}
+            {/* Card 2: Duration */}
             {course.duration && (
               <div className="bg-slate-800/60 rounded-xl border border-slate-700/50 p-3.5 flex flex-col justify-between gap-2">
                 <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   <Clock className="w-4 h-4 text-orange-400 shrink-0" />
-                  <span>Thời lượng</span>
+                  <span>Duration</span>
                 </div>
                 <p className="text-xs sm:text-sm font-bold text-white leading-snug">
                   {course.duration}
@@ -148,23 +150,23 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
               </div>
             )}
 
-            {/* Card 3: Tình trạng chỗ */}
+            {/* Card 3: Max Slots & Registered */}
             {maxSlots > 0 && (
               <div className="bg-slate-800/60 rounded-xl border border-slate-700/50 p-3.5 flex flex-col justify-between gap-2">
                 <div className="flex items-center justify-between gap-1">
                   <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                     <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Sĩ số</span>
+                    <span>Max Slots</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    Còn {remainingSlots} chỗ
+                    {remainingSlots} spots left
                   </span>
                 </div>
 
                 <div className="space-y-1.5">
                   <div className="flex items-baseline justify-between text-xs">
                     <span className="font-mono font-bold text-white">
-                      {enrolledCount}/{maxSlots} slots
+                      Registered: {enrolledCount}/{maxSlots}
                     </span>
                     <span className="text-[10px] font-mono text-slate-400">
                       {fillPercent}%
@@ -188,7 +190,10 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 <Award className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Coach In Charge
+                </span>
+                <div className="flex flex-wrap items-center gap-2 mt-0.5">
                   {course.coachName && (
                     <span className="font-heading font-extrabold text-sm sm:text-base text-white">
                       {course.coachName}
@@ -200,19 +205,19 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
                 </div>
                 {course.coachTitle && (
                   <p className="text-xs text-slate-400 font-medium mt-0.5">
-                    {course.coachTitle}
+                    <span className="text-slate-500">Coach Title:</span> {course.coachTitle}
                   </p>
                 )}
               </div>
             </div>
           )}
 
-          {/* 4. MÔ TẢ TỔNG QUAN (OVERVIEW) */}
+          {/* 4. PROGRAM OVERVIEW */}
           {course.description && (
             <div className="space-y-2">
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Compass className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Mô tả tổng quan khóa học</span>
+                <span>Program Overview</span>
               </h3>
               <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line bg-slate-900/70 p-4 rounded-2xl border border-slate-800">
                 {course.description}
@@ -220,12 +225,12 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
             </div>
           )}
 
-          {/* 5. ĐẶC QUYỀN & QUYỀN LỢI GÓI TẬP (PACKAGE INCLUSIONS) */}
+          {/* 5. PACKAGE INCLUSIONS */}
           {inclusionItems.length > 0 && (
             <div className="space-y-2.5">
               <h4 className="text-xs font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                <span>Đặc quyền & Quyền lợi gói tập (Package Inclusions)</span>
+                <span>Package Inclusions</span>
               </h4>
               <ul className="space-y-2">
                 {inclusionItems.map((item, idx) => (
@@ -246,16 +251,16 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
         <div className="bg-slate-900/95 p-5 sm:p-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
-              Học phí / Tuition Fee
+              Tuition Fee
             </span>
             <div className="flex items-baseline gap-1.5">
               <span className="font-heading text-2xl sm:text-3xl font-black text-amber-400 font-mono tracking-tight">
-                {new Intl.NumberFormat('vi-VN').format(course.price)}
+                {new Intl.NumberFormat('en-US').format(course.price)}
               </span>
-              <span className="text-base font-bold text-amber-400">đ</span>
+              <span className="text-base font-bold text-amber-400">VND</span>
             </div>
             <span className="text-xs text-slate-400 font-medium block mt-0.5">
-              {getPriceUnitLabel(course)}
+              Billing Unit: {getPriceUnitLabel(course)}
             </span>
           </div>
 
@@ -264,7 +269,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
             onClick={() => onEnroll(course)}
             className="w-full sm:w-auto px-7 py-3.5 rounded-xl font-black text-xs sm:text-sm text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span>Đăng ký ngay (Enroll Now)</span>
+            <span>Enroll Now</span>
             <ArrowRight className="w-4 h-4 stroke-[2.5]" />
           </button>
         </div>

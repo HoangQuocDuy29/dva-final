@@ -26,13 +26,13 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
+    lng: 'en',
     fallbackLng: 'en',
     supportedLngs: ['en', 'vi'],
     defaultNS: 'common',
     ns: ['common', 'news'],
     detection: {
-      // English-first policy: only read user's explicit saved choice from localStorage;
-      // if absent, fall back to 'en' instead of browser locale.
+      // English-first policy: initialize to 'en' by default and only persist explicit selection.
       order: ['localStorage'],
       lookupLocalStorage: DVA_LANG_STORAGE_KEY,
       caches: ['localStorage'],

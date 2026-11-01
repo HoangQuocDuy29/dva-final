@@ -17,9 +17,15 @@ import { TrainingCourse, CoachProfile } from '../types';
 import { trainingService, coachService, googleScriptSyncService } from '../services/api';
 import { CourseDetailModal } from '../components/training/CourseDetailModal';
 
-/** Đơn vị học phí: ưu tiên `priceUnit` do admin nhập; nếu trống thì suy ra gói năm. */
+/** Billing Unit: prioritizes `priceUnit` and normalizes any legacy Vietnamese unit into English. */
 const getPriceUnitLabel = (course: TrainingCourse): string => {
   if (course.priceUnit && course.priceUnit.trim()) {
+    const raw = course.priceUnit.trim().toLowerCase();
+    if (raw.includes('người') && raw.includes('buổi')) return '/ player / session';
+    if (raw.includes('buổi')) return '/ player / session';
+    if (raw.includes('tháng')) return '/ month';
+    if (raw.includes('năm')) return '/ year';
+    if (raw.includes('khóa')) return '/ course';
     const unit = course.priceUnit.trim();
     return unit.startsWith('/') ? unit : `/ ${unit}`;
   }
@@ -29,7 +35,73 @@ const getPriceUnitLabel = (course: TrainingCourse): string => {
     title.includes('annual') ||
     title.includes('year') ||
     course.price >= 10000000;
-  return isYearly ? '/ year' : '/ session';
+  return isYearly ? '/ year' : '/ player / session';
+};
+
+/** Normalize legacy Vietnamese titles or fields if returned from older DB records */
+const normalizeCoursePublicData = (course: TrainingCourse): TrainingCourse => {
+  let title = course.title || '';
+  if (title.includes('Học 1-1 với coach kèm từ cơ bản')) {
+    title = '1-on-1 Private Coaching & Fundamentals';
+  }
+  return {
+    ...course,
+    title,
+    priceUnit: getPriceUnitLabel(course),
+  };
+};
+
+type TrainingLevelFilter = 'ALL' | 'BEGINNER' | 'INTERMEDIATE' | 'SENIOR';
+
+const TRAINING_LEVEL_FILTERS: { id: TrainingLevelFilter; label: string }[] = [
+  { id: 'ALL', label: 'All Levels' },
+  { id: 'BEGINNER', label: 'Beginner / Fundamentals' },
+  { id: 'INTERMEDIATE', label: 'Intermediate' },
+  { id: 'SENIOR', label: 'Senior / Advanced & Tactics' },
+];
+
+const matchesLevelFilter = (course: TrainingCourse, filter: TrainingLevelFilter): boolean => {
+  if (filter === 'ALL') return true;
+  const levelStr = `${course.level || ''} ${course.title || ''} ${course.targetAudience || ''}`.toLowerCase();
+  if (filter === 'BEGINNER') {
+    return (
+      levelStr.includes('youth') ||
+      levelStr.includes('beginner') ||
+      levelStr.includes('fundamental') ||
+      levelStr.includes('basic') ||
+      levelStr.includes('open scrimmage') ||
+      levelStr.includes('all levels') ||
+      course.id === 'tc-scrimmage-basic' ||
+      course.id === 'tc-group-custom'
+    );
+  }
+  if (filter === 'INTERMEDIATE') {
+    return (
+      levelStr.includes('junior') ||
+      levelStr.includes('intermediate') ||
+      levelStr.includes('position') ||
+      levelStr.includes('group training') ||
+      levelStr.includes('squad package') ||
+      course.id === 'tc-scrimmage-pos' ||
+      course.id === 'tc-annual-pass' ||
+      course.id === 'tc-group-custom'
+    );
+  }
+  if (filter === 'SENIOR') {
+    return (
+      levelStr.includes('senior') ||
+      levelStr.includes('advanced') ||
+      levelStr.includes('tactics') ||
+      levelStr.includes('vip') ||
+      levelStr.includes('1-on-1') ||
+      levelStr.includes('mastery') ||
+      levelStr.includes('intensive') ||
+      course.id === 'tc-scrimmage-care' ||
+      course.id === 'tc-annual-pass' ||
+      course.id === 'tc-1on1-mastery'
+    );
+  }
+  return true;
 };
 
 /**
@@ -102,6 +174,7 @@ export const TrainingPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [detailCourse, setDetailCourse] = useState<TrainingCourse | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<TrainingCourse | null>(null);
+  const [levelFilter, setLevelFilter] = useState<TrainingLevelFilter>('ALL');
   
   // Checkout modal states (Multi-step VietQR payment flow)
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -112,10 +185,10 @@ export const TrainingPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [teamLevel, setTeamLevel] = useState<'Junior' | 'Senior' | 'Youth'>('Junior');
-  const [position, setPosition] = useState('Chủ công (OH)');
-  const [targetSkill, setTargetSkill] = useState('Tấn công & Bật đà (Spike Timing & Arm Swing)');
+  const [position, setPosition] = useState('Outside Hitter (OH)');
+  const [targetSkill, setTargetSkill] = useState('Spike Timing & Arm Swing');
   const [customSkillOrPos, setCustomSkillOrPos] = useState('');
-  const [preferredTime, setPreferredTime] = useState<string>('Tối Thứ 2 (19:00 - 21:30)');
+  const [preferredTime, setPreferredTime] = useState<string>('Monday Evening (19:00 - 21:30)');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -167,7 +240,10 @@ export const TrainingPage: React.FC = () => {
       coachService.getCoaches(),
     ])
       .then(([courseRes, coachRes]) => {
-        setCourses(Array.isArray(courseRes) ? courseRes : []);
+        const normalizedCourses = Array.isArray(courseRes)
+          ? courseRes.map(normalizeCoursePublicData)
+          : [];
+        setCourses(normalizedCourses);
         setCoaches(Array.isArray(coachRes) ? coachRes : []);
       })
       .catch((err) => {
@@ -239,13 +315,13 @@ export const TrainingPage: React.FC = () => {
     const privateCourse = courses.find(c => c.id === 'tc-1on1-mastery') || courses[0];
     setSelectedCourse({
       ...privateCourse,
-      title: `1-on-1 Private Masterclass với HLV ${coach.name}`,
+      title: `1-on-1 Private Masterclass with Coach ${coach.name}`,
       coachName: coach.name,
       coachTitle: coach.role,
-      description: `Khóa huấn luyện cá nhân chuyên sâu 1 kèm 1 trực tiếp với ${coach.name} (${coach.role}) trên sàn Taraflex đạt chuẩn thi đấu.`,
+      description: `Intensive 1-on-1 private coaching session directly with ${coach.name} (${coach.role}) on our standard competition Taraflex court.`,
     });
-    setNotes(`Đăng ký tập 1-on-1 cùng HLV: ${coach.name} (${coach.specialty})`);
-    setTargetSkill(`Huấn luyện chuyên sâu cùng HLV ${coach.name}: ${coach.specialty}`);
+    setNotes(`1-on-1 Private Session with Coach: ${coach.name} (${coach.specialty})`);
+    setTargetSkill(`Intensive 1-on-1 Coaching with ${coach.name}: ${coach.specialty}`);
     setModalStep('FORM');
     setIsModalOpen(true);
   };
@@ -379,14 +455,39 @@ export const TrainingPage: React.FC = () => {
 
         {/* SECTION 1: 6 SCRIMMAGE & TRAINING PACKAGES */}
         <div className="space-y-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
               <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Programs & Passes</span>
               <h2 className="text-2xl sm:text-3xl font-black text-white font-heading mt-1">
                 Published Scrimmage & Coaching Packages
               </h2>
             </div>
-            
+
+            {/* Level Filter Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+                Filter by Level:
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5 bg-[#0E1524] p-1.5 rounded-2xl border border-slate-800">
+                {TRAINING_LEVEL_FILTERS.map((f) => {
+                  const active = levelFilter === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setLevelFilter(f.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        active
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-950/50'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {isLoading ? (
@@ -417,15 +518,18 @@ export const TrainingPage: React.FC = () => {
                 </div>
               ))}
             </div>
-          ) : courses.length === 0 ? (
+          ) : courses.filter((c) => matchesLevelFilter(c, levelFilter)).length === 0 ? (
             <div className="p-14 rounded-3xl bg-[#0E1524] border border-dashed border-slate-800 text-center space-y-2">
               <Calendar className="w-10 h-10 text-slate-600 mx-auto" />
-              <h3 className="font-heading font-bold text-white text-base">Chưa có gói tập nào</h3>
-              <p className="text-xs text-slate-400">Các gói tập và lịch giao lưu scrimmage sẽ được ban huấn luyện công bố sớm.</p>
+              <h3 className="font-heading font-bold text-white text-base">No Training Packages Available</h3>
+              <p className="text-xs text-slate-400">Training programs and scrimmage schedules for this level will be announced soon by the coaching staff.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
-              {[...courses].sort((a, b) => Number(a.price || 0) - Number(b.price || 0)).map((course) => {
+              {[...courses]
+                .filter((c) => matchesLevelFilter(c, levelFilter))
+                .sort((a, b) => Number(a.price || 0) - Number(b.price || 0))
+                .map((course) => {
                 const isPrivate1on1 = course.id === 'tc-1on1-mastery';
                 return (
                   <div
@@ -494,52 +598,41 @@ export const TrainingPage: React.FC = () => {
 
                     </div>
 
-                    {/* Footer: Hàng trên hiển thị Giá tiền rõ ràng + Hàng dưới gồm 2 nút bấm tách biệt */}
+                    {/* Footer: Tuition Fee + View Details action */}
                     <div className="pt-5 mt-6 border-t border-slate-800 space-y-4">
                       <div>
                         <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
                           <span>TUITION FEE:</span>
                           {course.maxSlots > 0 && (
                             <span className="text-amber-500/90 font-medium normal-case tracking-normal">
-                              Max {course.maxSlots} spots
+                              Max Slots: {course.maxSlots} ({course.enrolledSlots || 0} Registered)
                             </span>
                           )}
                         </div>
                         <div className="flex items-baseline gap-1.5 flex-wrap">
                           <span className="font-heading font-black text-2xl sm:text-3xl text-amber-400 tracking-tight font-mono">
-                            {new Intl.NumberFormat('vi-VN').format(course.price)}
+                            {new Intl.NumberFormat('en-US').format(course.price)}
                           </span>
-                          <span className="text-sm font-bold text-amber-400">đ</span>
+                          <span className="text-sm font-bold text-amber-400">VND</span>
                           <span className="text-xs text-slate-400 font-medium">
                             {getPriceUnitLabel(course)}
                           </span>
                         </div>
                         {course.duration && (
                           <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                            {course.duration}
+                            Duration: {course.duration}
                           </p>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDetail(course)}
-                          className="w-full py-2.5 px-3 rounded-xl font-bold text-xs text-slate-200 hover:text-white bg-[#161F30] hover:bg-slate-800 border border-slate-700 hover:border-slate-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                          <span>Xem chi tiết</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleOpenRegister(course)}
-                          className="w-full py-2.5 px-3 rounded-xl font-black text-xs text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 shadow-lg shadow-orange-950/40 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <span>Đăng ký ngay</span>
-                          <Check className="w-3.5 h-3.5 shrink-0" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDetail(course)}
+                        className="w-full py-3 px-4 rounded-xl font-black text-xs text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 shadow-lg shadow-orange-950/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Eye className="w-4 h-4 shrink-0" />
+                        <span>View Details</span>
+                      </button>
                     </div>
 
                   </div>
@@ -590,8 +683,8 @@ export const TrainingPage: React.FC = () => {
           ) : coaches.length === 0 ? (
             <div className="p-10 rounded-3xl bg-[#121826] border border-dashed border-slate-800 text-center space-y-2">
               <Users className="w-8 h-8 text-slate-600 mx-auto" />
-              <h3 className="font-heading font-bold text-white text-sm">Chưa có thông tin huấn luyện viên</h3>
-              <p className="text-xs text-slate-400">Danh sách ban huấn luyện sẽ sớm được cập nhật.</p>
+              <h3 className="font-heading font-bold text-white text-sm">No Coach Profiles Available</h3>
+              <p className="text-xs text-slate-400">Coaching staff profiles will be updated shortly.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -667,7 +760,7 @@ export const TrainingPage: React.FC = () => {
                       onClick={() => handleBookCoach(coach)}
                       className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500 hover:to-orange-500 text-amber-300 hover:text-black border border-amber-500/40 hover:border-transparent font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow cursor-pointer group-hover:border-amber-400"
                     >
-                      <span>Book 1-on-1 với {coach.name}</span>
+                      <span>Book 1-on-1 with {coach.name}</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -707,7 +800,7 @@ export const TrainingPage: React.FC = () => {
                     {modalStep === 'RECEIPT' && 'Official Enrollment Confirmed!'}
                   </h3>
                   <p className="text-[11px] sm:text-xs text-amber-400 font-mono truncate">
-                    {selectedCourse.price.toLocaleString('vi-VN')} đ {getPriceUnitLabel(selectedCourse)}
+                    {selectedCourse.price.toLocaleString('en-US')} VND {getPriceUnitLabel(selectedCourse)}
                   </p>
                 </div>
               </div>
@@ -733,25 +826,25 @@ export const TrainingPage: React.FC = () => {
                     <p className="text-[11px] text-slate-300">{selectedCourse.description}</p>
                     <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 font-mono">
                       <span>Schedule: {selectedCourse.schedule}</span>
-                      <strong className="text-white">{selectedCourse.price.toLocaleString('vi-VN')} đ</strong>
+                      <strong className="text-white">{selectedCourse.price.toLocaleString('en-US')} VND</strong>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Họ và tên học viên *</label>
+                    <label className="block text-slate-300 font-semibold mb-1">Full Name *</label>
                     <input
                       type="text"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="VD: Marcus Tran / Nguyen Van A"
+                      placeholder="e.g., Marcus Tran / Alex Nguyen"
                       className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-slate-300 font-semibold mb-1">Số điện thoại *</label>
+                      <label className="block text-slate-300 font-semibold mb-1">Phone Number *</label>
                       <input
                         type="tel"
                         required
@@ -763,126 +856,126 @@ export const TrainingPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 font-semibold mb-1">Email (Tùy chọn)</label>
+                      <label className="block text-slate-300 font-semibold mb-1">Email Address (Optional)</label>
                       <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="athlete@gmail.com (Không bắt buộc)"
+                        placeholder="athlete@gmail.com (Optional)"
                         className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Cấp độ / Đội *</label>
+                    <label className="block text-slate-300 font-semibold mb-1">Skill Level / Squad Tier *</label>
                     <select
                       value={teamLevel}
                       onChange={(e) => setTeamLevel(e.target.value as 'Junior' | 'Senior' | 'Youth')}
                       className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
                     >
-                      <option value="Junior">Junior (Intermediate / Bán chuyên phát triển)</option>
-                      <option value="Senior">Senior (Advanced / Đội 1 thi đấu)</option>
-                      <option value="Youth">Youth (U14 - U18 / Học viện trẻ)</option>
+                      <option value="Junior">Intermediate (Junior / Development Squad)</option>
+                      <option value="Senior">Senior / Advanced & Tactics (First Team)</option>
+                      <option value="Youth">Beginner / Fundamentals (Youth U14 - U18)</option>
                     </select>
                   </div>
 
-                  {/* TRƯỜNG ĐẶC THÙ: Vị trí thi đấu (cho gói Scrimmage chọn vị trí) */}
+                  {/* Playing Position (for Position Specialist packages) */}
                   {isPositionCourse && (
                     <div className="p-3 bg-amber-950/20 border border-amber-600/50 rounded-xl space-y-1">
                       <label className="block text-amber-300 font-semibold mb-1 flex items-center justify-between">
-                        <span>Vị trí thi đấu mong muốn *</span>
-                        <span className="text-[10px] text-amber-400 font-normal">Cố định suốt buổi tập</span>
+                        <span>Preferred Playing Position *</span>
+                        <span className="text-[10px] text-amber-400 font-normal">Fixed throughout session</span>
                       </label>
                       <select
                         value={position}
                         onChange={(e) => setPosition(e.target.value)}
                         className="w-full px-3 py-2 bg-[#0B0F19] border border-amber-600/60 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
                       >
-                        <option value="Chủ công (OH)">Chủ công (OH)</option>
-                        <option value="Đối chuyền (OP)">Đối chuyền (OP)</option>
-                        <option value="Chuyền hai (S)">Chuyền hai (S)</option>
-                        <option value="Phụ công (MB)">Phụ công (MB)</option>
+                        <option value="Outside Hitter (OH)">Outside Hitter (OH)</option>
+                        <option value="Opposite Spiker (OP)">Opposite Spiker (OP)</option>
+                        <option value="Setter (S)">Setter (S)</option>
+                        <option value="Middle Blocker (MB)">Middle Blocker (MB)</option>
                         <option value="Libero (L)">Libero (L)</option>
                       </select>
                     </div>
                   )}
 
-                  {/* TRƯỜNG ĐẶC THÙ: Mục tiêu tập luyện (cho gói 1-on-1 / kèm kỹ năng) */}
+                  {/* Primary Training Focus (for 1-on-1 / Skill Coaching) */}
                   {isSkillCourse && (
                     <div className="p-3 bg-amber-950/20 border border-amber-600/50 rounded-xl space-y-1">
                       <label className="block text-amber-300 font-semibold mb-1 flex items-center justify-between">
-                        <span>Mục tiêu tập luyện trọng tâm *</span>
-                        <span className="text-[10px] text-amber-400 font-normal">HLV thiết kế giáo án</span>
+                        <span>Primary Training Focus *</span>
+                        <span className="text-[10px] text-amber-400 font-normal">Custom coach curriculum</span>
                       </label>
                       <select
                         value={targetSkill}
                         onChange={(e) => setTargetSkill(e.target.value)}
                         className="w-full px-3 py-2 bg-[#0B0F19] border border-amber-600/60 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
                       >
-                        <option value="Tấn công & Bật đà (Spike Timing & Arm Swing)">Tấn công & Bật đà (Spike Timing & Arm Swing)</option>
-                        <option value="Bước 1 & Phòng thủ sân sau (Serve Receive & Digging)">Bước 1 & Phòng thủ sân sau (Serve Receive & Digging)</option>
-                        <option value="Chuyền hai & Phối hợp 5-1 (Setting Tempo & Distribution)">Chuyền hai & Phối hợp 5-1 (Setting Tempo & Distribution)</option>
-                        <option value="Phát bóng tấn công (Jump Float & Topspin Serve)">Phát bóng tấn công (Jump Float & Topspin Serve)</option>
-                        <option value="Kỹ thuật nền tảng cơ bản từ đầu (Foundational Fundamentals)">Kỹ thuật nền tảng cơ bản từ đầu (Foundational Fundamentals)</option>
+                        <option value="Spike Timing & Arm Swing">Spike Timing & Arm Swing</option>
+                        <option value="Serve Receive & Digging">Serve Receive & Digging</option>
+                        <option value="Setting Tempo & 5-1 Distribution">Setting Tempo & 5-1 Distribution</option>
+                        <option value="Jump Float & Topspin Serve">Jump Float & Topspin Serve</option>
+                        <option value="Foundational Fundamentals">Foundational Fundamentals</option>
                       </select>
                     </div>
                   )}
 
-                  {/* TRƯỜNG TÙY CHỌN: Cho gói cơ bản không bắt buộc */}
+                  {/* Optional Position / Goal field for general packages */}
                   {!isPositionCourse && !isSkillCourse && (
                     <div>
                       <label className="block text-slate-300 font-semibold mb-1">
-                        Vị trí thi đấu / Mục tiêu tập (Tùy chọn)
+                        Playing Position / Training Goal (Optional)
                       </label>
                       <input
                         type="text"
                         value={customSkillOrPos}
                         onChange={(e) => setCustomSkillOrPos(e.target.value)}
-                        placeholder="VD: Chủ công / Hoặc mục tiêu cải thiện kỹ năng (nếu có)"
+                        placeholder="e.g., Outside Hitter / Improve serve receive & block timing"
                         className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
                       />
                     </div>
                   )}
 
-                  {/* Khung giờ / Ca tập mong muốn: Chuẩn hóa 6 lựa chọn cụ thể */}
+                  {/* Preferred Session Schedule */}
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Khung giờ / Ca tập mong muốn *</label>
+                    <label className="block text-slate-300 font-semibold mb-1">Preferred Session Schedule *</label>
                     <select
                       value={preferredTime}
                       onChange={(e) => setPreferredTime(e.target.value)}
                       className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
                     >
-                      <option value="Tối Thứ 2 (19:00 - 21:30)">Tối Thứ 2 (19:00 - 21:30)</option>
-                      <option value="Tối Thứ 4 (19:00 - 21:30)">Tối Thứ 4 (19:00 - 21:30)</option>
-                      <option value="Tối Thứ 6 (19:00 - 21:30)">Tối Thứ 6 (19:00 - 21:30)</option>
-                      <option value="Tối Thứ 7 (19:00 - 21:30)">Tối Thứ 7 (19:00 - 21:30)</option>
-                      <option value="Chiều Chủ Nhật (14:00 - 16:30)">Chiều Chủ Nhật (14:00 - 16:30)</option>
-                      <option value="Trao đổi với Coach về thời gian">Trao đổi với Coach về thời gian</option>
+                      <option value="Monday Evening (19:00 - 21:30)">Monday Evening (19:00 - 21:30)</option>
+                      <option value="Wednesday Evening (19:00 - 21:30)">Wednesday Evening (19:00 - 21:30)</option>
+                      <option value="Friday Evening (19:00 - 21:30)">Friday Evening (19:00 - 21:30)</option>
+                      <option value="Saturday Evening (19:00 - 21:30)">Saturday Evening (19:00 - 21:30)</option>
+                      <option value="Sunday Afternoon (14:00 - 16:30)">Sunday Afternoon (14:00 - 16:30)</option>
+                      <option value="Coordinate Flexible Schedule with Coach">Coordinate Flexible Schedule with Coach</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Ghi chú hoặc yêu cầu thêm cho HLV</label>
+                    <label className="block text-slate-300 font-semibold mb-1">Additional Notes for Coach</label>
                     <textarea
                       rows={2}
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="VD: Chiều cao 1m82, muốn chỉnh sửa góc đập bóng cổ tay và bước đà bật nhảy"
+                      placeholder="e.g., Height 182cm, looking to refine wrist snap and 3-step spike approach"
                       className="w-full px-3.5 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
 
-                  {/* PREVIEW CÚ PHÁP CHUYỂN KHOẢN CHUẨN */}
+                  {/* PREVIEW STANDARD TRANSFER MEMO */}
                   <div className="bg-[#0B0F19] p-3 rounded-xl border border-slate-800 flex items-center justify-between text-[11px]">
                     <div className="space-y-0.5">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Cú pháp chuyển khoản chuẩn:</span>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Standard Transfer Memo:</span>
                       <span className="font-mono font-bold text-amber-400">
-                        {phone ? previewTransferMemo : `DVA ${currentPackageCode} [SỐ_ĐIỆN_THOẠI]`}
+                        {phone ? previewTransferMemo : `DVA ${currentPackageCode} [PHONE_NUMBER]`}
                       </span>
                     </div>
                     <span className="px-2 py-0.5 bg-amber-950/60 text-amber-300 border border-amber-800/80 rounded font-mono text-[10px]">
-                      Mã: {currentPackageCode}
+                      Code: {currentPackageCode}
                     </span>
                   </div>
 
@@ -891,7 +984,7 @@ export const TrainingPage: React.FC = () => {
                     disabled={isSubmitting}
                     className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>{isSubmitting ? 'Đang khởi tạo đơn...' : 'Tiếp tục tạo VietQR thanh toán'}</span>
+                    <span>{isSubmitting ? 'Creating Registration...' : 'Proceed to VietQR Payment'}</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </form>
@@ -1035,17 +1128,17 @@ export const TrainingPage: React.FC = () => {
                       <span className="font-bold text-white">{selectedCourse.title}</span>
                     </div>
                     <div className="flex justify-between border-b border-slate-800 pb-2">
-                      <span className="text-slate-400">Cấp độ / Đội:</span>
+                      <span className="text-slate-400">Squad Level:</span>
                       <span className="font-semibold text-amber-400">{teamLevel}</span>
                     </div>
                     {resolvedPositionOrSkill && (
                       <div className="flex justify-between border-b border-slate-800 pb-2">
-                        <span className="text-slate-400">Vị trí / Mục tiêu tập:</span>
+                        <span className="text-slate-400">Position / Training Goal:</span>
                         <span className="font-semibold text-white">{resolvedPositionOrSkill}</span>
                       </div>
                     )}
                     <div className="flex justify-between border-b border-slate-800 pb-2">
-                      <span className="text-slate-400">Khung giờ:</span>
+                      <span className="text-slate-400">Preferred Schedule:</span>
                       <span className="font-semibold text-white">{preferredTime}</span>
                     </div>
                     <div className="flex justify-between border-b border-slate-800 pb-2">
@@ -1053,7 +1146,7 @@ export const TrainingPage: React.FC = () => {
                       <span className="font-mono text-white">{phone} · {email}</span>
                     </div>
                     <div className="flex justify-between border-b border-slate-800 pb-2">
-                      <span className="text-slate-400">Nội dung chuyển khoản:</span>
+                      <span className="text-slate-400">Transfer Reference:</span>
                       <span className="font-mono font-bold text-amber-400">{transferContent}</span>
                     </div>
                     <div className="flex justify-between border-b border-slate-800 pb-2">

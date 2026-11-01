@@ -107,7 +107,7 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ className = 
         type="button"
         onClick={(e) => handleLanguageChange(e, 'vi')}
         aria-pressed={currentLang === 'vi'}
-        title="Chuyển sang Tiếng Việt"
+        title="Switch to Vietnamese"
         className={`relative z-10 pointer-events-auto inline-flex items-center justify-center gap-1 h-full min-w-[36px] sm:min-w-[38px] px-2.5 rounded-full text-[11px] leading-none transition-all duration-200 ease-out cursor-pointer select-none touch-manipulation ${
           currentLang === 'vi'
             ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white font-extrabold shadow-sm'

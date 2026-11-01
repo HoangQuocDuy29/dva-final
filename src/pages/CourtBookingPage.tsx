@@ -165,6 +165,21 @@ const CourtBookingContent: React.FC = () => {
 
   const selectedCourtIsMaintenance = isCourtMaintenance(selectedCourt);
 
+  const formatSubCourtLabel = (sc?: string): string => {
+    if (!sc) return '';
+    if (sc === 'Sân A') return 'Court A';
+    if (sc === 'Sân B') return 'Court B';
+    return sc.replace(/^Sân\s+/i, 'Court ');
+  };
+
+  const formatCourtAddress = (addr?: string): string => {
+    if (!addr) return 'DVA Sports Center';
+    return addr
+      .replace('155 Trường Chinh, Thanh Xuân, Hà Nội', '155 Truong Chinh, Thanh Xuan, Hanoi')
+      .replace('Lê Trọng Tấn, Thanh Xuân, Hà Nội', 'Le Trong Tan, Thanh Xuan, Hanoi')
+      .replace('Khu Liên hợp Thể thao Quốc gia Mỹ Đình, Nam Từ Liêm, Hà Nội', 'My Dinh National Sports Complex, Nam Tu Liem, Hanoi');
+  };
+
   // Compute dynamic slots based on court's weeklySchedule & selected date (Day of week)
   const availableSlots = useMemo(() => {
     const slots = getScheduleSlotsForCourtAndDate(
@@ -194,7 +209,7 @@ const CourtBookingContent: React.FC = () => {
     if (selectedCourtIsMaintenance) {
       setSelectedSlotObj(null);
       setErrorMessage(
-        `⚠️ Sân "${selectedCourt?.name}" vừa chuyển sang chế độ bảo trì / tạm dừng phục vụ. Không thể tiến hành đặt tiếp trên sân này, vui lòng chọn sân khác!`
+        `⚠️ Court "${selectedCourt?.name}" has entered maintenance mode and is temporarily unavailable. Please select another court.`
       );
     }
   }, [selectedCourtIsMaintenance, selectedCourt?.id]);
@@ -365,19 +380,19 @@ const CourtBookingContent: React.FC = () => {
     setErrorMessage(null);
 
     if (selectedCourtIsMaintenance) {
-      setErrorMessage('Sân hiện đang trong thời gian bảo trì, vui lòng chọn sân khác hoặc quay lại sau.');
+      setErrorMessage('This court is currently under maintenance. Please select another court or check back later.');
       setSelectedSlotObj(null);
       fetchRealtimeStatus();
       return;
     }
 
     if (!customerName.trim() || !customerPhone.trim() || !customerEmail.trim()) {
-      setErrorMessage('Please fill in your name, phone number, and email address.');
+      setErrorMessage('Please fill in all required fields (Full Name, Phone Number, and Email Address).');
       return;
     }
 
     if (!selectedCourt) {
-      setErrorMessage('Vui lòng chọn sân trước khi đặt chỗ.');
+      setErrorMessage('Please select a court before confirming your reservation.');
       return;
     }
 
@@ -522,7 +537,7 @@ const CourtBookingContent: React.FC = () => {
               <div>
                 <span className="text-slate-400 block text-[11px]">Court:</span>
                 <span className="font-bold text-white text-sm">
-                  {successReceipt.courtName}{successReceipt.subCourt ? ` - ${successReceipt.subCourt}` : ''}
+                  {successReceipt.courtName}{successReceipt.subCourt ? ` - ${formatSubCourtLabel(successReceipt.subCourt)}` : ''}
                 </span>
               </div>
               <div>
@@ -536,7 +551,7 @@ const CourtBookingContent: React.FC = () => {
               <div>
                 <span className="text-slate-400 block text-[11px]">Total Paid:</span>
                 <span className="font-bold text-orange-400 font-mono text-sm">
-                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(successReceipt.totalPrice)}
+                  {new Intl.NumberFormat('en-US').format(successReceipt.totalPrice)} VND
                 </span>
               </div>
             </div>
@@ -564,7 +579,7 @@ const CourtBookingContent: React.FC = () => {
               <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-bold">
                 1
               </span>
-              <span>Choose Your Preferred Court</span>
+              <span>Select Court</span>
             </h2>
             
           </div>
@@ -590,7 +605,7 @@ const CourtBookingContent: React.FC = () => {
               ))
             ) : courts.length === 0 ? (
               <div className="col-span-full py-12 text-center text-slate-500 bg-[#121826] border border-slate-800 rounded-3xl">
-                Không tìm thấy sân nào đang hoạt động.
+                No active courts available at the moment.
               </div>
             ) : (
               courts.map((court) => {
@@ -631,7 +646,7 @@ const CourtBookingContent: React.FC = () => {
                       {isMaintenance && (
                         <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4 z-10">
                           <div className="px-3.5 py-2 rounded-2xl bg-amber-950/95 border-2 border-amber-500 text-amber-200 font-extrabold text-xs text-center shadow-2xl flex items-center gap-1.5">
-                            <span>🛠️ Đang bảo trì / Tạm dừng phục vụ</span>
+                            <span>🛠️ Maintenance / Temporarily Closed</span>
                           </div>
                         </div>
                       )}
@@ -649,7 +664,7 @@ const CourtBookingContent: React.FC = () => {
                         </span>
                         {isMaintenance ? (
                           <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-red-950/90 text-red-300 border border-red-700">
-                            Tạm ngưng
+                            Maintenance
                           </span>
                         ) : isSelected ? (
                           <div className="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg">
@@ -664,7 +679,7 @@ const CourtBookingContent: React.FC = () => {
                         </h3>
                         <span className="text-[11px] text-orange-300 font-mono font-semibold flex items-center gap-1">
                           <MapPin className="w-3 h-3 shrink-0" />
-                          <span className="truncate">{court.address || 'DVA Sports Center'}</span>
+                          <span className="truncate">{formatCourtAddress(court.address)}</span>
                         </span>
                       </div>
                     </div>
@@ -677,11 +692,11 @@ const CourtBookingContent: React.FC = () => {
 
                       <div className="pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs">
                         {isMaintenance ? (
-                          <span className="text-amber-400 font-bold">🛠️ Đang bảo trì / Tạm dừng phục vụ</span>
+                          <span className="text-amber-400 font-bold">🛠️ Under Maintenance</span>
                         ) : (
                           <span className="text-slate-400 font-medium">Taraflex Pro Flooring</span>
                         )}
-                        <span className="font-bold text-orange-400 font-mono text-sm">{court.hourlyRate.toLocaleString('vi-VN')} đ/h</span>
+                        <span className="font-bold text-orange-400 font-mono text-sm">{court.hourlyRate.toLocaleString('en-US')} VND/h</span>
                       </div>
                     </div>
                   </button>
@@ -700,10 +715,10 @@ const CourtBookingContent: React.FC = () => {
                 <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-bold">
                   2
                 </span>
-                <span>Select Date & Dynamic Session Slot</span>
+                <span>Select Date & Time</span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Active Court: <strong className="text-orange-400 font-bold">{selectedCourt?.name || (isLoadingCourts ? 'Đang tải...' : 'Chưa chọn sân')}</strong> · Showing verified slots for: <strong className="text-white">{formatFriendlyDate(bookingDate)}</strong>
+                Active Court: <strong className="text-orange-400 font-bold">{selectedCourt?.name || (isLoadingCourts ? 'Loading...' : 'No court selected')}</strong> · Showing verified slots for: <strong className="text-white">{formatFriendlyDate(bookingDate)}</strong>
               </p>
             </div>
 
@@ -755,7 +770,7 @@ const CourtBookingContent: React.FC = () => {
           <div className="flex flex-wrap items-center gap-5 text-xs text-slate-400 pt-2 border-t border-slate-800/60">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
-              <span>Available (Open for booking)</span>
+              <span>Available</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-amber-500"></span>
@@ -763,15 +778,15 @@ const CourtBookingContent: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-slate-600"></span>
-              <span>Booked (Duplicate Protected)</span>
+              <span>Booked</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-red-900 border border-red-700"></span>
-              <span>Closed / Maintenance by Admin</span>
+              <span>Maintenance</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-red-600"></span>
-              <span>Your Selected Session</span>
+              <span className="w-3 h-3 rounded-full bg-orange-500"></span>
+              <span>Peak Hours / Standard Hours</span>
             </div>
           </div>
 
@@ -782,14 +797,14 @@ const CourtBookingContent: React.FC = () => {
                 <div>
                   <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                    <span>Chọn Sân Con (Sub-Courts) - {selectedCourt?.name || ''}:</span>
+                    <span>Select Sub-Court - {selectedCourt?.name || ''}:</span>
                   </span>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Trong cùng 1 khung giờ có 2 sân thi đấu độc lập. Trạng thái đặt chỗ giữa Sân A và Sân B hoàn toàn riêng biệt.
+                    Two independent competition courts operate simultaneously. Availability for Court A and Court B is tracked separately.
                   </p>
                 </div>
                 <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 shrink-0">
-                  Đang chọn: <strong className="text-orange-400">{selectedSubCourt}</strong>
+                  Selected: <strong className="text-orange-400">{formatSubCourtLabel(selectedSubCourt)}</strong>
                 </span>
               </div>
 
@@ -836,17 +851,14 @@ const CourtBookingContent: React.FC = () => {
                               : 'bg-slate-800 text-slate-400'
                           }`}
                         >
-                          {sc.replace('Sân ', '')}
+                          {sc.replace('Sân ', '').replace('Court ', '')}
                         </div>
                         <div className="text-left truncate">
                           <span className="font-heading font-black text-sm block text-white flex items-center gap-1.5 truncate">
-                            <span>{sc}</span>
-                            <span className="text-[10px] text-slate-400 font-normal">
-                              ({sc === 'Sân A' ? 'Court A' : 'Court B'})
-                            </span>
+                            <span>{formatSubCourtLabel(sc)}</span>
                           </span>
                           <span className="text-[10px] text-slate-400 block truncate">
-                            Sân độc lập 
+                            Independent Competition Court
                           </span>
                         </div>
                       </div>
@@ -859,7 +871,7 @@ const CourtBookingContent: React.FC = () => {
                               : 'bg-red-950/80 text-red-400 border-red-800/80'
                           }`}
                         >
-                          {availableCount} ca trống
+                          {availableCount} slots open
                         </span>
                       </div>
                     </button>
@@ -873,7 +885,7 @@ const CourtBookingContent: React.FC = () => {
           <div>
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Available Sessions for {selectedCourt?.name || '...'}{hasSubCourts ? ` (${selectedSubCourt})` : ''}:
+                Available Sessions for {selectedCourt?.name || '...'}{hasSubCourts ? ` (${formatSubCourtLabel(selectedSubCourt)})` : ''}:
               </span>
               <span className="text-[11px] text-slate-400">
                 {availableSlots.length} available sessions configured
@@ -884,10 +896,10 @@ const CourtBookingContent: React.FC = () => {
               <div className="mb-4 p-4 rounded-2xl bg-amber-950/80 border-2 border-amber-500 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="font-extrabold text-sm text-amber-300">
-                    🛠️ Đang bảo trì / Tạm dừng phục vụ ({selectedCourt?.name || ''})
+                    🛠️ Under Maintenance / Temporarily Closed ({selectedCourt?.name || ''})
                   </div>
                   <p className="text-amber-100/90">
-                    Sân hiện đang trong thời gian bảo trì, vui lòng chọn sân khác hoặc quay lại sau. Toàn bộ khung giờ của sân này hiện đã bị khóa đặt chỗ.
+                    This court is currently undergoing maintenance. All time slots for this court are temporarily locked. Please select another active court.
                   </p>
                 </div>
                 {courts.some((c) => !isCourtMaintenance(c)) && (
@@ -902,13 +914,13 @@ const CourtBookingContent: React.FC = () => {
                     }}
                     className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shrink-0 cursor-pointer transition-colors"
                   >
-                    Chuyển sang sân đang hoạt động
+                    Switch to Active Court
                   </button>
                 )}
               </div>
             )}
 
-            {/* Lưới danh sách khung giờ trống (Available Sessions Grid: Tự động phân bổ linh hoạt, tối thiểu 280px) */}
+            {/* Available Sessions Grid */}
             {isLoadingCourts ? (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
                 {Array.from({ length: 6 }).map((_, idx) => (
@@ -926,7 +938,7 @@ const CourtBookingContent: React.FC = () => {
               </div>
             ) : availableSlots.length === 0 ? (
               <div className="py-8 text-center text-slate-500 bg-[#0B0F19] rounded-2xl border border-slate-800/80">
-                {selectedCourtIsMaintenance ? 'Sân đang bảo trì, không có ca hoạt động.' : 'Không có khung giờ nào được cấu hình cho ngày này.'}
+                {selectedCourtIsMaintenance ? 'Court is currently under maintenance. No active sessions available.' : 'No time slots are configured for this date.'}
               </div>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
@@ -984,7 +996,7 @@ const CourtBookingContent: React.FC = () => {
                               ? 'bg-white/20 text-white border border-white/30'
                               : 'bg-orange-950/80 text-orange-300 border border-orange-800/80'
                           }`}>
-                            {selectedSubCourt.toUpperCase()}
+                            {formatSubCourtLabel(selectedSubCourt).toUpperCase()}
                           </span>
                         )}
 
@@ -999,18 +1011,18 @@ const CourtBookingContent: React.FC = () => {
                             ? 'bg-red-950 text-red-400 border border-red-800'
                             : 'bg-slate-800 text-slate-400'
                         }`}>
-                          {isSelected ? 'Selected' : status === 'AVAILABLE' ? 'Open' : status === 'HOLDING' ? 'Holding' : status === 'CLOSED' ? 'Closed' : 'Booked'}
+                          {isSelected ? 'Selected' : status === 'AVAILABLE' ? 'Available' : status === 'HOLDING' ? 'Holding' : status === 'CLOSED' ? 'Maintenance' : 'Booked'}
                         </span>
                       </div>
                     </div>
 
-                    {/* Hàng dưới: Thời lượng buổi tập và mức giá */}
+                    {/* Session duration, Peak/Standard Hours indicator, and calculated rate */}
                     <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/10 text-[11px] sm:text-xs w-full">
                       <span className={isSelected ? 'text-red-100 font-medium' : 'text-slate-400 font-medium'}>
-                        {slot.durationHours}h Session{extraNote ? ` · ${extraNote}` : ''}
+                        {slot.durationHours}h · {(slot.start >= '17:30' || slot.start === '18:00' || slot.start === '19:30') ? 'Peak Hours' : 'Standard Hours'}{extraNote ? ` (${extraNote})` : ''}
                       </span>
                       <span className={`font-mono font-bold text-xs sm:text-sm ${isSelected ? 'text-white' : 'text-orange-400'}`}>
-                        {calculatedPrice.toLocaleString('vi-VN')} đ
+                        {calculatedPrice.toLocaleString('en-US')} VND
                       </span>
                     </div>
                   </button>
@@ -1188,13 +1200,13 @@ const CourtBookingContent: React.FC = () => {
                 <div className="flex justify-between text-slate-400">
                   <span>Selected Court:</span>
                   <span className="font-bold text-white text-right">
-                    {selectedCourt?.name}{hasSubCourts ? ` - ${selectedSubCourt}` : ''}
+                    {selectedCourt?.name}{hasSubCourts ? ` - ${formatSubCourtLabel(selectedSubCourt)}` : ''}
                   </span>
                 </div>
 
                 <div className="flex justify-between text-slate-400">
                   <span>Session Slot:</span>
-                  <span className="font-bold text-white">{selectedSlotObj?.label} ({sessionHours}h)</span>
+                  <span className="font-bold text-white">{selectedSlotObj?.label || 'Not selected'} ({sessionHours}h)</span>
                 </div>
 
                 <div className="flex justify-between text-slate-400">
@@ -1203,14 +1215,14 @@ const CourtBookingContent: React.FC = () => {
                 </div>
 
                 <div className="flex justify-between text-slate-400">
-                  <span>Court Fee ({sessionHours}h @ {(hourlyRate / 1000).toLocaleString('vi-VN')}k/h):</span>
-                  <span className="font-mono font-semibold text-white">{courtPrice.toLocaleString('vi-VN')} đ</span>
+                  <span>Court Fee ({sessionHours}h @ {(hourlyRate / 1000).toLocaleString('en-US')}k/h):</span>
+                  <span className="font-mono font-semibold text-white">{courtPrice.toLocaleString('en-US')} VND</span>
                 </div>
 
                 {addonsPrice > 0 && (
                   <div className="flex justify-between text-slate-400">
                     <span>Selected Add-ons:</span>
-                    <span className="font-mono font-semibold text-orange-400">+{addonsPrice.toLocaleString('vi-VN')} đ</span>
+                    <span className="font-mono font-semibold text-orange-400">+{addonsPrice.toLocaleString('en-US')} VND</span>
                   </div>
                 )}
 
@@ -1239,7 +1251,7 @@ const CourtBookingContent: React.FC = () => {
                 <div className="border-t border-slate-800 pt-3 flex justify-between items-baseline">
                   <span className="font-bold text-white text-sm">Total Due:</span>
                   <span className="font-mono font-black text-2xl text-orange-400 tabular-nums">
-                    {totalPrice.toLocaleString('vi-VN')} VNĐ
+                    {totalPrice.toLocaleString('en-US')} VND
                   </span>
                 </div>
 
@@ -1265,17 +1277,17 @@ const CourtBookingContent: React.FC = () => {
                 }`}
               >
                 {isLoadingCourts ? (
-                  <span>Đang tải thông tin sân...</span>
+                  <span>Loading Court Information...</span>
                 ) : selectedCourtIsMaintenance ? (
-                  <span>🛠️ Sân đang bảo trì - Không thể đặt</span>
+                  <span>🛠️ Under Maintenance - Unavailable</span>
                 ) : !selectedCourt ? (
-                  <span>Vui lòng chọn sân</span>
+                  <span>Select Court</span>
                 ) : isSubmitting ? (
                   <span>Generating VietQR code...</span>
                 ) : (
                   <>
                     <CreditCard className="w-4 h-4" />
-                    <span>Proceed to VietQR Payment</span>
+                    <span>Confirm Reservation</span>
                   </>
                 )}
               </button>

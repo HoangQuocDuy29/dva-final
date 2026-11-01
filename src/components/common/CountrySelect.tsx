@@ -22,7 +22,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
   value = 'VN',
   onChange,
   label,
-  placeholder = 'Chọn quốc gia...',
+  placeholder = 'Select country...',
   disabled = false,
   className = '',
   id,
@@ -173,7 +173,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
                 setHighlightedIndex(0);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Tìm theo tên quốc gia, mã ISO (VN, US...) hoặc tiếng Việt..."
+              placeholder="Search by country name or ISO code (VN, US, FR...)..."
               className="w-full bg-transparent text-white text-xs placeholder:text-slate-500 outline-none font-medium"
             />
             {searchQuery && (
@@ -185,7 +185,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
                   searchInputRef.current?.focus();
                 }}
                 className="text-slate-400 hover:text-white p-0.5 rounded cursor-pointer"
-                title="Xóa tìm kiếm"
+                title="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -202,16 +202,16 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
             {filteredCountries.length === 0 ? (
               <div className="p-5 text-center text-xs text-slate-400 space-y-1">
                 <Globe className="w-6 h-6 mx-auto text-slate-600 mb-1" />
-                <p>Không tìm thấy quốc gia phù hợp với</p>
+                <p>No countries found matching</p>
                 <p className="text-orange-400 font-bold truncate">"{searchQuery}"</p>
               </div>
             ) : (
               <>
-                {/* Khi không search: Hiện nhãn phân biệt cho Việt Nam (Ưu tiên) */}
+                {/* Priority Country Header */}
                 {!searchQuery && (
                   <div className="px-3 py-1 bg-slate-900/60 border-b border-slate-800/60 text-[10px] font-bold text-orange-400/90 tracking-wider uppercase flex items-center justify-between">
-                    <span>Quốc gia ưu tiên</span>
-                    <span>⭐ Ghim</span>
+                    <span>Priority Country</span>
+                    <span>⭐ Pinned</span>
                   </div>
                 )}
 
@@ -219,14 +219,14 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
                   const isSelected = country.code === selectedCountry.code;
                   const isHighlighted = idx === highlightedIndex;
 
-                  // Thêm phân cách sau Việt Nam khi đang ở chế độ xem toàn bộ (không search)
+                  // Separator after priority country when not searching
                   const showAllSeparator = !searchQuery && idx === 1;
 
                   return (
                     <React.Fragment key={country.code}>
                       {showAllSeparator && (
                         <div className="px-3 py-1 bg-slate-900/60 border-b border-slate-800/60 text-[10px] font-bold text-slate-400 tracking-wider uppercase">
-                          Tất cả quốc gia (A-Z) · {ALL_COUNTRIES.length - 1} quốc gia
+                          All Countries (A-Z) · {ALL_COUNTRIES.length - 1} countries
                         </div>
                       )}
 
@@ -261,11 +261,6 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
                                 ({country.code})
                               </span>
                             </div>
-                            {country.nameVi && country.nameVi !== country.name && (
-                              <span className="text-[10px] text-slate-400 truncate">
-                                {country.nameVi}
-                              </span>
-                            )}
                           </div>
                         </div>
 
@@ -283,10 +278,10 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
           {/* FOOTER BAR */}
           <div className="px-3 py-1.5 bg-[#0B0F19] border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
             <span>
-              {filteredCountries.length} / {ALL_COUNTRIES.length} quốc gia
+              {filteredCountries.length} / {ALL_COUNTRIES.length} countries
             </span>
             <span className="text-[10px] text-slate-500 hidden sm:inline">
-              Dùng phím ↑ ↓ để duyệt, Enter để chọn
+              Use ↑ ↓ arrows to navigate, Enter to select
             </span>
           </div>
         </div>

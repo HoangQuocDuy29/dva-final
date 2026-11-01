@@ -283,11 +283,11 @@ export const courtService = {
       id,
       code: courtData.code || `COURT_${Date.now().toString().slice(-3)}`,
       shortName: courtData.shortName || courtData.name || 'DVA COURT',
-      name: courtData.name || 'Sân Mới DVA',
-      address: courtData.address || 'DVA Sports Center, Hà Nội',
+      name: courtData.name || 'New DVA Court',
+      address: courtData.address || 'DVA Sports Center, Hanoi',
       description:
         courtData.description ||
-        'Sân bóng chuyền tiêu chuẩn trang bị mặt sàn Taraflex Pro chống chấn thương.',
+        'Standard indoor volleyball court equipped with injury-preventing Taraflex Pro flooring.',
       floorType: courtData.floorType || 'Gerflor Taraflex Sport Pro',
       hourlyRate: Number(courtData.hourlyRate) || 500000,
       minHours: Number(courtData.minHours) || 1.5,
@@ -346,7 +346,7 @@ export const courtService = {
         ? isMaintenance
         : !(current?.isMaintenance === true || current?.status === 'MAINTENANCE' || current?.isAvailable === false);
     const fallbackCourt: Court = {
-      ...(current || { id, name: 'Sân bóng chuyền', code: 'COURT', hourlyRate: 500000, minHours: 1.5, floorType: 'Taraflex', imageUrl: '', address: '', description: '', includes: [] }),
+      ...(current || { id, name: 'Volleyball Court', code: 'COURT', hourlyRate: 500000, minHours: 1.5, floorType: 'Taraflex', imageUrl: '', address: '', description: '', includes: [] }),
       id,
       status: nextMaint ? 'MAINTENANCE' : 'ACTIVE',
       isMaintenance: nextMaint,
@@ -433,7 +433,7 @@ export const bookingService = {
     const fallbackBooking: Booking = {
       id: `b-${Date.now()}`,
       courtId: bookingData.courtId || 'court-btl',
-      courtName: bookingData.courtName || (bookingData.courtId === 'court-btl' ? 'BTL Thong Tin court' : 'Sân Bóng Chuyền'),
+      courtName: bookingData.courtName || (bookingData.courtId === 'court-btl' ? 'BTL Thong Tin court' : 'DVA Volleyball Court'),
       subCourt: bookingData.subCourt,
       customerName: bookingData.customerName || 'Customer',
       customerEmail: bookingData.customerEmail || '',
@@ -910,12 +910,12 @@ export const vietQrService = {
       body: JSON.stringify({ amount, bookingCode, description }),
     }, {
       bankId: 'MB',
-      bankName: 'Ngân hàng Quân Đội (MB Bank)',
+      bankName: 'MB Bank (Military Bank)',
       accountNo: '0002090671521',
       accountName: 'HOANG QUOC DUY',
       amount,
       bookingCode,
-      description: description || `Thanh toan ${bookingCode}`,
+      description: description || `Payment ${bookingCode}`,
       qrUrl: `https://img.vietqr.io/image/MB-0002090671521-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(bookingCode)}&accountName=HOANG%20QUOC%20DUY`
     });
   }

@@ -162,7 +162,7 @@ export function toPlayerDto(p: DbPlayer | any): Player {
     weight: Number(p.weight) || 70,
     spikeTouch: Number(p.spikeTouch) || 300,
     blockTouch: Number(p.blockTouch) || 290,
-    hometownCountry: p.hometownCountry || 'Việt Nam',
+    hometownCountry: p.hometownCountry || 'Vietnam',
     country: resolvedCountry,
     countryName: resolvedCountry,
     countryCode: resolvedCode,
@@ -191,7 +191,7 @@ export function toCourtDto(c: DbCourt & { status?: string | null; isMaintenance?
     code: c.code,
     shortName: c.shortName ?? undefined,
     name: c.name,
-    address: c.address ?? 'DVA Sports Center, Hà Nội',
+    address: c.address ?? 'DVA Sports Center, Hanoi',
     description: c.description,
     floorType: c.floorType,
     hourlyRate: c.hourlyRate,
@@ -256,16 +256,29 @@ export function toBookingDto(b: DbBooking | any): Booking {
 }
 
 export function toCourseDto(c: DbTrainingCourse): TrainingCourse {
+  let normalizedTitle = c.title;
+  if (normalizedTitle && normalizedTitle.includes('Học 1-1 với coach kèm từ cơ bản')) {
+    normalizedTitle = '1-on-1 Private Coaching & Fundamentals';
+  }
+  let normalizedPriceUnit = c.priceUnit ?? undefined;
+  if (normalizedPriceUnit) {
+    const u = normalizedPriceUnit.toLowerCase();
+    if (u.includes('người') && u.includes('buổi')) normalizedPriceUnit = '/ player / session';
+    else if (u.includes('buổi')) normalizedPriceUnit = '/ player / session';
+    else if (u.includes('tháng')) normalizedPriceUnit = '/ month';
+    else if (u.includes('năm')) normalizedPriceUnit = '/ year';
+    else if (u.includes('khóa')) normalizedPriceUnit = '/ course';
+  }
   return {
     id: c.id,
-    title: c.title,
+    title: normalizedTitle,
     level: c.level,
     coachName: c.coachName,
     coachTitle: c.coachTitle,
     schedule: c.schedule,
     duration: c.duration,
     price: c.price,
-    priceUnit: c.priceUnit ?? undefined,
+    priceUnit: normalizedPriceUnit,
     tag: c.tag ?? undefined,
     benefits: c.benefits,
     description: c.description,

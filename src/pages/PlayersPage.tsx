@@ -61,6 +61,27 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     setCurrentPage(1);
   }, [resolvedLevel, search, selectedPosition]);
 
+  // Normalize Vietnamese city/province names into English for public display
+  const formatHometownEnglish = (raw?: string): string => {
+    if (!raw) return '';
+    return raw
+      .replace(/Hà Nội/gi, 'Hanoi')
+      .replace(/TP\.\s*Hồ Chí Minh|Hồ Chí Minh/gi, 'Ho Chi Minh City')
+      .replace(/Đà Nẵng/gi, 'Da Nang')
+      .replace(/Hải Phòng/gi, 'Hai Phong')
+      .replace(/Bình Dương/gi, 'Binh Duong')
+      .replace(/Đồng Nai/gi, 'Dong Nai')
+      .replace(/Nam Định/gi, 'Nam Dinh')
+      .replace(/Khánh Hòa/gi, 'Khanh Hoa')
+      .replace(/Bắc Ninh/gi, 'Bac Ninh')
+      .replace(/Nghệ An/gi, 'Nghe An')
+      .replace(/Thanh Hóa/gi, 'Thanh Hoa')
+      .replace(/Thái Bình/gi, 'Thai Binh')
+      .replace(/Quảng Ninh/gi, 'Quang Ninh')
+      .replace(/Cần Thơ/gi, 'Can Tho')
+      .replace(/Việt Nam/gi, 'Vietnam');
+  };
+
   // Position badge styling
   const getPositionBadgeStyle = (pos: VolleyballPosition) => {
     switch (pos) {
@@ -71,7 +92,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
       case 'OH':
         return { label: 'OUTSIDE HITTER', bg: 'bg-[#EF4444]' };
       case 'OP':
-        return { label: 'OPPOSITE HITTER', bg: 'bg-[#F97316]' };
+        return { label: 'OPPOSITE SPIKER', bg: 'bg-[#F97316]' };
       case 'S':
         return { label: 'SETTER', bg: 'bg-[#0EA5E9]' };
       default:
@@ -233,7 +254,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               <span className="text-slate-400 text-[11px]">Country / Origin</span>
               <span className="font-semibold text-white text-[11px] flex items-center gap-1">
                 <span>{resolvedFlag}</span>
-                <span>{player.hometownCountry ? `${player.hometownCountry}, ${resolvedCountryName}` : resolvedCountryName}</span>
+                <span>{player.hometownCountry ? `${formatHometownEnglish(player.hometownCountry)}, ${formatHometownEnglish(resolvedCountryName)}` : formatHometownEnglish(resolvedCountryName)}</span>
               </span>
             </div>
             <div className="flex justify-between items-center text-slate-300">
@@ -497,7 +518,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             {[
               { id: 'ALL', label: 'All Positions' },
               { id: 'OH', label: 'Outside Hitter (OH)' },
-              { id: 'OP', label: 'Opposite Hitter (OP)' },
+              { id: 'OP', label: 'Opposite Spiker (OP)' },
               { id: 'MB', label: 'Middle Blocker (MB)' },
               { id: 'S', label: 'Setter (S)' },
               { id: 'L', label: 'Libero (L)' },

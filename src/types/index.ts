@@ -19,10 +19,10 @@ export type PlayerLevel = 'SENIOR' | 'JUNIOR' | 'YOUTH';
 export type VolleyballPosition = 'OH' | 'OP' | 'MB' | 'S' | 'L';
 
 export const POSITION_LABELS: Record<VolleyballPosition, { code: VolleyballPosition; nameVi: string; nameEn: string }> = {
-  OH: { code: 'OH', nameVi: 'Chủ công', nameEn: 'Outside Hitter' },
-  OP: { code: 'OP', nameVi: 'Đối chuyền', nameEn: 'Opposite Hitter' },
-  MB: { code: 'MB', nameVi: 'Phụ công', nameEn: 'Middle Blocker' },
-  S: { code: 'S', nameVi: 'Chuyền hai', nameEn: 'Setter' },
+  OH: { code: 'OH', nameVi: 'Outside Hitter', nameEn: 'Outside Hitter' },
+  OP: { code: 'OP', nameVi: 'Opposite Spiker', nameEn: 'Opposite Spiker' },
+  MB: { code: 'MB', nameVi: 'Middle Blocker', nameEn: 'Middle Blocker' },
+  S: { code: 'S', nameVi: 'Setter', nameEn: 'Setter' },
   L: { code: 'L', nameVi: 'Libero', nameEn: 'Libero' },
 };
 

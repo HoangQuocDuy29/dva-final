@@ -21,7 +21,7 @@
     "subtitle": "Premier Volleyball Center",
     "description": "Hanoi volleyball community hub and training academy. Connecting local passion with international players, from weekly friendly games to youth squad development.",
     "ballStandard": "100% Olympic Match Ball Standard (Mikasa V200W)",
-    "operatingHours": "Operating Hours: 06:00 - 21:30 (Mon – Sun)",
+    "operatingHours": "Opening Hours: 06:00 - 21:30 (Mon – Sun)",
     "paymentTitle": "Official VietQR Payment Account:",
     "bankLabel": "Bank:",
     "accountNoLabel": "Account No:",
@@ -35,12 +35,12 @@
       "clubNews": "Club Bulletin & News",
       "joinSquad": "Join DVA Squad"
     },
-    "facilityLocationTitle": "Facility Location",
+    "facilityLocationTitle": "Court Location",
     "address": "155 Truong Chinh, Thanh Xuan, Hanoi, Vietnam",
     "facilityDesc": "Offering quality indoor courts with standard vinyl flooring, bright lighting, dedicated changing areas, and courtside seating.",
     "arenaMapTitle": "Arena Location Map",
     "directions": "Directions",
-    "copyright": "© {{year}} DVA Volleyball Club. All Rights Reserved."
+    "copyright": "© {{year}} DVA Volleyball Club. All rights reserved."
   },
   "buttons": {
     "share": "Share",
