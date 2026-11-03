@@ -1,0 +1,13 @@
+# SPECIFICATION-DRIVEN DEVELOPMENT RULES
+
+## Context & Architecture Truth
+1. Before implementing any task, always read:
+   - `constitution.md` (Core principles & invariant constraints)
+   - `./ARCHITECTURE.md` (Detailed architectural guidelines)
+   - The active specification file in `specs/`
+2. Never make unverified architectural changes or modify Prisma schemas without explicit instructions in the spec.
+
+## Invariant Constraints
+- Public UI Policy: 100% English across all components (pages, modals, cards, badges, buttons, toasts, placeholders).
+- Localization: Keep translations clean and synchronized in `src/locales/en/`.
+- Quality Gate: Before marking any task complete, verify zero TypeScript errors via `npx tsc --noEmit` and ensure `npm run build` succeeds.

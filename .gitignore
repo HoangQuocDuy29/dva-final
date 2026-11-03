@@ -49,3 +49,4 @@ pnpm-debug.log*
 
 # Coverage / Testing
 coverage/
+.gemini/
