@@ -15,12 +15,12 @@ import { ContactBanner } from '../components/common/ContactBanner';
 
 export const InformationPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white py-12">
+    <div className="min-h-screen bg-[#0B0F19] text-white py-12 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         
         {/* Header */}
-        <div className="border-b border-slate-800 pb-6">
-          <span className="text-xs font-bold text-red-500 uppercase tracking-widest bg-red-950/60 border border-red-800 px-3 py-1 rounded-full">
+        <div className="relative z-10 border-b border-slate-800 pb-6">
+          <span className="inline-block text-xs font-bold text-red-500 uppercase tracking-widest bg-red-950/60 border border-red-800 px-3 py-1 rounded-full">
             Transparent Pricing & Standards
           </span>
           <h1 className="text-3xl sm:text-4xl font-black text-white font-heading mt-3">
@@ -45,7 +45,7 @@ export const InformationPage: React.FC = () => {
             {/* Card 1: Court Rental */}
             <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl flex flex-col justify-between">
               <div>
-                <span className="px-3 py-1 bg-red-950 border border-red-800 text-red-400 text-xs font-bold rounded-lg uppercase">
+                <span className="inline-block px-3 py-1 bg-red-950 border border-red-800 text-red-400 text-xs font-bold rounded-lg uppercase">
                   Court Rental
                 </span>
                 <div className="mt-4">
@@ -89,7 +89,7 @@ export const InformationPage: React.FC = () => {
               </div>
 
               <div>
-                <span className="px-3 py-1 bg-orange-950 border border-orange-800 text-orange-300 text-xs font-bold rounded-lg uppercase">
+                <span className="inline-block px-3 py-1 bg-orange-950 border border-orange-800 text-orange-300 text-xs font-bold rounded-lg uppercase">
                   Club Entry / Drop-in Pass
                 </span>
                 <div className="mt-4">
@@ -129,7 +129,7 @@ export const InformationPage: React.FC = () => {
             {/* Card 3: Monthly Basic Scrimmage Pass (Replaces Technical Academy Course) */}
             <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl flex flex-col justify-between">
               <div>
-                <span className="px-3 py-1 bg-slate-800 text-slate-300 text-xs font-bold rounded-lg uppercase">
+                <span className="inline-block px-3 py-1 bg-slate-800 text-slate-300 text-xs font-bold rounded-lg uppercase">
                   Monthly Basic Scrimmage Pass
                 </span>
                 <div className="mt-4">

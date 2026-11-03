@@ -8,24 +8,29 @@ interface LanguageSwitcherProps {
 
 /** Crisp inline SVG of the United Kingdom (Union Jack) Flag */
 const UkFlagIcon: React.FC<{ className?: string }> = ({
-  className = 'w-3.5 h-2.5 rounded-[2px] shrink-0 pointer-events-none',
+  className = 'w-3.5 h-2.5 rounded-[2px] shrink-0 pointer-events-none overflow-hidden',
 }) => {
-  const uid = useId();
+  const rawUid = useId();
+  const uid = rawUid.replace(/[^a-zA-Z0-9_-]/g, '');
   const clipId = `uk-clip-${uid}`;
   const diagClipId = `uk-diag-clip-${uid}`;
 
   return (
     <svg
       viewBox="0 0 60 30"
+      width="14"
+      height="10"
       aria-hidden="true"
       className={className}
     >
-      <clipPath id={clipId}>
-        <path d="M0,0 v30 h60 v-30 z" />
-      </clipPath>
-      <clipPath id={diagClipId}>
-        <path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z" />
-      </clipPath>
+      <defs>
+        <clipPath id={clipId}>
+          <path d="M0,0 v30 h60 v-30 z" />
+        </clipPath>
+        <clipPath id={diagClipId}>
+          <path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z" />
+        </clipPath>
+      </defs>
       <g clipPath={`url(#${clipId})`}>
         <path d="M0,0 v30 h60 v-30 z" fill="#012169" />
         <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6" />
@@ -44,10 +49,12 @@ const UkFlagIcon: React.FC<{ className?: string }> = ({
 
 /** Crisp inline SVG of the Vietnam Flag */
 const VnFlagIcon: React.FC<{ className?: string }> = ({
-  className = 'w-3.5 h-2.5 rounded-[2px] shrink-0 pointer-events-none',
+  className = 'w-3.5 h-2.5 rounded-[2px] shrink-0 pointer-events-none overflow-hidden',
 }) => (
   <svg
     viewBox="0 0 30 20"
+    width="14"
+    height="10"
     aria-hidden="true"
     className={className}
   >
