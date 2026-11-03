@@ -1,13 +1,23 @@
 # SPECIFICATION-DRIVEN DEVELOPMENT RULES
 
-## Context & Architecture Truth
-1. Before implementing any task, always read:
-   - `constitution.md` (Core principles & invariant constraints)
-   - `./ARCHITECTURE.md` (Detailed architectural guidelines)
-   - The active specification file in `specs/`
-2. Never make unverified architectural changes or modify Prisma schemas without explicit instructions in the spec.
+## Execution Tracks & Token Optimization
 
-## Invariant Constraints
+### Track 1: Fast Track (Bug fixes, UI/CSS hotfixes, minor isolated refactors)
+- Scope: Triggered for bug fixes, CSS tweaks, mobile layout bugs, or single-file changes.
+- Rules:
+  1. DO NOT read constitution.md, ./ARCHITECTURE.md, or the specs/ directory.
+  2. Directly inspect and modify only the targeted component/file mentioned in the prompt.
+  3. Keep changes minimal and isolated.
+
+### Track 2: Spec-Driven Track (New features, complex architectural changes)
+- Scope: Triggered ONLY when explicit slash commands are used (/speckit.*) or when explicitly requested to build/plan a full feature.
+- Rules:
+  1. Read constitution.md (Core principles & invariant constraints).
+  2. Read ./ARCHITECTURE.md (Detailed architectural guidelines).
+  3. Inspect the active specification file in specs/.
+  4. Never make unverified architectural changes or modify Prisma schemas without explicit instructions in the spec.
+
+## Invariant Constraints (Applies to All Tracks)
 - Public UI Policy: 100% English across all components (pages, modals, cards, badges, buttons, toasts, placeholders).
-- Localization: Keep translations clean and synchronized in `src/locales/en/`.
-- Quality Gate: Before marking any task complete, verify zero TypeScript errors via `npx tsc --noEmit` and ensure `npm run build` succeeds.
+- Localization: Keep translations clean and synchronized in src/locales/en/.
+- Quality Gate: Before marking any task complete, verify zero TypeScript errors via npx tsc --noEmit and ensure npm run build succeeds.

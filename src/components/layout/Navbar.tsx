@@ -87,16 +87,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 flex flex-col items-center pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+      className={`fixed top-0 left-0 right-0 z-50 flex flex-col items-center pointer-events-none ${
         isScrolled ? 'pt-3 px-4 sm:px-6' : 'pt-0 px-0'
       }`}
     >
       {/* Khối Navbar chính (Inner Capsule): Single Container tránh giật layout */}
       <div
-        className={`pointer-events-auto transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-between w-full gap-2 sm:gap-3 md:gap-2.5 lg:gap-5 ${
+        className={`pointer-events-auto transition-[background-color,box-shadow,border-color] duration-300 ease-out flex items-center justify-between w-full gap-2 sm:gap-3 md:gap-2.5 lg:gap-5 ${
           isScrolled
-            ? 'max-w-6xl rounded-2xl h-14 border border-slate-700/60 shadow-2xl shadow-black/50 bg-[#0B0F19]/80 backdrop-blur-md px-4 sm:px-6'
-            : 'max-w-7xl rounded-none h-20 border-b border-slate-800/80 bg-[#0B0F19]/95 backdrop-blur-md px-4 sm:px-6 lg:px-8'
+            ? 'max-w-6xl rounded-2xl h-14 border border-slate-700/60 shadow-2xl shadow-black/50 bg-[#0B0F19]/95 px-4 sm:px-6'
+            : 'max-w-7xl rounded-none h-20 border-b border-slate-800/80 bg-[#0B0F19] px-4 sm:px-6 lg:px-8'
         }`}
       >
         {/* Brand Wordmark & Dynamic Logo Slot */}
@@ -217,7 +217,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {userDropdownOpen && (
               <div
-                className="absolute right-0 mt-2 w-64 sm:w-72 bg-[#121826]/95 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-in fade-in"
+                className="absolute right-0 mt-2 w-64 sm:w-72 bg-[#121826] border border-slate-700 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-in fade-in"
               >
                 <div className="px-4 py-2.5 border-b border-slate-800">
                   <div className="text-[11px] text-slate-400 font-medium">{t('nav.loggedInAs')}</div>
@@ -290,8 +290,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div
           className={`w-full md:hidden pointer-events-auto transition-all duration-300 ease-out animate-in slide-in-from-top-2 max-h-[calc(100vh-5rem)] overflow-y-auto ${
             isScrolled
-              ? 'mt-2 max-w-6xl rounded-2xl bg-[#0F1420]/90 backdrop-blur-xl border border-slate-700/60 shadow-2xl p-4 space-y-3'
-              : 'max-w-7xl rounded-b-2xl bg-[#0F1420]/95 backdrop-blur-xl border-x border-b border-slate-800 px-4 pt-4 pb-6 space-y-3 shadow-2xl'
+              ? 'mt-2 max-w-6xl rounded-2xl bg-[#0F1420] border border-slate-700/60 shadow-2xl p-4 space-y-3'
+              : 'max-w-7xl rounded-b-2xl bg-[#0F1420] border-x border-b border-slate-800 px-4 pt-4 pb-6 space-y-3 shadow-2xl'
           }`}
         >
           
