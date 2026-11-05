@@ -8,7 +8,9 @@ import {
   ChevronDown, 
   UserPlus,
   LogOut,
-  LayoutDashboard
+  LayoutDashboard,
+  CalendarDays,
+  Users
 } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { authService } from '../../services/api';
@@ -25,11 +27,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   onUserChange, 
   onOpenAuth 
 }) => {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
+  const [mobileServicesOpen, setMobileServicesOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const servicesRef = useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = useRef<number | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -50,33 +56,88 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
   }, []);
 
-  // Close mobile drawer on route change
+  // Close menus on route change & auto-expand mobile accordion on service pages
   useEffect(() => {
     setMobileMenuOpen(false);
+    setServicesDropdownOpen(false);
+    if (location.pathname.startsWith('/services')) {
+      setMobileServicesOpen(true);
+    }
   }, [location.pathname]);
+
+  // Cleanup hover timer on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        window.clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleServicesMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setServicesDropdownOpen(true);
+  };
+
+  const handleServicesMouseLeave = () => {
+    if (closeTimeoutRef.current) {
+      window.clearTimeout(closeTimeoutRef.current);
+    }
+    closeTimeoutRef.current = window.setTimeout(() => {
+      setServicesDropdownOpen(false);
+    }, 150);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setUserDropdownOpen(false);
       }
+      if (servicesRef.current && !servicesRef.current.contains(event.target as Node)) {
+        setServicesDropdownOpen(false);
+      }
     };
-    if (userDropdownOpen) {
+    if (userDropdownOpen || servicesDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [userDropdownOpen]);
+  }, [userDropdownOpen, servicesDropdownOpen]);
 
-  const navLinks = [
+  const primaryNavLinks = [
     { label: t('nav.home'), path: '/' },
     { label: t('nav.players'), path: '/players' },
-    { label: t('nav.courtBooking'), path: '/services/court-booking' },
-    { label: t('nav.training'), path: '/services/training' },
+  ];
+
+  const secondaryNavLinks = [
     { label: t('nav.clubInfo'), path: '/information' },
     { label: t('nav.news'), path: '/news' },
   ];
+
+  const serviceItems = [
+    {
+      title: t('nav.courtBooking', 'Court Booking'),
+      subtitle: 'Reserve indoor courts & practice slots',
+      path: '/services/court-booking',
+      icon: CalendarDays,
+    },
+    {
+      title: t('nav.training', 'Training & Scrimmage'),
+      subtitle: 'Coaching clinics & weekly open games',
+      path: '/services/training-scrimmage',
+      icon: Users,
+    },
+  ];
+
+  const isServicesActive =
+    location.pathname.startsWith('/services') ||
+    location.pathname.startsWith('/booking') ||
+    location.pathname.startsWith('/court-booking') ||
+    location.pathname.startsWith('/training');
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -153,7 +214,96 @@ export const Navbar: React.FC<NavbarProps> = ({
               : 'gap-2.5 lg:gap-5 xl:gap-6 text-xs lg:text-sm'
           }`}
         >
-          {navLinks.map((link) => (
+          {primaryNavLinks.map((link) => (
+            <Link
+              key={link.path}
+              to={link.path}
+              className={`whitespace-nowrap shrink-0 transition-colors py-1 relative ${
+                isActive(link.path)
+                  ? 'text-white font-bold'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              {link.label}
+              {isActive(link.path) && (
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-red-500 to-orange-500 rounded-full" />
+              )}
+            </Link>
+          ))}
+
+          {/* Services Hover Dropdown */}
+          <div
+            ref={servicesRef}
+            className="relative"
+            onMouseEnter={handleServicesMouseEnter}
+            onMouseLeave={handleServicesMouseLeave}
+          >
+            <button
+              type="button"
+              onClick={() => setServicesDropdownOpen((prev) => !prev)}
+              className={`inline-flex items-center gap-1 whitespace-nowrap shrink-0 transition-colors py-1 cursor-pointer relative ${
+                isServicesActive || servicesDropdownOpen
+                  ? 'text-white font-bold'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+              aria-expanded={servicesDropdownOpen}
+              aria-haspopup="true"
+            >
+              <span>{t('nav.services', i18n.language?.startsWith('vi') ? 'Dịch vụ' : 'Services')}</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  servicesDropdownOpen ? 'rotate-180 text-orange-400' : 'text-slate-400'
+                }`}
+              />
+              {isServicesActive && (
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-red-500 to-orange-500 rounded-full" />
+              )}
+            </button>
+
+            {/* Desktop Dropdown Flyout */}
+            {servicesDropdownOpen && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2.5 z-50 w-72 lg:w-80 animate-in fade-in zoom-in-95 duration-150">
+                <div className="rounded-2xl backdrop-blur-md bg-[#0B0E14]/95 border border-white/10 shadow-2xl shadow-black/80 p-2 space-y-1">
+                  {serviceItems.map((item) => {
+                    const ItemIcon = item.icon;
+                    const itemActive = location.pathname.startsWith(item.path);
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setServicesDropdownOpen(false)}
+                        className={`group flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200 ${
+                          itemActive
+                            ? 'bg-white/[0.08] text-white'
+                            : 'hover:bg-white/[0.05] text-slate-200 hover:text-white'
+                        }`}
+                      >
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-200 ${
+                            itemActive
+                              ? 'bg-gradient-to-br from-red-500/20 to-orange-500/20 border-orange-500/50 text-orange-400 shadow-sm'
+                              : 'bg-white/[0.03] border-white/10 text-slate-400 group-hover:border-orange-500/40 group-hover:text-orange-400 group-hover:bg-orange-500/10'
+                          }`}
+                        >
+                          <ItemIcon className="w-4 h-4" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold leading-tight group-hover:text-orange-400 transition-colors">
+                            {item.title}
+                          </span>
+                          <span className="text-[11px] text-slate-400 leading-tight mt-0.5 truncate">
+                            {item.subtitle}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {secondaryNavLinks.map((link) => (
             <Link
               key={link.path}
               to={link.path}
@@ -330,7 +480,82 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Navigation Links list */}
           <div className="space-y-1">
-            {navLinks.map((link) => (
+            {primaryNavLinks.map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                  isActive(link.path)
+                    ? 'bg-gradient-to-r from-red-950/90 to-orange-950/70 text-white font-bold border-l-4 border-red-500'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+
+            {/* Mobile Accordion for Services */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setMobileServicesOpen((prev) => !prev)}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
+                  isServicesActive
+                    ? 'bg-gradient-to-r from-red-950/60 to-orange-950/40 text-white font-bold border-l-4 border-orange-500'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                }`}
+                aria-expanded={mobileServicesOpen}
+              >
+                <span>{t('nav.services', i18n.language?.startsWith('vi') ? 'Dịch vụ' : 'Services')}</span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    mobileServicesOpen ? 'rotate-180 text-orange-400' : 'text-slate-400'
+                  }`}
+                />
+              </button>
+
+              {mobileServicesOpen && (
+                <div className="mt-1 ml-4 pl-3 border-l-2 border-slate-800 space-y-1 animate-in fade-in duration-150">
+                  {serviceItems.map((item) => {
+                    const ItemIcon = item.icon;
+                    const itemActive = location.pathname.startsWith(item.path);
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition-colors ${
+                          itemActive
+                            ? 'bg-red-950/80 text-white font-bold border-l-2 border-red-500'
+                            : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                        }`}
+                      >
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                            itemActive
+                              ? 'bg-orange-500/20 border-orange-500/40 text-orange-400'
+                              : 'bg-white/[0.03] border-white/10 text-slate-400'
+                          }`}
+                        >
+                          <ItemIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-xs leading-tight text-white">
+                            {item.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 leading-tight mt-0.5 truncate">
+                            {item.subtitle}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {secondaryNavLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}

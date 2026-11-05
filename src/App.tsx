@@ -41,6 +41,11 @@ function ScrollToTop() {
   return null;
 }
 
+const RedirectPreserveQuery: React.FC<{ to: string }> = ({ to }) => {
+  const location = useLocation();
+  return <Navigate to={{ pathname: to, search: location.search }} replace />;
+};
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User>(() => authService.getCurrentUser());
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -100,8 +105,13 @@ export default function App() {
 
               {/* Module 5: Services */}
               <Route path="/services/court-booking" element={<CourtBookingPage />} />
-              <Route path="/services/training" element={<TrainingPage />} />
-              <Route path="/training" element={<TrainingPage />} />
+              <Route path="/services/training-scrimmage" element={<TrainingPage />} />
+
+              {/* Automatic Redirects for Legacy Service URLs */}
+              <Route path="/booking" element={<RedirectPreserveQuery to="/services/court-booking" />} />
+              <Route path="/court-booking" element={<RedirectPreserveQuery to="/services/court-booking" />} />
+              <Route path="/training" element={<RedirectPreserveQuery to="/services/training-scrimmage" />} />
+              <Route path="/services/training" element={<RedirectPreserveQuery to="/services/training-scrimmage" />} />
 
               {/* Module 6: Member Registration */}
               <Route path="/register" element={<MemberRegisterPage />} />
