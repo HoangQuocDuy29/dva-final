@@ -114,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const secondaryNavLinks = [
-    { label: t('nav.clubInfo'), path: '/information' },
+    { label: t('nav.clubInfo', 'Information'), path: '/information' },
     { label: t('nav.news'), path: '/news' },
   ];
 

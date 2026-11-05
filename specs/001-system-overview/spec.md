@@ -44,7 +44,7 @@ Prospective trainees browse volleyball training packages, filter courses by skil
 
 ### User Story 3 - Athlete Roster, Club Information & Membership Recruitment (Priority: P2)
 
-Visitors explore the official DVA athlete roster (sorted by competitive tier `Senior` → `Junior` → `Youth`, captaincy status, and jersey number), view athlete metrics (height, spike reach, block reach, and standardized English positions: `Setter`, `Outside Hitter`, `Opposite Spiker`, `Middle Blocker`, `Libero`, `Head Coach`), review club rules, pricing, and venue maps on the Information page, and submit applications to join the club on the Member Registration page.
+Visitors explore the official DVA athlete roster (sorted by competitive tier `Senior` → `Junior` → `Youth`, captaincy status, and jersey number), view athlete metrics (height, spike reach, block reach, and standardized English positions: `Setter`, `Outside Hitter`, `Opposite Spiker`, `Middle Blocker`, `Libero`, `Head Coach`), access club rules, pricing cards, the 4-tier weekly arena schedule (Senior, Junior play/matchplay, and Youth Sunday sessions), and Taraflex shoe etiquette on the Information page (accessed via the streamlined `"Information"` navigation menu), and navigate directly to the Member Registration page via bottom conversion CTA banners.
 
 **Why this priority**: Establishes club identity, transparency, and talent recruitment pipeline from prospective applicants to active roster athletes.
 

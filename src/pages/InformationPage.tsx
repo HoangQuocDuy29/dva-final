@@ -9,7 +9,10 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Footprints,
-  Users
+  Users,
+  Sparkles,
+  UserPlus,
+  ArrowRight
 } from 'lucide-react';
 import { ContactBanner } from '../components/common/ContactBanner';
 
@@ -231,31 +234,49 @@ export const InformationPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Card 3: Junior & Youth Matchplay */}
-            <div className="bg-[#161F30] border border-emerald-900/60 rounded-2xl p-4 shadow-lg space-y-3">
+            {/* Card 3: Junior Squad Matchplay */}
+            <div className="bg-[#161F30] border border-blue-900/60 rounded-2xl p-4 shadow-lg space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800 uppercase">
-                    JUNIOR
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 uppercase">
-                    YOUTH
-                  </span>
-                </div>
-                <span className="font-mono text-xs font-bold text-emerald-400">
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800 uppercase">
+                  JUNIOR
+                </span>
+                <span className="font-mono text-xs font-bold text-cyan-400">
                   Sunday Afternoon
                 </span>
               </div>
               <div>
                 <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span>DVA Junior & Youth Matchplay</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                  <span>Junior Squad – Matchplay</span>
                 </h3>
                 <p className="text-[11px] text-slate-400 font-mono mt-1">14:00 – 16:30</p>
               </div>
               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
                 <span>Court Allocation:</span>
                 <strong className="text-slate-300">BTL Thong Tin · Court A & B</strong>
+              </div>
+            </div>
+
+            {/* Card 4: Youth Squad */}
+            <div className="bg-[#161F30] border border-emerald-900/60 rounded-2xl p-4 shadow-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 uppercase">
+                  YOUTH
+                </span>
+                <span className="font-mono text-xs font-bold text-emerald-400">
+                  Sunday Evening
+                </span>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Youth Squad – Training & Matchplay</span>
+                </h3>
+                <p className="text-[11px] text-slate-400 font-mono mt-1">17:00 – 19:00</p>
+              </div>
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <span>Court Allocation:</span>
+                <strong className="text-slate-300">BTL Thong Tin · Court A</strong>
               </div>
             </div>
           </div>
@@ -312,27 +333,41 @@ export const InformationPage: React.FC = () => {
                     </td>
                   </tr>
 
-                  {/* Row 3: Sunday Afternoon (Junior & Youth) */}
-                  <tr className="hover:bg-slate-800/40 bg-emerald-950/15">
-                    <td className="py-4 px-5 font-mono font-bold text-emerald-400 whitespace-nowrap">
+                  {/* Row 3: Sunday Afternoon (Junior) */}
+                  <tr className="hover:bg-slate-800/40 bg-blue-950/15">
+                    <td className="py-4 px-5 font-mono font-bold text-cyan-400 whitespace-nowrap">
                       Sunday Afternoon (14:00 – 16:30)
                     </td>
                     <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-                      <span>DVA Junior & Youth Matchplay</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                      <span>Junior Squad – Matchplay</span>
                     </td>
                     <td className="py-4 px-5 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
-                          JUNIOR
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                          YOUTH
-                        </span>
-                      </div>
+                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
+                        JUNIOR
+                      </span>
                     </td>
                     <td className="py-4 px-5 text-right font-mono text-slate-400 whitespace-nowrap">
                       BTL Thong Tin Court · Court A & B 
+                    </td>
+                  </tr>
+
+                  {/* Row 4: Sunday Evening (Youth) */}
+                  <tr className="hover:bg-slate-800/40 bg-emerald-950/15">
+                    <td className="py-4 px-5 font-mono font-bold text-emerald-400 whitespace-nowrap">
+                      Sunday Evening (17:00 – 19:00)
+                    </td>
+                    <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span>Youth Squad – Training & Matchplay</span>
+                    </td>
+                    <td className="py-4 px-5 whitespace-nowrap">
+                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                        YOUTH
+                      </span>
+                    </td>
+                    <td className="py-4 px-5 text-right font-mono text-slate-400 whitespace-nowrap">
+                      BTL Thong Tin Court · Court A
                     </td>
                   </tr>
 
@@ -435,6 +470,39 @@ export const InformationPage: React.FC = () => {
               <p className="leading-relaxed text-slate-400">
                 Match balls are provided by the club for every session. Players are expected to retrieve and return all balls to the reception counter at session conclusion. Kicking volleyballs with feet is strictly prohibited.
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 5: CALL-TO-ACTION (CTA) BANNER */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#161F30] via-[#1A1225] to-[#0E1524] border border-orange-500/30 p-8 sm:p-12 shadow-2xl shadow-orange-950/20 text-center">
+          {/* Background Ambient Glow Effects */}
+          <div className="absolute top-0 right-1/4 w-72 sm:w-96 h-72 sm:h-96 bg-red-600/10 rounded-full blur-3xl pointer-events-none -z-0" />
+          <div className="absolute bottom-0 left-1/4 w-72 sm:w-96 h-72 sm:h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none -z-0" />
+
+          <div className="relative z-10 max-w-2xl mx-auto space-y-5">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Join the DVA Squad</span>
+            </div>
+
+            <h2 className="text-2xl sm:text-4xl font-black text-white font-heading tracking-tight">
+              Ready to Step on the Court?
+            </h2>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl mx-auto">
+              Register today to secure your training spot and become part of our volleyball community.
+            </p>
+
+            <div className="pt-2 flex justify-center">
+              <Link
+                to="/register"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 shadow-lg shadow-red-900/40 hover:shadow-orange-500/25 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Register Now</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
         </section>
