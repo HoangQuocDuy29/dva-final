@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Edit3, Trash2, Eye, EyeOff } from 'lucide-react';
 import { TrainingCourse } from '../../../types';
 import { trainingService } from '../../../services/api';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
@@ -13,9 +13,29 @@ export const TrainingTab: React.FC = () => {
     notify,
   } = useAdminDashboard();
 
+  const [courseStatusFilter, setCourseStatusFilter] = useState<'ALL' | 'ACTIVE' | 'HIDDEN'>('ALL');
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<TrainingCourse | null>(null);
   const [courseForm, setCourseForm] = useState<Partial<TrainingCourse>>(createDefaultCourseForm);
+
+  const handleToggleCourseVisibility = async (course: TrainingCourse) => {
+    const nextState = course.isActive === false;
+    try {
+      setCoursesList((prev) =>
+        prev.map((c) => (c.id === course.id ? { ...c, isActive: nextState } : c))
+      );
+      await trainingService.toggleVisibility(course.id, nextState);
+      notify(
+        `Gói tập "${course.title}" đã chuyển sang ${nextState ? 'Published (Active)' : 'Hidden'}.`,
+        3000
+      );
+    } catch {
+      setCoursesList((prev) =>
+        prev.map((c) => (c.id === course.id ? { ...c, isActive: !nextState } : c))
+      );
+      notify('Lỗi cập nhật trạng thái khóa học', 3000);
+    }
+  };
 
   const handleSaveCourse = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,17 +227,82 @@ export const TrainingTab: React.FC = () => {
             </button>
           </div>
 
+          {/* QUICK STATUS FILTERS */}
+          <div className="flex items-center gap-1.5 bg-[#0E1524] p-1.5 rounded-2xl border border-slate-800 w-fit">
+            <button
+              type="button"
+              onClick={() => setCourseStatusFilter('ALL')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                courseStatusFilter === 'ALL'
+                  ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>All</span>
+              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-mono">
+                {coursesList.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCourseStatusFilter('ACTIVE')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                courseStatusFilter === 'ACTIVE'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-emerald-400'
+              }`}
+            >
+              <span>Active</span>
+              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-mono">
+                {coursesList.filter((c) => c.isActive !== false).length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCourseStatusFilter('HIDDEN')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                courseStatusFilter === 'HIDDEN'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-amber-400'
+              }`}
+            >
+              <span>Hidden</span>
+              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-mono">
+                {coursesList.filter((c) => c.isActive === false).length}
+              </span>
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {coursesList.map((course) => (
+            {coursesList
+              .filter((course) => {
+                if (courseStatusFilter === 'ACTIVE' && course.isActive === false) return false;
+                if (courseStatusFilter === 'HIDDEN' && course.isActive !== false) return false;
+                return true;
+              })
+              .map((course) => (
               <div
                 key={course.id}
                 className="p-5 rounded-2xl border border-slate-800 bg-[#0E1524] flex flex-col justify-between space-y-4"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
-                      {course.level}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
+                        {course.level}
+                      </span>
+                      {course.isActive === false ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-950/80 text-amber-400 border border-amber-800 shadow-sm inline-flex items-center gap-1">
+                          <EyeOff className="w-2.5 h-2.5" />
+                          Hidden
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-800 shadow-sm inline-flex items-center gap-1">
+                          <Eye className="w-2.5 h-2.5" />
+                          Published
+                        </span>
+                      )}
+                    </div>
                     <span className="font-mono text-orange-400 font-bold text-xs">
                       {course.price.toLocaleString('vi-VN')} đ
                     </span>
@@ -242,6 +327,28 @@ export const TrainingTab: React.FC = () => {
                 </div>
 
                 <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCourseVisibility(course)}
+                    className={`min-h-[40px] px-3.5 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      course.isActive === false
+                        ? 'bg-amber-950/50 text-amber-400 hover:bg-amber-900/60 border border-amber-800/60'
+                        : 'bg-emerald-950/50 text-emerald-400 hover:bg-emerald-900/60 border border-emerald-800/60'
+                    }`}
+                    title={course.isActive === false ? 'Publish program to public catalog' : 'Hide program from public catalog'}
+                  >
+                    {course.isActive === false ? (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5" />
+                        <span>Hidden</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Published</span>
+                      </>
+                    )}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {

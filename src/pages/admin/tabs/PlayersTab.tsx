@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, X, Edit3, Trash2 } from 'lucide-react';
+import { Plus, Search, X, Edit3, Trash2, Eye, EyeOff, ImageOff } from 'lucide-react';
 import { Player, countryCodeToFlagEmoji } from '../../../types';
 import { PLAYER_COUNTRIES } from '../../../data/countries';
 import { playerService } from '../../../services/api';
@@ -16,10 +16,31 @@ export const PlayersTab: React.FC = () => {
   } = useAdminDashboard();
 
   const [playerSearchQuery, setPlayerSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'HIDDEN'>('ALL');
+  const [missingAvatarOnly, setMissingAvatarOnly] = useState<boolean>(false);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isUploadingPlayerPhoto, setIsUploadingPlayerPhoto] = useState(false);
   const [playerForm, setPlayerForm] = useState<Partial<Player>>(() => createDefaultPlayerForm(1));
+
+  const handleTogglePlayerVisibility = async (p: Player) => {
+    const nextState = p.isActive === false;
+    try {
+      setPlayers((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, isActive: nextState } : item))
+      );
+      await playerService.toggleVisibility(p.id, nextState);
+      notify(
+        `Athlete ${p.fullName} is now ${nextState ? 'Published (Active)' : 'Hidden'}.`,
+        3000
+      );
+    } catch {
+      setPlayers((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, isActive: !nextState } : item))
+      );
+      notify('Error updating athlete visibility', 3000);
+    }
+  };
 
   const handleSavePlayer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +91,18 @@ export const PlayersTab: React.FC = () => {
     }
   };
 
+  const activeCount = players.filter((p) => p.isActive !== false).length;
+  const hiddenCount = players.filter((p) => p.isActive === false).length;
+  const missingAvatarCount = players.filter((p) => !p.avatarUrl || p.avatarUrl.trim() === '').length;
+
   const filteredPlayers = players.filter((p) => {
+    // Status Filter (All | Active | Hidden)
+    if (statusFilter === 'ACTIVE' && p.isActive === false) return false;
+    if (statusFilter === 'HIDDEN' && p.isActive !== false) return false;
+
+    // Missing Avatar Filter
+    if (missingAvatarOnly && p.avatarUrl && p.avatarUrl.trim() !== '') return false;
+
     if (!playerSearchQuery.trim()) return true;
     const q = playerSearchQuery.toLowerCase().trim();
     const matchName = p.fullName.toLowerCase().includes(q);
@@ -116,33 +148,102 @@ export const PlayersTab: React.FC = () => {
           </button>
         </div>
 
-        {/* SEARCH INPUT BAR */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#0E1524] p-3.5 rounded-2xl border border-slate-800">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={playerSearchQuery}
-              onChange={(e) => setPlayerSearchQuery(e.target.value)}
-              placeholder="Search athlete by name, jersey #, position (OH/OP/MB/S/L), or division..."
-              className="w-full pl-10 pr-9 py-2.5 bg-[#161F30] border border-slate-700 rounded-xl text-white text-xs placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-red-500 transition-all"
-            />
-            {playerSearchQuery && (
+        {/* TOOLBAR: STATUS FILTERS & MISSING AVATAR & SEARCH */}
+        <div className="flex flex-col gap-3 bg-[#0E1524] p-3.5 rounded-2xl border border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-slate-800/80">
+            {/* Quick Status Filters */}
+            <div className="flex items-center gap-1.5 bg-[#161F30] p-1 rounded-xl border border-slate-700/60">
               <button
                 type="button"
-                onClick={() => setPlayerSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
-                title="Clear search"
+                onClick={() => setStatusFilter('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  statusFilter === 'ALL'
+                    ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                <X className="w-3.5 h-3.5" />
+                <span>All</span>
+                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-mono">
+                  {players.length}
+                </span>
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => setStatusFilter('ACTIVE')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  statusFilter === 'ACTIVE'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-emerald-400'
+                }`}
+              >
+                <span>Active</span>
+                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-mono">
+                  {activeCount}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('HIDDEN')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  statusFilter === 'HIDDEN'
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-amber-400'
+                }`}
+              >
+                <span>Hidden</span>
+                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-mono">
+                  {hiddenCount}
+                </span>
+              </button>
+            </div>
+
+            {/* Secondary Filter: Missing Avatar */}
+            <button
+              type="button"
+              onClick={() => setMissingAvatarOnly(!missingAvatarOnly)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                missingAvatarOnly
+                  ? 'bg-orange-500/20 text-orange-300 border-orange-500/60 shadow-sm'
+                  : 'bg-[#161F30] text-slate-400 hover:text-slate-200 border-slate-700/60'
+              }`}
+              title="Show athletes with missing photo avatar"
+            >
+              <ImageOff className="w-3.5 h-3.5 text-orange-400" />
+              <span>Missing Avatar</span>
+              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/40 font-mono text-orange-300">
+                {missingAvatarCount}
+              </span>
+            </button>
           </div>
-          <div className="text-xs text-slate-400 font-medium px-1 flex items-center gap-1.5 shrink-0">
-            <span>Showing:</span>
-            <strong className="text-white font-mono">{filteredPlayers.length}</strong>
-            <span>of</span>
-            <span className="text-slate-500 font-mono">{players.length} athletes</span>
+
+          {/* SEARCH INPUT BAR */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={playerSearchQuery}
+                onChange={(e) => setPlayerSearchQuery(e.target.value)}
+                placeholder="Search athlete by name, jersey #, position (OH/OP/MB/S/L), or division..."
+                className="w-full pl-10 pr-9 py-2.5 bg-[#161F30] border border-slate-700 rounded-xl text-white text-xs placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-red-500 transition-all"
+              />
+              {playerSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setPlayerSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="text-xs text-slate-400 font-medium px-1 flex items-center gap-1.5 shrink-0">
+              <span>Showing:</span>
+              <strong className="text-white font-mono">{filteredPlayers.length}</strong>
+              <span>of</span>
+              <span className="text-slate-500 font-mono">{players.length} athletes</span>
+            </div>
           </div>
         </div>
 
@@ -177,11 +278,22 @@ export const PlayersTab: React.FC = () => {
                       jerseyNumber={p.jerseyNumber}
                     />
                     <div>
-                      <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                      <div className="font-bold text-white text-xs flex flex-wrap items-center gap-1.5">
                         <span>{p.fullName}</span>
                         {(p.captain || p.isCaptain) && (
                           <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 shadow-sm border border-yellow-200">
                             CAPTAIN
+                          </span>
+                        )}
+                        {p.isActive === false ? (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-950/80 text-amber-400 border border-amber-800 shadow-sm inline-flex items-center gap-1">
+                            <EyeOff className="w-2.5 h-2.5" />
+                            Hidden
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-800 shadow-sm inline-flex items-center gap-1">
+                            <Eye className="w-2.5 h-2.5" />
+                            Published
                           </span>
                         )}
                         <span
@@ -199,6 +311,22 @@ export const PlayersTab: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePlayerVisibility(p)}
+                      className={`w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl cursor-pointer transition-colors ${
+                        p.isActive === false
+                          ? 'bg-amber-950/50 text-amber-400 hover:bg-amber-900/60 border border-amber-800/60'
+                          : 'bg-emerald-950/50 text-emerald-400 hover:bg-emerald-900/60 border border-emerald-800/60'
+                      }`}
+                      title={p.isActive === false ? 'Click to Publish athlete' : 'Click to Hide athlete'}
+                    >
+                      {p.isActive === false ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
                     <button
                       onClick={() => {
                         const initCode = (p.countryCode || 'VN').toUpperCase();

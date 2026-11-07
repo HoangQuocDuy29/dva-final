@@ -176,6 +176,7 @@ export function toPlayerDto(p: DbPlayer | any): Player {
     captain: Boolean(p.isCaptain ?? p.captain),
     joined: resolvedJoined,
     joinedYear: resolvedJoined,
+    isActive: p.isActive !== false,
   };
 }
 
@@ -287,6 +288,7 @@ export function toCourseDto(c: DbTrainingCourse): TrainingCourse {
     maxSlots: c.maxSlots,
     enrolledSlots: c.enrolledSlots,
     imageUrl: c.imageUrl ?? undefined,
+    isActive: c.isActive !== false,
   };
 }
 

@@ -234,6 +234,16 @@ export const playerService = {
     } as Player);
   },
 
+  async toggleVisibility(id: string, isActive: boolean): Promise<Player> {
+    return request<Player>(`/players/${id}/visibility`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    }, {
+      id,
+      isActive,
+    } as Player);
+  },
+
   async deletePlayer(id: string): Promise<{ success: boolean }> {
     return request<{ success: boolean }>(`/players/${id}`, {
       method: 'DELETE',
@@ -546,6 +556,20 @@ export const trainingService = {
     if (saved) {
       const list: TrainingCourse[] = JSON.parse(saved);
       localStorage.setItem('dva_courses', JSON.stringify(list.filter(c => c.id !== id)));
+    }
+    return res;
+  },
+
+  async toggleVisibility(id: string, isActive: boolean): Promise<TrainingCourse> {
+    const res = await request<TrainingCourse>(`/training/courses/${id}/visibility`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    }, { id, isActive } as TrainingCourse);
+
+    const saved = localStorage.getItem('dva_courses');
+    if (saved) {
+      const list: TrainingCourse[] = JSON.parse(saved);
+      localStorage.setItem('dva_courses', JSON.stringify(list.map(c => c.id === id ? { ...c, ...res } : c)));
     }
     return res;
   },

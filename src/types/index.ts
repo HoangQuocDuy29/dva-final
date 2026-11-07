@@ -58,6 +58,7 @@ export interface Player {
   captain?: boolean;
   joined?: string | number; // e.g. "2025", 2025
   joinedYear?: number;
+  isActive?: boolean;
 }
 
 export type DayOfWeekKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -165,6 +166,7 @@ export interface TrainingCourse {
   maxSlots: number;
   enrolledSlots: number;
   imageUrl?: string;
+  isActive?: boolean;
 }
 
 export interface CoachProfile {

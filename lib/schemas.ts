@@ -43,6 +43,11 @@ export const PLAYER_SCHEMA: Schema = {
   captain: B,
   joined: I(1990, 2100),
   joinedYear: I(1990, 2100),
+  isActive: B,
+};
+
+export const VISIBILITY_TOGGLE_SCHEMA: Schema = {
+  isActive: B,
 };
 
 const validateDaySchedule = (src: Record<string, unknown>, path: string): Record<string, string[]> => {
@@ -175,6 +180,7 @@ export const COURSE_SCHEMA: Schema = {
   maxSlots: I(1, 1000),
   enrolledSlots: I(0, 1000),
   imageUrl: U,
+  isActive: B,
 };
 
 export const COACH_SCHEMA: Schema = {

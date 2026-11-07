@@ -112,6 +112,7 @@ model Player {
   bio             String?            @db.Text
   isCaptain       Boolean            @default(false)
   joinedYear      Int                @default(2025)
+  isActive        Boolean            @default(true) // Soft visibility flag (Public vs Admin)
 
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
@@ -122,6 +123,7 @@ model Player {
   @@index([level, isCaptain(sort: Desc), jerseyNumber(sort: Asc)])
   // Performance: sắp xếp / tìm kiếm theo tên trong từng đội hình
   @@index([level, fullName(sort: Asc)])
+  @@index([isActive])
   @@map("players")
 }
 
@@ -278,6 +280,7 @@ model TrainingCourse {
   maxSlots       Int                    @default(16)
   enrolledSlots  Int                    @default(0)
   imageUrl       String?
+  isActive       Boolean                @default(true) // Soft visibility flag (Public vs Admin)
 
   // Relations
   registrations  TrainingRegistration[]
@@ -285,6 +288,7 @@ model TrainingCourse {
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
 
+  @@index([isActive])
   @@map("training_courses")
 }
 

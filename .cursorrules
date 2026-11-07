@@ -21,3 +21,9 @@
 - Public UI Policy: 100% English across all components (pages, modals, cards, badges, buttons, toasts, placeholders).
 - Localization: Keep translations clean and synchronized in src/locales/en/.
 - Quality Gate: Before marking any task complete, verify zero TypeScript errors via npx tsc --noEmit and ensure npm run build succeeds.
+
+## Database & Schema Guidelines (Applies to All Tracks)
+- Neon PostgreSQL & Pooler Architecture: Database is hosted on Neon PostgreSQL via a connection pooler without baseline Prisma migration history. Neon poolers do not support Shadow Databases required by `prisma migrate dev`.
+- Backward-Compatible Schema Updates: When adding models or fields, ALWAYS use safe default values (`@default(...)`) or optional fields (`?`) to ensure 100% backward compatibility with live data.
+- Schema Synchronization Protocol: ALWAYS use `npx prisma db push` followed by `npx prisma generate` to synchronize schema changes. NEVER run `prisma migrate dev` (avoids error P3006 / 42P01 on shadow database) and NEVER pass destructive flags (`--force-reset`, `--accept-data-loss`).
+- Data Integrity & Fallback Invariant: Mock data in `server.ts` or local JSON fallbacks exists strictly as an emergency offline defense. If local UI renders mock data, ALWAYS inspect backend terminal logs immediately for Prisma/PostgreSQL schema mismatch or `ColumnNotFound` errors. Never treat mock data fallback as a normal operational state.

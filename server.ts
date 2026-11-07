@@ -506,6 +506,14 @@ app.get('/api/players', ah(async (req, res) => {
       ];
     }
 
+    // Visibility filter: Public visitors only see active players; staff can view all or filter by isActive
+    const staff = isStaff(req.user);
+    if (!staff || req.query.all === 'false') {
+      where.isActive = true;
+    } else if (req.query.isActive !== undefined) {
+      where.isActive = req.query.isActive === 'true';
+    }
+
     // Khớp composite index @@index([level, isCaptain(sort: Desc), jerseyNumber(sort: Asc)]):
     // theo từng level (enum order: SENIOR -> JUNIOR -> YOUTH), Captain đứng đầu, rồi số áo tăng dần.
     const dbPlayers = await prisma.player.findMany({
@@ -539,6 +547,13 @@ app.get('/api/players', ah(async (req, res) => {
           p.hometownCountry.toLowerCase().includes(q) ||
           String(p.jerseyNumber) === q
       );
+    }
+    const staff = isStaff(req.user);
+    if (!staff || req.query.all === 'false') {
+      mapped = mapped.filter((p) => p.isActive !== false);
+    } else if (req.query.isActive !== undefined) {
+      const activeFilter = req.query.isActive === 'true';
+      mapped = mapped.filter((p) => (p.isActive !== false) === activeFilter);
     }
     // Giữ cùng thứ tự với nhánh Prisma: level (SENIOR -> JUNIOR -> YOUTH) -> Captain đầu -> số áo tăng dần
     const levelRank = (lvl: string) => {
@@ -662,6 +677,22 @@ app.patch('/api/players/:id/level', ah(async (req, res) => {
   const updated = await prisma.player.update({
     where: { id },
     data: { level },
+  });
+  res.json(toPlayerDto(updated));
+}));
+
+// Quick toggle player visibility (soft publish / hide)
+app.patch('/api/players/:id/visibility', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.player.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Player not found' });
+  }
+  const rawBody = req.body && typeof req.body === 'object' ? req.body : {};
+  const targetIsActive = typeof rawBody.isActive === 'boolean' ? rawBody.isActive : !existing.isActive;
+  const updated = await prisma.player.update({
+    where: { id },
+    data: { isActive: targetIsActive },
   });
   res.json(toPlayerDto(updated));
 }));
@@ -1430,8 +1461,18 @@ app.delete('/api/bookings/:id', ah(async (req, res) => {
 }));
 
 // 5. Training & Academy API
-app.get('/api/training/courses', ah(async (_req, res) => {
-  const dbCourses = await prisma.trainingCourse.findMany({ orderBy: { createdAt: 'asc' } });
+app.get('/api/training/courses', ah(async (req, res) => {
+  const staff = isStaff(req.user);
+  const where: Record<string, any> = {};
+  if (!staff || req.query.all === 'false') {
+    where.isActive = true;
+  } else if (req.query.isActive !== undefined) {
+    where.isActive = req.query.isActive === 'true';
+  }
+  const dbCourses = await prisma.trainingCourse.findMany({
+    where,
+    orderBy: { createdAt: 'asc' },
+  });
   res.json(dbCourses.map(toCourseDto));
 }));
 
@@ -1461,7 +1502,7 @@ app.post('/api/training/courses', ah(async (req, res) => {
   res.status(201).json(toCourseDto(created));
 }));
 
-app.put('/api/training/courses/:id', ah(async (req, res) => {
+const handleUpdateCourse = ah(async (req, res) => {
   const { id } = req.params;
   const existing = await prisma.trainingCourse.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: 'Course not found' });
@@ -1472,6 +1513,23 @@ app.put('/api/training/courses/:id', ah(async (req, res) => {
       ...data,
       ...(data.price !== undefined ? { price: Math.round(Number(data.price)) } : {}),
     },
+  });
+  res.json(toCourseDto(updated));
+});
+
+app.put('/api/training/courses/:id', handleUpdateCourse);
+app.patch('/api/training/courses/:id', handleUpdateCourse);
+
+// Quick toggle training course / scrimmage visibility (soft publish / hide)
+app.patch('/api/training/courses/:id/visibility', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.trainingCourse.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Course not found' });
+  const rawBody = req.body && typeof req.body === 'object' ? req.body : {};
+  const targetIsActive = typeof rawBody.isActive === 'boolean' ? rawBody.isActive : !existing.isActive;
+  const updated = await prisma.trainingCourse.update({
+    where: { id },
+    data: { isActive: targetIsActive },
   });
   res.json(toCourseDto(updated));
 }));
@@ -1496,6 +1554,13 @@ app.post('/api/training/register', ah(async (req, res) => {
   let course = await prisma.trainingCourse.findUnique({ where: { id: courseId } });
   if (!course) {
     course = await prisma.trainingCourse.findFirst({ orderBy: { createdAt: 'asc' } });
+  }
+
+  if (course && course.isActive === false) {
+    return res.status(400).json({
+      success: false,
+      error: 'This training course or scrimmage session is currently inactive and not accepting registrations.',
+    });
   }
 
   const packageName =

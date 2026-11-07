@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   Phone,
   ChevronRight,
-  Eye
+  Eye,
+  AlertCircle
 } from 'lucide-react';
 import { TrainingCourse, CoachProfile } from '../types';
 import { trainingService, coachService, googleScriptSyncService } from '../services/api';
@@ -233,6 +234,8 @@ export const TrainingPage: React.FC = () => {
     };
   }, []);
 
+  const [unavailableNotice, setUnavailableNotice] = useState<string | null>(null);
+
   useEffect(() => {
     setIsLoading(true);
     Promise.all([
@@ -241,7 +244,7 @@ export const TrainingPage: React.FC = () => {
     ])
       .then(([courseRes, coachRes]) => {
         const normalizedCourses = Array.isArray(courseRes)
-          ? courseRes.map(normalizeCoursePublicData)
+          ? courseRes.filter((c) => c.isActive !== false).map(normalizeCoursePublicData)
           : [];
         setCourses(normalizedCourses);
         setCoaches(Array.isArray(coachRes) ? coachRes : []);
@@ -265,12 +268,14 @@ export const TrainingPage: React.FC = () => {
       return;
     }
 
-    const matchedCourse = courses.find((c) => c.id === targetCourseId);
+    const matchedCourse = courses.find((c) => c.id === targetCourseId && c.isActive !== false);
     if (matchedCourse) {
       setDetailCourse(matchedCourse);
+      setUnavailableNotice(null);
     } else {
       setDetailCourse(null);
       setSearchParams({}, { replace: true });
+      setUnavailableNotice('The requested training program or scrimmage session is currently unavailable or inactive.');
     }
   }, [isLoading, courses, searchParams, setSearchParams]);
 
@@ -295,6 +300,10 @@ export const TrainingPage: React.FC = () => {
   };
 
   const handleOpenRegister = (course: TrainingCourse) => {
+    if (course.isActive === false) {
+      setUnavailableNotice('This training course or scrimmage session is currently inactive and not accepting registrations.');
+      return;
+    }
     setSelectedCourse(course);
     setModalStep('FORM');
     setIsModalOpen(true);
@@ -455,6 +464,23 @@ export const TrainingPage: React.FC = () => {
 
         {/* SECTION 1: 6 SCRIMMAGE & TRAINING PACKAGES */}
         <div className="space-y-8">
+          {unavailableNotice && (
+            <div className="p-4 rounded-2xl bg-amber-950/80 border border-amber-600/50 text-amber-200 text-xs font-medium flex items-center justify-between shadow-lg">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>{unavailableNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUnavailableNotice(null)}
+                className="text-amber-400 hover:text-white ml-2 p-1 cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
               <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Programs & Passes</span>

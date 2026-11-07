@@ -43,7 +43,8 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     setLoading(true);
     try {
       const data = await playerService.getPlayers();
-      setPlayers(Array.isArray(data) ? data : []);
+      const activeOnly = Array.isArray(data) ? data.filter((p) => p.isActive !== false) : [];
+      setPlayers(activeOnly);
     } catch (err) {
       console.error('[PlayersPage] Error fetching players:', err);
       setPlayers([]);
@@ -104,6 +105,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
   // (theo từng level: Captain đứng đầu, sau đó đến số áo tăng dần)
   const filterPlayers = (list: Player[]) => {
     return list.filter((p) => {
+      if (p.isActive === false) return false;
       if (selectedPosition !== 'ALL' && p.position !== selectedPosition) return false;
       if (search.trim()) {
         const q = search.toLowerCase();

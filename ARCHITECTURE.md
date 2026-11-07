@@ -87,9 +87,12 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 - **Cơ chế Default-Deny (`apiAccessPolicy`):**
   - Mọi endpoint API dưới `/api` **mặc định đều bị chặn (yêu cầu ADMIN hoặc SUPERADMIN)**, trừ các route được khai báo tường minh trong `PUBLIC_RULES`.
   - Tuyệt đối không tự ý mở public các route mang tính chất ghi dữ liệu nhạy cảm nếu không nằm trong chính sách.
-- **Quy tắc phân quyền Route Quản trị:**
+- **Quy tắc phân quyền Route Quản trị & Soft Visibility Toggles:**
   - Các route quản trị (`/api/admin/*`, quản lý users, chỉnh sửa cấu hình sheets `/api/sheets/config`) tự động kiểm tra quyền `ADMIN` hoặc `SUPERADMIN`.
+  - Các endpoint toggle trạng thái hiển thị (`PATCH /api/players/:id/visibility` và `PATCH /api/training/courses/:id/visibility`) được bảo vệ nghiêm ngặt dưới chính sách Default-Deny, chỉ cho phép `ADMIN` hoặc `SUPERADMIN` thực hiện.
   - Route quản lý vai trò và xoá người dùng yêu cầu quyền cao nhất: `SUPERADMIN`.
+- **Cơ chế Kiểm duyệt Đăng ký Khóa học / Giao lưu (`POST /api/training/register`):**
+  - Server kiểm tra trạng thái hoạt động của gói tập được đăng ký: nếu `course.isActive === false`, request bị từ chối ngay lập tức với mã lỗi HTTP 400 (`This training course or scrimmage session is currently inactive and not accepting registrations.`), ngăn chặn việc ghi nhận đơn đăng ký ngoài luồng.
 - **Token & Header Xác thực:**
   - Token key trong Storage: `dva_token` (lưu trữ trong `localStorage`).
   - Cấu trúc Header: `Authorization: Bearer <dva_token>`.
@@ -114,15 +117,29 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   3. `TuyenThanhVien`: Tiếp nhận đơn xin gia nhập câu lạc bộ, vị trí thi đấu, thông tin cá nhân.
   4. `LienHe`: Tiếp nhận thông tin phản hồi, yêu cầu hỗ trợ và liên hệ khẩn cấp từ khách hàng.
 
-### 3.5. Chiến lược Database Index & Quy trình Schema (`prisma/schema.prisma`)
-- **Quy trình áp dụng schema: `prisma db push`** (`npm run prisma:push`). Dự án **không có** thư mục `prisma/migrations`.
-  - ⚠️ **KHÔNG chạy `prisma migrate dev`** trên DB Render hiện tại: Prisma sẽ phát hiện drift và đề nghị reset → mất dữ liệu. Không dùng cờ `--accept-data-loss`.
+### 3.5. Chiến lược Database Index, Soft Visibility & Quản trị Database Neon (Database Strategy & Operations)
+- **Cơ chế Quản trị Database Neon PostgreSQL (Database Invariant):**
+  - Cơ sở dữ liệu chính của dự án chạy trên **Neon Serverless PostgreSQL** (kết nối qua Connection Pooler: `ep-late-resonance-azej7c0f-pooler...`).
+  - **Đặc thù Kiến trúc:** Dự án được khởi tạo schema ban đầu không qua Prisma Migrations (chưa có baseline migration history), và Neon pooler không hỗ trợ Shadow Database tự động cho `prisma migrate dev`.
+  - **Quy chuẩn Cập nhật Schema Bắt buộc:**
+    - Khi thêm trường hoặc bảng mới: Bắt buộc sử dụng giá trị mặc định (`@default(...)`) hoặc trường tùy chọn (`?`) để đảm bảo 100% tính tương thích ngược (backward compatibility) với dữ liệu trực tiếp đang chạy.
+    - Quy trình đồng bộ: Sử dụng **`npx prisma db push`** kết hợp **`npx prisma generate`** thay vì `prisma migrate dev` để triệt tiêu hoàn toàn lỗi `P3006 / 42P01` (relation does not exist on shadow database).
+    - **Nghiêm cấm Tuyệt đối:** Không chạy bất kỳ lệnh hoặc cờ nào có khả năng drop table/column hoặc reset database (như `--force-reset`, `--accept-data-loss`).
+- **Cơ chế Fallback Dữ liệu & Xử lý Lỗi API (Data Integrity Invariant):**
+  - Trong backend (`server.ts` và các route handlers), cơ chế fallback trả về mock data (`data/*.json`, `src/data/mockData.ts`) **CHỈ NHẰM MỤC ĐÍCH PHÒNG VỆ CHỐNG SẬP UI KHI MẤT KẾT NỐI MẠNG CỤC BỘ**.
+  - Khi kiểm thử tính năng mới, nếu UI xuất hiện mock data giả lập, lập trình viên/Agent **BẮT BUỘC** phải kiểm tra log terminal backend trước để truy vết lỗi Prisma/PostgreSQL (`P2022 ColumnNotFound`, mismatch schema) thay vì ngộ nhận đó là luồng hoạt động bình thường.
+- **Cơ chế Soft Visibility (Ẩn/Hiện Nội dung Không Mất Dữ Liệu):**
+  - Cả 2 model `Player` và `TrainingCourse` (đại diện cho cả khóa học lẫn các ca giao lưu Scrimmage) đều được bổ sung trường `isActive Boolean @default(true)` kèm chỉ mục `@@index([isActive])`.
+  - **Tách biệt Truy vấn Public vs Admin:**
+    - Khách vãng lai (`Public`): Các API danh sách `GET /api/players` và `GET /api/training/courses` tự động kẹp điều kiện `where: { isActive: true }`. Phía frontend (`PlayersPage.tsx`, `TrainingPage.tsx`) cũng trang bị lớp phòng vệ kép lọc `p.isActive !== false` và tự động dọn sạch query param khi deep-link trỏ tới khóa học đã bị ẩn.
+    - Quản trị viên (`Admin`): Có toàn quyền xem toàn bộ danh sách (cả Active lẫn Hidden), sử dụng bộ lọc nhanh `All | Active | Hidden`, kiểm tra vận động viên thiếu ảnh qua bộ lọc phụ `Missing Avatar`, và chuyển đổi trạng thái tức thì bằng công tắc Toggle Switch trực tiếp trên từng thẻ card.
 - **Quy tắc thứ tự cột composite index:** `[Cột lọc =]` → `[Cột lọc khoảng / Range]` → `[Cột ORDER BY]`. Khi viết query mới, `where` + `orderBy` phải khớp tiền tố (prefix) của một index sẵn có.
 - **Bản đồ Query ↔ Index chính:**
 
 | Query (vị trí) | `where` / `orderBy` | Index phục vụ |
 | :--- | :--- | :--- |
-| `GET /api/players` | `level?` → `level ASC, isCaptain DESC, jerseyNumber ASC` | `Player[level, isCaptain DESC, jerseyNumber ASC]` |
+| `GET /api/players` (Public) | `isActive=true, level?` → `level ASC, isCaptain DESC, jerseyNumber ASC` | `Player[level, isCaptain DESC, jerseyNumber ASC]` & `Player[isActive]` |
+| `GET /api/training/courses` (Public) | `isActive=true` → `createdAt ASC` | `TrainingCourse[isActive]` |
 | `GET /api/bookings` | `courtId, bookingDate` → `createdAt DESC` | `Booking[courtId, bookingDate, createdAt DESC]` |
 | `hasBookingConflict()` | `courtId, bookingDate, paymentStatus` | `Booking[courtId, bookingDate, paymentStatus]` / `[.., startTime]` |
 | `releaseExpiredHolds()` | `paymentStatus='PENDING', holdExpiresAt <= now` | `Booking[paymentStatus, holdExpiresAt]` |
@@ -235,6 +252,7 @@ Giao diện áp dụng phong cách **Thể thao Hiện đại Cao cấp (Premium
   - **Dynamic UI & Seed/Mock/DB Fallback:**
     - Dữ liệu mẫu (`src/data/mockData.ts`, `data/trainingCourses.json`, `data/players.json`, `data/courts.json`) và các DTO mapper (`lib/prisma.ts`, `src/services/api.ts`) chuẩn hóa 100% sang tiếng Anh cho các trường hiển thị công khai (tên khóa học, đơn vị học phí `/ player / session`, địa chỉ sân, quê quán cầu thủ `Hanoi`, `Ho Chi Minh City`, `Da Nang`...).
     - Vị trí thi đấu chuẩn hóa thống nhất: `Setter`, `Outside Hitter`, `Opposite Spiker`, `Middle Blocker`, `Libero`, `Head Coach`.
+    - Trạng thái hiển thị công khai (Soft Visibility): Nhãn trạng thái quản trị và thông báo (`Active / Published`, `Hidden`, `All`, `Missing Avatar`) cùng các thông báo lỗi khi truy cập gói tập đã bị ẩn (`The requested training program or scrimmage session is currently unavailable or inactive.`) đều viết 100% bằng tiếng Anh chuẩn mực.
     - Trang Đặt sân (`CourtBookingPage.tsx`) hiển thị 100% tiếng Anh cho trạng thái sân (`Available`, `Booked`, `Maintenance`, `Peak Hours`, `Standard Hours`), quy trình đặt sân (`Select Court`, `Select Date & Time`, `Full Name`, `Phone Number`, `Confirm Reservation`) và tên sân con (`Court A`, `Court B` qua helper `formatSubCourtLabel` trong khi vẫn bảo toàn giá trị nội bộ `'Sân A'` / `'Sân B'` để tương thích tuyệt đối với API/DB).
 - **Email HTML (Bilingual):**
   - Trong email HTML gửi tự động qua Resend: Tiêu đề, lời chào và bảng thông tin tóm tắt giữ định dạng song ngữ Anh - Việt rõ ràng để phục vụ cả hội viên quốc tế lẫn nội địa.
@@ -250,9 +268,10 @@ Mọi lập trình viên và AI Agent khi làm việc với codebase này bắt 
    - Phải bọc toàn bộ trong khối `try/catch` độc lập.
    - **TUYỆT ĐỐI KHÔNG** để lỗi kết nối mạng hoặc phản hồi chậm của dịch vụ bên thứ ba làm nghẽn tiến trình hoặc làm sập HTTP response `200` trả về cho máy khách.
 
-2. **Bảo toàn Cơ sở Dữ liệu & Schema:**
-   - **TUYỆT ĐỐI KHÔNG** tự ý can thiệp, chỉnh sửa cấu trúc `prisma/schema.prisma` hoặc thay đổi các controller đang chạy ổn định trong `server.ts` trừ khi có chỉ đạo rõ ràng từ yêu cầu của người dùng.
-   - Áp dụng schema bằng `npm run prisma:push` (xem mục 3.5). Không chạy lệnh tác động DB production khi chưa được người dùng xác nhận.
+2. **Bảo toàn Cơ sở Dữ liệu & Quy chuẩn Đồng bộ Neon PostgreSQL:**
+   - **TUYỆT ĐỐI KHÔNG** tự ý xóa bảng, xóa cột hoặc thực hiện các thay đổi phá hủy dữ liệu (destructive breaking changes) trên Prisma schema.
+   - Thêm trường/bảng mới bắt buộc sử dụng các mẫu tương thích ngược (giá trị mặc định an toàn `@default(...)` hoặc trường tùy chọn `?`).
+   - Do Neon pooler không hỗ trợ shadow DB cho `prisma migrate dev`, quy trình đồng bộ schema chuẩn của dự án là **`npx prisma db push`** kết hợp **`npx prisma generate`**. Tuyệt đối không dùng các cờ nguy hiểm (`--force-reset`, `--accept-data-loss`).
 
 3. **Chống Ghi Đè & Xung Đột Dữ Liệu (Idempotency & Race Conditions):**
    - Đặt sân bóng và đóng slot phải luôn kiểm tra xung đột thời gian (`ClosedSlot` và `Booking` trùng lặp) trước khi ghi nhận.
