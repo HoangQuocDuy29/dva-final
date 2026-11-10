@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { ManagedUserRole, MANAGED_USER_ROLES } from '../../../types';
+import { Pagination } from '../../../components/common/Pagination';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { USER_ROLE_BADGE } from '../constants';
 import { useUsersTab } from '../hooks/useUsersTab';
 import { CreateUserModal } from '../components/users/CreateUserModal';
+
+const USERS_PAGE_SIZE = 10;
 
 export const UsersTab: React.FC = () => {
   const { currentUser, isSuperAdmin } = useAdminDashboard();
@@ -22,7 +25,17 @@ export const UsersTab: React.FC = () => {
     handleDeleteUser,
   } = useUsersTab();
 
+  const [currentPage, setCurrentPage] = useState<number>(1);
   if (!isSuperAdmin) return null;
+
+  const safePage = Math.min(
+    Math.max(1, currentPage),
+    Math.max(1, Math.ceil(usersList.length / USERS_PAGE_SIZE))
+  );
+  const paginatedUsers = usersList.slice(
+    (safePage - 1) * USERS_PAGE_SIZE,
+    safePage * USERS_PAGE_SIZE
+  );
 
   return (
     <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
@@ -54,7 +67,7 @@ export const UsersTab: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/70">
-            {usersList.map((u) => {
+            {paginatedUsers.map((u) => {
               const isProtected = u.role === 'SUPERADMIN' || u.id === currentUser.id;
               return (
                 <tr key={u.id} className="text-slate-200">
@@ -111,6 +124,13 @@ export const UsersTab: React.FC = () => {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={safePage}
+        totalItems={usersList.length}
+        pageSize={USERS_PAGE_SIZE}
+        onPageChange={setCurrentPage}
+        itemLabel="accounts"
+      />
 
       <CreateUserModal
         isOpen={isUserModalOpen}

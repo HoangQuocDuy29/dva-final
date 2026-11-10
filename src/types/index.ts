@@ -294,3 +294,45 @@ export interface GuestSessionPayload {
   amount: number;
   notes?: string;
 }
+
+export type StoreCategoryId = 'JERSEYS' | 'VOLLEYBALLS' | 'TRAINING_GEAR' | 'ACCESSORIES';
+
+export type StoreSubView = 'PRODUCTS' | 'ORDERS' | 'CATEGORIES';
+
+export interface StoreProduct {
+  id: string;
+  sku: string;
+  name: string;
+  category: StoreCategoryId;
+  price: number;
+  stock: number;
+  sizes?: string[];
+  imageUrl?: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface StoreOrderItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  size?: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface StoreOrder {
+  id: string;
+  orderCode: string; // e.g. DVA-ORD-20261110-001
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  items: StoreOrderItem[];
+  totalAmount: number;
+  paymentStatus: PaymentStatus;
+  transferContent?: string;
+  customerConfirmedAt?: string;
+  notes?: string;
+  createdAt: string;
+}

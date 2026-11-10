@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom';
 import { Plus, Edit3, Trash2, Pin } from 'lucide-react';
 import { NewsPost } from '../../../types';
 import { newsService } from '../../../services/api';
+import { Pagination } from '../../../components/common/Pagination';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { NewsFormModal } from '../components/news/NewsFormModal';
+
+const NEWS_PAGE_SIZE = 6;
 
 /** Chuyển đổi chuỗi ngày của bài viết sang định dạng YYYY-MM-DD cho input[type="date"] */
 const toDateInputValue = (raw?: string): string => {
@@ -43,6 +46,7 @@ export const NewsTab: React.FC = () => {
   const [newsAuthorRole, setNewsAuthorRole] = useState('Club Administration');
   const [newsPublishedAt, setNewsPublishedAt] = useState(() => toDateInputValue());
   const [newsIsPinned, setNewsIsPinned] = useState(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   const handleSaveNews = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +113,15 @@ export const NewsTab: React.FC = () => {
     }
   };
 
+  const safePage = Math.min(
+    Math.max(1, currentPage),
+    Math.max(1, Math.ceil(newsList.length / NEWS_PAGE_SIZE))
+  );
+  const paginatedNews = newsList.slice(
+    (safePage - 1) * NEWS_PAGE_SIZE,
+    safePage * NEWS_PAGE_SIZE
+  );
+
   return (
     <>
       <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
@@ -142,7 +155,7 @@ export const NewsTab: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {newsList.map((story) => (
+          {paginatedNews.map((story) => (
             <div
               key={story.id}
               className={`p-5 rounded-2xl border bg-[#0E1524] flex flex-col justify-between space-y-4 ${
@@ -235,6 +248,13 @@ export const NewsTab: React.FC = () => {
             </div>
           ))}
         </div>
+        <Pagination
+          currentPage={safePage}
+          totalItems={newsList.length}
+          pageSize={NEWS_PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemLabel="articles"
+        />
       </div>
 
       <NewsFormModal

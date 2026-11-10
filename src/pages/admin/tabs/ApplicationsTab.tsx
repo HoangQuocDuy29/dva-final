@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
+import { Pagination } from '../../../components/common/Pagination';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { useApplicationActions } from '../hooks/useApplicationActions';
+
+const APPS_PAGE_SIZE = 10;
 
 export const ApplicationsTab: React.FC = () => {
   const {
@@ -12,6 +15,16 @@ export const ApplicationsTab: React.FC = () => {
     handleRejectApplication,
     handleDeleteApplication,
   } = useApplicationActions();
+
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const safePage = Math.min(
+    Math.max(1, currentPage),
+    Math.max(1, Math.ceil(applications.length / APPS_PAGE_SIZE))
+  );
+  const paginatedApplications = applications.slice(
+    (safePage - 1) * APPS_PAGE_SIZE,
+    safePage * APPS_PAGE_SIZE
+  );
 
   return (
     <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
@@ -39,7 +52,7 @@ export const ApplicationsTab: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800 text-slate-300">
-            {applications.map((app) => (
+            {paginatedApplications.map((app) => (
               <tr key={app.id} className="hover:bg-slate-800/40">
                 <td className="py-3 px-3">
                   <span className="font-bold text-white block">{app.fullName}</span>
@@ -108,6 +121,13 @@ export const ApplicationsTab: React.FC = () => {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={safePage}
+        totalItems={applications.length}
+        pageSize={APPS_PAGE_SIZE}
+        onPageChange={setCurrentPage}
+        itemLabel="applications"
+      />
     </div>
   );
 };

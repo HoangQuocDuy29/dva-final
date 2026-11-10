@@ -12,7 +12,10 @@ import {
   User, 
   UserRole,
   ManagedUserRole,
-  GuestSessionPayload
+  GuestSessionPayload,
+  PaymentStatus,
+  StoreProduct,
+  StoreOrder
 } from '../types';
 import { 
   GUEST_USER,
@@ -1021,5 +1024,47 @@ export const adminService = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+};
+
+/**
+ * DVA Store API Client (Phase 2 Ready).
+ * Uses safe offline/404 fallbacks so the Admin Hub operates cleanly before backend Store endpoints are enabled.
+ */
+export const storeService = {
+  async getProducts(): Promise<StoreProduct[]> {
+    return request<StoreProduct[]>('/store/products', undefined, []);
+  },
+
+  async getOrders(): Promise<StoreOrder[]> {
+    return request<StoreOrder[]>('/store/orders', undefined, []);
+  },
+
+  async updateOrderStatus(
+    orderId: string,
+    paymentStatus: PaymentStatus
+  ): Promise<{ success: boolean; paymentStatus: PaymentStatus }> {
+    return request<{ success: boolean; paymentStatus: PaymentStatus }>(
+      `/store/orders/${orderId}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ paymentStatus }),
+      },
+      { success: true, paymentStatus }
+    );
+  },
+
+  async toggleProductActive(
+    productId: string,
+    isActive: boolean
+  ): Promise<{ success: boolean; isActive: boolean }> {
+    return request<{ success: boolean; isActive: boolean }>(
+      `/store/products/${productId}/active`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive }),
+      },
+      { success: true, isActive }
+    );
+  },
 };
 

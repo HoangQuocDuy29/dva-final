@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Calendar, Send, Plus, Edit3, Trash2 } from 'lucide-react';
+import { Calendar, Plus, Edit3, Trash2 } from 'lucide-react';
 import { Booking } from '../../../types';
 import { bookingService } from '../../../services/api';
+import { Pagination } from '../../../components/common/Pagination';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { BookingFormModal } from '../components/bookings/BookingFormModal';
+
+const BOOKINGS_PAGE_SIZE = 10;
 
 export const BookingsTab: React.FC = () => {
   const {
@@ -16,12 +19,11 @@ export const BookingsTab: React.FC = () => {
       adminSelectedSubCourt,
       selectedManageDate,
     },
-    setIsGuestModalOpen,
-    setGuestModalError,
   } = useAdminDashboard();
 
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [bookingForm, setBookingForm] = useState<Partial<Booking>>({
     customerName: '',
     customerPhone: '',
@@ -121,6 +123,15 @@ export const BookingsTab: React.FC = () => {
     }
   };
 
+  const safePage = Math.min(
+    Math.max(1, currentPage),
+    Math.max(1, Math.ceil(bookings.length / BOOKINGS_PAGE_SIZE))
+  );
+  const paginatedBookings = bookings.slice(
+    (safePage - 1) * BOOKINGS_PAGE_SIZE,
+    safePage * BOOKINGS_PAGE_SIZE
+  );
+
   return (
     <>
       <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
@@ -142,17 +153,6 @@ export const BookingsTab: React.FC = () => {
             >
               <Calendar className="w-4 h-4 text-orange-400" />
               <span>Xem Lịch Ca Sân Trực Quan</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setGuestModalError(null);
-                setIsGuestModalOpen(true);
-              }}
-              className="px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow cursor-pointer shrink-0"
-            >
-              <Send className="w-4 h-4" />
-              <span>Gửi Mail Khách Vãng Lai</span>
             </button>
             <button
               type="button"
@@ -201,7 +201,7 @@ export const BookingsTab: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
-              {bookings.map((b) => (
+              {paginatedBookings.map((b) => (
                 <tr key={b.id} className="hover:bg-slate-800/40">
                   <td className="py-3 px-3 font-mono">
                     <span className="font-bold text-white block">
@@ -321,6 +321,13 @@ export const BookingsTab: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={safePage}
+          totalItems={bookings.length}
+          pageSize={BOOKINGS_PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemLabel="bookings"
+        />
       </div>
 
       <BookingFormModal

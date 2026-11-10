@@ -41,7 +41,7 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 
 | Đường dẫn Thư mục | Trách nhiệm Cốt lõi & Thành phần Chính |
 | :--- | :--- |
-| `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung, `ShareButton.tsx` (nút chia sẻ link thông minh), `LanguageSwitcher.tsx` (nút chuyển đổi ngôn ngữ dạng Micro Segmented Pill `EN | VI` kèm cờ SVG).<br>• `training/`: `CourseDetailModal.tsx` (modal chi tiết khoá học & học viện hỗ trợ deep-linking).<br>• `layout/`: Navbar (Floating Capsule tích hợp `LanguageSwitcher` trên Desktop & chân Mobile Drawer), Footer, Menu Drawer di động. |
+| `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung, `Pagination.tsx` (component phân trang dùng chung cho bảng/grid dữ liệu), `ShareButton.tsx` (nút chia sẻ link thông minh), `LanguageSwitcher.tsx` (nút chuyển đổi ngôn ngữ dạng Micro Segmented Pill `EN | VI` kèm cờ SVG).<br>• `training/`: `CourseDetailModal.tsx` (modal chi tiết khoá học & học viện hỗ trợ deep-linking).<br>• `layout/`: Navbar (Floating Capsule tích hợp `LanguageSwitcher` trên Desktop & chân Mobile Drawer; tự động ẩn dropdown profile khi ở trong route `/admin/*`), Footer, Menu Drawer di động. |
 | `src/lib/` | Khởi tạo thư viện dùng chung phía Client: <br>• `i18n.ts`: Cấu hình `i18next` + `react-i18next` + `LanguageDetector` (hỗ trợ `'en'` & `'vi'`, `fallbackLng: 'en'`, lưu `localStorage` với key `'dva_lang'`). |
 | `src/locales/` | Từ điển bản dịch tĩnh đa ngôn ngữ (`src/locales/{en,vi}/`): <br>• `common.json`: Nhãn điều hướng Navbar, Footer, các nút bấm dùng chung.<br>• `news.json`: Nhãn 7 danh mục tin tức (`NEWS_CATEGORIES`), ô tìm kiếm, phân trang, trạng thái chia sẻ bài viết. |
 | `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: File re-export 1 dòng trỏ tới `src/pages/admin/AdminDashboardPage.tsx` (hỗ trợ `React.lazy` code-splitting).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV, hỗ trợ deep-linking mở `CourseDetailModal` qua `?courseId=`.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và bài viết chuyên sâu (Editorial layout, chia sẻ bài viết, hiển thị ngày đăng tiếng Anh chuẩn US).<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
@@ -150,21 +150,37 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 
 - **Thứ tự sắp xếp VĐV được đảm bảo từ Server:** `GET /api/players` trả về danh sách đã sort sẵn theo `level` (thứ tự enum `SENIOR → JUNIOR → YOUTH`) → Captain đứng đầu → số áo tăng dần. Nhánh fallback JSON (khi DB lỗi) cũng sort cùng thứ tự. Frontend (`PlayersPage.tsx`) không cần sort lại.
 
-### 3.6. Kiến trúc Quản trị Module hóa (`src/pages/admin/`)
+### 3.6. Kiến trúc Quản trị Module hóa & Dark Modern Analytics Hub (`src/pages/admin/`)
 - **Trạng thái Code sạch & Lazy Loading:**
-  - Đã xóa bỏ hoàn toàn kiến trúc nguyên khối (>5.500 dòng) trước đây, tách thành **38 modules** độc lập theo miền nghiệp vụ trong `src/pages/admin/`.
-  - File shell điều phối [`src/pages/admin/AdminDashboardPage.tsx`](src/pages/admin/AdminDashboardPage.tsx) chỉ còn **114 dòng** (bọc Provider, kiểm tra quyền `!isAdmin`, render Header/Banner/ActiveTab và `GuestSessionEmailModal`).
+  - Kiến trúc chia nhỏ độc lập theo miền nghiệp vụ trong `src/pages/admin/` đảm bảo tính module hóa và khả năng mở rộng.
+  - File shell điều phối [`src/pages/admin/AdminDashboardPage.tsx`](src/pages/admin/AdminDashboardPage.tsx) hoạt động như orchestration layer mỏng (bọc Provider, kiểm tra quyền `!isAdmin`, render Collapsible Sidebar, Topbar, Banner, ActiveTab và `GuestSessionEmailModal`).
   - File [`src/pages/AdminDashboardPage.tsx`](src/pages/AdminDashboardPage.tsx) giữ vai trò re-export 1 dòng, giúp `src/App.tsx` lazy-load toàn bộ cụm bundle Admin sạch sẽ mà không ảnh hưởng tới bundle trang khách hàng.
-- **Cấu trúc Thư mục (`src/pages/admin/`):**
+- **Cấu trúc Thư mục & Phân nhóm Miền Nghiệp vụ (Spec 005 - Dark Modern Analytics Hub):**
   - `context/`: `AdminDashboardContext.tsx` cung cấp state và hành vi dùng chung toàn trang quản trị.
-  - `layout/`: `AdminHeader.tsx`, `AdminTabNav.tsx` (thanh điều hướng 10 tab kèm badge số lượng), `FeedbackBanner.tsx`.
-  - `tabs/`: 10 component tab độc lập (`OverviewTab`, `CourtsTab`, `BookingsTab`, `ApplicationsTab`, `PlayersTab`, `TrainingTab`, `CoachesTab`, `NewsTab`, `UsersTab`, `SheetsTab`).
+  - `layout/`:
+    - `AdminSidebar.tsx`: Fixed Collapsible Sidebar (`fixed top-0 left-0 bottom-0 z-30 h-screen pt-20` kèm spacer đồng bộ chiều rộng, nội dung menu cuộn độc lập qua `overflow-y-auto`, chỉ Main Content bên phải cuộn theo trục Y) với 4 phân nhóm (Expanded 256px mặc định / Collapsed 72px icon-only lưu trong `localStorage['dva_admin_sidebar_collapsed']` / Mobile drawer):
+      1. **Overview**: `Overview & Analytics` (`OVERVIEW`).
+      2. **Athletics & Services**: `Squad Roster` (`PLAYERS`), `Training & Scrimmages` (`TRAINING`), `Coaching Staff` (`COACHES`), `Tryout Applications` (`APPLICATIONS`), `Court Schedule & Slots` (`COURTS`).
+      3. **Commerce & Competition**: `Court Bookings & VietQR` (`BOOKINGS`), `DVA Store` (`STORE`), `Tournaments` (`TOURNAMENTS`).
+      4. **System**: `News & Media` (`NEWS`), `Google Sheets Sync` (`SHEETS`), `Staff & Roles` (`USERS` - SuperAdmin only).
+    - `AdminQuickSearch.tsx`: Hybrid Hub Navigator (`⌘K` / `Ctrl+K`) tìm kiếm tức thì trên client qua danh sách Modules, Athletes (`fullName`, `jerseyNumber`) và Court Bookings (`bookingCode`, `customerName`).
+    - `AdminHeader.tsx`: Topbar chứa nút toggle sidebar, Hybrid Quick Search bar, vị trí hiển thị duy nhất thông tin Admin kết nối (Avatar initials, Name, Email, Role badge — dropdown trùng lặp trên `Navbar` chính tự động ẩn khi ở route `/admin/*`), nút `Guest Session Email`, nút Refresh dữ liệu và nút thoát ra trang Public.
+    - `FeedbackBanner.tsx`: Thông báo trạng thái và kết quả thao tác thời gian thực.
+  - `tabs/`: Các component tab độc lập (tích hợp phân trang `Pagination.tsx`):
+    - `OverviewTab.tsx`: Trung tâm số liệu phân tích (Analytics & KPI Hub) gồm 3 tầng: (1) Hàng 6 thẻ Metric KPI (`RevenueKpiCards.tsx`: Total Revenue, Est. Training Tuition, Booking Revenue, Shop Revenue [Coming Soon], Active Athletes, Pending Approvals); (2) Khu vực giữa gồm Biểu đồ cột chồng SVG 6 tháng (`RevenueTrendChart.tsx`) và thẻ Tỷ trọng doanh thu/đăng ký giữa các dịch vụ (`Service Revenue Share`); (3) Khu vực dưới "Recent Activity" tóm tắt 5 đơn đặt sân và 5 lượt đăng ký học gần nhất kèm nút `"View All"`.
+    - `PlayersTab.tsx` (phân trang 12 thẻ/trang), `TrainingTab.tsx` (6 thẻ khóa học/trang, 10 dòng học viên/trang), `BookingsTab.tsx` (10 dòng/trang), `ApplicationsTab.tsx` (10 dòng/trang), `UsersTab.tsx` (10 dòng/trang), `NewsTab.tsx` (6 bài viết/trang), `CourtsTab.tsx`, `CoachesTab.tsx`, `SheetsTab.tsx`.
+    - `StoreTab.tsx`: Placeholder layout khởi tạo phân hệ DVA Store thương mại thể thao cho Phase 2 (0 network calls).
+    - `TournamentsTab.tsx`: Trạng thái Coming Soon của giải đấu kèm thông điệp chuẩn hóa: *"Feature Under Development - Hệ thống quản lý giải đấu đang được phát triển và dịch vụ sẽ sớm được triển khai."*
   - `hooks/`: Các custom hook tách biệt logic khỏi UI (`useAdminData`, `useFeedback`, `useAdminMetrics`, `useApplicationActions`, `useCourtCrud`, `useCourtSlotLock`, `useUsersTab`).
-  - `components/`: Các modal và sub-component chuyên biệt theo từng miền (`courts/CourtCard`, `courts/SlotLockPanel`, `courts/WeeklyScheduleEditor`, `courts/CourtFormModal`, `bookings/BookingFormModal`, `players/PlayerFormModal`, `training/CourseFormModal`, `coaches/CoachFormModal`, `news/NewsFormModal`, `users/CreateUserModal`, `sheets/appsScriptTemplate`, `AthleteRosterAvatar`, `GuestSessionEmailModal`).
-  - `utils/`: `scheduleEditor.ts` chứa các hàm thuần túy (pure functions) xử lý thêm/xóa ca, sao chép lịch T2–T6 và đồng bộ lịch giữa các sân con (`subCourts`).
-- **Mô hình Quản lý State (Core Context + Domain Custom Hooks):**
-  - **`AdminDashboardContext`:** Quản lý các state dùng chung xuyên suốt các tab bao gồm: phiên đăng nhập (`currentUser`, `isAdmin`, `isSuperAdmin`), tab đang mở (`activeModule`), thông báo (`feedback`, `notify` / `setFeedback`), 9 tập dữ liệu cốt lõi từ `useAdminData` (`data`, `setData`), bộ chọn sân dùng chung giữa Courts & Bookings (`courtSelection`: `selectedManageCourtId`, `adminSelectedSubCourt`, `selectedManageDate`), và trạng thái mở modal gửi mail khách vãng lai.
-  - **Domain Custom Hooks:** Mỗi miền nghiệp vụ phức tạp sử dụng hook riêng kết nối vào Context (`useCourtCrud`, `useCourtSlotLock`, `useApplicationActions`, `useAdminMetrics`, `useUsersTab`), đảm bảo khi một tab cập nhật dữ liệu (ví dụ duyệt ứng viên ở `OverviewTab` hoặc `ApplicationsTab`), danh sách VĐV (`players`) và các chỉ số badge trên `AdminTabNav` tự động đồng bộ tức thì.
+  - `components/`: Sub-components chuyên biệt theo từng miền (bao gồm `overview/RevenueKpiCards.tsx`, `overview/RevenueTrendChart.tsx`, `courts/*`, `bookings/*`, `players/*`, `training/*`, `coaches/*`, `news/*`, `users/*`, `sheets/*`).
+  - `utils/`: `scheduleEditor.ts` xử lý logic lịch tuần sân bóng.
+- **Mô hình Quản lý State & Bảo toàn Invariant Logic:**
+  - **`AdminDashboardContext`:** Quản lý state xuyên suốt bao gồm phiên đăng nhập, tab đang mở (`activeModule`), trạng thái thu gọn sidebar (`isSidebarCollapsed`, `isMobileNavOpen`), dữ liệu từ `useAdminData`, và trạng thái modal.
+  - **Bảo toàn 100% Nghiệp vụ Cũ:**
+    - Court Booking: Duyệt cọc VietQR, xem lịch tuần, khóa slot lịch.
+    - Training & Scrimmages: Quản lý khóa học, danh sách học viên, toggle soft visibility `isActive`.
+    - Players: Quản lý danh sách cầu thủ, toggle `isActive`, bộ lọc Missing Avatar.
+  - **Chuẩn hóa Ngôn ngữ:** 100% tiếng Anh thể thao chuyên nghiệp cho các nhãn hệ thống (labels, headers, badges, metrics).
 
 ### 3.7. Luồng Chia sẻ (`ShareButton`), Deep Linking & Module Tin tức (`News`)
 - **Component Chia sẻ Dùng chung (`src/components/common/ShareButton.tsx`):**

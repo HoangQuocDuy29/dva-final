@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, X, Edit3, Trash2, Eye, EyeOff, ImageOff } from 'lucide-react';
 import { Player, countryCodeToFlagEmoji } from '../../../types';
 import { PLAYER_COUNTRIES } from '../../../data/countries';
 import { playerService } from '../../../services/api';
+import { Pagination } from '../../../components/common/Pagination';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { createDefaultPlayerForm } from '../constants';
 import { AthleteRosterAvatar } from '../components/AthleteRosterAvatar';
 import { PlayerFormModal } from '../components/players/PlayerFormModal';
+
+const PLAYERS_PAGE_SIZE = 12;
 
 export const PlayersTab: React.FC = () => {
   const {
@@ -18,6 +21,7 @@ export const PlayersTab: React.FC = () => {
   const [playerSearchQuery, setPlayerSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'HIDDEN'>('ALL');
   const [missingAvatarOnly, setMissingAvatarOnly] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isUploadingPlayerPhoto, setIsUploadingPlayerPhoto] = useState(false);
@@ -124,6 +128,17 @@ export const PlayersTab: React.FC = () => {
       matchJoined
     );
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, missingAvatarOnly, playerSearchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPlayers.length / PLAYERS_PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedPlayers = filteredPlayers.slice(
+    (safePage - 1) * PLAYERS_PAGE_SIZE,
+    safePage * PLAYERS_PAGE_SIZE
+  );
 
   return (
     <>
@@ -261,8 +276,9 @@ export const PlayersTab: React.FC = () => {
             </button>
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredPlayers.map((p) => {
+            {paginatedPlayers.map((p) => {
               const flagEmoji = p.countryFlag || countryCodeToFlagEmoji(p.countryCode || 'VN');
               const countryLabel = p.country || p.countryName || 'Vietnam';
               const joinedLabel = p.joined ?? p.joinedYear ?? 2025;
@@ -368,6 +384,14 @@ export const PlayersTab: React.FC = () => {
               );
             })}
           </div>
+          <Pagination
+            currentPage={safePage}
+            totalItems={filteredPlayers.length}
+            pageSize={PLAYERS_PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            itemLabel="athletes"
+          />
+          </>
         )}
       </div>
 

@@ -10,6 +10,9 @@ import {
   CoachProfile,
   User as UserType,
   ClosedSlot,
+  StoreProduct,
+  StoreOrder,
+  StoreSubView,
 } from '../../types';
 
 export type AdminTabId =
@@ -22,13 +25,25 @@ export type AdminTabId =
   | 'COACHES'
   | 'NEWS'
   | 'USERS'
-  | 'SHEETS';
+  | 'SHEETS'
+  | 'STORE'
+  | 'TOURNAMENTS';
 
-export interface TabConfig {
+export type AdminNavGroupId = 'OVERVIEW' | 'ATHLETICS' | 'COMMERCE' | 'SYSTEM';
+
+export interface AdminNavItem {
   id: AdminTabId;
   label: string;
-  badge?: number;
+  icon: React.ComponentType<{ className?: string }>;
+  keywords: string[];
   superAdminOnly?: boolean;
+  status?: 'NEW' | 'SOON';
+}
+
+export interface AdminNavGroup {
+  id: AdminNavGroupId;
+  label: string;
+  items: AdminNavItem[];
 }
 
 export type FeedbackState = string | null;
@@ -53,6 +68,8 @@ export interface AdminDataState {
   newsList: NewsPost[];
   sheetsData: any;
   closedSlots: ClosedSlot[];
+  storeProducts: StoreProduct[];
+  storeOrders: StoreOrder[];
 }
 
 export interface AdminDataSetters {
@@ -66,6 +83,8 @@ export interface AdminDataSetters {
   setNewsList: React.Dispatch<React.SetStateAction<NewsPost[]>>;
   setSheetsData: React.Dispatch<React.SetStateAction<any>>;
   setClosedSlots: React.Dispatch<React.SetStateAction<ClosedSlot[]>>;
+  setStoreProducts: React.Dispatch<React.SetStateAction<StoreProduct[]>>;
+  setStoreOrders: React.Dispatch<React.SetStateAction<StoreOrder[]>>;
 }
 
 export interface AdminDashboardContextValue {
@@ -73,8 +92,11 @@ export interface AdminDashboardContextValue {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   onOpenSheets: () => void;
+  handleLogout: () => void;
   activeModule: AdminTabId;
-  setActiveModule: (mod: AdminTabId | string) => void;
+  setActiveModule: (mod: AdminTabId | string, subView?: string) => void;
+  storeSubView: StoreSubView;
+  setStoreSubView: (view: StoreSubView) => void;
   feedback: FeedbackState;
   setFeedback: React.Dispatch<React.SetStateAction<FeedbackState>>;
   notify: (message: string, durationMs?: number) => void;
@@ -89,4 +111,8 @@ export interface AdminDashboardContextValue {
   setGuestModalError: React.Dispatch<React.SetStateAction<string | null>>;
   openGuestModal: () => void;
   closeGuestModal: () => void;
+  isSidebarCollapsed: boolean;
+  setIsSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  isMobileNavOpen: boolean;
+  setIsMobileNavOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }

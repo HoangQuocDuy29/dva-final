@@ -21,16 +21,18 @@
     font-family: 'Oswald', sans-serif;
   }
   html, body {
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100vw;
   }
 }
 
-/* Hide scrollbar utility */
-.scrollbar-none::-webkit-scrollbar {
+/* Hide scrollbar utility (Chrome, Safari, Opera, IE, Edge, Firefox) */
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-.scrollbar-none {
+.scrollbar-none,
+.no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

@@ -46,6 +46,12 @@ const RedirectPreserveQuery: React.FC<{ to: string }> = ({ to }) => {
   return <Navigate to={{ pathname: to, search: location.search }} replace />;
 };
 
+const PublicFooterGuard: React.FC = () => {
+  const { pathname } = useLocation();
+  if (pathname.startsWith('/admin')) return null;
+  return <Footer />;
+};
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User>(() => authService.getCurrentUser());
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -73,7 +79,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <div className="min-h-screen flex flex-col bg-[#0B0F19] text-white font-sans selection:bg-red-600 selection:text-white overflow-x-hidden w-full max-w-full">
+      <div className="min-h-screen flex flex-col bg-[#0B0F19] text-white font-sans selection:bg-red-600 selection:text-white overflow-x-clip w-full max-w-full">
         
         {/* Navbar (Clean international sports club navigation, no internal scripts/sheets buttons) */}
         <Navbar
@@ -123,6 +129,7 @@ export default function App() {
                   <AdminDashboardPage
                     currentUser={currentUser}
                     onOpenSheets={() => setSheetsModalOpen(true)}
+                    onUserChange={handleUserChange}
                   />
                 }
               />
@@ -133,8 +140,8 @@ export default function App() {
           </Suspense>
         </main>
 
-        {/* Professional Footer with Embedded Arena Map */}
-        <Footer />
+        {/* Professional Footer with Embedded Arena Map (Hidden on /admin/* routes) */}
+        <PublicFooterGuard />
 
         {/* Authentication Modal */}
         <AuthModal

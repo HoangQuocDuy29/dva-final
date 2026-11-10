@@ -7,8 +7,22 @@ import {
   Player,
   TrainingCourse,
 } from '../../types';
+import {
+  LayoutDashboard,
+  Users,
+  Dumbbell,
+  Award,
+  ClipboardList,
+  CalendarClock,
+  CreditCard,
+  ShoppingBag,
+  Trophy,
+  Newspaper,
+  Sheet,
+  ShieldCheck,
+} from 'lucide-react';
 import { getDefaultWeeklyScheduleForCourt } from '../../shared/schedule';
-import { AdminTabId, TabConfig } from './types';
+import { AdminNavGroup, AdminNavItem, AdminTabId } from './types';
 
 export const VALID_TABS: readonly AdminTabId[] = [
   'OVERVIEW',
@@ -21,7 +35,137 @@ export const VALID_TABS: readonly AdminTabId[] = [
   'NEWS',
   'SHEETS',
   'USERS',
+  'STORE',
+  'TOURNAMENTS',
 ] as const;
+
+/**
+ * Static sidebar registry (Spec 005). Group and item order is contractual —
+ * see specs/005-admin-modern-analytics-hub/contracts/admin-ui-contract.md §2.
+ */
+export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
+  {
+    id: 'OVERVIEW',
+    label: 'Overview',
+    items: [
+      {
+        id: 'OVERVIEW',
+        label: 'Overview & Analytics',
+        icon: LayoutDashboard,
+        keywords: ['overview', 'dashboard', 'analytics', 'revenue', 'kpi'],
+      },
+    ],
+  },
+  {
+    id: 'ATHLETICS',
+    label: 'Athletics & Services',
+    items: [
+      { id: 'PLAYERS', label: 'Squad Roster', icon: Users, keywords: ['players', 'athletes', 'roster', 'squad'] },
+      {
+        id: 'TRAINING',
+        label: 'Training & Scrimmages',
+        icon: Dumbbell,
+        keywords: ['training', 'courses', 'scrimmage', 'academy', 'students'],
+      },
+      { id: 'COACHES', label: 'Coaching Staff', icon: Award, keywords: ['coaches', 'staff', 'coaching'] },
+      {
+        id: 'APPLICATIONS',
+        label: 'Tryout Applications',
+        icon: ClipboardList,
+        keywords: ['applications', 'tryouts', 'recruiting', 'members'],
+      },
+      {
+        id: 'COURTS',
+        label: 'Court Schedule & Slots',
+        icon: CalendarClock,
+        keywords: ['courts', 'schedule', 'slots', 'lock', 'calendar'],
+      },
+    ],
+  },
+  {
+    id: 'COMMERCE',
+    label: 'Commerce & Competition',
+    items: [
+      {
+        id: 'BOOKINGS',
+        label: 'Court Bookings & VietQR',
+        icon: CreditCard,
+        keywords: ['bookings', 'reservations', 'vietqr', 'payments', 'deposit'],
+      },
+      {
+        id: 'STORE',
+        label: 'DVA Store',
+        icon: ShoppingBag,
+        keywords: ['store', 'shop', 'merch', 'products', 'orders'],
+        status: 'NEW',
+      },
+      {
+        id: 'TOURNAMENTS',
+        label: 'Tournaments',
+        icon: Trophy,
+        keywords: ['tournaments', 'leagues', 'brackets', 'competition'],
+        status: 'SOON',
+      },
+    ],
+  },
+  {
+    id: 'SYSTEM',
+    label: 'System',
+    items: [
+      { id: 'NEWS', label: 'News & Media', icon: Newspaper, keywords: ['news', 'articles', 'media', 'posts'] },
+      { id: 'SHEETS', label: 'Google Sheets Sync', icon: Sheet, keywords: ['sheets', 'google', 'sync', 'export'] },
+      {
+        id: 'USERS',
+        label: 'Staff & Roles',
+        icon: ShieldCheck,
+        keywords: ['users', 'accounts', 'roles', 'staff', 'permissions'],
+        superAdminOnly: true,
+      },
+    ],
+  },
+];
+
+/** Returns the nav groups visible to the current role (USERS only for SUPERADMIN). */
+export function getVisibleNavGroups(isSuperAdmin: boolean): AdminNavGroup[] {
+  return ADMIN_NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => !i.superAdminOnly || isSuperAdmin),
+  })).filter((g) => g.items.length > 0);
+}
+
+export function findNavItem(id: AdminTabId): AdminNavItem | undefined {
+  for (const g of ADMIN_NAV_GROUPS) {
+    const item = g.items.find((i) => i.id === id);
+    if (item) return item;
+  }
+  return undefined;
+}
+
+export interface AdminNavBadge {
+  value: number;
+  tone: 'alert' | 'count';
+}
+
+/** Sidebar badges: pending items use an alert tone, collection sizes a neutral count tone. */
+export function getAdminNavBadges(m: {
+  pendingBookingsCount: number;
+  pendingApplicationsCount: number;
+  pendingTrainingCount: number;
+  pendingStoreOrdersCount?: number;
+  playersCount: number;
+  coachesCount: number;
+  newsCount: number;
+}): Partial<Record<AdminTabId, AdminNavBadge>> {
+  return {
+    BOOKINGS: { value: m.pendingBookingsCount, tone: 'alert' },
+    APPLICATIONS: { value: m.pendingApplicationsCount, tone: 'alert' },
+    TRAINING: { value: m.pendingTrainingCount, tone: 'alert' },
+    STORE: { value: m.pendingStoreOrdersCount ?? 0, tone: 'alert' },
+    PLAYERS: { value: m.playersCount, tone: 'count' },
+    COACHES: { value: m.coachesCount, tone: 'count' },
+    NEWS: { value: m.newsCount, tone: 'count' },
+  };
+}
 
 export const USER_ROLE_BADGE: Record<string, string> = {
   SUPERADMIN: 'bg-red-950/80 text-red-300 border-red-500/60',
@@ -31,47 +175,6 @@ export const USER_ROLE_BADGE: Record<string, string> = {
   PLAYER: 'bg-emerald-950/80 text-emerald-300 border-emerald-500/60',
   GUEST: 'bg-slate-800 text-slate-300 border-slate-600',
 };
-
-export function buildAdminTabs(params: {
-  pendingBookingsCount: number;
-  pendingApplicationsCount: number;
-  playersCount: number;
-  coursesCount: number;
-  coachesCount: number;
-  newsCount: number;
-  isSuperAdmin: boolean;
-}): TabConfig[] {
-  const {
-    pendingBookingsCount,
-    pendingApplicationsCount,
-    playersCount,
-    coursesCount,
-    coachesCount,
-    newsCount,
-    isSuperAdmin,
-  } = params;
-
-  return [
-    { id: 'OVERVIEW', label: 'Overview & Metrics' },
-    { id: 'COURTS', label: 'Court Schedule & Slots' },
-    {
-      id: 'BOOKINGS',
-      label: 'Court Bookings & VietQR',
-      badge: pendingBookingsCount,
-    },
-    { id: 'PLAYERS', label: `Squad Roster (${playersCount})` },
-    { id: 'TRAINING', label: `Training & Scrimmage (${coursesCount})` },
-    { id: 'COACHES', label: `Coaching Staff (${coachesCount})` },
-    {
-      id: 'APPLICATIONS',
-      label: 'Tryout Applications',
-      badge: pendingApplicationsCount,
-    },
-    { id: 'NEWS', label: `News Articles (${newsCount})` },
-    { id: 'SHEETS', label: 'Google Sheets Live Sync' },
-    ...(isSuperAdmin ? [{ id: 'USERS' as const, label: 'Quản lý Tài Khoản', superAdminOnly: true }] : []),
-  ];
-}
 
 export function createInitialManageDate(): string {
   const d = new Date();

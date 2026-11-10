@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Eye, EyeOff } from 'lucide-react';
 import { TrainingCourse } from '../../../types';
 import { trainingService } from '../../../services/api';
+import { Pagination } from '../../../components/common/Pagination';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { createDefaultCourseForm } from '../constants';
 import { CourseFormModal } from '../components/training/CourseFormModal';
+
+const REGS_PAGE_SIZE = 10;
+const COURSES_PAGE_SIZE = 6;
 
 export const TrainingTab: React.FC = () => {
   const {
@@ -14,6 +18,8 @@ export const TrainingTab: React.FC = () => {
   } = useAdminDashboard();
 
   const [courseStatusFilter, setCourseStatusFilter] = useState<'ALL' | 'ACTIVE' | 'HIDDEN'>('ALL');
+  const [regsPage, setRegsPage] = useState<number>(1);
+  const [coursesPage, setCoursesPage] = useState<number>(1);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<TrainingCourse | null>(null);
   const [courseForm, setCourseForm] = useState<Partial<TrainingCourse>>(createDefaultCourseForm);
@@ -99,6 +105,33 @@ export const TrainingTab: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    setCoursesPage(1);
+  }, [courseStatusFilter]);
+
+  const safeRegsPage = Math.min(
+    Math.max(1, regsPage),
+    Math.max(1, Math.ceil(trainingRegs.length / REGS_PAGE_SIZE))
+  );
+  const paginatedRegs = trainingRegs.slice(
+    (safeRegsPage - 1) * REGS_PAGE_SIZE,
+    safeRegsPage * REGS_PAGE_SIZE
+  );
+
+  const filteredCourses = coursesList.filter((course) => {
+    if (courseStatusFilter === 'ACTIVE' && course.isActive === false) return false;
+    if (courseStatusFilter === 'HIDDEN' && course.isActive !== false) return false;
+    return true;
+  });
+  const safeCoursesPage = Math.min(
+    Math.max(1, coursesPage),
+    Math.max(1, Math.ceil(filteredCourses.length / COURSES_PAGE_SIZE))
+  );
+  const paginatedCourses = filteredCourses.slice(
+    (safeCoursesPage - 1) * COURSES_PAGE_SIZE,
+    safeCoursesPage * COURSES_PAGE_SIZE
+  );
+
   return (
     <>
       <div className="space-y-6">
@@ -135,7 +168,7 @@ export const TrainingTab: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  trainingRegs.map((reg) => (
+                  paginatedRegs.map((reg) => (
                     <tr key={reg.id} className="hover:bg-slate-800/40">
                       <td className="py-3 px-3">
                         <span className="font-bold text-white block">{reg.fullName}</span>
@@ -200,6 +233,13 @@ export const TrainingTab: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={safeRegsPage}
+            totalItems={trainingRegs.length}
+            pageSize={REGS_PAGE_SIZE}
+            onPageChange={setRegsPage}
+            itemLabel="registrations"
+          />
         </div>
 
         {/* Courses Management CRUD Section */}
@@ -274,13 +314,7 @@ export const TrainingTab: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {coursesList
-              .filter((course) => {
-                if (courseStatusFilter === 'ACTIVE' && course.isActive === false) return false;
-                if (courseStatusFilter === 'HIDDEN' && course.isActive !== false) return false;
-                return true;
-              })
-              .map((course) => (
+            {paginatedCourses.map((course) => (
               <div
                 key={course.id}
                 className="p-5 rounded-2xl border border-slate-800 bg-[#0E1524] flex flex-col justify-between space-y-4"
@@ -373,6 +407,13 @@ export const TrainingTab: React.FC = () => {
               </div>
             ))}
           </div>
+          <Pagination
+            currentPage={safeCoursesPage}
+            totalItems={filteredCourses.length}
+            pageSize={COURSES_PAGE_SIZE}
+            onPageChange={setCoursesPage}
+            itemLabel="courses"
+          />
         </div>
       </div>
 

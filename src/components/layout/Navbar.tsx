@@ -145,26 +145,30 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const compactNav = isScrolled && !isAdminRoute;
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 flex flex-col items-center pointer-events-none ${
-        isScrolled ? 'pt-3 px-4 sm:px-6' : 'pt-0 px-0'
+        compactNav ? 'pt-3 px-4 sm:px-6' : 'pt-0 px-0'
       }`}
     >
       {/* Khối Navbar chính (Inner Capsule): Single Container tránh giật layout */}
       <div
         className={`pointer-events-auto transition-[background-color,box-shadow,border-color] duration-300 ease-out flex items-center justify-between w-full gap-2 sm:gap-3 md:gap-2.5 lg:gap-5 ${
-          isScrolled
-            ? 'max-w-6xl rounded-2xl h-14 border border-slate-700/60 shadow-2xl shadow-black/50 bg-[#0B0F19]/95 px-4 sm:px-6'
-            : 'max-w-7xl rounded-none h-20 border-b border-slate-800/80 bg-[#0B0F19] px-4 sm:px-6 lg:px-8'
+          isAdminRoute
+            ? 'max-w-none rounded-none h-20 border-b border-[#1E293B] bg-[#0B0F19] px-4 sm:px-6 lg:px-8'
+            : compactNav
+              ? 'max-w-6xl rounded-2xl h-14 border border-slate-700/60 shadow-2xl shadow-black/50 bg-[#0B0F19]/95 px-4 sm:px-6'
+              : 'max-w-7xl rounded-none h-20 border-b border-slate-800/80 bg-[#0B0F19] px-4 sm:px-6 lg:px-8'
         }`}
       >
         {/* Brand Wordmark & Dynamic Logo Slot */}
         <Link to="/" className="flex items-center gap-2 sm:gap-2.5 text-white group whitespace-nowrap shrink-0">
           <div
             className={`overflow-hidden bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg shadow-red-900/30 group-hover:scale-105 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 relative ${
-              isScrolled ? 'w-8 h-8 rounded-xl' : 'w-9 h-9 sm:w-10 sm:h-10 rounded-2xl'
+              compactNav ? 'w-8 h-8 rounded-xl' : 'w-9 h-9 sm:w-10 sm:h-10 rounded-2xl'
             }`}
           >
             <img
@@ -191,14 +195,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex flex-col">
             <span
               className={`font-heading font-black tracking-tight text-white flex items-center gap-1 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                isScrolled ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
+                compactNav ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
               }`}
             >
               DVA <span className="text-orange-500">VOLLEYBALL</span>
             </span>
             <span
               className={`tracking-widest text-slate-400 uppercase font-bold transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                isScrolled ? 'text-[8px] leading-tight' : 'text-[9px] sm:text-[10px] leading-normal'
+                compactNav ? 'text-[8px] leading-tight' : 'text-[9px] sm:text-[10px] leading-normal'
               }`}
             >
               {t('nav.sportsArena')}
@@ -209,7 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Public Nav Links (Tablet & Desktop: responsive gap & font size) */}
         <nav
           className={`hidden md:flex items-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] font-semibold shrink-0 ${
-            isScrolled
+            compactNav
               ? 'gap-2 lg:gap-3 xl:gap-4 text-xs lg:text-[13px]'
               : 'gap-2.5 lg:gap-5 xl:gap-6 text-xs lg:text-sm'
           }`}
@@ -326,7 +330,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Segmented Pill Language Switcher (Visible on both Mobile Topbar & Desktop) */}
           <LanguageSwitcher />
 
-          {/* User Account / Role Pill (Desktop & Tablet) */}
+          {/* User Account / Role Pill (Desktop & Tablet) — hidden on /admin/* routes to avoid duplicate profile header */}
+          {!isAdminRoute && (
           <div ref={dropdownRef} className="relative shrink-0">
             {currentUser.role === 'GUEST' ? (
               <button
@@ -408,6 +413,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* Primary CTA Button: Join DVA */}
           <Link
@@ -445,8 +451,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           }`}
         >
           
-          {/* User status in mobile drawer if logged in */}
-          {currentUser.role !== 'GUEST' ? (
+          {/* User status in mobile drawer if logged in (hidden on /admin/* routes) */}
+          {!isAdminRoute && (currentUser.role !== 'GUEST' ? (
             <div className="p-3 bg-[#161F30] rounded-2xl border border-slate-800 flex items-center justify-between">
               <div>
                 <div className="text-[10px] text-slate-400 font-medium">{t('nav.loggedInAs')}</div>
@@ -476,7 +482,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>{t('nav.signInPortal')}</span>
               </button>
             </div>
-          )}
+          ))}
 
           {/* Navigation Links list */}
           <div className="space-y-1">
