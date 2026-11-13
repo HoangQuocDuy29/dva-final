@@ -1129,53 +1129,38 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
     },
   });
 
-  // 12. Seed DVA Shop Starter Products (Ensures all starter products exist in PostgreSQL)
+  // 12. Seed DVA Shop Starter Products (ONLY when products table is empty; never overwrite Admin edits)
   try {
-    for (const prod of INITIAL_SHOP_PRODUCTS) {
-      const sku = prod.sku || prod.id.toUpperCase();
-      await prisma.product.upsert({
-        where: { sku },
-        update: {
-          slug: prod.slug,
-          name: prod.name,
-          category: prod.category,
-          price: prod.price,
-          originalPrice: prod.originalPrice,
-          stock: prod.stock,
-          sortOrder: prod.sortOrder ?? 0,
-          badge: prod.badge ?? null,
-          allowCustomPrint: prod.allowCustomPrint ?? isJerseyCategory(prod.category),
-          frontImage: prod.frontImage,
-          backImage: prod.backImage ?? null,
-          sizes: prod.sizes ?? ['Size 5'],
-          colors: prod.colors ?? [],
-          description: prod.description ?? null,
-          isPaused: Boolean(prod.isPaused),
-          isActive: prod.isActive !== false,
-        },
-        create: {
-          id: prod.id,
-          sku,
-          slug: prod.slug,
-          name: prod.name,
-          category: prod.category,
-          price: prod.price,
-          originalPrice: prod.originalPrice,
-          stock: prod.stock,
-          sortOrder: prod.sortOrder ?? 0,
-          badge: prod.badge ?? null,
-          allowCustomPrint: prod.allowCustomPrint ?? isJerseyCategory(prod.category),
-          frontImage: prod.frontImage,
-          backImage: prod.backImage ?? null,
-          sizes: prod.sizes ?? ['Size 5'],
-          colors: prod.colors ?? [],
-          description: prod.description ?? null,
-          isPaused: Boolean(prod.isPaused),
-          isActive: prod.isActive !== false,
-        },
-      });
+    if ((await prisma.product.count()) === 0) {
+      for (const prod of INITIAL_SHOP_PRODUCTS) {
+        const sku = prod.sku || prod.id.toUpperCase();
+        await prisma.product.upsert({
+          where: { sku },
+          update: {},
+          create: {
+            id: prod.id,
+            sku,
+            slug: prod.slug,
+            name: prod.name,
+            category: prod.category,
+            price: prod.price,
+            originalPrice: prod.originalPrice,
+            stock: prod.stock,
+            sortOrder: prod.sortOrder ?? 0,
+            badge: prod.badge ?? null,
+            allowCustomPrint: prod.allowCustomPrint ?? isJerseyCategory(prod.category),
+            frontImage: prod.frontImage,
+            backImage: prod.backImage ?? null,
+            sizes: prod.sizes ?? ['Size 5'],
+            colors: prod.colors ?? [],
+            description: prod.description ?? null,
+            isPaused: Boolean(prod.isPaused),
+            isActive: prod.isActive !== false,
+          },
+        });
+      }
+      console.log(`[Bootstrap] Seeded ${INITIAL_SHOP_PRODUCTS.length} initial DVA Shop products into empty PostgreSQL table.`);
     }
-    console.log(`[Bootstrap] Ensured ${INITIAL_SHOP_PRODUCTS.length} initial DVA Shop products synced in PostgreSQL.`);
   } catch (err: any) {
     console.warn('[Prisma Shop Seed Notice]:', err?.message || err);
   }
