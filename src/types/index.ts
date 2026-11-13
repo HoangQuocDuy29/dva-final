@@ -228,8 +228,11 @@ export interface MemberApplication {
   zalo: string;
   rotationKnowledge: RotationKnowledge;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  entryFee?: number;
+  approvedAt?: string;
   reviewNotes?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type NewsCategoryId =
@@ -293,6 +296,29 @@ export interface GuestSessionPayload {
   courtAddress?: string;
   amount: number;
   notes?: string;
+  alreadyPaid?: boolean;
+  forceDuplicate?: boolean;
+}
+
+export interface GuestSessionRecord {
+  id: string;
+  guestName: string;
+  guestEmail: string;
+  phone?: string;
+  position: string;
+  positionPrivilege: string;
+  level: string;
+  sessionDate: string;
+  sessionTime: string;
+  courtAddress?: string;
+  amount: number;
+  transferContent: string;
+  paymentStatus: PaymentStatus;
+  notes?: string;
+  paidAt?: string;
+  emailSentAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type StoreCategoryId =

@@ -1,65 +1,101 @@
-import React from 'react';
-import { Wallet, CreditCard, Dumbbell, ShoppingBag, Users, Clock, Info } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Wallet,
+  CreditCard,
+  Dumbbell,
+  ShoppingBag,
+  Users,
+  Clock,
+  Info,
+  Ticket,
+  UserCheck,
+} from 'lucide-react';
 import { useAdminDashboard } from '../../context/AdminDashboardContext';
 import { useAdminMetrics } from '../../hooks/useAdminMetrics';
 
 const formatVnd = (n: number) => `${n.toLocaleString('vi-VN')} đ`;
 
-/** Overview top KPI grid: 6 core executive metrics (Spec 005, US2). */
-export const RevenueKpiCards: React.FC = () => {
+interface RevenueKpiCardsProps {
+  onJumpToGuestSessions?: () => void;
+}
+
+/** Overview top KPI grid: balanced 2x4 grid covering 5 cashflow streams + club ops. */
+export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestSessions }) => {
   const {
     setActiveModule,
     data: { players },
   } = useAdminDashboard();
   const {
+    verifiedClubRevenue,
     totalClubRevenue,
     courtRevenue,
     trainingRevenue,
     storeRevenue,
+    guestSessionRevenue,
+    tryoutRevenue,
     paidBookingsCount,
     paidStoreOrdersCount,
+    paidGuestSessionsCount,
+    approvedTryoutsCount,
     confirmedTrainingCount,
     pendingBookingsCount,
     pendingTrainingCount,
     pendingApplicationsCount,
     pendingStoreOrdersCount,
+    pendingGuestSessionsCount,
     playersCount,
   } = useAdminMetrics();
 
+  const [includeEstTuition, setIncludeEstTuition] = useState(false);
+
   const activeAthletesCount = players.filter((p) => p.isActive !== false).length;
   const totalPendingApprovals =
-    pendingBookingsCount + pendingTrainingCount + pendingApplicationsCount + pendingStoreOrdersCount;
+    pendingBookingsCount +
+    pendingStoreOrdersCount +
+    pendingGuestSessionsCount +
+    pendingTrainingCount +
+    pendingApplicationsCount;
+
+  const displayedTotal = includeEstTuition ? totalClubRevenue : verifiedClubRevenue;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-      {/* 1. Total Club Revenue — hero card */}
-      <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-[#8B0000] via-[#7A1A0A] to-[#F97316] shadow-lg shadow-orange-950/30">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Row 1, Card 1: Total Revenue — Hero card with Verified Cash vs Include Est. Tuition toggle */}
+      <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-[#8B0000] via-[#7A1A0A] to-[#F97316] shadow-lg shadow-orange-950/30 flex flex-col justify-between">
         <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10" aria-hidden="true" />
-        <div className="relative flex items-center justify-between">
-          <span className="text-xs font-semibold text-white/85">Total Revenue</span>
-          <Wallet className="w-4 h-4 text-white/85" />
+        <div className="relative flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-white/90 flex items-center gap-1.5">
+            <Wallet className="w-3.5 h-3.5 text-white/90" />
+            <span>Total Revenue</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setIncludeEstTuition((v) => !v)}
+            className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-black/30 hover:bg-black/45 text-white border border-white/25 transition-colors cursor-pointer shrink-0"
+            title="Switch between Verified Bank Cashflow and Combined Total including Estimated Training Tuition"
+          >
+            {includeEstTuition ? 'Include Est. Tuition' : 'Verified Cash Only'}
+          </button>
         </div>
+
         <div className="relative mt-2 font-mono font-black text-xl text-white tabular-nums">
-          {formatVnd(totalClubRevenue)}
+          {formatVnd(displayedTotal)}
         </div>
-        <span className="relative text-[10px] text-white/75 block mt-1">
-          Bookings + Training + Shop
-        </span>
+
+        <div className="relative text-[10px] text-white/85 mt-1.5 space-y-0.5">
+          {includeEstTuition ? (
+            <span className="block truncate" title={`Verified Cash: ${formatVnd(verifiedClubRevenue)} + Est. Tuition: ${formatVnd(trainingRevenue)}`}>
+              Verified: {formatVnd(verifiedClubRevenue)} + Est. Tuition: {formatVnd(trainingRevenue)}
+            </span>
+          ) : (
+            <span className="block truncate" title={`Bookings + Shop + Guest + Tryout | Est. Tuition: ${formatVnd(trainingRevenue)}`}>
+              Bookings + Shop + Guest + Tryout · +Est. Tuition: {formatVnd(trainingRevenue)}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* 2. Est. Training Tuition */}
-      <KpiCard
-        icon={Dumbbell}
-        label="Est. Training Tuition"
-        value={formatVnd(trainingRevenue)}
-        note={`${confirmedTrainingCount} confirmed enrollments`}
-        accent="text-[#38BDF8]"
-        bar="bg-[#38BDF8]"
-        hint="Estimated as current course price × each CONFIRMED registration."
-        onClick={() => setActiveModule('TRAINING')}
-      />
-
-      {/* 3. Booking Revenue */}
+      {/* Row 1, Card 2: Booking Revenue */}
       <KpiCard
         icon={CreditCard}
         label="Booking Revenue"
@@ -70,7 +106,7 @@ export const RevenueKpiCards: React.FC = () => {
         onClick={() => setActiveModule('BOOKINGS')}
       />
 
-      {/* 4. Shop Revenue */}
+      {/* Row 1, Card 3: Shop Revenue */}
       <KpiCard
         icon={ShoppingBag}
         label="Shop Revenue"
@@ -82,7 +118,45 @@ export const RevenueKpiCards: React.FC = () => {
         onClick={() => setActiveModule('STORE')}
       />
 
-      {/* 5. Active Athletes */}
+      {/* Row 1, Card 4: Est. Training Tuition */}
+      <KpiCard
+        icon={Dumbbell}
+        label="Est. Training Tuition"
+        badge="Est."
+        badgeTone="sky"
+        value={formatVnd(trainingRevenue)}
+        note={`${confirmedTrainingCount} confirmed enrollments`}
+        accent="text-[#38BDF8]"
+        bar="bg-[#38BDF8]"
+        hint="Estimated as current course price × each CONFIRMED registration (not included in Verified Cash Only)."
+        onClick={() => setActiveModule('TRAINING')}
+      />
+
+      {/* Row 2, Card 5: Guest Sessions */}
+      <KpiCard
+        icon={Ticket}
+        label="Guest Sessions"
+        value={formatVnd(guestSessionRevenue)}
+        note={`${paidGuestSessionsCount} paid · ${pendingGuestSessionsCount} pending`}
+        accent="text-[#A855F7]"
+        bar="bg-[#A855F7]"
+        hint="Verified drop-in & scrimmage guest passes marked as PAID."
+        onClick={onJumpToGuestSessions}
+      />
+
+      {/* Row 2, Card 6: Tryout Fees */}
+      <KpiCard
+        icon={UserCheck}
+        label="Tryout Fees"
+        value={formatVnd(tryoutRevenue)}
+        note={`${approvedTryoutsCount} approved squad athletes`}
+        accent="text-[#10B981]"
+        bar="bg-[#10B981]"
+        hint="Club entry fees recorded from APPROVED tryout applications (default 100,000 đ, adjustable for waived athletes)."
+        onClick={() => setActiveModule('APPLICATIONS')}
+      />
+
+      {/* Row 2, Card 7: Active Athletes */}
       <KpiCard
         icon={Users}
         label="Active Athletes"
@@ -93,25 +167,21 @@ export const RevenueKpiCards: React.FC = () => {
         onClick={() => setActiveModule('PLAYERS')}
       />
 
-      {/* 6. Pending Approvals */}
+      {/* Row 2, Card 8: Pending Approvals */}
       <KpiCard
         icon={Clock}
         label="Pending Approvals"
         value={`${totalPendingApprovals} Items`}
-        note={`${pendingBookingsCount} bookings · ${pendingStoreOrdersCount} shop · ${pendingTrainingCount} trainees · ${pendingApplicationsCount} tryouts`}
+        note={`${pendingBookingsCount} bookings · ${pendingStoreOrdersCount} shop · ${pendingGuestSessionsCount} guest · ${pendingTrainingCount} trainees · ${pendingApplicationsCount} tryouts`}
         accent="text-amber-400"
         bar="bg-amber-400"
-        onClick={() =>
-          setActiveModule(
-            pendingBookingsCount > 0
-              ? 'BOOKINGS'
-              : pendingStoreOrdersCount > 0
-                ? 'STORE'
-                : pendingTrainingCount > 0
-                  ? 'TRAINING'
-                  : 'APPLICATIONS'
-          )
-        }
+        onClick={() => {
+          if (pendingBookingsCount > 0) setActiveModule('BOOKINGS');
+          else if (pendingStoreOrdersCount > 0) setActiveModule('STORE');
+          else if (pendingGuestSessionsCount > 0 && onJumpToGuestSessions) onJumpToGuestSessions();
+          else if (pendingTrainingCount > 0) setActiveModule('TRAINING');
+          else setActiveModule('APPLICATIONS');
+        }}
       />
     </div>
   );
@@ -121,6 +191,7 @@ interface KpiCardProps {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   badge?: string;
+  badgeTone?: 'yellow' | 'sky';
   value: string;
   note: string;
   accent: string;
@@ -133,6 +204,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
   icon: Icon,
   label,
   badge,
+  badgeTone = 'yellow',
   value,
   note,
   accent,
@@ -169,7 +241,13 @@ const KpiCard: React.FC<KpiCardProps> = ({
         )}
       </span>
       {badge ? (
-        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide bg-[#FACC15]/15 text-[#FACC15] border border-[#FACC15]/40 shrink-0">
+        <span
+          className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide border shrink-0 ${
+            badgeTone === 'sky'
+              ? 'bg-[#38BDF8]/15 text-[#38BDF8] border-[#38BDF8]/40'
+              : 'bg-[#FACC15]/15 text-[#FACC15] border-[#FACC15]/40'
+          }`}
+        >
           {badge}
         </span>
       ) : (

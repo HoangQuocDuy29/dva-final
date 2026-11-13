@@ -13,6 +13,7 @@ import {
   UserRole,
   ManagedUserRole,
   GuestSessionPayload,
+  GuestSessionRecord,
   OrderStatus,
   PaymentStatus,
   StoreProduct,
@@ -687,17 +688,30 @@ export const memberService = {
     return request<MemberApplication[]>('/members/applications', {}, []);
   },
 
-  async updateStatus(id: string, status: 'PENDING' | 'APPROVED' | 'REJECTED', reviewNotes?: string): Promise<{ application: MemberApplication; promotedPlayer: boolean }> {
+  async updateStatus(
+    id: string,
+    status: 'PENDING' | 'APPROVED' | 'REJECTED',
+    reviewNotes?: string,
+    entryFee?: number
+  ): Promise<{ application: MemberApplication; promotedPlayer: boolean }> {
     return request<{ application: MemberApplication; promotedPlayer: boolean }>(`/members/applications/${id}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status, reviewNotes }),
+      body: JSON.stringify({ status, reviewNotes, ...(entryFee !== undefined ? { entryFee } : {}) }),
     }, {
       application: {
         id,
         status,
         reviewNotes,
+        ...(entryFee !== undefined ? { entryFee } : {}),
       } as MemberApplication,
       promotedPlayer: status === 'APPROVED',
+    });
+  },
+
+  async updateEntryFee(id: string, entryFee: number): Promise<MemberApplication> {
+    return request<MemberApplication>(`/members/applications/${id}/entry-fee`, {
+      method: 'PATCH',
+      body: JSON.stringify({ entryFee }),
     });
   },
 
@@ -1024,9 +1038,28 @@ export const cloudinaryService = {
 
 export const adminService = {
   sendGuestSessionEmail: (payload: GuestSessionPayload) =>
-    request<{ success: boolean; message: string }>('/admin/send-guest-session-email', {
-      method: 'POST',
-      body: JSON.stringify(payload),
+    request<{ success: boolean; message: string; guestSession?: GuestSessionRecord }>(
+      '/admin/send-guest-session-email',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    ),
+
+  getGuestSessions: (status?: string) => {
+    const query = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
+    return request<GuestSessionRecord[]>(`/admin/guest-sessions${query}`, undefined, []);
+  },
+
+  updateGuestSessionStatus: (id: string, paymentStatus: PaymentStatus) =>
+    request<GuestSessionRecord>(`/admin/guest-sessions/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ paymentStatus }),
+    }),
+
+  deleteGuestSession: (id: string) =>
+    request<{ success: boolean }>(`/admin/guest-sessions/${id}`, {
+      method: 'DELETE',
     }),
 };
 

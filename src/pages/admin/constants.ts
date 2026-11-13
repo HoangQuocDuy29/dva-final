@@ -210,6 +210,7 @@ export function createDefaultGuestForm(): GuestSessionPayload {
     courtAddress: '155 Trường Chinh, Thanh Xuân, Hà Nội',
     amount: 70000,
     notes: '',
+    alreadyPaid: false,
   };
 }
 

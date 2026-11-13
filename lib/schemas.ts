@@ -339,3 +339,14 @@ export const ORDER_STATUS_SCHEMA: Schema = {
   paymentStatus: E(ORDER_STATUSES),
   notes: S(1000),
 };
+
+// ============================================================================
+// VERIFIED CASHFLOW ANALYTICS SCHEMAS (GUEST SESSION & TRYOUT FEE)
+// ============================================================================
+export const GUEST_SESSION_STATUS_SCHEMA: Schema = {
+  paymentStatus: E(PAYMENT_STATUSES),
+};
+
+export const APPLICATION_ENTRY_FEE_SCHEMA: Schema = {
+  entryFee: I(0, 100_000_000),
+};

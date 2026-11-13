@@ -13,6 +13,7 @@ import {
   StoreProduct,
   StoreOrder,
   StoreSubView,
+  GuestSessionRecord,
 } from '../../types';
 
 export type AdminTabId =
@@ -70,6 +71,7 @@ export interface AdminDataState {
   closedSlots: ClosedSlot[];
   storeProducts: StoreProduct[];
   storeOrders: StoreOrder[];
+  guestSessions: GuestSessionRecord[];
 }
 
 export interface AdminDataSetters {
@@ -85,6 +87,7 @@ export interface AdminDataSetters {
   setClosedSlots: React.Dispatch<React.SetStateAction<ClosedSlot[]>>;
   setStoreProducts: React.Dispatch<React.SetStateAction<StoreProduct[]>>;
   setStoreOrders: React.Dispatch<React.SetStateAction<StoreOrder[]>>;
+  setGuestSessions: React.Dispatch<React.SetStateAction<GuestSessionRecord[]>>;
 }
 
 export interface AdminDashboardContextValue {
