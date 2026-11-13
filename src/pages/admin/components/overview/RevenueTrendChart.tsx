@@ -4,12 +4,14 @@ import { useAdminMetrics } from '../../hooks/useAdminMetrics';
 
 const SERIES = [
   { key: 'court', label: 'Court Bookings', color: '#F97316' },
-  { key: 'training', label: 'Training (est.)', color: '#38BDF8' },
   { key: 'store', label: 'DVA Store', color: '#FACC15' },
+  { key: 'guest', label: 'Guest Sessions', color: '#A855F7' },
+  { key: 'tryout', label: 'Tryout Fees', color: '#10B981' },
+  { key: 'training', label: 'Training (est.)', color: '#38BDF8' },
 ] as const;
 
 const VIEW_W = 600;
-const VIEW_H = 240;
+const VIEW_H = 290;
 const PAD_L = 48;
 const PAD_R = 12;
 const PAD_T = 16;
@@ -33,10 +35,21 @@ export const RevenueTrendChart: React.FC = () => {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const totals = monthlyRevenue.map((p) => p.court + p.training + p.store);
+  const totals = monthlyRevenue.map(
+    (p) => p.court + p.store + p.guest + p.tryout + p.training
+  );
   const max = Math.max(...totals, 0);
   const isEmpty = max === 0;
   const niceMax = isEmpty ? 1 : max * 1.1;
+
+  const sixMonthTotal = totals.reduce((sum, val) => sum + val, 0);
+  const monthlyAvg = monthlyRevenue.length > 0 ? Math.round(sixMonthTotal / monthlyRevenue.length) : 0;
+  let peakIndex = 0;
+  for (let i = 1; i < totals.length; i++) {
+    if (totals[i] > totals[peakIndex]) peakIndex = i;
+  }
+  const peakPoint = monthlyRevenue[peakIndex];
+  const peakAmount = totals[peakIndex] ?? 0;
 
   const plotW = VIEW_W - PAD_L - PAD_R;
   const plotH = VIEW_H - PAD_T - PAD_B;
@@ -48,14 +61,16 @@ export const RevenueTrendChart: React.FC = () => {
   const hovered = hover !== null ? monthlyRevenue[hover] : null;
 
   return (
-    <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-6 space-y-4">
+    <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-6 flex flex-col justify-between h-full gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="font-bold text-sm text-white flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-[#F97316]" />
             Revenue Trend — Last 6 Months
           </h3>
-          <p className="text-[11px] text-slate-500">Verified court sessions and confirmed training enrollments</p>
+          <p className="text-[11px] text-slate-500">
+            Verified cashflow (Bookings, Shop, Guest Sessions, Tryout Fees) &amp; Est. Training Tuition
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {SERIES.map((s) => (
@@ -67,10 +82,10 @@ export const RevenueTrendChart: React.FC = () => {
         </div>
       </div>
 
-      <div className="relative">
+      <div className="relative flex-1 min-h-[260px] flex flex-col justify-end">
         <svg
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-          className="w-full h-auto"
+          className="w-full h-auto max-h-full"
           role="img"
           aria-label="Stacked bar chart of monthly club revenue"
           onMouseLeave={() => setHover(null)}
@@ -161,6 +176,34 @@ export const RevenueTrendChart: React.FC = () => {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Chart Footer: 6-Month Peak & Monthly Average */}
+      <div className="pt-3 border-t border-[#1E293B] flex flex-wrap items-center justify-between gap-3 text-[11px]">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <span>6-Month Peak Month:</span>
+            <span className="font-mono font-bold text-white whitespace-nowrap">
+              {peakPoint && peakAmount > 0
+                ? `${peakPoint.label} ${peakPoint.monthKey.slice(0, 4)} · ${peakAmount.toLocaleString('vi-VN')} đ`
+                : '—'}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <span>Monthly Average:</span>
+            <span className="font-mono font-bold text-[#F97316] whitespace-nowrap tabular-nums">
+              {monthlyAvg.toLocaleString('vi-VN')} đ
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <span>6-Month Total:</span>
+            <span className="font-mono font-bold text-emerald-400 whitespace-nowrap tabular-nums">
+              {sixMonthTotal.toLocaleString('vi-VN')} đ
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

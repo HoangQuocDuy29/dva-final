@@ -21,6 +21,7 @@ import {
   Product as DbProduct,
   Order as DbOrder,
   OrderItem as DbOrderItem,
+  GuestSession as DbGuestSession,
 } from '@prisma/client';
 import {
   Booking,
@@ -29,6 +30,7 @@ import {
   CoachProfile,
   Court,
   DeliveryMethod,
+  GuestSessionRecord,
   MemberApplication,
   NewsPost,
   OrderStatus,
@@ -384,8 +386,35 @@ export function toApplicationDto(a: DbMemberApplication | any): MemberApplicatio
     zalo: a.zalo,
     rotationKnowledge: fromRotationEnum(a.rotationKnowledge),
     status: a.status,
+    entryFee:
+      a.entryFee !== null && a.entryFee !== undefined ? Number(a.entryFee) : 100000,
+    approvedAt: a.approvedAt ? safeIsoString(a.approvedAt) : undefined,
     reviewNotes: a.reviewNotes ?? undefined,
     createdAt: safeIsoString(a.createdAt),
+    updatedAt: a.updatedAt ? safeIsoString(a.updatedAt) : undefined,
+  };
+}
+
+export function toGuestSessionDto(g: DbGuestSession | any): GuestSessionRecord {
+  return {
+    id: g.id,
+    guestName: g.guestName,
+    guestEmail: g.guestEmail,
+    phone: g.phone ?? undefined,
+    position: g.position || 'OH',
+    positionPrivilege: g.positionPrivilege || 'FIXED',
+    level: g.level || 'Junior',
+    sessionDate: g.sessionDate,
+    sessionTime: g.sessionTime,
+    courtAddress: g.courtAddress ?? undefined,
+    amount: Number(g.amount) || 0,
+    transferContent: g.transferContent,
+    paymentStatus: (g.paymentStatus || 'PENDING') as GuestSessionRecord['paymentStatus'],
+    notes: g.notes ?? undefined,
+    paidAt: g.paidAt ? safeIsoString(g.paidAt) : undefined,
+    emailSentAt: safeIsoString(g.emailSentAt),
+    createdAt: safeIsoString(g.createdAt),
+    updatedAt: safeIsoString(g.updatedAt),
   };
 }
 

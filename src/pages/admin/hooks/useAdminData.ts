@@ -11,8 +11,10 @@ import {
   ClosedSlot,
   StoreProduct,
   StoreOrder,
+  GuestSessionRecord,
 } from '../../../types';
 import {
+  adminService,
   bookingService,
   courtService,
   memberService,
@@ -64,6 +66,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
   const [closedSlots, setClosedSlots] = useState<ClosedSlot[]>([]);
   const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([]);
   const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
+  const [guestSessions, setGuestSessions] = useState<GuestSessionRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
   const loadedLazyScopesRef = useRef<Set<'COURTS' | 'SHEETS' | 'STORE'>>(new Set());
@@ -93,7 +96,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [b, a, t, p, n, courses, coaches, fetchedCourts, fetchedProducts, fetchedOrders] = await Promise.all([
+      const [b, a, t, p, n, courses, coaches, fetchedCourts, fetchedProducts, fetchedOrders, fetchedGuestSessions] = await Promise.all([
         bookingService.getBookings(),
         memberService.getApplications(),
         trainingService.getRegistrations(),
@@ -104,6 +107,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
         courtService.getCourts(),
         storeService.getProducts(),
         storeService.getOrders(),
+        adminService.getGuestSessions(),
       ]);
       setBookings(Array.isArray(b) ? b : []);
       setApplications(Array.isArray(a) ? a : []);
@@ -115,6 +119,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       setCourtsList(normalizeActiveCourts(fetchedCourts));
       setStoreProducts(Array.isArray(fetchedProducts) ? fetchedProducts : []);
       setStoreOrders(Array.isArray(fetchedOrders) ? fetchedOrders : []);
+      setGuestSessions(Array.isArray(fetchedGuestSessions) ? fetchedGuestSessions : []);
       loadedLazyScopesRef.current.add('STORE');
 
       // Also refresh any lazy scopes that have already been visited
@@ -169,6 +174,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       closedSlots,
       storeProducts,
       storeOrders,
+      guestSessions,
     },
     setData: {
       setBookings,
@@ -183,6 +189,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       setClosedSlots,
       setStoreProducts,
       setStoreOrders,
+      setGuestSessions,
     },
   };
 }

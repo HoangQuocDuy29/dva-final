@@ -9,16 +9,24 @@ export function useApplicationActions() {
   } = useAdminDashboard();
 
   const handleUpdateApplicationStatus = useCallback(
-    async (appId: string, status: 'APPROVED' | 'REJECTED') => {
+    async (appId: string, status: 'APPROVED' | 'REJECTED', entryFee?: number) => {
       try {
-        await memberService.updateStatus(appId, status);
+        const res = await memberService.updateStatus(appId, status, undefined, entryFee);
         setApplications((prev) =>
-          prev.map((a) => (a.id === appId ? { ...a, status } : a))
+          prev.map((a) =>
+            a.id === appId
+              ? {
+                  ...a,
+                  ...res.application,
+                  status,
+                }
+              : a
+          )
         );
 
         if (status === 'APPROVED') {
           notify(
-            'Application approved! Athlete has been automatically promoted into the official Player Roster.',
+            'Application approved! Athlete promoted to Player Roster & Tryout fee recorded.',
             4000
           );
           playerService.getPlayers().then(setPlayers);
@@ -33,7 +41,8 @@ export function useApplicationActions() {
   );
 
   const handleApproveApplication = useCallback(
-    (appId: string) => handleUpdateApplicationStatus(appId, 'APPROVED'),
+    (appId: string, entryFee?: number) =>
+      handleUpdateApplicationStatus(appId, 'APPROVED', entryFee),
     [handleUpdateApplicationStatus]
   );
 
@@ -42,15 +51,38 @@ export function useApplicationActions() {
     [handleUpdateApplicationStatus]
   );
 
+  const handleUpdateEntryFee = useCallback(
+    async (appId: string, entryFee: number) => {
+      try {
+        const updated = await memberService.updateEntryFee(appId, entryFee);
+        setApplications((prev) =>
+          prev.map((a) => (a.id === appId ? { ...a, ...updated } : a))
+        );
+        notify(
+          entryFee === 0
+            ? 'Tryout fee waived (0 đ) for this athlete.'
+            : `Tryout fee updated to ${entryFee.toLocaleString('vi-VN')} đ.`,
+          3000
+        );
+      } catch (err) {
+        alert('Error updating tryout entry fee');
+      }
+    },
+    [setApplications, notify]
+  );
+
   const handleDeleteApplication = useCallback(
-    async (id: string, name: string) => {
-      if (!window.confirm(`Xóa hồ sơ tuyển thành viên của ứng viên ${name}?`)) return;
+    async (id: string, name: string, isApproved: boolean = false, entryFee: number = 100000) => {
+      const confirmMsg = isApproved
+        ? `⚠️ WARNING — HISTORICAL REVENUE PROTECTION:\n\n"${name}" is an APPROVED tryout athlete (${entryFee.toLocaleString('vi-VN')} đ).\nDeleting this record will permanently deduct ${entryFee.toLocaleString('vi-VN')} đ from Dashboard Tryout Cashflow analytics.\n\nAre you sure you want to permanently delete this application?`
+        : `Delete tryout application of ${name}?`;
+      if (!window.confirm(confirmMsg)) return;
       try {
         await memberService.deleteApplication(id);
         setApplications((prev) => prev.filter((a) => a.id !== id));
-        notify(`Đã xóa hồ sơ của ứng viên ${name}.`, 3000);
+        notify(`Deleted application of ${name}.`, 3000);
       } catch (err) {
-        alert('Lỗi xóa hồ sơ');
+        alert('Error deleting application');
       }
     },
     [setApplications, notify]
@@ -60,6 +92,7 @@ export function useApplicationActions() {
     handleUpdateApplicationStatus,
     handleApproveApplication,
     handleRejectApplication,
+    handleUpdateEntryFee,
     handleDeleteApplication,
   };
 }

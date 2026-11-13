@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Resend } from 'resend';
 import dotenv from 'dotenv';
 
@@ -166,6 +167,7 @@ export interface GuestSessionEmailPayload {
   sessionTime: string; // VD: "19:30 - 21:30"
   courtAddress?: string; // Mặc định 155 Trường Chinh
   amount: number; // Mức phí giữ chỗ (VND)
+  transferContent?: string; // Cú pháp chuyển khoản đã tạo & lưu DB
   notes?: string;
 }
 
@@ -359,8 +361,9 @@ export function generateGuestSessionTransferDescription(
   const { startTime } = extractStartAndEndTime(sessionTime);
   const shortTime = startTime.replace(/\D/g, '').padEnd(4, '0').slice(0, 4) || '1930';
   const pos = (position || 'OH').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || 'OH';
+  const suffix = crypto.randomBytes(2).toString('hex').toUpperCase();
 
-  return `SCRIM ${cleanName} ${ddmm} ${shortTime} ${pos}`.trim();
+  return `SCRIM ${cleanName} ${ddmm} ${shortTime} ${pos} ${suffix}`.trim();
 }
 
 export function buildBookingVietQrUrl(
@@ -2484,12 +2487,14 @@ export async function sendGuestSessionEmail(
       currency: 'VND',
     }).format(Number(payload.amount) || 0);
 
-    const transferContent = generateGuestSessionTransferDescription(
-      payload.fullName,
-      payload.sessionDate,
-      payload.sessionTime,
-      payload.position
-    );
+    const transferContent =
+      (payload.transferContent && payload.transferContent.trim()) ||
+      generateGuestSessionTransferDescription(
+        payload.fullName,
+        payload.sessionDate,
+        payload.sessionTime,
+        payload.position
+      );
 
     const vietQrUrl = `https://img.vietqr.io/image/MB-0002090671521-compact2.png?amount=${Number(payload.amount) || 0}&addInfo=${encodeURIComponent(transferContent)}&accountName=HOANG%20QUOC%20DUY`;
 

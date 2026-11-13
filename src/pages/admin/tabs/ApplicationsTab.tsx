@@ -13,6 +13,7 @@ export const ApplicationsTab: React.FC = () => {
   const {
     handleApproveApplication,
     handleRejectApplication,
+    handleUpdateEntryFee,
     handleDeleteApplication,
   } = useApplicationActions();
 
@@ -47,12 +48,14 @@ export const ApplicationsTab: React.FC = () => {
               <th className="py-3 px-3">Spike Reach</th>
               <th className="py-3 px-3">5-1 Knowledge</th>
               <th className="py-3 px-3">Contact (Zalo / Email)</th>
-              <th className="py-3 px-3">Status</th>
+              <th className="py-3 px-3 min-w-[155px]">Status</th>
               <th className="py-3 px-3 text-right">Decision</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800 text-slate-300">
-            {paginatedApplications.map((app) => (
+            {paginatedApplications.map((app) => {
+              const fee = app.entryFee !== undefined ? app.entryFee : 100000;
+              return (
               <tr key={app.id} className="hover:bg-slate-800/40">
                 <td className="py-3 px-3">
                   <span className="font-bold text-white block">{app.fullName}</span>
@@ -74,16 +77,39 @@ export const ApplicationsTab: React.FC = () => {
                   <div className="text-slate-400">{app.gmail}</div>
                 </td>
 
-                <td className="py-3 px-3">
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      app.status === 'APPROVED'
-                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                        : 'bg-amber-950 text-amber-300 border border-amber-800'
-                    }`}
-                  >
-                    {app.status}
-                  </span>
+                <td className="py-3 px-3 min-w-[155px]">
+                  <div className="flex flex-col items-start gap-1.5">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
+                        app.status === 'APPROVED'
+                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                          : app.status === 'REJECTED'
+                            ? 'bg-red-950/70 text-red-300 border border-red-800'
+                            : 'bg-amber-950 text-amber-300 border border-amber-800'
+                      }`}
+                    >
+                      {app.status}
+                    </span>
+                    {app.status === 'APPROVED' && (
+                      <div className="flex items-center gap-2 whitespace-nowrap">
+                        <span
+                          className={`font-mono text-[11px] font-bold whitespace-nowrap tabular-nums ${
+                            fee > 0 ? 'text-emerald-400' : 'text-slate-400'
+                          }`}
+                        >
+                          {fee > 0 ? `${fee.toLocaleString('vi-VN')} đ` : '0 đ · Waived'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateEntryFee(app.id, fee > 0 ? 0 : 100000)}
+                          className="px-2 py-0.5 text-[11px] font-medium rounded-md border border-slate-700 bg-slate-800/80 text-slate-300 hover:border-amber-500/50 hover:text-amber-300 transition-colors cursor-pointer whitespace-nowrap"
+                          title={fee > 0 ? 'Waive entry fee (0 đ)' : 'Restore standard 100,000 đ fee'}
+                        >
+                          {fee > 0 ? 'Waive' : 'Restore 100k'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </td>
 
                 <td className="py-3 px-3 text-right">
@@ -91,10 +117,17 @@ export const ApplicationsTab: React.FC = () => {
                     {app.status === 'PENDING' ? (
                       <>
                         <button
-                          onClick={() => handleApproveApplication(app.id)}
+                          onClick={() => handleApproveApplication(app.id, 100000)}
                           className="min-h-[40px] px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-xl transition-colors cursor-pointer"
                         >
                           Approve & Promote
+                        </button>
+                        <button
+                          onClick={() => handleApproveApplication(app.id, 0)}
+                          className="min-h-[40px] px-2.5 py-2 bg-slate-800 hover:bg-emerald-950/70 text-emerald-300 border border-slate-700 hover:border-emerald-700 font-semibold text-[11px] rounded-xl transition-colors cursor-pointer"
+                          title="Approve athlete with 0 đ waived entry fee"
+                        >
+                          Waive (0đ)
                         </button>
                         <button
                           onClick={() => handleRejectApplication(app.id)}
@@ -108,16 +141,28 @@ export const ApplicationsTab: React.FC = () => {
                     )}
                     <button
                       type="button"
-                      onClick={() => handleDeleteApplication(app.id, app.fullName)}
+                      onClick={() =>
+                        handleDeleteApplication(
+                          app.id,
+                          app.fullName,
+                          app.status === 'APPROVED',
+                          fee
+                        )
+                      }
                       className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer transition-colors"
-                      title="Xóa hồ sơ ứng viên"
+                      title={
+                        app.status === 'APPROVED'
+                          ? 'Delete approved application (deducts historical tryout revenue)'
+                          : 'Delete application'
+                      }
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

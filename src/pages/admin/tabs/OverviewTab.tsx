@@ -1,30 +1,59 @@
-import React from 'react';
-import { PieChart, ArrowRight, CreditCard, Dumbbell, ShoppingBag } from 'lucide-react';
+import React, { useRef } from 'react';
+import {
+  PieChart,
+  ArrowRight,
+  CreditCard,
+  Dumbbell,
+  ShoppingBag,
+  Ticket,
+  UserCheck,
+} from 'lucide-react';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { useAdminMetrics } from '../hooks/useAdminMetrics';
 import { RevenueKpiCards } from '../components/overview/RevenueKpiCards';
 import { RevenueTrendChart } from '../components/overview/RevenueTrendChart';
+import { GuestSessionsPanel } from '../components/overview/GuestSessionsPanel';
 
 export const OverviewTab: React.FC = () => {
   const {
     setActiveModule,
-    data: { bookings, trainingRegs, storeOrders },
+    data: { bookings, trainingRegs, storeOrders, guestSessions, applications },
   } = useAdminDashboard();
   const {
     totalClubRevenue,
     courtRevenue,
     trainingRevenue,
     storeRevenue,
+    guestSessionRevenue,
+    tryoutRevenue,
     paidBookingsCount,
     paidStoreOrdersCount,
+    paidGuestSessionsCount,
+    approvedTryoutsCount,
     confirmedTrainingCount,
   } = useAdminMetrics();
 
-  const safeTotal = totalClubRevenue > 0 ? totalClubRevenue : 1;
-  const bookingSharePct = totalClubRevenue > 0 ? Math.round((courtRevenue / safeTotal) * 100) : 0;
-  const storeSharePct = totalClubRevenue > 0 ? Math.round((storeRevenue / safeTotal) * 100) : 0;
+  const guestSessionsPanelRef = useRef<HTMLDivElement>(null);
+  const jumpToGuestSessions = () => {
+    guestSessionsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const pctOf = (value: number) =>
+    totalClubRevenue > 0 ? Math.round((value / totalClubRevenue) * 1000) / 10 : 0;
+
+  const bookingSharePct = pctOf(courtRevenue);
+  const storeSharePct = pctOf(storeRevenue);
+  const guestSharePct = pctOf(guestSessionRevenue);
+  const tryoutSharePct = pctOf(tryoutRevenue);
   const trainingSharePct =
-    totalClubRevenue > 0 ? Math.max(0, 100 - bookingSharePct - storeSharePct) : 0;
+    totalClubRevenue > 0
+      ? Math.max(
+          0,
+          Math.round(
+            (100 - bookingSharePct - storeSharePct - guestSharePct - tryoutSharePct) * 10
+          ) / 10
+        )
+      : 0;
 
   const serviceStreams = [
     {
@@ -36,16 +65,7 @@ export const OverviewTab: React.FC = () => {
       volume: `${paidBookingsCount} paid / ${bookings.length} total bookings`,
       color: 'bg-[#F97316]',
       textColor: 'text-[#F97316]',
-    },
-    {
-      id: 'TRAINING' as const,
-      icon: Dumbbell,
-      label: 'Training & Scrimmages',
-      revenue: trainingRevenue,
-      pct: trainingSharePct,
-      volume: `${confirmedTrainingCount} confirmed / ${trainingRegs.length} enrollments`,
-      color: 'bg-[#38BDF8]',
-      textColor: 'text-[#38BDF8]',
+      onClick: () => setActiveModule('BOOKINGS'),
     },
     {
       id: 'STORE' as const,
@@ -56,73 +76,98 @@ export const OverviewTab: React.FC = () => {
       volume: `${paidStoreOrdersCount} paid / ${storeOrders.length} total orders`,
       color: 'bg-[#FACC15]',
       textColor: 'text-[#FACC15]',
+      onClick: () => setActiveModule('STORE'),
+    },
+    {
+      id: 'GUEST_SESSIONS' as const,
+      icon: Ticket,
+      label: 'Guest Sessions',
+      revenue: guestSessionRevenue,
+      pct: guestSharePct,
+      volume: `${paidGuestSessionsCount} paid / ${guestSessions.length} drop-in passes`,
+      color: 'bg-[#A855F7]',
+      textColor: 'text-[#A855F7]',
+      onClick: jumpToGuestSessions,
+    },
+    {
+      id: 'APPLICATIONS' as const,
+      icon: UserCheck,
+      label: 'Tryout Fees',
+      revenue: tryoutRevenue,
+      pct: tryoutSharePct,
+      volume: `${approvedTryoutsCount} approved / ${applications.length} applications`,
+      color: 'bg-[#10B981]',
+      textColor: 'text-[#10B981]',
+      onClick: () => setActiveModule('APPLICATIONS'),
+    },
+    {
+      id: 'TRAINING' as const,
+      icon: Dumbbell,
+      label: 'Training & Scrimmages (Est.)',
+      revenue: trainingRevenue,
+      pct: trainingSharePct,
+      volume: `${confirmedTrainingCount} confirmed / ${trainingRegs.length} enrollments`,
+      color: 'bg-[#38BDF8]',
+      textColor: 'text-[#38BDF8]',
+      onClick: () => setActiveModule('TRAINING'),
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* 1. Top Row: 6 Executive Metric KPI Cards */}
-      <RevenueKpiCards />
+      {/* 1. Top Row: 8-Card Balanced 2x4 Executive Metric KPI Grid */}
+      <RevenueKpiCards onJumpToGuestSessions={jumpToGuestSessions} />
 
-      {/* 2. Middle Section: Revenue Trend Chart & Service Share */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      {/* 2. Middle Section: Revenue Trend Chart & 5-Stream Service Share */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div className="lg:col-span-2 h-full">
           <RevenueTrendChart />
         </div>
 
         {/* Service Revenue & Activity Share */}
-        <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-6 flex flex-col justify-between space-y-5">
+        <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-6 flex flex-col justify-between space-y-4">
           <div className="space-y-1">
             <h3 className="font-bold text-sm text-white flex items-center gap-2">
               <PieChart className="w-4 h-4 text-[#38BDF8]" />
-              Service Revenue Share
+              Service Revenue Share (5 Streams)
             </h3>
             <p className="text-[11px] text-slate-500">
-              Revenue & registration distribution across club services
+              Revenue distribution across verified cashflow &amp; estimated academy tuition
             </p>
           </div>
 
           {/* Stacked horizontal proportion bar */}
           <div className="space-y-2">
             <div className="h-3 w-full rounded-full bg-[#0B0F19] border border-[#1E293B] overflow-hidden flex">
-              {bookingSharePct > 0 && (
-                <div
-                  className="h-full bg-[#F97316] transition-all duration-500"
-                  style={{ width: `${bookingSharePct}%` }}
-                  title={`Court Bookings: ${bookingSharePct}%`}
-                />
-              )}
-              {trainingSharePct > 0 && (
-                <div
-                  className="h-full bg-[#38BDF8] transition-all duration-500"
-                  style={{ width: `${trainingSharePct}%` }}
-                  title={`Training & Scrimmages: ${trainingSharePct}%`}
-                />
-              )}
-              {storeSharePct > 0 && (
-                <div
-                  className="h-full bg-[#FACC15] transition-all duration-500"
-                  style={{ width: `${storeSharePct}%` }}
-                  title={`DVA Store: ${storeSharePct}%`}
-                />
+              {serviceStreams.map((s) =>
+                s.pct > 0 ? (
+                  <div
+                    key={s.id}
+                    className={`h-full ${s.color} transition-all duration-500`}
+                    style={{ width: `${s.pct}%` }}
+                    title={`${s.label}: ${s.pct}%`}
+                  />
+                ) : null
               )}
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-slate-400 font-mono">
               <span>Bookings {bookingSharePct}%</span>
-              <span>Training {trainingSharePct}%</span>
               <span>Shop {storeSharePct}%</span>
+              <span>Guest {guestSharePct}%</span>
+              <span>Tryouts {tryoutSharePct}%</span>
+              <span>Training {trainingSharePct}%</span>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {serviceStreams.map((s) => {
               const Icon = s.icon;
               return (
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setActiveModule(s.id)}
-                  className="w-full text-left p-3 rounded-2xl bg-[#0B0F19] hover:bg-[#161F30] border border-[#1E293B] transition-colors cursor-pointer space-y-1.5"
+                  onClick={s.onClick}
+                  className="w-full text-left p-2.5 rounded-2xl bg-[#0B0F19] hover:bg-[#161F30] border border-[#1E293B] transition-colors cursor-pointer space-y-1"
                 >
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-xs font-bold text-white">
@@ -146,7 +191,10 @@ export const OverviewTab: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Bottom Section: Recent Activity (Top 5 Bookings & Top 5 Training Registrations) */}
+      {/* 3. Guest Sessions & Drop-in Pass Cashflow Management */}
+      <GuestSessionsPanel panelRef={guestSessionsPanelRef} />
+
+      {/* 4. Bottom Section: Recent Activity (Top 5 Bookings & Top 5 Training Registrations) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Court Bookings (Top 5) */}
         <div className="bg-[#111827] border border-[#1E293B] rounded-3xl p-6 space-y-4">

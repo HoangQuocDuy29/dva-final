@@ -19,8 +19,9 @@ import {
   signToken,
   verifyPassword,
 } from './lib/security';
-import { EM, HttpError, E, S, N, D, sanitize } from './lib/validation';
+import { EM, HttpError, E, I, S, N, D, sanitize } from './lib/validation';
 import {
+  APPLICATION_ENTRY_FEE_SCHEMA,
   APPLICATION_STATUSES,
   BOOKING_ADMIN_EXTRA_SCHEMA,
   BOOKING_CREATE_SCHEMA,
@@ -28,6 +29,7 @@ import {
   COACH_SCHEMA,
   COURSE_SCHEMA,
   COURT_SCHEMA,
+  GUEST_SESSION_STATUS_SCHEMA,
   LEVELS,
   LEVEL_RULE,
   MEMBER_REGISTER_SCHEMA,
@@ -62,6 +64,7 @@ import {
   toCoachDto,
   toCourseDto,
   toCourtDto,
+  toGuestSessionDto,
   toNewsDto,
   toOrderDto,
   toPlayerDto,
@@ -81,6 +84,7 @@ import {
 import {
   ADMIN_ALERT_EMAIL,
   buildBookingVietQrUrl,
+  generateGuestSessionTransferDescription,
   sendAdminNotification,
   sendAdminNotificationEmail,
   notifyAdminNewSubmission,
@@ -2088,9 +2092,9 @@ app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) =>
 
 app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
   const { id } = req.params;
-  const { status, reviewNotes } = sanitize(
+  const { status, reviewNotes, entryFee } = sanitize(
     req.body,
-    { status: E(APPLICATION_STATUSES), reviewNotes: S(500) },
+    { status: E(APPLICATION_STATUSES), reviewNotes: S(500), entryFee: I(0, 100_000_000) },
     { required: ['status'] }
   );
   const existing = await prisma.memberApplication.findUnique({ where: { id } });
@@ -2106,6 +2110,14 @@ app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
       data: {
         status,
         ...(reviewNotes ? { reviewNotes } : {}),
+        ...(status === 'APPROVED'
+          ? {
+              approvedAt: existing.approvedAt ?? new Date(),
+              entryFee: entryFee !== undefined ? entryFee : (existing.entryFee ?? 100000),
+            }
+          : {
+              approvedAt: null,
+            }),
       },
     });
 
@@ -2138,6 +2150,22 @@ app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
   });
 
   res.json({ application: toApplicationDto(updated), promotedPlayer: status === 'APPROVED' });
+}));
+
+app.patch('/api/members/applications/:id/entry-fee', ah(async (req, res) => {
+  const { id } = req.params;
+  const { entryFee } = sanitize(req.body, APPLICATION_ENTRY_FEE_SCHEMA, {
+    required: ['entryFee'],
+  });
+  const existing = await prisma.memberApplication.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+  const updated = await prisma.memberApplication.update({
+    where: { id },
+    data: { entryFee },
+  });
+  res.json(toApplicationDto(updated));
 }));
 
 app.delete('/api/members/applications/:id', ah(async (req, res) => {
@@ -2564,7 +2592,70 @@ app.post('/api/cloudinary/sign-upload', (req, res) => {
   });
 });
 
-// 10. Admin Guest Session Notification Email
+// 10. Admin Guest Session Notification Email & Cashflow Persistence
+async function generateUniqueGuestSessionTransferContent(
+  fullName: string,
+  sessionDate: string,
+  sessionTime: string,
+  position: string
+): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = generateGuestSessionTransferDescription(
+      fullName,
+      sessionDate,
+      sessionTime,
+      position
+    );
+    const exists = await prisma.guestSession.findUnique({
+      where: { transferContent: candidate },
+      select: { id: true },
+    });
+    if (!exists) return candidate;
+  }
+  return `${generateGuestSessionTransferDescription(fullName, sessionDate, sessionTime, position)} ${crypto.randomInt(100, 999)}`;
+}
+
+app.get('/api/admin/guest-sessions', ah(async (req, res) => {
+  const statusFilter = typeof req.query.status === 'string' ? req.query.status.toUpperCase() : '';
+  const where =
+    statusFilter && ['PENDING', 'PAID', 'CANCELLED'].includes(statusFilter)
+      ? { paymentStatus: statusFilter as 'PENDING' | 'PAID' | 'CANCELLED' }
+      : undefined;
+
+  const rows = await prisma.guestSession.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
+  res.json(rows.map(toGuestSessionDto));
+}));
+
+app.patch('/api/admin/guest-sessions/:id/status', ah(async (req, res) => {
+  const { id } = req.params;
+  const { paymentStatus } = sanitize(req.body, GUEST_SESSION_STATUS_SCHEMA, {
+    required: ['paymentStatus'],
+  });
+  const existing = await prisma.guestSession.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Guest session not found' });
+  }
+  const updated = await prisma.guestSession.update({
+    where: { id },
+    data: {
+      paymentStatus,
+      paidAt: paymentStatus === 'PAID' ? (existing.paidAt ?? new Date()) : null,
+    },
+  });
+  res.json(toGuestSessionDto(updated));
+}));
+
+app.delete('/api/admin/guest-sessions/:id', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.guestSession.findUnique({ where: { id } });
+  if (existing) await prisma.guestSession.delete({ where: { id } });
+  res.json({ success: true, message: 'Guest session deleted' });
+}));
+
 app.post('/api/admin/send-guest-session-email', ah(async (req, res) => {
   const body = req.body ?? {};
   const guestEmail = typeof body.guestEmail === 'string' ? body.guestEmail.trim().toLowerCase() : '';
@@ -2575,7 +2666,9 @@ app.post('/api/admin/send-guest-session-email', ah(async (req, res) => {
   const level = typeof body.level === 'string' ? body.level.trim() : 'All Levels';
   const sessionDate = typeof body.sessionDate === 'string' ? body.sessionDate.trim() : '';
   const sessionTime = typeof body.sessionTime === 'string' ? body.sessionTime.trim() : '19:30 - 21:30';
-  const amount = Number(body.amount);
+  const amount = Math.round(Number(body.amount));
+  const alreadyPaid = Boolean(body.alreadyPaid);
+  const forceDuplicate = Boolean(body.forceDuplicate);
 
   if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
     return res.status(400).json({ error: 'Email khách hàng không hợp lệ.' });
@@ -2596,6 +2689,61 @@ app.post('/api/admin/send-guest-session-email', ah(async (req, res) => {
     return res.status(400).json({ error: 'Mức phí giữ chỗ không hợp lệ.' });
   }
 
+  // Duplicate guard for same (guestEmail, sessionDate, sessionTime) unless explicitly confirmed
+  if (!forceDuplicate) {
+    const existingDuplicate = await prisma.guestSession.findFirst({
+      where: {
+        guestEmail,
+        sessionDate,
+        sessionTime,
+        paymentStatus: { not: 'CANCELLED' },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existingDuplicate) {
+      return res.status(409).json({
+        error: `Khách ${guestEmail} đã được gửi email cho ca ${sessionDate} (${sessionTime}). Xác nhận gửi lại nếu bạn muốn tạo thêm lượt mới.`,
+        duplicateDetected: true,
+        existingSession: toGuestSessionDto(existingDuplicate),
+      });
+    }
+  }
+
+  const courtAddress =
+    typeof body.courtAddress === 'string' && body.courtAddress.trim()
+      ? body.courtAddress.trim()
+      : '155 Trường Chinh, Thanh Xuân, Hà Nội';
+  const notes = typeof body.notes === 'string' ? body.notes.trim() : undefined;
+
+  const transferContent = await generateUniqueGuestSessionTransferContent(
+    fullName,
+    sessionDate,
+    sessionTime,
+    position
+  );
+
+  const now = new Date();
+  const createdSession = await prisma.guestSession.create({
+    data: {
+      id: `gs-${crypto.randomUUID()}`,
+      guestName: fullName,
+      guestEmail,
+      phone,
+      position,
+      positionPrivilege,
+      level,
+      sessionDate,
+      sessionTime,
+      courtAddress,
+      amount,
+      transferContent,
+      paymentStatus: alreadyPaid ? 'PAID' : 'PENDING',
+      notes: notes || null,
+      paidAt: alreadyPaid ? now : null,
+      emailSentAt: now,
+    },
+  });
+
   const payload: GuestSessionEmailPayload = {
     guestEmail,
     fullName,
@@ -2607,9 +2755,10 @@ app.post('/api/admin/send-guest-session-email', ah(async (req, res) => {
     level,
     sessionDate,
     sessionTime,
-    courtAddress: typeof body.courtAddress === 'string' && body.courtAddress.trim() ? body.courtAddress.trim() : undefined,
+    courtAddress,
     amount,
-    notes: typeof body.notes === 'string' ? body.notes.trim() : undefined,
+    transferContent,
+    notes,
   };
 
   // Safe async dispatch (fire-and-forget, non-blocking)
@@ -2619,7 +2768,10 @@ app.post('/api/admin/send-guest-session-email', ah(async (req, res) => {
 
   return res.json({
     success: true,
-    message: 'Đã gửi email thông tin session cho khách vãng lai thành công!',
+    message: alreadyPaid
+      ? 'Đã ghi nhận thanh toán PAID và phát hành email session cho khách!'
+      : 'Đã lưu Guest Session (PENDING) và gửi email thông tin cho khách thành công!',
+    guestSession: toGuestSessionDto(createdSession),
   });
 }));
 
@@ -2713,7 +2865,7 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
     ? hyphenMatch[0].toUpperCase()
     : null;
 
-  const hasDvaKeyword = /\bDVA\b/i.test(content) || Boolean(extractedBookingCode);
+  const hasDvaKeyword = /\b(DVA|SCRIM)\b/i.test(content) || Boolean(extractedBookingCode);
   if (!hasDvaKeyword) {
     return res.status(200).json({
       success: true,
@@ -2805,6 +2957,43 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
       return res.status(200).json({
         success: true,
         message: 'Shop order payment processed automatically via webhook',
+      });
+    }
+
+    // Fallback sang Guest Session Drop-in Pass nếu khớp cú pháp SCRIM ...
+    const pendingGuestSessions = await prisma.guestSession.findMany({
+      where: { paymentStatus: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const matchedGuest =
+      pendingGuestSessions.find((g) => {
+        const cleanTransfer = (g.transferContent || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        return Boolean(cleanTransfer && normalizedContent.includes(cleanTransfer));
+      }) ?? null;
+
+    if (matchedGuest) {
+      if (!Number.isFinite(amount) || amount < matchedGuest.amount) {
+        return res.status(200).json({
+          success: false,
+          message: 'Insufficient payment amount for Guest Session',
+        });
+      }
+
+      const parsedTxDate = transactionDate ? new Date(transactionDate) : new Date();
+      const confirmedAt = Number.isNaN(parsedTxDate.getTime()) ? new Date() : parsedTxDate;
+
+      await prisma.guestSession.update({
+        where: { id: matchedGuest.id },
+        data: {
+          paymentStatus: 'PAID',
+          paidAt: matchedGuest.paidAt ?? confirmedAt,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Guest session payment processed automatically via webhook',
       });
     }
 
