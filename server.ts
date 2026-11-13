@@ -3054,14 +3054,22 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
 // ==========================================
 
 app.get('/api/store/products', ah(async (req, res) => {
-  const includeInactive = isStaff(req.user) && String(req.query.all || '').toLowerCase() !== 'false';
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
+  const isStaffUser = isStaff(req.user);
+  const activeOnlyRequested = req.query.activeOnly === 'true';
   const category = typeof req.query.category === 'string' ? req.query.category.trim().toUpperCase() : '';
+
   const where: Record<string, any> = {};
-  if (!includeInactive && req.query.activeOnly === 'true') {
+
+  // Public visitors, storefront queries, or explicit activeOnly requests MUST be filtered at DB level:
+  // - isActive: true (exclude hidden products)
+  // - isPaused: false (exclude paused / out-of-stock products from public storefront)
+  if (!isStaffUser || activeOnlyRequested) {
     where.isActive = true;
-  } else if (!isStaff(req.user)) {
-    where.isActive = true;
+    where.isPaused = false;
   }
+
   if (category && category !== 'ALL') {
     where.category = category;
   }
@@ -3074,6 +3082,8 @@ app.get('/api/store/products', ah(async (req, res) => {
 }));
 
 app.get('/api/store/products/:idOrSlug', ah(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
   const { idOrSlug } = req.params;
   const where: Record<string, any> = {
     OR: [
@@ -3084,10 +3094,11 @@ app.get('/api/store/products/:idOrSlug', ah(async (req, res) => {
   };
   if (!isStaff(req.user)) {
     where.isActive = true;
+    where.isPaused = false;
   }
   const product = await prisma.product.findFirst({ where });
   if (!product) {
-    return res.status(404).json({ error: 'Product not found' });
+    return res.status(404).json({ error: 'Product not found or currently unavailable' });
   }
   return res.json(toProductDto(product));
 }));

@@ -54,109 +54,6 @@ import { VIETNAM_PROVINCES, formatVietnameseAddress } from '../data/vietnamAddre
 
 const DEFAULT_COURT_PICKUP_ADDRESS = '155 Truong Chinh - Thanh Xuan - Hanoi (DVA Court - BTL Thong Tin)';
 
-const FALLBACK_SHOP_PRODUCTS: StoreProduct[] = [
-  {
-    id: 'prod-dva-slv-2026',
-    sku: 'DVA-JSY-SLV-01',
-    slug: 'dva-pro-sleeveless-training-tank',
-    name: 'DVA Pro Sleeveless Training & Scrimmage Tank',
-    category: 'SLEEVELESS',
-    originalPrice: 350000,
-    price: 290000,
-    frontImage: '/courts/btl.png',
-    backImage: '/courts/thecong.png',
-    imageUrl: '/courts/btl.png',
-    description:
-      'Ultra-lightweight moisture-wicking sleeveless match tank engineered for explosive vertical jump, spike approach, and unrestricted shoulder mobility. Features custom back player name sublimation.',
-    sizes: ['S', 'M', 'L', 'XL', '2XL'],
-    stock: 50,
-    badge: 'PRO KIT',
-    allowCustomPrint: true,
-    isPaused: false,
-    isActive: true,
-  },
-  {
-    id: 'prod-dva-ss-2026',
-    sku: 'DVA-JSY-SH-01',
-    slug: 'dva-2026-official-match-jersey-short-sleeve',
-    name: 'DVA 2026 Official Match Jersey — Short Sleeve (Home Red)',
-    category: 'SHORT_SLEEVE',
-    originalPrice: 420000,
-    price: 350000,
-    frontImage: '/courts/thecong.png',
-    backImage: '/courts/btl.png',
-    imageUrl: '/courts/thecong.png',
-    description:
-      'Official DVA Volleyball Club home tournament jersey with 4-way micro-mesh ventilation side panels and custom player competition name printing on back.',
-    sizes: ['S', 'M', 'L', 'XL', '2XL'],
-    stock: 60,
-    badge: 'BEST SELLER',
-    allowCustomPrint: true,
-    isPaused: false,
-    isActive: true,
-  },
-  {
-    id: 'prod-dva-wmn-2026',
-    sku: 'DVA-JSY-WMN-01',
-    slug: 'dva-womens-elite-competition-jersey',
-    name: "DVA Elite Women's Competition Jersey (Sunset Orange)",
-    category: 'WOMEN',
-    originalPrice: 400000,
-    price: 350000,
-    frontImage: '/courts/btl.png',
-    backImage: '/courts/thecong.png',
-    imageUrl: '/courts/btl.png',
-    description:
-      "Tailored athletic silhouette designed for DVA Women's Division athletes. Ultra-light 4-way stretch polyester with custom competition player name printing.",
-    sizes: ['S', 'M', 'L', 'XL', '2XL'],
-    stock: 40,
-    badge: 'WOMEN PRO',
-    allowCustomPrint: true,
-    isPaused: false,
-    isActive: true,
-  },
-  {
-    id: 'prod-dva-kp-pro',
-    sku: 'DVA-PAD-KP-01',
-    slug: 'dva-impact-shield-pro-knee-pads',
-    name: 'DVA Impact Shield Volleyball Knee Pads (Pair)',
-    category: 'KNEE_PADS',
-    originalPrice: 300000,
-    price: 250000,
-    frontImage: '/courts/thecong.png',
-    backImage: '/courts/btl.png',
-    imageUrl: '/courts/thecong.png',
-    description:
-      'High-density multi-segment EVA shock-absorbing foam knee pads protecting patella and lateral ligaments during aggressive Taraflex court dives and floor recoveries.',
-    sizes: ['S/M (Black)', 'L/XL (Black)', 'S/M (White)', 'L/XL (White)'],
-    stock: 80,
-    badge: 'PROTECTION',
-    allowCustomPrint: false,
-    isPaused: false,
-    isActive: true,
-  },
-  {
-    id: 'prod-dva-sck-crew',
-    sku: 'DVA-SCK-CRW-01',
-    slug: 'dva-cushioned-mid-crew-court-socks',
-    name: 'DVA Grip-Lock Pro Compression Crew Socks',
-    category: 'SOCKS',
-    originalPrice: 150000,
-    price: 120000,
-    frontImage: '/courts/btl.png',
-    backImage: '/courts/thecong.png',
-    imageUrl: '/courts/btl.png',
-    description:
-      'Cushioned heel and forefoot court socks with anatomical arch compression band and anti-slip footbed traction preventing blistering during high-friction approaches.',
-    sizes: ['M (EU 36-40) - White/Red', 'L (EU 41-45) - White/Red', 'L (EU 41-45) - Stealth Black'],
-    stock: 120,
-    badge: 'ESSENTIAL',
-    allowCustomPrint: false,
-    isPaused: false,
-    isActive: true,
-  },
-];
-
 /** Size guide table: strictly starting from S and up (NO XS) */
 const JERSEY_SIZE_GUIDE_ROWS = [
   { size: 'S', height: '160 – 167 cm', weight: '50 – 60 kg', chest: '92 cm', length: '67 cm' },
@@ -293,15 +190,14 @@ export const ShopPage: React.FC = () => {
       try {
         const res = await storeService.getProducts({ activeOnly: true });
         if (mounted) {
-          const activeList =
-            Array.isArray(res) && res.length > 0
-              ? res.filter((p) => p.isActive !== false)
-              : FALLBACK_SHOP_PRODUCTS;
+          const activeList = Array.isArray(res)
+            ? res.filter((p) => p.isActive !== false && p.isPaused !== true)
+            : [];
           setProducts(activeList);
         }
       } catch {
         if (mounted) {
-          setProducts(FALLBACK_SHOP_PRODUCTS);
+          setProducts([]);
         }
       } finally {
         if (mounted) {
@@ -322,10 +218,12 @@ export const ShopPage: React.FC = () => {
     return (
       products.find(
         (p) =>
-          (p.slug && p.slug.toLowerCase().trim() === normSlug) ||
-          slugifyProductName(p.name) === normSlug ||
-          p.id === normSlug ||
-          p.sku?.toLowerCase() === normSlug
+          p.isActive !== false &&
+          p.isPaused !== true &&
+          ((p.slug && p.slug.toLowerCase().trim() === normSlug) ||
+            slugifyProductName(p.name) === normSlug ||
+            p.id === normSlug ||
+            p.sku?.toLowerCase() === normSlug)
       ) || null
     );
   }, [products, productSlug]);
@@ -351,7 +249,7 @@ export const ShopPage: React.FC = () => {
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      if (product.isActive === false) return false;
+      if (product.isActive === false || product.isPaused === true) return false;
       if (activeCategory !== 'ALL' && product.category !== activeCategory) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
@@ -519,35 +417,36 @@ export const ShopPage: React.FC = () => {
       {/* ===================================================================== */}
       {/* 1. DEDICATED PRODUCT DETAIL VIEW (/shop/:categorySlug/:productSlug)   */}
       {/* ===================================================================== */}
-      {productSlug && currentDetailProduct ? (
-        <div className="pt-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Breadcrumb Navigation */}
-          <nav className="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-6 overflow-x-auto no-scrollbar">
-            <Link to="/" className="hover:text-white transition-colors">
-              Home
-            </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-            <Link to="/shop" className="hover:text-white transition-colors">
-              Shop
-            </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-            <span className="text-slate-300">
-              {getShopCategoryLabel(currentDetailProduct.category)}
-            </span>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-            <span className="text-red-400 font-bold truncate max-w-xs">{currentDetailProduct.name}</span>
-          </nav>
+      {productSlug ? (
+        currentDetailProduct ? (
+          <div className="pt-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Breadcrumb Navigation */}
+            <nav className="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-6 overflow-x-auto no-scrollbar">
+              <Link to="/" className="hover:text-white transition-colors">
+                Home
+              </Link>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
+              <Link to="/shop" className="hover:text-white transition-colors">
+                Shop
+              </Link>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
+              <span className="text-slate-300">
+                {getShopCategoryLabel(currentDetailProduct.category)}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
+              <span className="text-red-400 font-bold truncate max-w-xs">{currentDetailProduct.name}</span>
+            </nav>
 
-          <div className="mb-6">
-            <button
-              type="button"
-              onClick={() => navigate('/shop')}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#111827] hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold border border-slate-800 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to All Gear</span>
-            </button>
-          </div>
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={() => navigate('/shop')}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#111827] hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-bold border border-slate-800 transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to All Gear</span>
+              </button>
+            </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 bg-[#0E1524] border border-slate-800 rounded-3xl p-6 sm:p-8 lg:p-10 shadow-2xl">
             {/* LEFT: GALLERY & HIGH-RES ZOOM VIEWER (5 cols) */}
@@ -894,6 +793,26 @@ export const ShopPage: React.FC = () => {
           </div>
         </div>
       ) : (
+        <div className="pt-32 pb-24 max-w-xl mx-auto px-4 text-center space-y-4 animate-in fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-[#0E1524] border border-slate-800 text-slate-400 flex items-center justify-center mx-auto shadow-xl">
+            <ShoppingBag className="w-8 h-8 text-orange-400" />
+          </div>
+          <h2 className="text-2xl font-black text-white font-heading tracking-tight">Product Unavailable</h2>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+            This gear item is currently hidden, paused, or no longer available in the official DVA Store catalog.
+          </p>
+          <div className="pt-3">
+            <button
+              type="button"
+              onClick={() => navigate('/shop')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Return to Shop</span>
+            </button>
+          </div>
+        </div>
+      )) : (
         /* ===================================================================== */
         /* 2. CATALOG DISCOVERY & GRID VIEW (/shop)                              */
         /* ===================================================================== */
@@ -990,6 +909,30 @@ export const ShopPage: React.FC = () => {
               <div className="py-24 flex flex-col items-center justify-center gap-3 text-slate-400">
                 <Loader2 className="w-8 h-8 animate-spin text-red-500" />
                 <p className="text-sm font-semibold">Loading official DVA Store catalog...</p>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="bg-[#0E1524] border border-slate-800 rounded-3xl p-12 text-center space-y-4 max-w-xl mx-auto my-12 shadow-2xl animate-in fade-in">
+                <div className="w-16 h-16 rounded-2xl bg-red-950/40 border border-red-800/60 text-red-400 flex items-center justify-center mx-auto shadow-inner">
+                  <ShoppingBag className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-black text-white font-heading tracking-tight">DVA Official Gear Restocking Soon</h3>
+                <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Our official apparel and equipment collection is currently updating. Stay tuned for new releases or check back shortly!
+                </p>
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link
+                    to="/booking"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg transition-all"
+                  >
+                    Reserve Practice Court
+                  </Link>
+                  <Link
+                    to="/courses"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-colors"
+                  >
+                    Explore Training Courses
+                  </Link>
+                </div>
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="bg-[#0E1524] border border-slate-800 rounded-3xl p-12 text-center space-y-3">
