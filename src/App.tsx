@@ -16,6 +16,7 @@ const NewsPage = lazy(() => import('./pages/NewsPage').then((m) => ({ default: m
 const NewsDetailPage = lazy(() => import('./pages/NewsDetailPage').then((m) => ({ default: m.NewsDetailPage })));
 const CourtBookingPage = lazy(() => import('./pages/CourtBookingPage').then((m) => ({ default: m.CourtBookingPage })));
 const TrainingPage = lazy(() => import('./pages/TrainingPage').then((m) => ({ default: m.TrainingPage })));
+const ShopPage = lazy(() => import('./pages/ShopPage').then((m) => ({ default: m.ShopPage })));
 const MemberRegisterPage = lazy(() => import('./pages/MemberRegisterPage').then((m) => ({ default: m.MemberRegisterPage })));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
 
@@ -109,15 +110,19 @@ export default function App() {
               <Route path="/news" element={<NewsPage currentUser={currentUser} />} />
               <Route path="/news/:id" element={<NewsDetailPage />} />
 
-              {/* Module 5: Services */}
+              {/* Module 5: Services & DVA Shop */}
               <Route path="/services/court-booking" element={<CourtBookingPage />} />
               <Route path="/services/training-scrimmage" element={<TrainingPage />} />
+              <Route path="/shop" element={<ShopPage />} />
+              <Route path="/shop/:categorySlug/:productSlug" element={<ShopPage />} />
+              <Route path="/services/shop" element={<ShopPage />} />
 
               {/* Automatic Redirects for Legacy Service URLs */}
               <Route path="/booking" element={<RedirectPreserveQuery to="/services/court-booking" />} />
               <Route path="/court-booking" element={<RedirectPreserveQuery to="/services/court-booking" />} />
               <Route path="/training" element={<RedirectPreserveQuery to="/services/training-scrimmage" />} />
               <Route path="/services/training" element={<RedirectPreserveQuery to="/services/training-scrimmage" />} />
+              <Route path="/store" element={<RedirectPreserveQuery to="/shop" />} />
 
               {/* Module 6: Member Registration */}
               <Route path="/register" element={<MemberRegisterPage />} />

@@ -23,11 +23,10 @@ export const GOOGLE_APPS_SCRIPT_TEMPLATE = `var STANDARD_HEADERS = {
     'Thời Gian Nhận',
     'Mã đăng ký',
     'Gói tập / Khóa học',
-    'Cấp độ / Đội',
     'Họ và tên học viên',
     'Số điện thoại',
     'Email',
-    'Vị trí thi đấu / Mục tiêu tập',
+    'Trình độ hiện tại',
     'Khung giờ mong muốn',
     'Mức học phí (VNĐ)',
     'Nội dung chuyển khoản',
@@ -52,6 +51,27 @@ export const GOOGLE_APPS_SCRIPT_TEMPLATE = `var STANDARD_HEADERS = {
     'Chiến thuật 5-1',
     'Quê quán',
     'Thời gian gửi'
+  ],
+  DonHang_Shop: [
+    'Thời Gian Nhận',
+    'Mã đơn hàng',
+    'Phân loại danh mục',
+    'Tên sản phẩm',
+    'Size',
+    'Số lượng',
+    'Họ tên khách',
+    'SĐT',
+    'Email',
+    'Instagram/Facebook',
+    'Hình thức nhận',
+    'Địa chỉ nhận',
+    'Chiều cao/Cân nặng',
+    'Tên in áo',
+    'Số áo in',
+    'Tổng tiền (VNĐ)',
+    'Nội dung CK',
+    'Trạng thái đơn',
+    'Ghi chú'
   ]
 };
 
@@ -74,10 +94,17 @@ function doPost(e) {
     var sheetName = String(payload.sheetName || 'DatSan').trim();
     var data = payload.data || payload;
     if (typeof data === 'string') {
-      try { data = JSON.parse(data); } catch (ex) { data = {}; }
+      try {
+        data = JSON.parse(data);
+      } catch (ex) {
+        data = {};
+      }
     }
 
-    var timestamp = payload.timestamp || new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    var timestamp =
+      payload.timestamp ||
+      new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName(sheetName);
 
@@ -91,17 +118,23 @@ function doPost(e) {
     var headers = [];
 
     if (lastRow === 0 || lastCol === 0) {
-      headers = STANDARD_HEADERS[sheetName] ? STANDARD_HEADERS[sheetName].slice() : ['Thời Gian Nhận'].concat(Object.keys(data));
+      headers = STANDARD_HEADERS[sheetName]
+        ? STANDARD_HEADERS[sheetName].slice()
+        : ['Thời Gian Nhận'].concat(Object.keys(data));
       sheet.appendRow(headers);
-      sheet.getRange(1, 1, 1, headers.length)
+      sheet
+        .getRange(1, 1, 1, headers.length)
         .setBackground('#B91C1C')
         .setFontColor('#FFFFFF')
         .setFontWeight('bold');
       sheet.setFrozenRows(1);
     } else {
-      headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) {
-        return String(h || '').trim();
-      });
+      headers = sheet
+        .getRange(1, 1, 1, lastCol)
+        .getValues()[0]
+        .map(function (h) {
+          return String(h || '').trim();
+        });
     }
 
     // 2. Chuẩn hóa key trong data (trim khoảng trắng) để khớp chính xác với tiêu đề cột
@@ -112,12 +145,13 @@ function doPost(e) {
       normalizedData[k] = data[rawKeys[i]];
     }
 
-    // 3. Đảm bảo toàn bộ các cột chuẩn của bảng (STANDARD_HEADERS) hoặc trường mới trong data đều có mặt trên dòng 1
+    // 3. Đảm bảo toàn bộ cột chuẩn của bảng (STANDARD_HEADERS) hoặc trường mới trong data đều có mặt trên dòng 1
     var requiredCols = STANDARD_HEADERS[sheetName] || [];
     for (var c = 0; c < requiredCols.length; c++) {
       var stdCol = requiredCols[c];
       if (headers.indexOf(stdCol) === -1) {
-        sheet.getRange(1, headers.length + 1)
+        sheet
+          .getRange(1, headers.length + 1)
           .setValue(stdCol)
           .setBackground('#B91C1C')
           .setFontColor('#FFFFFF')
@@ -129,7 +163,8 @@ function doPost(e) {
     for (var j = 0; j < rawKeys.length; j++) {
       var cleanKey = String(rawKeys[j]).trim();
       if (cleanKey && headers.indexOf(cleanKey) === -1) {
-        sheet.getRange(1, headers.length + 1)
+        sheet
+          .getRange(1, headers.length + 1)
           .setValue(cleanKey)
           .setBackground('#B91C1C')
           .setFontColor('#FFFFFF')
@@ -145,20 +180,31 @@ function doPost(e) {
       if (colName === 'Thời Gian Nhận' || colName === 'Received_Timestamp') {
         rowValues.push(timestamp);
       } else if (colName === 'Timestamp') {
-        rowValues.push(normalizedData['Timestamp'] !== undefined ? normalizedData['Timestamp'] : timestamp);
+        rowValues.push(
+          normalizedData['Timestamp'] !== undefined ? normalizedData['Timestamp'] : timestamp
+        );
       } else if (colName === 'Thời gian đăng ký') {
-        rowValues.push(normalizedData['Thời gian đăng ký'] !== undefined ? normalizedData['Thời gian đăng ký'] : timestamp);
+        rowValues.push(
+          normalizedData['Thời gian đăng ký'] !== undefined
+            ? normalizedData['Thời gian đăng ký']
+            : timestamp
+        );
       } else if (colName === 'Thời gian gửi') {
-        rowValues.push(normalizedData['Thời gian gửi'] !== undefined ? normalizedData['Thời gian gửi'] : timestamp);
+        rowValues.push(
+          normalizedData['Thời gian gửi'] !== undefined
+            ? normalizedData['Thời gian gửi']
+            : timestamp
+        );
       } else {
         var val = normalizedData[colName];
         rowValues.push(val !== undefined && val !== null ? val : '');
       }
     }
 
-    // 5. Chống ghi đúp dòng (Idempotent Upsert theo 'Mã đặt sân' hoặc 'Mã đăng ký')
+    // 5. Chống ghi đúp dòng (Idempotent Upsert theo 'Mã đặt sân', 'Mã đăng ký' hoặc 'Mã đơn hàng')
     var idColIndex = headers.indexOf('Mã đặt sân');
     if (idColIndex === -1) idColIndex = headers.indexOf('Mã đăng ký');
+    if (idColIndex === -1) idColIndex = headers.indexOf('Mã đơn hàng');
     var recordId = idColIndex !== -1 ? String(rowValues[idColIndex] || '').trim() : '';
 
     var updatedExistingRow = false;
@@ -198,4 +244,5 @@ function doGet(e) {
   return ContentService.createTextOutput(
     JSON.stringify({ status: 'active', message: 'DVA Google Apps Script Webhook is ready' })
   ).setMimeType(ContentService.MimeType.JSON);
-}`;
+}
+`;

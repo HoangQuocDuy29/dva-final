@@ -8,7 +8,7 @@ interface GoogleSheetsViewerModalProps {
 }
 
 export const GoogleSheetsViewerModal: React.FC<GoogleSheetsViewerModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations'>('Court_Bookings');
+  const [activeTab, setActiveTab] = useState<'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations' | 'Store_Orders'>('Court_Bookings');
   const [sheetsData, setSheetsData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
@@ -147,6 +147,20 @@ export const GoogleSheetsViewerModal: React.FC<GoogleSheetsViewerModalProps> = (
               <span>Tab 3: Training_Registrations</span>
               <span className="px-1.5 py-0.2 bg-emerald-950 text-emerald-300 text-[10px] rounded-full font-mono border border-emerald-800">
                 {sheetsData?.tabs?.Training_Registrations?.length || 0}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('Store_Orders')}
+              className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === 'Store_Orders'
+                  ? 'bg-[#161F30] text-emerald-400 border-t-2 border-emerald-500 shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>Tab 4: DonHang_Shop</span>
+              <span className="px-1.5 py-0.2 bg-emerald-950 text-emerald-300 text-[10px] rounded-full font-mono border border-emerald-800">
+                {sheetsData?.tabs?.Store_Orders?.length || 0}
               </span>
             </button>
           </div>

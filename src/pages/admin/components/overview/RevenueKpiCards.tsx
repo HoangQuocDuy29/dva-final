@@ -17,16 +17,18 @@ export const RevenueKpiCards: React.FC = () => {
     trainingRevenue,
     storeRevenue,
     paidBookingsCount,
+    paidStoreOrdersCount,
     confirmedTrainingCount,
     pendingBookingsCount,
     pendingTrainingCount,
     pendingApplicationsCount,
+    pendingStoreOrdersCount,
     playersCount,
   } = useAdminMetrics();
 
   const activeAthletesCount = players.filter((p) => p.isActive !== false).length;
   const totalPendingApprovals =
-    pendingBookingsCount + pendingTrainingCount + pendingApplicationsCount;
+    pendingBookingsCount + pendingTrainingCount + pendingApplicationsCount + pendingStoreOrdersCount;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -68,13 +70,13 @@ export const RevenueKpiCards: React.FC = () => {
         onClick={() => setActiveModule('BOOKINGS')}
       />
 
-      {/* 4. Shop Revenue [Coming Soon] */}
+      {/* 4. Shop Revenue */}
       <KpiCard
         icon={ShoppingBag}
         label="Shop Revenue"
-        badge="Coming Soon"
+        badge="Live"
         value={formatVnd(storeRevenue)}
-        note="DVA Store launches in Phase 2"
+        note={`${paidStoreOrdersCount} verified store orders`}
         accent="text-[#FACC15]"
         bar="bg-[#FACC15]"
         onClick={() => setActiveModule('STORE')}
@@ -96,16 +98,18 @@ export const RevenueKpiCards: React.FC = () => {
         icon={Clock}
         label="Pending Approvals"
         value={`${totalPendingApprovals} Items`}
-        note={`${pendingBookingsCount} bookings · ${pendingTrainingCount} trainees · ${pendingApplicationsCount} tryouts`}
+        note={`${pendingBookingsCount} bookings · ${pendingStoreOrdersCount} shop · ${pendingTrainingCount} trainees · ${pendingApplicationsCount} tryouts`}
         accent="text-amber-400"
         bar="bg-amber-400"
         onClick={() =>
           setActiveModule(
             pendingBookingsCount > 0
               ? 'BOOKINGS'
-              : pendingTrainingCount > 0
-                ? 'TRAINING'
-                : 'APPLICATIONS'
+              : pendingStoreOrdersCount > 0
+                ? 'STORE'
+                : pendingTrainingCount > 0
+                  ? 'TRAINING'
+                  : 'APPLICATIONS'
           )
         }
       />

@@ -93,7 +93,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [b, a, t, p, n, courses, coaches, fetchedCourts] = await Promise.all([
+      const [b, a, t, p, n, courses, coaches, fetchedCourts, fetchedProducts, fetchedOrders] = await Promise.all([
         bookingService.getBookings(),
         memberService.getApplications(),
         trainingService.getRegistrations(),
@@ -102,6 +102,8 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
         trainingService.getCourses(),
         coachService.getCoaches(),
         courtService.getCourts(),
+        storeService.getProducts(),
+        storeService.getOrders(),
       ]);
       setBookings(Array.isArray(b) ? b : []);
       setApplications(Array.isArray(a) ? a : []);
@@ -111,9 +113,12 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       setCoursesList(Array.isArray(courses) ? courses : []);
       setCoachesList(Array.isArray(coaches) ? coaches : []);
       setCourtsList(normalizeActiveCourts(fetchedCourts));
+      setStoreProducts(Array.isArray(fetchedProducts) ? fetchedProducts : []);
+      setStoreOrders(Array.isArray(fetchedOrders) ? fetchedOrders : []);
+      loadedLazyScopesRef.current.add('STORE');
 
       // Also refresh any lazy scopes that have already been visited
-      const activeLazyScopes = Array.from(loadedLazyScopesRef.current);
+      const activeLazyScopes = Array.from(loadedLazyScopesRef.current).filter((s) => s !== 'STORE');
       if (activeLazyScopes.length > 0) {
         await Promise.all(activeLazyScopes.map((scope) => fetchLazyScope(scope)));
       }

@@ -10,7 +10,8 @@ import {
   LogOut,
   LayoutDashboard,
   CalendarDays,
-  Users
+  Users,
+  ShoppingBag
 } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { authService } from '../../services/api';
@@ -114,6 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const secondaryNavLinks = [
+    { label: t('nav.shop', 'Shop'), path: '/shop' },
     { label: t('nav.clubInfo', 'Information'), path: '/information' },
     { label: t('nav.news'), path: '/news' },
   ];
@@ -130,6 +132,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       subtitle: 'Coaching clinics & weekly open games',
       path: '/services/training-scrimmage',
       icon: Users,
+    },
+    {
+      title: t('nav.shop', 'Shop'),
+      subtitle: 'Official jerseys, custom printing & gear',
+      path: '/shop',
+      icon: ShoppingBag,
     },
   ];
 

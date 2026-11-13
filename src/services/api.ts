@@ -13,9 +13,12 @@ import {
   UserRole,
   ManagedUserRole,
   GuestSessionPayload,
+  OrderStatus,
   PaymentStatus,
   StoreProduct,
-  StoreOrder
+  StoreOrder,
+  StoreOrderCreatePayload,
+  getShopCategoryCode
 } from '../types';
 import { 
   GUEST_USER,
@@ -855,7 +858,8 @@ export const sheetsService = {
       tabs: {
         Member_Registrations: [],
         Court_Bookings: [],
-        Training_Registrations: []
+        Training_Registrations: [],
+        Store_Orders: []
       }
     });
   },
@@ -896,11 +900,11 @@ export const googleScriptSyncService = {
   /**
    * Client-side direct Google Apps Script sync is strictly disabled (no-op).
    * All form submissions must only go to internal Backend APIs (`/api/bookings`,
-   * `/api/training/register`, `/api/members/register`), where the Backend acts as
+   * `/api/training/register`, `/api/members/register`, `/api/store/orders`), where the Backend acts as
    * the single source of truth to forward webhooks to Google Sheets without duplicates.
    */
   async syncToGoogleSheet(
-    _sheetName: 'DatSan' | 'TuyenThanhVien' | 'DangKyKhoaHoc' | 'LienHe',
+    _sheetName: 'DatSan' | 'TuyenThanhVien' | 'DangKyKhoaHoc' | 'DonHang_Shop' | 'LienHe',
     _data: Record<string, any>
   ): Promise<{ success: boolean; message?: string }> {
     return {
@@ -911,7 +915,7 @@ export const googleScriptSyncService = {
 
   /** Admin-only: ask the server to push a test row to the configured Google Sheets webhook. */
   async testSync(
-    sheetName: 'DatSan' | 'Training_Registrations' | 'TuyenThanhVien' | 'DangKyKhoaHoc' | 'LienHe',
+    sheetName: 'DatSan' | 'Training_Registrations' | 'TuyenThanhVien' | 'DangKyKhoaHoc' | 'DonHang_Shop' | 'LienHe',
     data: Record<string, any>
   ): Promise<{ success: boolean; message?: string }> {
     return request('/sheets/sync', {
@@ -1027,44 +1031,182 @@ export const adminService = {
 };
 
 /**
- * DVA Store API Client (Phase 2 Ready).
- * Uses safe offline/404 fallbacks so the Admin Hub operates cleanly before backend Store endpoints are enabled.
+ * DVA Store API Client (Phase 2 Full Implementation).
+ * Connects directly to Neon PostgreSQL `/api/store/products` & `/api/store/orders`.
  */
 export const storeService = {
-  async getProducts(): Promise<StoreProduct[]> {
-    return request<StoreProduct[]>('/store/products', undefined, []);
+  async getProducts(params?: { category?: string; activeOnly?: boolean }): Promise<StoreProduct[]> {
+    const query = new URLSearchParams({
+      ...(params?.category && params.category !== 'ALL' ? { category: params.category } : {}),
+      ...(params?.activeOnly ? { activeOnly: 'true' } : {}),
+    }).toString();
+    return request<StoreProduct[]>(`/store/products${query ? `?${query}` : ''}`, undefined, []);
   },
 
-  async getOrders(): Promise<StoreOrder[]> {
-    return request<StoreOrder[]>('/store/orders', undefined, []);
+  async getProduct(idOrSlug: string): Promise<StoreProduct> {
+    return request<StoreProduct>(`/store/products/${encodeURIComponent(idOrSlug)}`);
   },
 
-  async updateOrderStatus(
-    orderId: string,
-    paymentStatus: PaymentStatus
-  ): Promise<{ success: boolean; paymentStatus: PaymentStatus }> {
-    return request<{ success: boolean; paymentStatus: PaymentStatus }>(
-      `/store/orders/${orderId}/status`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify({ paymentStatus }),
-      },
-      { success: true, paymentStatus }
+  async createProduct(productData: Partial<StoreProduct>): Promise<StoreProduct> {
+    return request<StoreProduct>('/store/products', {
+      method: 'POST',
+      body: JSON.stringify(productData),
+    });
+  },
+
+  async updateProduct(productId: string, productData: Partial<StoreProduct>): Promise<StoreProduct> {
+    return request<StoreProduct>(`/store/products/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(productData),
+    });
+  },
+
+  async deleteProduct(productId: string): Promise<{ success: boolean; softDeleted?: boolean; product?: StoreProduct }> {
+    return request<{ success: boolean; softDeleted?: boolean; product?: StoreProduct }>(
+      `/store/products/${productId}`,
+      { method: 'DELETE' }
     );
   },
 
   async toggleProductActive(
     productId: string,
     isActive: boolean
-  ): Promise<{ success: boolean; isActive: boolean }> {
-    return request<{ success: boolean; isActive: boolean }>(
+  ): Promise<StoreProduct> {
+    return request<StoreProduct>(
       `/store/products/${productId}/active`,
       {
         method: 'PATCH',
         body: JSON.stringify({ isActive }),
-      },
-      { success: true, isActive }
+      }
     );
+  },
+
+  async toggleProductPaused(
+    productId: string,
+    isPaused: boolean
+  ): Promise<StoreProduct> {
+    return request<StoreProduct>(
+      `/store/products/${productId}/paused`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ isPaused }),
+      }
+    );
+  },
+
+  async getOrders(status?: string): Promise<StoreOrder[]> {
+    const query = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
+    return request<StoreOrder[]>(`/store/orders${query}`, undefined, []);
+  },
+
+  async createOrder(payload: StoreOrderCreatePayload): Promise<{
+    order: StoreOrder;
+    payment: {
+      bankId: string;
+      bankName: string;
+      accountNo: string;
+      accountName: string;
+      amount: number;
+      transferContent: string;
+      qrUrl: string;
+    };
+  }> {
+    const items = payload.items || [];
+    const suffix = Date.now().toString().slice(-4);
+    const catCode = getShopCategoryCode(items[0]?.category || 'SHORT_SLEEVE');
+    const transferContent = `DVA ${catCode} ${suffix}`;
+    const totalAmount = items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
+    const resolvedPhone = payload.phone || payload.customerPhone || '';
+    const resolvedEmail = payload.email || payload.customerEmail || '';
+    const fallbackOrder: StoreOrder = {
+      id: `ord-${Date.now()}`,
+      orderCode: `DVA-SHOP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${suffix}`,
+      customerName: payload.customerName,
+      customerPhone: resolvedPhone,
+      phone: resolvedPhone,
+      customerEmail: resolvedEmail,
+      email: resolvedEmail,
+      socialLink: payload.socialLink || null,
+      deliveryMethod: payload.deliveryMethod,
+      shippingAddress: payload.shippingAddress || null,
+      totalAmount,
+      transferContent,
+      status: 'PENDING',
+      paymentStatus: 'PENDING',
+      createdAt: new Date().toISOString(),
+      productName: items.map((it) => it.productName || 'DVA Gear').join(' + '),
+      size: items.map((it) => it.size || 'M').join(', '),
+      customName: items[0]?.customName || undefined,
+      customNumber: items[0]?.customNumber || undefined,
+      items: items.map((it, idx) => ({
+        id: `item-${idx}`,
+        orderId: `ord-${Date.now()}`,
+        productId: it.productId,
+        productName: it.productName || 'DVA Gear',
+        category: (it.category as any) || 'SHORT_SLEEVE',
+        unitPrice: Number(it.price) || 0,
+        price: Number(it.price) || 0,
+        quantity: Number(it.quantity) || 1,
+        size: it.size,
+        height: it.height ?? null,
+        weight: it.weight ?? null,
+        customName: it.customName ?? null,
+        customNumber: it.customNumber ?? null,
+      })),
+    };
+    return deduplicatedPost('/store/orders', payload, {
+      order: fallbackOrder,
+      payment: {
+        bankId: 'MB',
+        bankName: 'MB Bank (Ngân hàng Quân Đội)',
+        accountNo: '0002090671521',
+        accountName: 'HOANG QUOC DUY',
+        amount: totalAmount,
+        transferContent,
+        qrUrl: `https://img.vietqr.io/image/MB-0002090671521-compact2.png?amount=${totalAmount}&addInfo=${encodeURIComponent(transferContent)}&accountName=HOANG%20QUOC%20DUY`,
+      },
+    });
+  },
+
+  async confirmOrderPayment(orderId: string): Promise<{ success: boolean; message: string; order: StoreOrder }> {
+    return request<{ success: boolean; message: string; order: StoreOrder }>(
+      `/store/orders/${orderId}/confirm-payment`,
+      { method: 'POST' }
+    );
+  },
+
+  async updateOrderStatus(
+    orderId: string,
+    status: OrderStatus | PaymentStatus,
+    notes?: string
+  ): Promise<StoreOrder> {
+    return request<StoreOrder>(
+      `/store/orders/${orderId}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status, paymentStatus: status, ...(notes !== undefined ? { notes } : {}) }),
+      }
+    );
+  },
+
+  async sendShippingUpdateEmail(
+    orderId: string,
+    payload?: { trackingCode?: string; carrier?: string; shippingNotes?: string }
+  ): Promise<{
+    success: boolean;
+    emailSent: boolean;
+    message: string;
+    order: StoreOrder;
+  }> {
+    return request<{
+      success: boolean;
+      emailSent: boolean;
+      message: string;
+      order: StoreOrder;
+    }>(`/store/orders/${orderId}/shipping-email`, {
+      method: 'POST',
+      body: payload ? JSON.stringify(payload) : undefined,
+    });
   },
 };
 

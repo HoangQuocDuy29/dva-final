@@ -267,3 +267,75 @@ export const MEMBER_REGISTER_SCHEMA: Schema = {
   zalo: PH,
   rotationKnowledge: E(ROTATIONS),
 };
+
+// ============================================================================
+// DVA SHOP SCHEMAS (PHASE 2)
+// ============================================================================
+export const SHOP_CATEGORIES_LIST = [
+  'SLEEVELESS',
+  'SHORT_SLEEVE',
+  'WOMEN',
+  'KNEE_PADS',
+  'SOCKS',
+  'JERSEYS',
+  'VOLLEYBALLS',
+  'TRAINING_GEAR',
+  'ACCESSORIES',
+] as const;
+
+export const ORDER_STATUSES = ['PENDING', 'PAID', 'SHIPPED', 'COMPLETED', 'CANCELLED'] as const;
+
+export const DELIVERY_METHODS = ['COURT_PICKUP', 'HOME_DELIVERY'] as const;
+
+export const PRODUCT_SCHEMA: Schema = {
+  sku: S(60, 2),
+  slug: S(150),
+  name: S(200, 2),
+  category: E(SHOP_CATEGORIES_LIST),
+  originalPrice: N(0, 100_000_000),
+  price: N(0, 100_000_000),
+  stock: I(0, 100_000),
+  frontImage: U,
+  backImage: U,
+  imageUrl: U,
+  sizes: SA(20, 40),
+  colors: SA(20, 50),
+  badge: S(60),
+  allowCustomPrint: B,
+  sortOrder: I(-9999, 99999),
+  description: S(5000),
+  isPaused: B,
+  isActive: B,
+};
+
+const ORDER_ITEM_RULE: Rule = (v, k) => {
+  if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array`);
+  return v.slice(0, 20);
+};
+
+export const ORDER_CREATE_SCHEMA: Schema = {
+  productId: S(100, 1),
+  quantity: I(1, 100),
+  size: S(40),
+  color: S(50),
+  height: N(80, 250),
+  weight: N(20, 220),
+  customName: S(40),
+  customNumber: S(10),
+  customerName: S(100, 2),
+  customerPhone: PH,
+  phone: PH,
+  customerEmail: OPTIONAL_EMAIL,
+  email: OPTIONAL_EMAIL,
+  socialLink: S(300),
+  deliveryMethod: E(DELIVERY_METHODS),
+  shippingAddress: S(500),
+  notes: S(1000),
+  items: ORDER_ITEM_RULE,
+};
+
+export const ORDER_STATUS_SCHEMA: Schema = {
+  status: E(ORDER_STATUSES),
+  paymentStatus: E(ORDER_STATUSES),
+  notes: S(1000),
+};

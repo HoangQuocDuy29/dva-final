@@ -18,6 +18,9 @@ import {
   CoachProfile as DbCoachProfile,
   MemberApplication as DbMemberApplication,
   NewsPost as DbNewsPost,
+  Product as DbProduct,
+  Order as DbOrder,
+  OrderItem as DbOrderItem,
 } from '@prisma/client';
 import {
   Booking,
@@ -25,14 +28,21 @@ import {
   ClosedSlot,
   CoachProfile,
   Court,
+  DeliveryMethod,
   MemberApplication,
   NewsPost,
+  OrderStatus,
   Player,
   PlayerLevel,
   RotationKnowledge,
+  StoreCategoryId,
+  StoreOrder,
+  StoreOrderItem,
+  StoreProduct,
   TrainingCourse,
   TrainingRegistration,
   countryCodeToFlagEmoji,
+  isJerseyCategory,
 } from '../src/types';
 import { StoredUser, hashPassword, isBcryptHash, verifyPassword } from './security';
 import { getDefaultWeeklyScheduleForCourt, normalizeWeeklySchedule, normalizeCourtWeeklySchedule } from '../src/shared/schedule';
@@ -403,6 +413,227 @@ export function toNewsDto(n: DbNewsPost & { imageUrl?: string | null; image?: st
     isPinned: Boolean(n.isPinned),
   };
 }
+
+export function toProductDto(p: DbProduct | any): StoreProduct {
+  const frontImage = (p.frontImage || p.imageUrl || '').trim();
+  const backImage = p.backImage ? String(p.backImage).trim() : undefined;
+  return {
+    id: p.id,
+    sku: p.sku,
+    slug: p.slug ? String(p.slug).trim() : undefined,
+    name: p.name,
+    category: (p.category || 'SHORT_SLEEVE') as StoreCategoryId,
+    originalPrice: p.originalPrice !== null && p.originalPrice !== undefined ? Number(p.originalPrice) : undefined,
+    price: Number(p.price) || 0,
+    stock: Number(p.stock) || 0,
+    frontImage,
+    backImage: backImage || undefined,
+    imageUrl: frontImage,
+    sizes: Array.isArray(p.sizes) ? p.sizes : ['S', 'M', 'L', 'XL', '2XL'],
+    colors: Array.isArray(p.colors) ? p.colors : [],
+    badge: p.badge ? String(p.badge).trim() : undefined,
+    allowCustomPrint: p.allowCustomPrint !== false,
+    sortOrder: Number(p.sortOrder) || 0,
+    description: p.description ?? undefined,
+    isPaused: Boolean(p.isPaused),
+    isActive: p.isActive !== false,
+    createdAt: safeIsoString(p.createdAt),
+    updatedAt: safeIsoString(p.updatedAt),
+  };
+}
+
+export function toOrderItemDto(item: DbOrderItem | any): StoreOrderItem {
+  const unitPrice = Number(item.unitPrice ?? item.price) || 0;
+  return {
+    id: item.id,
+    orderId: item.orderId,
+    productId: item.productId,
+    productName: item.productName,
+    category: item.category ?? undefined,
+    sku: item.sku,
+    size: item.size ?? undefined,
+    color: item.color ?? undefined,
+    quantity: Number(item.quantity) || 1,
+    unitPrice,
+    price: unitPrice,
+    height: item.height !== null && item.height !== undefined ? Number(item.height) : undefined,
+    weight: item.weight !== null && item.weight !== undefined ? Number(item.weight) : undefined,
+    customName: item.customName ?? undefined,
+    customNumber: item.customNumber ?? undefined,
+  };
+}
+
+export function toOrderDto(o: (DbOrder & { items?: DbOrderItem[] }) | any): StoreOrder {
+  const status = (o.status || o.paymentStatus || 'PENDING') as OrderStatus;
+  const deliveryMethod = (o.deliveryMethod || 'COURT_PICKUP') as DeliveryMethod;
+  const rawItems: any[] = Array.isArray(o.items) ? o.items : [];
+  const items: StoreOrderItem[] = rawItems.map(toOrderItemDto);
+  const customerPhone = o.customerPhone || o.phone || '';
+  const customerEmail = o.customerEmail || o.email || undefined;
+  const productName =
+    items.map((it: StoreOrderItem) => `${it.productName}${it.quantity > 1 ? ` (x${it.quantity})` : ''}`).join(' + ') ||
+    'DVA Merchandise';
+  const size = items.map((it: StoreOrderItem) => it.size || 'M').join(', ') || 'M';
+  const customName = items.map((it: StoreOrderItem) => it.customName).filter(Boolean).join(', ') || undefined;
+  const customNumber = items.map((it: StoreOrderItem) => it.customNumber).filter(Boolean).join(', ') || undefined;
+
+  return {
+    id: o.id,
+    orderCode: o.orderCode,
+    customerName: o.customerName,
+    customerPhone,
+    phone: customerPhone,
+    customerEmail,
+    email: customerEmail,
+    socialLink: o.socialLink ?? undefined,
+    deliveryMethod,
+    shippingAddress: o.shippingAddress ?? undefined,
+    items,
+    productName,
+    size,
+    customName,
+    customNumber,
+    quantity: Number(o.quantity) || items.reduce((sum, it) => sum + (it.quantity || 1), 0) || 1,
+    totalAmount: Number(o.totalAmount) || 0,
+    status,
+    paymentStatus: status,
+    transferContent: o.transferContent || `DVA JSY ${o.orderCode?.slice(-6) || ''}`.trim(),
+    ...(o.customerConfirmedAt ? { customerConfirmedAt: safeIsoString(o.customerConfirmedAt) } : {}),
+    ...(o.shippingEmailSentAt ? { shippingEmailSentAt: safeIsoString(o.shippingEmailSentAt) } : {}),
+    notes: o.notes ?? undefined,
+    createdAt: safeIsoString(o.createdAt),
+    updatedAt: safeIsoString(o.updatedAt),
+  };
+}
+
+export const INITIAL_SHOP_PRODUCTS: Omit<StoreProduct, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'prod-jsy-short-red',
+    sku: 'DVA-JSY-SH-01',
+    slug: 'dva-2026-official-match-jersey-short-sleeve',
+    name: 'DVA 2026 Official Match Jersey — Short Sleeve (Home Red)',
+    category: 'SHORT_SLEEVE',
+    originalPrice: 420000,
+    price: 350000,
+    stock: 60,
+    sortOrder: 90,
+    badge: 'BEST SELLER',
+    allowCustomPrint: true,
+    frontImage: 'https://images.unsplash.com/photo-1580087433295-ab2600c1030e?auto=format&fit=crop&w=900&q=80',
+    backImage: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=900&q=80',
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    colors: ['Crimson Red'],
+    description:
+      'Official DVA Volleyball Club 2026 Home Match Kit. Breathable pro-mesh fabric with moisture-wicking technology and custom sublimated player name printing.',
+    isPaused: false,
+    isActive: true,
+  },
+  {
+    id: 'prod-jsy-sleeveless-dark',
+    sku: 'DVA-JSY-SLV-01',
+    slug: 'dva-pro-sleeveless-training-tank',
+    name: 'DVA Pro Sleeveless Training & Scrimmage Tank (Obsidian Black)',
+    category: 'SLEEVELESS',
+    originalPrice: 350000,
+    price: 290000,
+    stock: 50,
+    sortOrder: 80,
+    badge: 'PRO KIT',
+    allowCustomPrint: true,
+    frontImage: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80',
+    backImage: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=900&q=80',
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    colors: ['Obsidian Black', 'Flame Orange'],
+    description:
+      'High-mobility sleeveless volleyball jersey engineered for intense spike approach and overhead reach. Includes custom back player name sublimation.',
+    isPaused: false,
+    isActive: true,
+  },
+  {
+    id: 'prod-jsy-women-elite',
+    sku: 'DVA-JSY-WMN-01',
+    slug: 'dva-womens-elite-competition-jersey',
+    name: "DVA Women's Elite Competition Jersey (Sunset Orange/Gold)",
+    category: 'WOMEN',
+    originalPrice: 400000,
+    price: 350000,
+    stock: 45,
+    sortOrder: 70,
+    badge: 'NEW RELEASE',
+    allowCustomPrint: true,
+    frontImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80',
+    backImage: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=900&q=80',
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    colors: ['Sunset Orange', 'Pearl White'],
+    description:
+      "Tailored athletic silhouette designed for DVA women's squad athletes. Ultra-light 4-way stretch polyester with custom back player name printing.",
+    isPaused: false,
+    isActive: true,
+  },
+  {
+    id: 'prod-pad-pro-knee',
+    sku: 'DVA-PAD-KP-01',
+    slug: 'dva-impact-shield-pro-knee-pads',
+    name: 'DVA Impact-Shield Pro Volleyball Knee Pads (Pair)',
+    category: 'KNEE_PADS',
+    originalPrice: 300000,
+    price: 250000,
+    stock: 80,
+    sortOrder: 50,
+    badge: 'ESSENTIAL',
+    allowCustomPrint: false,
+    frontImage: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80',
+    backImage: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=900&q=80',
+    sizes: ['S', 'M', 'L', 'XL'],
+    colors: ['Black', 'White'],
+    description:
+      'High-density EVA shock-absorbing foam knee pads built for Taraflex court dives and defensive floor recoveries.',
+    isPaused: false,
+    isActive: true,
+  },
+  {
+    id: 'prod-sck-crew-01',
+    sku: 'DVA-SCK-CRW-01',
+    slug: 'dva-cushioned-mid-crew-court-socks',
+    name: 'DVA Cushioned Mid-Crew Court Socks (Anti-Slip Grip)',
+    category: 'SOCKS',
+    originalPrice: 150000,
+    price: 120000,
+    stock: 120,
+    sortOrder: 40,
+    badge: 'GRIP LOCK',
+    allowCustomPrint: false,
+    frontImage: 'https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?auto=format&fit=crop&w=900&q=80',
+    backImage: 'https://images.unsplash.com/photo-1582966772680-860e372bb558?auto=format&fit=crop&w=900&q=80',
+    sizes: ['M (36-40)', 'L (41-45)'],
+    colors: ['White/Red', 'Black/Orange'],
+    description:
+      'Reinforced heel and forefoot cushioning with arch compression band to prevent blistering during explosive jumps.',
+    isPaused: false,
+    isActive: true,
+  },
+  {
+    id: 'prod-ball-mikasa-v200w',
+    sku: 'MIKASA-V200W',
+    slug: 'official-mikasa-v200w-match-volleyball',
+    name: 'Official Mikasa V200W Match Volleyball (FIVB Approved)',
+    category: 'VOLLEYBALLS',
+    originalPrice: 2200000,
+    price: 1950000,
+    stock: 50,
+    sortOrder: 100,
+    badge: 'OFFICIAL MATCH',
+    allowCustomPrint: false,
+    frontImage: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=900&q=80',
+    backImage: 'https://images.unsplash.com/photo-1592656094267-764a45160876?auto=format&fit=crop&w=900&q=80',
+    sizes: ['Size 5'],
+    colors: ['Yellow / Royal Blue'],
+    description:
+      'Bóng thi đấu chính thức tiêu chuẩn FIVB với thiết kế 18 múi khí động học cân bằng hoàn hảo, bề mặt da vi sợi Microfiber cao cấp công nghệ lõi kép Double Dimple chống trơn trượt mồ hôi. Chuẩn Size 5 thi đấu Olympic và các giải bóng chuyền chuyên nghiệp quốc tế.',
+    isPaused: false,
+    isActive: true,
+  },
+];
 
 // ============================================================================
 // ONE-TIME INITIAL SEEDING (JSON / MockData -> PostgreSQL)
@@ -868,4 +1099,55 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
       googleScriptUrl: legacyConfig.googleScriptUrl || defaultScriptUrl,
     },
   });
+
+  // 12. Seed DVA Shop Starter Products (Ensures all starter products exist in PostgreSQL)
+  try {
+    for (const prod of INITIAL_SHOP_PRODUCTS) {
+      const sku = prod.sku || prod.id.toUpperCase();
+      await prisma.product.upsert({
+        where: { sku },
+        update: {
+          slug: prod.slug,
+          name: prod.name,
+          category: prod.category,
+          price: prod.price,
+          originalPrice: prod.originalPrice,
+          stock: prod.stock,
+          sortOrder: prod.sortOrder ?? 0,
+          badge: prod.badge ?? null,
+          allowCustomPrint: prod.allowCustomPrint ?? isJerseyCategory(prod.category),
+          frontImage: prod.frontImage,
+          backImage: prod.backImage ?? null,
+          sizes: prod.sizes ?? ['Size 5'],
+          colors: prod.colors ?? [],
+          description: prod.description ?? null,
+          isPaused: Boolean(prod.isPaused),
+          isActive: prod.isActive !== false,
+        },
+        create: {
+          id: prod.id,
+          sku,
+          slug: prod.slug,
+          name: prod.name,
+          category: prod.category,
+          price: prod.price,
+          originalPrice: prod.originalPrice,
+          stock: prod.stock,
+          sortOrder: prod.sortOrder ?? 0,
+          badge: prod.badge ?? null,
+          allowCustomPrint: prod.allowCustomPrint ?? isJerseyCategory(prod.category),
+          frontImage: prod.frontImage,
+          backImage: prod.backImage ?? null,
+          sizes: prod.sizes ?? ['Size 5'],
+          colors: prod.colors ?? [],
+          description: prod.description ?? null,
+          isPaused: Boolean(prod.isPaused),
+          isActive: prod.isActive !== false,
+        },
+      });
+    }
+    console.log(`[Bootstrap] Ensured ${INITIAL_SHOP_PRODUCTS.length} initial DVA Shop products synced in PostgreSQL.`);
+  } catch (err: any) {
+    console.warn('[Prisma Shop Seed Notice]:', err?.message || err);
+  }
 }

@@ -2604,3 +2604,435 @@ export async function sendGuestSessionEmail(
   }
 }
 
+// ============================================================================
+// 7. LUỒNG EMAIL DVA SHOP (PHASE 2): CHẶNG 1 (XÁC NHẬN ĐƠN + VIETQR) & CHẶNG 2 (SHIPPING UPDATE)
+// ============================================================================
+export interface ShopOrderEmailItem {
+  productName: string;
+  category?: string;
+  sku?: string;
+  size?: string;
+  color?: string;
+  quantity: number;
+  unitPrice: number;
+  height?: number;
+  weight?: number;
+  customName?: string;
+  customNumber?: string;
+}
+
+export interface ShopOrderEmailPayload {
+  orderCode: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string | null;
+  socialLink?: string | null;
+  deliveryMethod: 'COURT_PICKUP' | 'HOME_DELIVERY' | string;
+  shippingAddress?: string | null;
+  totalAmount: number;
+  status: string;
+  transferContent: string;
+  notes?: string | null;
+  trackingCode?: string | null;
+  carrier?: string | null;
+  shippingNotes?: string | null;
+  items: ShopOrderEmailItem[];
+}
+
+export async function sendShopOrderConfirmationEmail(
+  order: ShopOrderEmailPayload
+): Promise<boolean> {
+  const recipientEmail = (order.customerEmail || '').trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+    console.warn('[Shop Mailer Notice] Bỏ qua gửi email đơn hàng Shop vì email trống hoặc không hợp lệ:', recipientEmail);
+    return false;
+  }
+
+  if (!getResendApiKey()) {
+    console.warn('[Shop Mailer Notice] RESEND_API_KEY chưa được cấu hình.');
+    return false;
+  }
+
+  const client = getResendClient();
+  const sender = getSenderEmail();
+  const admin = getAdminEmail();
+  const hotline = process.env.HOTLINE || '0768 299 329';
+
+  try {
+    const formattedTotal = `${(Number(order.totalAmount) || 0).toLocaleString('vi-VN')} đ`;
+    const cleanTransfer = removeVietnameseTones(order.transferContent || `DVA JSY ${order.orderCode.slice(-6)}`).trim().toUpperCase();
+    const vietQrUrl = buildBookingVietQrUrl(Number(order.totalAmount) || 0, cleanTransfer);
+
+    const isHomeDelivery = String(order.deliveryMethod).toUpperCase() === 'HOME_DELIVERY';
+    const deliveryLabelVi = isHomeDelivery
+      ? 'Giao hàng tận nơi (Ship COD — Người nhận tự thanh toán phí ship)'
+      : 'Nhận trực tiếp tại Sân DVA (BTL Thông Tin - 155 Trường Chinh) — Miễn phí';
+    const deliveryLabelEn = isHomeDelivery
+      ? 'Home Delivery (Courier COD — Recipient pays shipping fee upon delivery)'
+      : 'Pick up at DVA Court (BTL Thong Tin - 155 Truong Chinh) — Free';
+    const addressDisplay = isHomeDelivery
+      ? order.shippingAddress || 'Theo địa chỉ khách cung cấp'
+      : COURT_DEFAULT_ADDRESS;
+
+    const itemsRowsHtml = (order.items || [])
+      .map((item) => {
+        const sizeBadge = [item.size, item.color].filter(Boolean).join(' / ') || 'Free Size';
+        const hasJerseyCustom = Boolean(item.customName || item.customNumber || item.height || item.weight);
+        const customHtml = hasJerseyCustom
+          ? `<div style="margin-top:4px;font-size:11.5px;color:#cbd5e1;">
+               ${item.customName ? `Tên in / Print Name: <strong style="color:#facc15;">${escapeHtml(item.customName)}</strong> ` : ''}
+               ${item.customNumber !== undefined && item.customNumber !== '' ? `| Số áo / No: <strong style="color:#38bdf8;">#${escapeHtml(item.customNumber)}</strong> ` : ''}
+               ${item.height || item.weight ? `| Thông số: ${escapeHtml(item.height || '--')}cm / ${escapeHtml(item.weight || '--')}kg` : ''}
+             </div>`
+          : '';
+        return `
+          <tr>
+            <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;">
+              <div style="font-weight:700;color:#ffffff;">${escapeHtml(item.productName)}</div>
+              <div style="font-size:11.5px;color:#94a3b8;margin-top:2px;">
+                Size / Phân loại: <strong style="color:#38bdf8;">${escapeHtml(sizeBadge)}</strong> · SL / Qty: <strong>×${Number(item.quantity) || 1}</strong>
+              </div>
+              ${customHtml}
+            </td>
+            <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:700;color:#4ade80;text-align:right;font-family:monospace;vertical-align:top;">
+              ${((Number(item.unitPrice) || 0) * (Number(item.quantity) || 1)).toLocaleString('vi-VN')} đ
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const html = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xác nhận đơn hàng DVA Store / Order Confirmation - ${escapeHtml(order.orderCode)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0b0f19;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background-color:#111827;border:1px solid #1e293b;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.6);">
+          <tr>
+            <td style="background:linear-gradient(135deg, #8b0000 0%, #ea580c 55%, #f59e0b 100%);padding:28px 32px;text-align:center;">
+              <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#fef3c7;margin-bottom:6px;">
+                DVA OFFICIAL STORE
+              </div>
+              <h1 style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
+                XÁC NHẬN ĐƠN HÀNG
+              </h1>
+              <div style="font-size:13px;font-weight:700;color:#fef3c7;margin-top:4px;letter-spacing:0.5px;">
+                MERCHANDISE ORDER CONFIRMATION
+              </div>
+              <div style="margin-top:12px;">
+                <span style="display:inline-block;background:rgba(0,0,0,0.35);padding:6px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);font-family:monospace;font-size:13px;color:#fef3c7;font-weight:700;">
+                  MÃ ĐƠN / ORDER CODE: ${escapeHtml(order.orderCode)}
+                </span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 24px;">
+              <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#f8fafc;">
+                Xin chào / Dear <strong>${escapeHtml(order.customerName)}</strong>,
+              </p>
+              <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+                Cảm ơn bạn đã đặt mua trang phục và phụ kiện chính hãng tại <strong>DVA Store</strong>! Đơn hàng của bạn đã được ghi nhận trên hệ thống.
+              </p>
+              <p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#94a3b8;font-style:italic;">
+                Thank you for ordering official club gear from DVA Store! Below is your order summary and VietQR payment instruction:
+              </p>
+
+              <!-- Danh sách sản phẩm -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:14px;padding:18px;margin-bottom:20px;">
+                ${itemsRowsHtml}
+                <tr>
+                  <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Hình thức nhận hàng<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Delivery Method</span>
+                  </td>
+                  <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:12.5px;font-weight:700;color:#f97316;text-align:right;">
+                    ${escapeHtml(deliveryLabelVi)}<br />
+                    <span style="font-size:11px;color:#94a3b8;font-weight:normal;font-style:italic;">${escapeHtml(deliveryLabelEn)}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Địa chỉ nhận / Điểm nhận<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Pickup / Shipping Address</span>
+                  </td>
+                  <td style="padding:10px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
+                    ${escapeHtml(addressDisplay)}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0 4px;font-size:13px;color:#94a3b8;">
+                    Tổng thanh toán<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Total Amount</span>
+                  </td>
+                  <td style="padding:12px 0 4px;font-size:17px;font-weight:800;color:#4ade80;text-align:right;font-family:monospace;">
+                    ${escapeHtml(formattedTotal)} <span style="font-size:12px;color:#94a3b8;font-weight:600;">(${escapeHtml(order.status)})</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0 4px;font-size:13px;color:#94a3b8;">
+                    Nội dung chuyển khoản<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Transfer Content</span>
+                  </td>
+                  <td style="padding:9px 0 4px;font-size:13px;font-family:monospace;font-weight:700;color:#facc15;text-align:right;">
+                    ${escapeHtml(cleanTransfer)}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Khối VietQR -->
+              <div style="background-color:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:24px;text-align:center;">
+                <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#facc15;margin-bottom:4px;">
+                  💳 MÃ VIETQR THANH TOÁN ĐƠN HÀNG DVA STORE
+                </div>
+                <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:14px;font-style:italic;">
+                  AUTOMATED VIETQR MERCHANDISE PAYMENT (MB BANK - 0002090671521 - HOANG QUOC DUY)
+                </div>
+                <div style="margin:12px auto;display:inline-block;">
+                  <img src="${escapeHtml(vietQrUrl)}" alt="Mã VietQR thanh toán DVA Store" style="max-width:100%;width:240px;height:auto;border-radius:12px;display:block;margin:0 auto;border:1px solid #334155;" />
+                </div>
+                <p style="margin:8px 0 0;font-size:12px;color:#94a3b8;">
+                  Nội dung CK / Reference: <strong style="color:#facc15;font-family:monospace;">${escapeHtml(cleanTransfer)}</strong>
+                </p>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#090d16;padding:20px 32px;text-align:center;border-top:1px solid #1e293b;font-size:12px;color:#64748b;">
+              © ${new Date().getFullYear()} DVA Volleyball Club · 155 Trường Chinh, Thanh Xuân, Hà Nội · Hotline/Zalo: ${escapeHtml(hotline)}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+
+    const { error } = await client.emails.send({
+      from: sender,
+      to: recipientEmail,
+      subject: `[DVA Store] Xác nhận đơn hàng / Order Confirmation #${order.orderCode}`,
+      html,
+      replyTo: admin,
+    });
+
+    if (error) {
+      console.warn(`[Shop Mailer Warning] Không thể gửi email xác nhận đơn ${order.orderCode}:`, error.message);
+      return false;
+    }
+
+    console.log(`[Shop Mailer] ✅ Đã gửi email Chặng 1 (Order Confirmation) tới ${recipientEmail} cho đơn ${order.orderCode}`);
+    return true;
+  } catch (err: any) {
+    console.warn(`[Shop Mailer Error] Lỗi ngoại lệ khi gửi email đơn ${order.orderCode}:`, err?.message || err);
+    return false;
+  }
+}
+
+export async function sendShopOrderShippingEmail(
+  order: ShopOrderEmailPayload
+): Promise<boolean> {
+  const recipientEmail = (order.customerEmail || '').trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+    console.warn('[Shop Shipping Mailer Warning] Email khách hàng trống hoặc không hợp lệ:', recipientEmail);
+    return false;
+  }
+
+  if (!getResendApiKey()) {
+    console.warn('[Shop Shipping Mailer Warning] RESEND_API_KEY chưa được cấu hình.');
+    return false;
+  }
+
+  const client = getResendClient();
+  const sender = getSenderEmail();
+  const admin = getAdminEmail();
+  const hotline = process.env.HOTLINE || '0768 299 329';
+
+  try {
+    const isHomeDelivery = String(order.deliveryMethod).toUpperCase() === 'HOME_DELIVERY';
+    const headlineVi = isHomeDelivery
+      ? 'ĐƠN HÀNG ĐANG ĐƯỢC GIAO ĐẾN BẠN!'
+      : 'ĐỒNG PHỤC & PHỤ KIỆN ĐÃ SẴN SÀNG TẠI SÂN DVA!';
+    const headlineEn = isHomeDelivery
+      ? 'YOUR ORDER IS ON THE WAY (SHIPPED)'
+      : 'READY FOR PICK-UP AT DVA COURT (BTL THONG TIN)';
+
+    const instructionVi = isHomeDelivery
+      ? `Đơn hàng của bạn đã được bàn giao cho đơn vị vận chuyển để giao tới địa chỉ: <strong>${escapeHtml(order.shippingAddress || 'Theo địa chỉ đăng ký')}</strong>. Vui lòng giữ liên lạc điện thoại (<strong>${escapeHtml(order.customerPhone)}</strong>) và thanh toán cước vận chuyển (Ship COD) trực tiếp cho nhân viên bưu tá khi nhận hàng.`
+      : `Đơn hàng của bạn đã được chuẩn bị xong và mang ra <strong>Sân bóng chuyền BTL Thông Tin (155 Trường Chinh, Thanh Xuân, Hà Nội)</strong>. Bạn có thể đến nhận trực tiếp từ Ban Quản Lý CLB (HLV Hoàng Quốc Duy) vào các khung giờ tập luyện hoặc giao lưu tại sân (Miễn phí nhận tại sân).`;
+
+    const instructionEn = isHomeDelivery
+      ? `Your order has been handed over to our courier partner for delivery to: <strong>${escapeHtml(order.shippingAddress || 'Registered address')}</strong>. Please keep your phone (<strong>${escapeHtml(order.customerPhone)}</strong>) reachable and pay the courier shipping fee directly (COD) upon receiving the parcel.`
+      : `Your order is ready and waiting at <strong>DVA Court — BTL Thong Tin (155 Truong Chinh, Thanh Xuan, Hanoi)</strong>. You can pick it up directly from Coach Hoang Quoc Duy during our training sessions or pickup games (Free Court Pick-up).`;
+
+    const itemsSummary = (order.items || [])
+      .map((item) => {
+        const customTag = item.customName
+          ? ` [In tên: ${item.customName}]`
+          : (item.customNumber ? ` [Số áo: #${item.customNumber}]` : '');
+        return `• <strong>${escapeHtml(item.productName)}</strong> (${escapeHtml(item.size || 'Free Size')}) ×${item.quantity}${escapeHtml(customTag)}`;
+      })
+      .join('<br />');
+
+    // Khối chi tiết vận chuyển / nhận hàng chuyên biệt
+    let fulfillmentBlockHtml = '';
+    if (isHomeDelivery) {
+      fulfillmentBlockHtml = `
+        <!-- Khối Mã vận đơn & COD cho Giao Hàng Tận Nơi -->
+        <div style="background-color:#0f172a;border:1px solid #0284c7;border-radius:14px;padding:18px 20px;margin-bottom:20px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#38bdf8;margin-bottom:6px;">
+            📦 MÃ VẬN ĐƠN THEO DÕI / TRACKING CODE
+          </div>
+          <div style="font-size:22px;font-weight:900;font-family:monospace;color:#facc15;letter-spacing:1.5px;">
+            ${escapeHtml(order.trackingCode || 'Đang cập nhật mã bưu tá')}
+          </div>
+          ${
+            order.carrier
+              ? `<div style="font-size:12px;color:#94a3b8;margin-top:6px;">Đơn vị vận chuyển / Courier: <strong style="color:#ffffff;">${escapeHtml(order.carrier)}</strong></div>`
+              : ''
+          }
+        </div>
+
+        <div style="background:rgba(234,179,8,0.1);border-left:4px solid #eab308;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;line-height:1.6;color:#fef08a;">
+          <strong>⚠️ LƯU Ý VỀ CƯỚC VẬN CHUYỂN (SHIP COD):</strong><br />
+          Phí vận chuyển sẽ do quý khách tự thanh toán trực tiếp (COD) cho nhân viên bưu tá khi nhận kiện hàng.<br />
+          <span style="font-size:11.5px;color:#cbd5e1;font-style:italic;">Please note: Recipient pays the courier shipping fee directly (COD) upon receiving the package.</span>
+        </div>
+      `;
+    } else {
+      fulfillmentBlockHtml = `
+        <!-- Khối Thông Tin Nhận Hàng Trực Tiếp Tại Sân -->
+        <div style="background-color:#0f172a;border:1px solid #10b981;border-radius:14px;padding:18px 20px;margin-bottom:20px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#34d399;margin-bottom:6px;">
+            📍 ĐIỂM NHẬN HÀNG TRỰC TIẾP / FREE COURT PICK-UP
+          </div>
+          <div style="font-size:16px;font-weight:800;color:#ffffff;margin-bottom:4px;">
+            Sân Bóng Chuyền BTL Thông Tin
+          </div>
+          <div style="font-size:13px;color:#cbd5e1;line-height:1.6;">
+            155 Trường Chinh, P. Phương Liệt, Q. Thanh Xuân, Hà Nội
+          </div>
+          <div style="margin-top:12px;padding:10px 14px;background:rgba(16,185,129,0.1);border-radius:8px;border:1px dashed #10b981;font-size:12.5px;color:#6ee7b7;text-align:left;line-height:1.6;">
+            🏐 <strong>Hướng dẫn nhận đồ:</strong> Đồng phục / phụ kiện của bạn đã sẵn sàng tại sân bóng DVA (155 Trường Chinh). Bạn có thể đến nhận trực tiếp từ Ban Quản Lý CLB (HLV Hoàng Quốc Duy) trong các buổi tập hoặc giao lưu gần nhất.
+            <div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;font-style:italic;">Your gear is ready! You can pick it up directly from Coach Hoang Quoc Duy at DVA Court during our training sessions or pickup games.</div>
+          </div>
+        </div>
+      `;
+    }
+
+    const shippingNoteHtml = order.shippingNotes
+      ? `<div style="background:#1e293b;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;line-height:1.6;color:#e2e8f0;">
+           <strong style="color:#f8fafc;">Ghi chú từ DVA Store:</strong> ${escapeHtml(order.shippingNotes)}
+         </div>`
+      : '';
+
+    const html = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cập nhật vận chuyển DVA Store / Shipping Update - ${escapeHtml(order.orderCode)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0b0f19;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background-color:#111827;border:1px solid #1e293b;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.6);">
+          <tr>
+            <td style="background:linear-gradient(135deg, #0284c7 0%, #2563eb 55%, #1d4ed8 100%);padding:28px 32px;text-align:center;">
+              <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#bae6fd;margin-bottom:6px;">
+                DVA OFFICIAL STORE · CHẶNG 2 / STAGE 2 FULFILLMENT
+              </div>
+              <h1 style="margin:0;font-size:21px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
+                🚚 ${headlineVi}
+              </h1>
+              <div style="font-size:12.5px;font-weight:700;color:#e0f2fe;margin-top:4px;letter-spacing:0.5px;">
+                ${headlineEn}
+              </div>
+              <div style="margin-top:12px;">
+                <span style="display:inline-block;background:rgba(0,0,0,0.35);padding:6px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);font-family:monospace;font-size:13px;color:#e0f2fe;font-weight:700;">
+                  MÃ ĐƠN / ORDER: ${escapeHtml(order.orderCode)}
+                </span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 24px;">
+              <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#f8fafc;">
+                Xin chào / Dear <strong>${escapeHtml(order.customerName)}</strong>,
+              </p>
+              <div style="background-color:rgba(56,189,248,0.1);border-left:4px solid #38bdf8;border-radius:12px;padding:16px 18px;margin-bottom:22px;">
+                <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#f0f9ff;">
+                  <strong>VI:</strong> ${instructionVi}
+                </p>
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#bae6fd;font-style:italic;">
+                  <strong>EN:</strong> ${instructionEn}
+                </p>
+              </div>
+
+              ${fulfillmentBlockHtml}
+              ${shippingNoteHtml}
+
+              <div style="background-color:#0b0f19;border:1px solid #1e293b;border-radius:14px;padding:18px;margin-bottom:20px;">
+                <div style="font-size:12px;font-weight:800;text-transform:uppercase;color:#94a3b8;margin-bottom:10px;letter-spacing:0.5px;">
+                  Chi tiết sản phẩm / Order Items
+                </div>
+                <div style="font-size:13.5px;line-height:1.8;color:#f8fafc;">
+                  ${itemsSummary}
+                </div>
+                <div style="margin-top:14px;padding-top:12px;border-top:1px solid #1e293b;display:flex;justify-content:space-between;font-size:13.5px;">
+                  <span style="color:#94a3b8;">Tổng giá trị đơn / Total: </span>
+                  <strong style="color:#4ade80;font-family:monospace;">${(Number(order.totalAmount) || 0).toLocaleString('vi-VN')} đ (SHIPPED)</strong>
+                </div>
+              </div>
+
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#94a3b8;text-align:center;">
+                Cần hỗ trợ nhận hàng, vui lòng liên hệ Quốc Duy qua Hotline/Zalo: <strong style="color:#ffffff;">${escapeHtml(hotline)}</strong>.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#090d16;padding:20px 32px;text-align:center;border-top:1px solid #1e293b;font-size:12px;color:#64748b;">
+              © ${new Date().getFullYear()} DVA Volleyball Club · 155 Trường Chinh, Thanh Xuân, Hà Nội
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+
+    const { error } = await client.emails.send({
+      from: sender,
+      to: recipientEmail,
+      subject: `[DVA Store] Thông báo giao hàng / Shipping Update #${order.orderCode}`,
+      html,
+      replyTo: admin,
+    });
+
+    if (error) {
+      console.warn(`[Shop Shipping Mailer Warning] Không thể gửi email vận chuyển đơn ${order.orderCode}:`, error.message);
+      return false;
+    }
+
+    console.log(`[Shop Shipping Mailer] ✅ Đã gửi email Chặng 2 (Shipping Update) tới ${recipientEmail} cho đơn ${order.orderCode}`);
+    return true;
+  } catch (err: any) {
+    console.warn(`[Shop Shipping Mailer Error] Lỗi ngoại lệ khi gửi email vận chuyển đơn ${order.orderCode}:`, err?.message || err);
+    return false;
+  }
+}
+
+

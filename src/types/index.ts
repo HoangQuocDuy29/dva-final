@@ -272,7 +272,7 @@ export interface NewsPost {
 
 export interface GoogleSheetsSyncLog {
   id: string;
-  tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations';
+  tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations' | 'Store_Orders';
   action: 'APPEND_ROW';
   rowData: Record<string, any>;
   timestamp: string;
@@ -295,44 +295,234 @@ export interface GuestSessionPayload {
   notes?: string;
 }
 
-export type StoreCategoryId = 'JERSEYS' | 'VOLLEYBALLS' | 'TRAINING_GEAR' | 'ACCESSORIES';
+export type StoreCategoryId =
+  | 'SLEEVELESS'
+  | 'SHORT_SLEEVE'
+  | 'WOMEN'
+  | 'KNEE_PADS'
+  | 'SOCKS'
+  | 'JERSEYS'
+  | 'VOLLEYBALLS'
+  | 'TRAINING_GEAR'
+  | 'ACCESSORIES';
+
+export type OrderStatus = 'PENDING' | 'PAID' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED';
+
+export type DeliveryMethod = 'COURT_PICKUP' | 'HOME_DELIVERY';
 
 export type StoreSubView = 'PRODUCTS' | 'ORDERS' | 'CATEGORIES';
 
+export interface ShopCategoryMeta {
+  id: StoreCategoryId;
+  label: string;
+  labelVi: string;
+  catCode: 'JSY' | 'PAD' | 'SCK' | 'BAL' | 'GER' | 'ACC';
+  code?: string;
+  isJersey: boolean;
+}
+
+export const SHOP_CATEGORIES: ShopCategoryMeta[] = [
+  { id: 'SLEEVELESS', label: 'Sleeveless Jersey', labelVi: 'Áo Sát Nách (Sleeveless)', catCode: 'JSY', code: 'JSY', isJersey: true },
+  { id: 'SHORT_SLEEVE', label: 'Short Sleeve Jersey', labelVi: 'Áo Có Tay (Short Sleeve)', catCode: 'JSY', code: 'JSY', isJersey: true },
+  { id: 'WOMEN', label: "Women's Jersey", labelVi: 'Áo Nữ (Women Fit)', catCode: 'JSY', code: 'JSY', isJersey: true },
+  { id: 'KNEE_PADS', label: 'Knee Pads', labelVi: 'Bó Gối (Knee Pads)', catCode: 'PAD', code: 'PAD', isJersey: false },
+  { id: 'SOCKS', label: 'Athletic Socks', labelVi: 'Tất Thi Đấu (Socks)', catCode: 'SCK', code: 'SCK', isJersey: false },
+  { id: 'VOLLEYBALLS', label: 'Volleyballs & Gear', labelVi: 'Bóng & Thiết Bị (Gear)', catCode: 'BAL', code: 'BAL', isJersey: false },
+];
+
+export function isJerseyCategory(category?: string): boolean {
+  const c = (category || '').toUpperCase().trim();
+  return c === 'SLEEVELESS' || c === 'SHORT_SLEEVE' || c === 'WOMEN' || c === 'JERSEYS';
+}
+
+export function isBallProduct(productOrCategory?: any): boolean {
+  if (!productOrCategory) return false;
+  const category = (
+    typeof productOrCategory === 'string'
+      ? productOrCategory
+      : productOrCategory.category || ''
+  ).toUpperCase().trim();
+  if (category === 'VOLLEYBALLS' || category === 'BALL' || category === 'BALLS') return true;
+  const name = (
+    typeof productOrCategory === 'object' && productOrCategory.name ? productOrCategory.name : ''
+  ).toLowerCase();
+  return name.includes('mikasa') || (name.includes('volleyball') && !name.includes('jersey'));
+}
+
+export function productRequiresSizeSelection(product?: any): boolean {
+  if (!product) return false;
+  if (isBallProduct(product)) return false;
+  const sizes = Array.isArray(product.sizes) ? product.sizes : [];
+  if (sizes.length <= 1) return false;
+  return true;
+}
+
+export function getShopCategoryCode(category?: string): string {
+  const c = (category || '').toUpperCase().trim();
+  if (c === 'SLEEVELESS' || c === 'SHORT_SLEEVE' || c === 'WOMEN' || c === 'JERSEYS') return 'JSY';
+  if (c === 'KNEE_PADS') return 'PAD';
+  if (c === 'SOCKS') return 'SCK';
+  if (c === 'VOLLEYBALLS') return 'BAL';
+  if (c === 'TRAINING_GEAR') return 'GER';
+  return 'ACC';
+}
+
+export function getShopCategoryLabel(category?: string, lang: 'en' | 'vi' = 'en'): string {
+  const c = (category || '').toUpperCase().trim();
+  const found = SHOP_CATEGORIES.find((item) => item.id === c);
+  if (found) return lang === 'vi' ? found.labelVi : found.label;
+  if (c === 'JERSEYS') return lang === 'vi' ? 'Áo Đấu CLB (Jerseys)' : 'Official Jerseys';
+  if (c === 'VOLLEYBALLS') return lang === 'vi' ? 'Bóng Thi Đấu' : 'Volleyballs';
+  if (c === 'TRAINING_GEAR') return lang === 'vi' ? 'Phụ Kiện Tập Luyện' : 'Training Gear';
+  if (c === 'ACCESSORIES') return lang === 'vi' ? 'Phụ Kiện Khác' : 'Accessories';
+  return category || 'Gear';
+}
+
+export function getCategoryUrlSlug(category?: string): string {
+  const c = (category || '').toUpperCase().trim();
+  if (c === 'SLEEVELESS') return 'mens-sleeveless';
+  if (c === 'SHORT_SLEEVE') return 'short-sleeve';
+  if (c === 'WOMEN') return 'womens-jersey';
+  if (c === 'KNEE_PADS') return 'knee-pads';
+  if (c === 'SOCKS') return 'athletic-socks';
+  if (c === 'JERSEYS') return 'jerseys';
+  if (c === 'VOLLEYBALLS') return 'volleyballs';
+  if (c === 'TRAINING_GEAR') return 'training-gear';
+  if (c === 'ACCESSORIES') return 'accessories';
+  return 'gear';
+}
+
+export function getCategoryFromUrlSlug(slug?: string): StoreCategoryId | undefined {
+  const s = (slug || '').toLowerCase().trim();
+  if (s === 'mens-sleeveless' || s === 'sleeveless') return 'SLEEVELESS';
+  if (s === 'short-sleeve') return 'SHORT_SLEEVE';
+  if (s === 'womens-jersey' || s === 'women') return 'WOMEN';
+  if (s === 'knee-pads') return 'KNEE_PADS';
+  if (s === 'athletic-socks' || s === 'socks') return 'SOCKS';
+  if (s === 'jerseys') return 'JERSEYS';
+  if (s === 'volleyballs' || s === 'gear') return 'VOLLEYBALLS';
+  if (s === 'training-gear') return 'TRAINING_GEAR';
+  if (s === 'accessories') return 'ACCESSORIES';
+  return undefined;
+}
+
+export function slugifyProductName(name: string): string {
+  return (name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'product';
+}
+
+export function getProductUrlPath(product: { category: string; slug?: string; id: string; name?: string }): string {
+  const catSlug = getCategoryUrlSlug(product.category);
+  const prodSlug = product.slug?.trim() || slugifyProductName(product.name || product.id);
+  return `/shop/${catSlug}/${prodSlug}`;
+}
+
 export interface StoreProduct {
   id: string;
-  sku: string;
+  sku?: string;
+  slug?: string;
   name: string;
   category: StoreCategoryId;
+  originalPrice?: number;
   price: number;
   stock: number;
+  frontImage: string;
+  backImage?: string;
+  imageUrl?: string; // alias of frontImage for backward compatibility
   sizes?: string[];
-  imageUrl?: string;
+  colors?: string[];
+  badge?: string;
+  allowCustomPrint?: boolean;
+  sortOrder?: number;
   description?: string;
+  isPaused?: boolean;
   isActive: boolean;
-  createdAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface StoreOrderItem {
+  id?: string;
+  orderId?: string;
   productId: string;
   productName: string;
-  sku: string;
+  category?: string;
+  sku?: string;
   size?: string;
+  color?: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice?: number;
+  price?: number;
+  height?: number | null;
+  weight?: number | null;
+  customName?: string | null;
+  customNumber?: string | null;
 }
 
 export interface StoreOrder {
   id: string;
-  orderCode: string; // e.g. DVA-ORD-20261110-001
+  orderCode: string; // e.g. DVA-SHOP-20261110-849201
   customerName: string;
   customerPhone: string;
+  phone?: string;
   customerEmail?: string;
+  email?: string;
+  socialLink?: string | null;
+  deliveryMethod: DeliveryMethod;
+  shippingAddress?: string | null;
+  quantity?: number;
   items: StoreOrderItem[];
+  productName?: string;
+  size?: string;
+  customName?: string;
+  customNumber?: string;
   totalAmount: number;
-  paymentStatus: PaymentStatus;
-  transferContent?: string;
+  status: OrderStatus;
+  /** Alias for backward compatibility with existing UI components */
+  paymentStatus: OrderStatus;
+  transferContent: string;
+  vietqrUrl?: string;
   customerConfirmedAt?: string;
-  notes?: string;
+  shippingEmailSentAt?: string;
+  notes?: string | null;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface StoreOrderCreatePayload {
+  productId?: string;
+  quantity?: number;
+  size?: string;
+  color?: string;
+  height?: number;
+  weight?: number;
+  customName?: string;
+  customNumber?: string;
+  customerName: string;
+  customerPhone?: string;
+  phone?: string;
+  customerEmail?: string;
+  email?: string;
+  socialLink?: string;
+  deliveryMethod: DeliveryMethod;
+  shippingAddress?: string;
+  notes?: string;
+  items?: Array<{
+    productId: string;
+    productName?: string;
+    category?: string;
+    price?: number;
+    quantity: number;
+    size?: string;
+    color?: string;
+    height?: number;
+    weight?: number;
+    customName?: string;
+    customNumber?: string;
+  }>;
 }

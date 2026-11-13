@@ -32,9 +32,12 @@ import {
   LEVEL_RULE,
   MEMBER_REGISTER_SCHEMA,
   NEWS_SCHEMA,
+  ORDER_CREATE_SCHEMA,
+  ORDER_STATUS_SCHEMA,
   PAYMENT_STATUSES,
   PLAYER_SCHEMA,
   POSITIONS,
+  PRODUCT_SCHEMA,
   REGISTRATION_STATUSES,
   TRAINING_REGISTER_SCHEMA,
 } from './lib/schemas';
@@ -60,14 +63,24 @@ import {
   toCourseDto,
   toCourtDto,
   toNewsDto,
+  toOrderDto,
   toPlayerDto,
+  toProductDto,
   toRegistrationDto,
   toRotationEnum,
   toStoredUser,
 } from './lib/prisma';
-import { countryCodeToFlagEmoji } from './src/types';
+import {
+  countryCodeToFlagEmoji,
+  getShopCategoryCode,
+  getShopCategoryLabel,
+  isJerseyCategory,
+  slugifyProductName,
+  StoreOrder,
+} from './src/types';
 import {
   ADMIN_ALERT_EMAIL,
+  buildBookingVietQrUrl,
   sendAdminNotification,
   sendAdminNotificationEmail,
   notifyAdminNewSubmission,
@@ -76,6 +89,8 @@ import {
   sendMemberRegistrationEmail,
   sendTrainingRegistrationEmail,
   sendGuestSessionEmail,
+  sendShopOrderConfirmationEmail,
+  sendShopOrderShippingEmail,
   GuestSessionEmailPayload,
 } from './lib/mailer';
 
@@ -282,7 +297,7 @@ async function forwardToGoogleSheetsWebhook(
 }
 
 async function logGoogleSheetsSync(
-  tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations',
+  tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations' | 'Store_Orders' | 'DonHang_Shop',
   rowData: Record<string, any>,
   status: 'SUCCESS' | 'FAILED' = 'SUCCESS',
   errorMessage?: string
@@ -311,8 +326,8 @@ async function logGoogleSheetsSync(
  * Records SUCCESS only after 2xx response, or FAILED if remote call fails.
  */
 function dispatchGoogleSheetsWebhookAsync(
-  tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations',
-  sheetName: 'DatSan' | 'TuyenThanhVien' | 'DangKyKhoaHoc',
+  tabName: 'Member_Registrations' | 'Court_Bookings' | 'Training_Registrations' | 'Store_Orders',
+  sheetName: 'DatSan' | 'TuyenThanhVien' | 'DangKyKhoaHoc' | 'DonHang_Shop',
   rowData: Record<string, any>
 ): void {
   void (async () => {
@@ -332,6 +347,117 @@ function dispatchGoogleSheetsWebhookAsync(
       }
     }
   })();
+}
+
+function toShopOrderEmailPayload(
+  order: StoreOrder,
+  shippingExtra?: { trackingCode?: string | null; carrier?: string | null; shippingNotes?: string | null }
+) {
+  return {
+    orderCode: order.orderCode,
+    customerName: order.customerName,
+    customerPhone: order.customerPhone || order.phone || '',
+    customerEmail: order.customerEmail || order.email || null,
+    socialLink: order.socialLink || null,
+    deliveryMethod: order.deliveryMethod,
+    shippingAddress: order.shippingAddress || null,
+    totalAmount: order.totalAmount,
+    status: order.status,
+    transferContent: order.transferContent,
+    notes: order.notes || null,
+    trackingCode: shippingExtra?.trackingCode || null,
+    carrier: shippingExtra?.carrier || null,
+    shippingNotes: shippingExtra?.shippingNotes || null,
+    items: order.items.map((it) => ({
+      productName: it.productName,
+      category: it.category,
+      sku: it.sku,
+      size: it.size,
+      color: it.color,
+      quantity: it.quantity,
+      unitPrice: Number(it.unitPrice ?? it.price) || 0,
+      height: it.height ?? undefined,
+      weight: it.weight ?? undefined,
+      customName: it.customName ?? undefined,
+      customNumber: it.customNumber ?? undefined,
+    })),
+  };
+}
+
+function buildShopOrderSheetPayload(
+  order: StoreOrder,
+  statusOverride?: string,
+  shippingExtra?: { trackingCode?: string | null; carrier?: string | null; shippingNotes?: string | null }
+): Record<string, any> {
+  const firstItem = order.items[0];
+  const categoryLabel = firstItem ? getShopCategoryLabel(firstItem.category) : 'DVA Shop';
+  const productNames =
+    order.items.map((it) => `${it.productName}${it.quantity > 1 ? ` (x${it.quantity})` : ''}`).join(' + ') ||
+    order.productName ||
+    'DVA Merchandise';
+  const sizes = order.items.map((it) => it.size || 'M').join(', ') || 'M';
+  const totalQuantity = order.items.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0) || 1;
+  const heightWeightList = order.items
+    .map((it) => (it.height || it.weight ? `${it.height || '?'}cm / ${it.weight || '?'}kg` : ''))
+    .filter(Boolean)
+    .join('; ');
+  const customNames = order.items
+    .map((it) => it.customName)
+    .filter(Boolean)
+    .join(', ');
+  const customNumbers = order.items
+    .map((it) => it.customNumber)
+    .filter(Boolean)
+    .join(', ');
+
+  const statusMap: Record<string, string> = {
+    PENDING: 'PENDING (Chờ thanh toán)',
+    PAID: 'PAID (Đã xác nhận TT)',
+    SHIPPED: 'SHIPPED (Đang giao / Sẵn sàng nhận tại sân)',
+    COMPLETED: 'COMPLETED (Hoàn tất)',
+    CANCELLED: 'CANCELLED (Đã hủy)',
+  };
+
+  const resolvedStatus =
+    statusOverride ||
+    (order.status === 'PENDING' && order.customerConfirmedAt
+      ? 'PENDING (Khách báo đã CK - Chờ đối soát)'
+      : statusMap[order.status] || order.status);
+
+  const notesParts = [
+    order.notes,
+    shippingExtra?.trackingCode
+      ? `[Mã vận đơn: ${shippingExtra.carrier ? shippingExtra.carrier + ' - ' : ''}${shippingExtra.trackingCode}]`
+      : '',
+    shippingExtra?.shippingNotes ? `[Ghi chú ship: ${shippingExtra.shippingNotes}]` : '',
+  ].filter(Boolean);
+
+  return {
+    'Mã đơn hàng': order.orderCode,
+    'Phân loại danh mục': categoryLabel,
+    'Tên sản phẩm': productNames,
+    'Size': sizes,
+    'Số lượng': totalQuantity,
+    'Họ tên khách': order.customerName,
+    'SĐT': order.customerPhone || order.phone || '',
+    'Email': order.customerEmail || order.email || '',
+    'Instagram/Facebook': order.socialLink || 'Không có',
+    'Hình thức nhận':
+      order.deliveryMethod === 'HOME_DELIVERY'
+        ? 'Ship tận nơi (Người nhận trả phí COD)'
+        : 'Nhận tại Sân BTL Thông Tin (Miễn phí)',
+    'Địa chỉ nhận':
+      order.deliveryMethod === 'HOME_DELIVERY'
+        ? order.shippingAddress || 'Chưa cung cấp'
+        : '155 Truong Chinh - Thanh Xuan - Hanoi (DVA Court - BTL Thong Tin)',
+    'Chiều cao/Cân nặng': heightWeightList || 'Không áp dụng',
+    'Tên in áo': customNames || 'Không in',
+    'Số áo in': customNumbers || 'Không in',
+    'Tổng tiền (VNĐ)': order.totalAmount,
+    'Nội dung CK': order.transferContent,
+    'Trạng thái đơn': resolvedStatus,
+    'Ghi chú': notesParts.join(' | ') || '',
+  };
 }
 
 // ==========================================
@@ -356,6 +482,7 @@ const vietQrLimiter = rateLimit({
 app.use(['/api/bookings', '/api/courts/book'], (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
 app.use('/api/training/register', publicWriteLimiter);
 app.use(['/api/members/register', '/api/members/apply'], publicWriteLimiter);
+app.use('/api/store/orders', (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
 app.use('/api/vietqr/generate', (req, res, next) => (req.method === 'POST' ? vietQrLimiter(req, res, next) : next()));
 
 // 1. Auth, Users & RBAC
@@ -2287,10 +2414,11 @@ app.post('/api/sheets/config', ah(async (req, res) => {
 }));
 
 app.get('/api/sheets/data', ah(async (_req, res) => {
-  const [apps, bookingsList, regs] = await Promise.all([
+  const [apps, bookingsList, regs, ordersList] = await Promise.all([
     prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
     prisma.booking.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
     prisma.trainingRegistration.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.order.findMany({ include: { items: true }, orderBy: { createdAt: 'desc' }, take: 100 }),
   ]);
 
   const formatTimestamp = (d: any) => {
@@ -2351,6 +2479,26 @@ app.get('/api/sheets/data', ah(async (_req, res) => {
         Experience: r.experienceLevel,
         Status: r.status,
       })),
+      Store_Orders: ordersList.map((raw) => {
+        const o = toOrderDto(raw);
+        return {
+          Timestamp: formatTimestamp(raw.createdAt),
+          Order_Code: o.orderCode,
+          Category: o.items[0] ? getShopCategoryLabel(o.items[0].category) : 'DVA Shop',
+          Products: o.productName || 'DVA Merchandise',
+          Size: o.size || 'M',
+          Quantity: o.items.reduce((sum, it) => sum + it.quantity, 0) || 1,
+          Customer_Name: o.customerName,
+          Phone: o.phone,
+          Email: o.email,
+          Delivery_Method: o.deliveryMethod,
+          Shipping_Address: o.shippingAddress || 'Pick up at BTL Thông Tin',
+          Jersey_Print: o.customName || o.customNumber ? `${o.customName || ''} #${o.customNumber || ''}`.trim() : 'None',
+          Total_VND: o.totalAmount,
+          Transfer_Content: o.transferContent,
+          Status: o.status,
+        };
+      }),
     },
   });
 }));
@@ -2368,10 +2516,12 @@ app.post('/api/sheets/sync', ah(async (req, res) => {
     if (
       targetTab === 'Member_Registrations' ||
       targetTab === 'Court_Bookings' ||
-      targetTab === 'Training_Registrations'
+      targetTab === 'Training_Registrations' ||
+      targetTab === 'Store_Orders' ||
+      targetTab === 'DonHang_Shop'
     ) {
       await logGoogleSheetsSync(
-        targetTab,
+        targetTab === 'DonHang_Shop' ? 'Store_Orders' : targetTab,
         targetData,
         result.success ? 'SUCCESS' : 'FAILED',
         result.error
@@ -2607,6 +2757,57 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
   }
 
   if (!booking) {
+    // Fallback sang DVA Shop Order nếu không khớp mã đặt sân (VD: "DVA SLV 9042" hoặc "DVA-SHOP-20261110-9042")
+    const normalizedContent = content.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const pendingOrders = await prisma.order.findMany({
+      where: { status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+      include: { items: true },
+    });
+
+    const matchedOrder =
+      pendingOrders.find((o) => {
+        const cleanCode = o.orderCode.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        const cleanTransfer = (o.transferContent || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        return (
+          (cleanCode && normalizedContent.includes(cleanCode)) ||
+          (cleanTransfer && normalizedContent.includes(cleanTransfer))
+        );
+      }) ?? null;
+
+    if (matchedOrder) {
+      if (!Number.isFinite(amount) || amount < matchedOrder.totalAmount) {
+        return res.status(200).json({
+          success: false,
+          message: 'Insufficient payment amount for Shop order',
+        });
+      }
+
+      const parsedTxDate = transactionDate ? new Date(transactionDate) : new Date();
+      const confirmedAt = Number.isNaN(parsedTxDate.getTime()) ? new Date() : parsedTxDate;
+
+      const updatedOrderRaw = await prisma.order.update({
+        where: { id: matchedOrder.id },
+        data: {
+          status: 'PAID',
+          customerConfirmedAt: matchedOrder.customerConfirmedAt ?? confirmedAt,
+        },
+        include: { items: true },
+      });
+      const updatedOrderDto = toOrderDto(updatedOrderRaw);
+
+      dispatchGoogleSheetsWebhookAsync(
+        'Store_Orders',
+        'DonHang_Shop',
+        buildShopOrderSheetPayload(updatedOrderDto, 'PAID (Đã thanh toán tự động qua Webhook)')
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Shop order payment processed automatically via webhook',
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Transaction ignored',
@@ -2656,6 +2857,538 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
   return res.status(200).json({
     success: true,
     message: 'Payment processed and email queued',
+  });
+}));
+
+// ==========================================
+// 12. DVA Shop / Store API (Products & Orders)
+// ==========================================
+
+app.get('/api/store/products', ah(async (req, res) => {
+  const includeInactive = isStaff(req.user) && String(req.query.all || '').toLowerCase() !== 'false';
+  const category = typeof req.query.category === 'string' ? req.query.category.trim().toUpperCase() : '';
+  const where: Record<string, any> = {};
+  if (!includeInactive && req.query.activeOnly === 'true') {
+    where.isActive = true;
+  } else if (!isStaff(req.user)) {
+    where.isActive = true;
+  }
+  if (category && category !== 'ALL') {
+    where.category = category;
+  }
+
+  const products = await prisma.product.findMany({
+    where,
+    orderBy: [{ isActive: 'desc' }, { sortOrder: 'desc' }, { createdAt: 'desc' }],
+  });
+  return res.json(products.map(toProductDto));
+}));
+
+app.get('/api/store/products/:idOrSlug', ah(async (req, res) => {
+  const { idOrSlug } = req.params;
+  const where: Record<string, any> = {
+    OR: [
+      { id: idOrSlug },
+      { slug: idOrSlug },
+      { sku: idOrSlug },
+    ],
+  };
+  if (!isStaff(req.user)) {
+    where.isActive = true;
+  }
+  const product = await prisma.product.findFirst({ where });
+  if (!product) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+  return res.json(toProductDto(product));
+}));
+
+app.post('/api/store/products', ah(async (req, res) => {
+  const rawBody = req.body && typeof req.body === 'object' ? { ...req.body } : {};
+  if (!rawBody.frontImage && rawBody.imageUrl) {
+    rawBody.frontImage = rawBody.imageUrl;
+  }
+  const data = sanitize(rawBody, PRODUCT_SCHEMA, { required: ['name', 'category', 'price'] });
+  const frontImage = (data.frontImage || data.imageUrl || '/courts/btl.png').trim();
+  const backImage = (data.backImage || frontImage).trim();
+  const defaultSizes = isJerseyCategory(data.category)
+    ? ['S', 'M', 'L', 'XL', '2XL']
+    : data.category === 'KNEE_PADS'
+    ? ['S/M', 'L/XL']
+    : ['M (36-40)', 'L (41-45)'];
+
+  const catCode = getShopCategoryCode(data.category);
+  let uniqueSku = data.sku
+    ? String(data.sku).trim().toUpperCase()
+    : `DVA-${catCode}-${crypto.randomInt(100, 999)}`;
+  while (await prisma.product.findUnique({ where: { sku: uniqueSku } })) {
+    uniqueSku = `DVA-${catCode}-${crypto.randomInt(1000, 9999)}`;
+  }
+
+  const generatedSlug = data.slug
+    ? String(data.slug).trim()
+    : slugifyProductName(data.name);
+
+  const created = await prisma.product.create({
+    data: {
+      id: `prod-${crypto.randomUUID().slice(0, 8)}`,
+      sku: uniqueSku,
+      slug: generatedSlug,
+      name: data.name,
+      category: data.category,
+      originalPrice: data.originalPrice !== undefined ? Math.round(Number(data.originalPrice)) : null,
+      price: Math.round(Number(data.price)),
+      frontImage,
+      backImage,
+      description: data.description || '',
+      sizes: Array.isArray(data.sizes) && data.sizes.length > 0 ? data.sizes : defaultSizes,
+      colors: Array.isArray(data.colors) ? data.colors : [],
+      stock: data.stock !== undefined ? Math.round(Number(data.stock)) : 50,
+      badge: data.badge ? String(data.badge).trim() : null,
+      allowCustomPrint: data.allowCustomPrint !== undefined ? Boolean(data.allowCustomPrint) : true,
+      sortOrder: data.sortOrder !== undefined ? Math.round(Number(data.sortOrder)) : 0,
+      isPaused: data.isPaused !== undefined ? Boolean(data.isPaused) : false,
+      isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
+    },
+  });
+
+  return res.status(201).json(toProductDto(created));
+}));
+
+const handleUpdateStoreProduct = ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.product.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+  const rawBody = req.body && typeof req.body === 'object' ? { ...req.body } : {};
+  if (rawBody.imageUrl && !rawBody.frontImage) {
+    rawBody.frontImage = rawBody.imageUrl;
+  }
+  const data = sanitize(rawBody, PRODUCT_SCHEMA, { partial: true });
+  const { imageUrl, ...rest } = data;
+
+  const updated = await prisma.product.update({
+    where: { id },
+    data: {
+      ...rest,
+      ...(rest.badge !== undefined ? { badge: rest.badge ? String(rest.badge).trim() : null } : {}),
+      ...(rest.allowCustomPrint !== undefined ? { allowCustomPrint: Boolean(rest.allowCustomPrint) } : {}),
+      ...(rest.sortOrder !== undefined ? { sortOrder: Math.round(Number(rest.sortOrder)) } : {}),
+      ...(rest.originalPrice !== undefined ? { originalPrice: Math.round(Number(rest.originalPrice)) } : {}),
+      ...(rest.price !== undefined ? { price: Math.round(Number(rest.price)) } : {}),
+      ...(rest.stock !== undefined ? { stock: Math.round(Number(rest.stock)) } : {}),
+      ...(rest.isPaused !== undefined ? { isPaused: Boolean(rest.isPaused) } : {}),
+      ...(rest.frontImage !== undefined ? { frontImage: rest.frontImage } : imageUrl ? { frontImage: imageUrl } : {}),
+    },
+  });
+
+  return res.json(toProductDto(updated));
+});
+
+app.put('/api/store/products/:id', handleUpdateStoreProduct);
+app.patch('/api/store/products/:id', handleUpdateStoreProduct);
+
+app.patch('/api/store/products/:id/active', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.product.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+  const nextActive =
+    typeof req.body?.isActive === 'boolean' ? req.body.isActive : !existing.isActive;
+  const updated = await prisma.product.update({
+    where: { id },
+    data: { isActive: nextActive },
+  });
+  return res.json(toProductDto(updated));
+}));
+
+app.patch('/api/store/products/:id/paused', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.product.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+  const nextPaused =
+    typeof req.body?.isPaused === 'boolean' ? req.body.isPaused : !existing.isPaused;
+  const updated = await prisma.product.update({
+    where: { id },
+    data: { isPaused: nextPaused },
+  });
+  return res.json(toProductDto(updated));
+}));
+
+app.delete('/api/store/products/:id', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.product.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+  const linkedOrdersCount = await prisma.orderItem.count({ where: { productId: id } });
+  if (linkedOrdersCount > 0) {
+    const archived = await prisma.product.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return res.json({
+      success: true,
+      softDeleted: true,
+      message: 'Product has linked orders and was archived (isActive = false).',
+      product: toProductDto(archived),
+    });
+  }
+  await prisma.product.delete({ where: { id } });
+  return res.json({
+    success: true,
+    softDeleted: false,
+    message: 'Product permanently deleted.',
+  });
+}));
+
+// Orders API
+app.get('/api/store/orders', ah(async (req, res) => {
+  const statusFilter = typeof req.query.status === 'string' ? req.query.status.trim().toUpperCase() : '';
+  const where: Record<string, any> = {};
+  if (statusFilter && statusFilter !== 'ALL') {
+    where.status = statusFilter;
+  }
+  const orders = await prisma.order.findMany({
+    where,
+    include: { items: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  return res.json(orders.map(toOrderDto));
+}));
+
+app.post('/api/store/orders', ah(async (req, res) => {
+  const data = sanitize(req.body, ORDER_CREATE_SCHEMA, {
+    required: ['customerName', 'deliveryMethod'],
+  });
+
+  const resolvedPhone = String(data.customerPhone || data.phone || '').trim();
+  const resolvedEmail = String(data.customerEmail || data.email || '').trim().toLowerCase();
+  if (!resolvedPhone || resolvedPhone.replace(/\D/g, '').length < 8) {
+    return res.status(400).json({ error: 'A valid phone number is required.' });
+  }
+  if (!resolvedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resolvedEmail)) {
+    return res.status(400).json({ error: 'A valid email address is required.' });
+  }
+
+  const rawItemsInput =
+    Array.isArray(data.items) && data.items.length > 0
+      ? data.items
+      : data.productId
+      ? [
+          {
+            productId: data.productId,
+            quantity: data.quantity || 1,
+            size: data.size,
+            color: data.color,
+            height: data.height,
+            weight: data.weight,
+            customName: data.customName,
+            customNumber: data.customNumber,
+          },
+        ]
+      : [];
+
+  if (rawItemsInput.length === 0) {
+    return res.status(400).json({ error: 'Order must contain at least one item.' });
+  }
+
+  if (data.deliveryMethod === 'HOME_DELIVERY') {
+    const addr = String(data.shippingAddress || '').trim();
+    if (addr.length < 5) {
+      return res.status(400).json({
+        error: 'Shipping address is required for Home Delivery (minimum 5 characters).',
+      });
+    }
+  }
+
+  // Look up products in PostgreSQL to ensure authoritative pricing and categories
+  const productIds = Array.from(new Set(rawItemsInput.map((it: any) => String(it.productId))));
+  const dbProducts = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+  });
+  const productMap = new Map(dbProducts.map((p) => [p.id, p]));
+
+  const normalizedItems = rawItemsInput.map((rawItem: any) => {
+    const dbProd = productMap.get(String(rawItem.productId));
+    if (!dbProd) {
+      throw new HttpError(404, `Product not found: ${rawItem.productId}`);
+    }
+    if (!dbProd.isActive) {
+      throw new HttpError(400, `Product "${dbProd.name}" is currently unavailable.`);
+    }
+    if (dbProd.isPaused) {
+      throw new HttpError(400, `Product "${dbProd.name}" is temporarily paused / out of stock.`);
+    }
+    const category = dbProd.category;
+    const isJersey = isJerseyCategory(category);
+    const quantity = Math.max(1, Math.min(50, Math.round(Number(rawItem.quantity) || 1)));
+    const unitPrice = dbProd.price;
+
+    return {
+      id: `item-${crypto.randomUUID().slice(0, 8)}`,
+      productId: dbProd.id,
+      productName: dbProd.name,
+      category,
+      sku: dbProd.sku,
+      unitPrice,
+      quantity,
+      size: String(rawItem.size || dbProd.sizes?.[0] || 'M').trim(),
+      color: rawItem.color ? String(rawItem.color).trim() : null,
+      height: isJersey && rawItem.height ? Number(rawItem.height) : null,
+      weight: isJersey && rawItem.weight ? Number(rawItem.weight) : null,
+      customName:
+        isJersey && rawItem.customName
+          ? String(rawItem.customName).trim().toUpperCase().slice(0, 24)
+          : null,
+      customNumber:
+        isJersey && rawItem.customNumber !== undefined && rawItem.customNumber !== null && String(rawItem.customNumber).trim() !== ''
+          ? String(rawItem.customNumber).trim().slice(0, 4)
+          : null,
+    };
+  });
+
+  const totalAmount = normalizedItems.reduce((sum, it) => sum + it.unitPrice * it.quantity, 0);
+
+  // Generate unique orderCode & VietQR transferContent (`DVA [MÃ_SP_NGẮN] [TÊN_KHÁCH_KHÔNG_DẤU] [6_SỐ_CUỐI_ORDERCODE]`)
+  const now = new Date();
+  const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  let suffix = String(crypto.randomInt(100000, 999999));
+  let orderCode = `DVA-SHOP-${ymd}-${suffix}`;
+  while (await prisma.order.findUnique({ where: { orderCode } })) {
+    suffix = String(crypto.randomInt(100000, 999999));
+    orderCode = `DVA-SHOP-${ymd}-${suffix}`;
+  }
+
+  const firstItem = normalizedItems[0];
+  const isBall = firstItem?.category === 'VOLLEYBALLS' || (firstItem?.sku && firstItem.sku.includes('V200W'));
+  const productShort = isBall
+    ? 'V200W'
+    : isJerseyCategory(firstItem?.category || '')
+    ? 'JSY'
+    : firstItem?.category === 'KNEE_PADS'
+    ? 'KNEE'
+    : firstItem?.category === 'SOCKS'
+    ? 'SOCK'
+    : 'GEAR';
+
+  const cleanCustomerWords = removeVietnameseTones(data.customerName.trim()).replace(/[^A-Za-z0-9\s]/g, '').trim().split(/\s+/);
+  const customerLastName = (cleanCustomerWords[cleanCustomerWords.length - 1] || 'KHACH').toUpperCase();
+
+  const transferContent = `DVA ${productShort} ${customerLastName} ${suffix}`;
+  const orderId = `ord-${crypto.randomUUID()}`;
+
+  const createdOrder = await prisma.order.create({
+    data: {
+      id: orderId,
+      orderCode,
+      customerName: data.customerName.trim(),
+      customerPhone: resolvedPhone,
+      customerEmail: resolvedEmail,
+      socialLink: data.socialLink ? data.socialLink.trim() : null,
+      deliveryMethod: data.deliveryMethod,
+      shippingAddress:
+        data.deliveryMethod === 'HOME_DELIVERY' && data.shippingAddress
+          ? data.shippingAddress.trim()
+          : null,
+      quantity: normalizedItems.reduce((sum, it) => sum + it.quantity, 0),
+      totalAmount,
+      transferContent,
+      status: 'PENDING',
+      notes: data.notes ? data.notes.trim() : null,
+      items: {
+        create: normalizedItems,
+      },
+    },
+    include: { items: true },
+  });
+
+  const orderDto = toOrderDto(createdOrder);
+
+  // 1. Fire-and-forget sync to Google Sheets (`DonHang_Shop` tab in existing Master Spreadsheet)
+  dispatchGoogleSheetsWebhookAsync('Store_Orders', 'DonHang_Shop', buildShopOrderSheetPayload(orderDto));
+
+  // Note: Stage 1 Email (Customer receipt + Admin notification) triggers strictly once
+  // when customer clicks "I Have Transferred / Confirm Order" at the VietQR screen.
+
+  const qrUrl = buildBookingVietQrUrl(orderDto.totalAmount, orderDto.transferContent);
+
+  return res.status(201).json({
+    order: orderDto,
+    payment: {
+      bankId: BANK.id,
+      bankName: 'MB Bank (Ngân hàng Quân Đội)',
+      accountNo: BANK.accountNo,
+      accountName: BANK.accountName,
+      amount: orderDto.totalAmount,
+      transferContent: orderDto.transferContent,
+      qrUrl,
+    },
+  });
+}));
+
+// Guest "I Have Transferred / Confirm Order" action
+// STAGE 1 EMAIL TRIGGER: Kích hoạt duy nhất 1 lần khi khách xác nhận đã chuyển khoản
+app.post('/api/store/orders/:id/confirm-payment', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.order.findFirst({
+    where: { OR: [{ id }, { orderCode: id }] },
+    include: { items: true },
+  });
+  if (!existing) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  const updated = await prisma.order.update({
+    where: { id: existing.id },
+    data: {
+      customerConfirmedAt: existing.customerConfirmedAt ?? new Date(),
+    },
+    include: { items: true },
+  });
+
+  const orderDto = toOrderDto(updated);
+
+  // Upsert existing row in `DonHang_Shop` so Admin sees customer transfer confirmation immediately
+  dispatchGoogleSheetsWebhookAsync('Store_Orders', 'DonHang_Shop', buildShopOrderSheetPayload(orderDto));
+
+  // 1. Stage 1 Email cho Khách hàng: Xác nhận tiếp nhận đơn, chi tiết đơn, hướng dẫn chờ đối soát
+  sendShopOrderConfirmationEmail(toShopOrderEmailPayload(orderDto)).catch((err: any) => {
+    console.warn('[Shop Confirm Payment Email Warning]:', err?.message || err);
+  });
+
+  // 2. Stage 1 Email cho Admin (quocduyhoang42@gmail.com): Báo đơn đặt hàng mới kèm mã đơn & số tiền
+  sendAdminNotification({
+    type: 'BOOKING',
+    title: `Đơn Hàng DVA Shop Mới (${orderDto.orderCode}) - Khách Báo Đã CK`,
+    code: orderDto.orderCode,
+    customerName: orderDto.customerName,
+    phone: orderDto.customerPhone,
+    email: orderDto.customerEmail,
+    amount: orderDto.totalAmount,
+    transferContent: orderDto.transferContent,
+    details: `${orderDto.productName} | Size: ${orderDto.size} | SL: ${orderDto.quantity || 1} | Nhận: ${
+      orderDto.deliveryMethod === 'HOME_DELIVERY'
+        ? `Ship COD (${orderDto.shippingAddress || 'Theo địa chỉ'})`
+        : 'Sân BTL Thông Tin (155 Trường Chinh)'
+    }`,
+  }).catch((err: any) => {
+    console.warn('[Admin Alert Error - Shop Order Confirm]:', err?.message || err);
+  });
+
+  return res.json({
+    success: true,
+    message: 'Transfer confirmation recorded. Admin will verify and process your order shortly.',
+    order: orderDto,
+  });
+}));
+
+// Admin update order status (`PENDING` -> `PAID` -> `SHIPPED` -> `COMPLETED` / `CANCELLED`)
+app.patch('/api/store/orders/:id/status', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.order.findFirst({
+    where: { OR: [{ id }, { orderCode: id }] },
+    include: { items: true },
+  });
+  if (!existing) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  const rawBody = req.body && typeof req.body === 'object' ? { ...req.body } : {};
+  if (!rawBody.status && rawBody.paymentStatus) {
+    rawBody.status = rawBody.paymentStatus;
+  }
+  const data = sanitize(rawBody, ORDER_STATUS_SCHEMA, { required: ['status'] });
+
+  const updated = await prisma.order.update({
+    where: { id: existing.id },
+    data: {
+      status: data.status,
+      ...(data.notes !== undefined ? { notes: data.notes } : {}),
+    },
+    include: { items: true },
+  });
+
+  const orderDto = toOrderDto(updated);
+
+  // Idempotent upsert on `DonHang_Shop` sheet matching `Mã đơn hàng`
+  dispatchGoogleSheetsWebhookAsync('Store_Orders', 'DonHang_Shop', buildShopOrderSheetPayload(orderDto));
+
+  // Loại bỏ hoàn toàn trigger gửi email tự động khi Admin bấm duyệt PAID (tránh gửi trùng lặp với bước confirm-payment)
+
+  return res.json(orderDto);
+}));
+
+// Admin "Send Dispatch Email" button (Stage 2 Resend Email for SHIPPED orders)
+app.post('/api/store/orders/:id/shipping-email', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.order.findFirst({
+    where: { OR: [{ id }, { orderCode: id }] },
+    include: { items: true },
+  });
+  if (!existing) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  const { trackingCode, carrier, shippingNotes } = (req.body && typeof req.body === 'object') ? req.body : {};
+  const cleanTracking = trackingCode ? String(trackingCode).trim() : null;
+  const cleanCarrier = carrier ? String(carrier).trim() : null;
+  const cleanNotes = shippingNotes ? String(shippingNotes).trim() : null;
+
+  // Build combined notes if tracking details or shipping notes are provided
+  let updatedNotes = existing.notes || '';
+  if (cleanTracking || cleanNotes) {
+    const trackingTag = cleanTracking ? `[Vận đơn: ${cleanCarrier ? cleanCarrier + ' - ' : ''}${cleanTracking}]` : '';
+    const notesTag = cleanNotes ? `[Ghi chú ship: ${cleanNotes}]` : '';
+    const extra = [trackingTag, notesTag].filter(Boolean).join(' ');
+    if (extra) {
+      updatedNotes = updatedNotes ? `${updatedNotes}\n${extra}` : extra;
+    }
+  }
+
+  // Ensure order is marked SHIPPED, update timestamp and notes
+  const targetOrderRaw = await prisma.order.update({
+    where: { id: existing.id },
+    data: {
+      status: 'SHIPPED',
+      shippingEmailSentAt: new Date(),
+      ...(updatedNotes ? { notes: updatedNotes } : {}),
+    },
+    include: { items: true },
+  });
+
+  const orderDto = toOrderDto(targetOrderRaw);
+
+  const shippingExtra = {
+    trackingCode: cleanTracking,
+    carrier: cleanCarrier,
+    shippingNotes: cleanNotes,
+  };
+
+  // Upsert Google Sheet row with updated SHIPPED status and tracking info
+  dispatchGoogleSheetsWebhookAsync(
+    'Store_Orders',
+    'DonHang_Shop',
+    buildShopOrderSheetPayload(orderDto, 'SHIPPED (Đang giao / Sẵn sàng nhận tại sân)', shippingExtra)
+  );
+
+  // Dispatch Stage 2 Shipping / Court Pick-up Ready email via Resend
+  const emailResult = await sendShopOrderShippingEmail(
+    toShopOrderEmailPayload(orderDto, shippingExtra)
+  );
+
+  return res.json({
+    success: true,
+    emailSent: Boolean(emailResult),
+    message:
+      orderDto.deliveryMethod === 'HOME_DELIVERY'
+        ? `Shipping update email dispatched to ${orderDto.customerEmail || orderDto.email}.`
+        : `Court pick-up ready notification dispatched to ${orderDto.customerEmail || orderDto.email}.`,
+    order: orderDto,
   });
 }));
 

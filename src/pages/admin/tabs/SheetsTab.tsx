@@ -50,7 +50,7 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
             Đồng Bộ Dữ Liệu Tự Động Về Google Sheets (Mỗi Form 1 Sheet)
           </h3>
           <p className="text-xs text-slate-400">
-            Mỗi khi có người điền form (Đặt Sân, Đăng Ký Khóa Học, Tuyển Thành Viên), hệ thống sẽ tự động bắn webhook gửi dữ liệu về Google Sheets theo từng Sheet riêng biệt trong 1 file trang tính.
+            Mỗi khi có người điền form (Đặt Sân, Đăng Ký Khóa Học, Tuyển Thành Viên, Đơn Hàng DVA Shop), hệ thống sẽ tự động bắn webhook gửi dữ liệu về Google Sheets theo từng Sheet riêng biệt trong cùng 1 file trang tính của CLB.
           </p>
         </div>
 
@@ -105,7 +105,7 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
                 const nowVi = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
                 const nowEn = new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' });
 
-                // Gửi đồng thời dữ liệu test chuẩn cho cả 4 sheet
+                // Gửi đồng thời dữ liệu test chuẩn cho cả 5 sheet (bao gồm DonHang_Shop)
                 await Promise.all([
                   googleScriptSyncService.testSync('DatSan', {
                     'Mã đặt sân': `TEST-BK-${rand}`,
@@ -157,10 +157,30 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
                     'Quê quán': 'Hà Nội',
                     'Thời gian gửi': nowEn,
                   }),
+                  googleScriptSyncService.testSync('DonHang_Shop', {
+                    'Mã đơn hàng': `DVA-SHOP-TEST-${rand}`,
+                    'Phân loại danh mục': 'Sleeveless Jersey',
+                    'Tên sản phẩm': 'DVA Pro Sleeveless Jersey 2026 (x1)',
+                    'Size': 'XL',
+                    'Số lượng': 1,
+                    'Họ tên khách': 'Admin Test Shop',
+                    'SĐT': '0768299329',
+                    'Email': 'admin.test@dva.vn',
+                    'Instagram/Facebook': '@dva.volleyball',
+                    'Hình thức nhận': 'Nhận tại Sân BTL Thông Tin (Miễn phí)',
+                    'Địa chỉ nhận': 'Sân bóng chuyền BTL Thông Tin (168 Phố Nguyễn Ngọc Nại, Thanh Xuân, Hà Nội)',
+                    'Chiều cao/Cân nặng': '185cm / 76kg',
+                    'Tên in áo': 'HOANG DUY',
+                    'Số áo in': '12',
+                    'Tổng tiền (VNĐ)': 350000,
+                    'Nội dung CK': `DVA SLV ${rand}`,
+                    'Trạng thái đơn': 'PAID (Test Idempotent Upsert)',
+                    'Ghi chú': 'Kiểm tra đồng bộ đơn hàng DVA Shop từ Admin Portal',
+                  }),
                 ]);
 
                 setSyncTestMessage(
-                  'Đã gửi thành công dữ liệu test vào cả 4 sheet: DatSan, Training_Registrations, DangKyKhoaHoc và TuyenThanhVien!'
+                  'Đã gửi thành công dữ liệu test vào cả 5 sheet: DatSan, Training_Registrations, DangKyKhoaHoc, TuyenThanhVien và DonHang_Shop!'
                 );
               } catch (err: any) {
                 setSyncTestMessage('Test dispatch error: ' + (err?.message || 'Could not connect'));
@@ -216,11 +236,11 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
 
         <div className="p-4 rounded-2xl bg-[#0E1524] border border-slate-800 space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-white">Tab: LienHe</span>
-            <span className="px-2 py-0.5 rounded text-[9px] bg-purple-950 text-purple-300 border border-purple-800">Contact</span>
+            <span className="font-bold text-white">Tab: DonHang_Shop</span>
+            <span className="px-2 py-0.5 rounded text-[9px] bg-purple-950 text-purple-300 border border-purple-800">DVA Store</span>
           </div>
           <p className="text-slate-400 text-[11px] leading-relaxed">
-            Stores urgent reservations, service feedback, and inquiries submitted by website visitors.
+            Stores DVA Shop merchandise orders, jersey printing specs, court pick-up / COD delivery, VietQR memo, and idempotent status updates.
           </p>
         </div>
       </div>

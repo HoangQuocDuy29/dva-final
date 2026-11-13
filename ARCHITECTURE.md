@@ -30,10 +30,10 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   - Database & ORM: PostgreSQL (Deploy trên Render), Prisma ORM v7 (`@prisma/client`, `@prisma/adapter-pg`).
   - Security & Crypto: `bcrypt` (10 rounds), HS256 HMAC JWT token.
 - **Tích hợp Dịch vụ ngoài (Third-party Integrations):**
-  - **Resend:** Dịch vụ gửi email thông báo đặt sân, đăng ký khoá học, xét tuyển hội viên (Bilingual template).
-  - **Google Apps Script Webhook:** Đồng bộ dữ liệu real-time từ API về Google Sheets (tabs: `DatSan`, `DangKyKhoaHoc`, `TuyenThanhVien`, `LienHe`).
-  - **Cloudinary:** Lưu trữ và phân phối hình ảnh sơ đồ sân, cổng vào, tin tức.
-  - **VietQR Quicklink:** Sinh ảnh mã QR động theo chuẩn ngân hàng Việt Nam.
+  - **Resend:** Dịch vụ gửi email thông báo đặt sân, đăng ký khoá học, xét tuyển hội viên, và email 2 chặng cho đơn hàng DVA Shop (Bilingual template).
+  - **Google Apps Script Webhook:** Đồng bộ dữ liệu real-time từ API về đúng 1 file Google Spreadsheet duy nhất của CLB (tabs: `DatSan`, `Training_Registrations`, `DangKyKhoaHoc`, `TuyenThanhVien`, `DonHang_Shop` với cơ chế Idempotent Upsert chống ghi đúp dòng).
+  - **Cloudinary:** Lưu trữ và phân phối hình ảnh sơ đồ sân, cổng vào, tin tức, và ảnh mặt trước/mặt sau sản phẩm DVA Shop.
+  - **VietQR Quicklink:** Sinh ảnh mã QR động theo chuẩn ngân hàng Việt Nam (MBBank `0002090671521` - `HOANG QUOC DUY`).
 
 ---
 
@@ -44,16 +44,17 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 | `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung, `Pagination.tsx` (component phân trang dùng chung cho bảng/grid dữ liệu), `ShareButton.tsx` (nút chia sẻ link thông minh), `LanguageSwitcher.tsx` (nút chuyển đổi ngôn ngữ dạng Micro Segmented Pill `EN | VI` kèm cờ SVG).<br>• `training/`: `CourseDetailModal.tsx` (modal chi tiết khoá học & học viện hỗ trợ deep-linking).<br>• `layout/`: Navbar (Floating Capsule tích hợp `LanguageSwitcher` trên Desktop & chân Mobile Drawer; tự động ẩn dropdown profile khi ở trong route `/admin/*`), Footer, Menu Drawer di động. |
 | `src/lib/` | Khởi tạo thư viện dùng chung phía Client: <br>• `i18n.ts`: Cấu hình `i18next` + `react-i18next` + `LanguageDetector` (hỗ trợ `'en'` & `'vi'`, `fallbackLng: 'en'`, lưu `localStorage` với key `'dva_lang'`). |
 | `src/locales/` | Từ điển bản dịch tĩnh đa ngôn ngữ (`src/locales/{en,vi}/`): <br>• `common.json`: Nhãn điều hướng Navbar, Footer, các nút bấm dùng chung.<br>• `news.json`: Nhãn 7 danh mục tin tức (`NEWS_CATEGORIES`), ô tìm kiếm, phân trang, trạng thái chia sẻ bài viết. |
-| `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: File re-export 1 dòng trỏ tới `src/pages/admin/AdminDashboardPage.tsx` (hỗ trợ `React.lazy` code-splitting).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV, hỗ trợ deep-linking mở `CourseDetailModal` qua `?courseId=`.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và bài viết chuyên sâu (Editorial layout, chia sẻ bài viết, hiển thị ngày đăng tiếng Anh chuẩn US).<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
+| `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: File re-export 1 dòng trỏ tới `src/pages/admin/AdminDashboardPage.tsx` (hỗ trợ `React.lazy` code-splitting).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `ShopPage.tsx`: Cửa hàng DVA Shop (`/shop`, `/services/shop`) với thẻ sản phẩm đổi ảnh mặt trước/mặt sau khi hover, popup Size Guide, Guest Buy-Now Dynamic Order Form (Áo đấu in tên/số vs Phụ kiện, Nhận tại sân BTL Thông Tin miễn phí vs Ship COD), và thanh toán VietQR động (`DVA [CAT_CODE] [ORDER_CODE_SUFFIX]`).<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV, hỗ trợ deep-linking mở `CourseDetailModal` qua `?courseId=`.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và bài viết chuyên sâu (Editorial layout, chia sẻ bài viết, hiển thị ngày đăng tiếng Anh chuẩn US).<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
 | `src/pages/admin/` | Kiến trúc Quản trị phân tách theo Tab (Tab-based Modular Architecture): <br>• `AdminDashboardPage.tsx`: Shell điều phối mỏng (114 dòng).<br>• `context/`, `layout/`, `tabs/`, `hooks/`, `components/`, `utils/`. |
-| `src/services/` | Lớp giao tiếp API máy khách (`api.ts`): Bao bọc hàm `request<T>()`, quản lý xác thực `authService`, điều phối đặt sân `bookingService`, huấn luyện `trainingService`, đồng bộ sheets `sheetsService`. |
+| `src/services/` | Lớp giao tiếp API máy khách (`api.ts`): Bao bọc hàm `request<T>()`, quản lý xác thực `authService`, điều phối đặt sân `bookingService`, huấn luyện `trainingService`, cửa hàng `storeService`, đồng bộ sheets `sheetsService` & `googleScriptSyncService`. |
 | `src/data/` | Dữ liệu tĩnh và mock fallback: `mockData.ts`, danh mục tỉnh thành `vietnamLocations.ts`. |
-| `src/types/` | Toàn bộ định nghĩa TypeScript (`index.ts`): User, Role, Player, Court, Booking, ClosedSlot, TrainingCourse, v.v. |
+| `src/types/` | Toàn bộ định nghĩa TypeScript (`index.ts`): User, Role, Player, Court, Booking, ClosedSlot, TrainingCourse, StoreProduct, StoreOrder, StoreOrderItem, v.v. |
 | `src/utils/` | Tiện ích dùng chung phía Client: `cloudinary.ts` (upload ảnh CDN), `date.ts` (`formatEnglishDate` / `formatPublishDate` chuẩn Anh - Mỹ `Month DD, YYYY`). |
 | `src/shared/` | Logic dùng chung giữa FE và BE: Chuẩn hóa lịch tuần sân bóng (`schedule.ts`). |
 | `src/config/` | Cấu hình frontend: Đường dẫn API gốc (`api.ts`). |
-| `lib/` | Thư viện dịch vụ cốt lõi Backend: <br>• `mailer.ts`: Khởi tạo Resend, template email song ngữ, VietQR URL builder.<br>• `prisma.ts`: Singleton kết nối Prisma Client qua PostgreSQL pool adapter.<br>• `security.ts`: RBAC Default-Deny, JWT sign/verify, mã hoá bcrypt, rate limiter, security headers.<br>• `schemas.ts` & `validation.ts`: Xác thực và làm sạch dữ liệu đầu vào. |
-| `prisma/` | Định nghĩa cơ sở dữ liệu: <br>• `schema.prisma`: Khai báo 12 models (User, Player, Court, ClosedSlot, Booking, CoachProfile, TrainingCourse, TrainingRegistration, MemberApplication, NewsPost, AppConfig, GoogleSheetsSyncLog).<br>• `seed-admin.ts`: Script khởi tạo tài khoản SUPERADMIN/ADMIN mặc định. |
+| `lib/` | Thư viện dịch vụ cốt lõi Backend: <br>• `mailer.ts`: Khởi tạo Resend, template email song ngữ (Booking, Training, Member, Shop Stage 1 & Stage 2), VietQR URL builder.<br>• `prisma.ts`: Singleton kết nối Prisma Client qua PostgreSQL pool adapter.<br>• `security.ts`: RBAC Default-Deny, JWT sign/verify, mã hoá bcrypt, rate limiter, security headers.<br>• `schemas.ts` & `validation.ts`: Xác thực và làm sạch dữ liệu đầu vào. |
+| `prisma/` | Định nghĩa cơ sở dữ liệu: <br>• `schema.prisma`: Khai báo 15 models (`User`, `Player`, `Court`, `ClosedSlot`, `Booking`, `CoachProfile`, `TrainingCourse`, `TrainingRegistration`, `MemberApplication`, `NewsPost`, `AppConfig`, `GoogleSheetsSyncLog`, `Product`, `Order`, `OrderItem`).<br>• `seed-admin.ts`: Script khởi tạo tài khoản SUPERADMIN/ADMIN mặc định. |
+| `scripts/` | Mã nguồn script tiện ích và tích hợp: <br>• `google-apps-script-dva-shop.js`: Toàn bộ mã Google Apps Script kế thừa 100% logic cũ và tự động khởi tạo tab `DonHang_Shop` (19 cột chuẩn + Idempotent Upsert theo `Mã đơn hàng`) ngay trong file Google Spreadsheet hiện tại của CLB. |
 | `server.ts` | Máy chủ Express API: Định tuyến RESTful, middleware bảo mật, webhook dispatchers, tích hợp Cloudinary và VietQR. |
 
 ---
@@ -82,6 +83,8 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   - `sendTrainingRegistrationEmail(payload)`: Gửi email xác nhận đăng ký lớp học bóng chuyền & thông tin chuyển khoản học phí.
   - `sendMemberRegistrationEmail(member)`: Gửi email tiếp nhận hồ sơ gia nhập CLB DVA.
   - `sendGuestSessionEmail(payload)`: Gửi email đăng ký tham gia giao lưu buổi lẻ (Guest session).
+  - `sendShopOrderConfirmationEmail(order)`: Gửi email Chặng 1 xác nhận đơn hàng DVA Shop (khi khách xác nhận chuyển khoản hoặc Admin duyệt `PAID`), đính kèm chi tiết sản phẩm, size, tên/số in áo và phương thức nhận hàng.
+  - `sendShopOrderShippingEmail(order)`: Gửi email Chặng 2 thông báo giao hàng khi Admin chuyển trạng thái sang `SHIPPED` và bấm *"Send Shipping Update"* (báo hàng đã sẵn sàng nhận tại sân BTL Thông Tin kèm bản đồ/ảnh chỉ dẫn cổng vào, hoặc đang giao qua đơn vị vận chuyển COD).
 
 ### 3.2. Bảo mật & Phân quyền (`lib/security.ts`)
 - **Cơ chế Default-Deny (`apiAccessPolicy`):**
@@ -107,15 +110,18 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 - **Chống Submit trùng lặp (`deduplicatedPost<T>()`):**
   - Quản lý in-flight request qua `Map` để ngăn người dùng click đúp gửi trùng dữ liệu POST (như đặt sân 2 lần cùng một lúc).
 
-### 3.4. Điều phối Google Sheets Webhook (`server.ts`)
+### 3.4. Điều phối Google Sheets Webhook (`server.ts` & `scripts/google-apps-script-dva-shop.js`)
+- **Nguyên tắc 1 File Google Spreadsheet Duy nhất:**
+  - Toàn bộ dữ liệu CLB đổ về **đúng 1 file Google Spreadsheet hiện tại** qua `GOOGLE_APPS_SCRIPT_WEBHOOK_URL`. Không tạo bất kỳ file Google Sheet rời rạc nào khác.
+  - Mã nguồn Google Apps Script đầy đủ được lưu tại `scripts/google-apps-script-dva-shop.js` (và đồng bộ trong `src/pages/admin/components/sheets/appsScriptTemplate.ts`). Script sử dụng `SpreadsheetApp.getActiveSpreadsheet()` để tự động tạo các tab con nếu chưa có và thực hiện **Idempotent Upsert** chống ghi đúp dòng theo khóa định danh (`Mã đặt sân`, `Mã đăng ký`, `Mã đơn hàng`).
 - **Hàm Dispatcher Bất đồng bộ:**
   - `dispatchGoogleSheetsWebhookAsync(tabName, sheetName, rowData)`: Điều hướng dữ liệu sang Google Apps Script URL.
   - Chạy theo cơ chế hoàn toàn non-blocking (Fire-and-forget), bọc kín trong `void (async () => { try { ... } catch { ... } })()`.
 - **Danh sách Sheet / Tab Tiêu chuẩn:**
-  1. `DatSan`: Tiếp nhận đơn đặt sân bóng chuyền, lịch ngày, giờ, tiền cọc, trạng thái thanh toán.
-  2. `DangKyKhoaHoc`: Tiếp nhận đăng ký khoá học bóng chuyền, học viên, trình độ, ca học.
-  3. `TuyenThanhVien`: Tiếp nhận đơn xin gia nhập câu lạc bộ, vị trí thi đấu, thông tin cá nhân.
-  4. `LienHe`: Tiếp nhận thông tin phản hồi, yêu cầu hỗ trợ và liên hệ khẩn cấp từ khách hàng.
+  1. `DatSan`: Tiếp nhận đơn đặt sân bóng chuyền, lịch ngày, giờ, tiền cọc, trạng thái thanh toán (Upsert theo `Mã đặt sân`).
+  2. `Training_Registrations` & `DangKyKhoaHoc`: Tiếp nhận đăng ký khoá học bóng chuyền, học viên, trình độ, ca học (Upsert theo `Mã đăng ký`).
+  3. `TuyenThanhVien`: Tiếp nhận đơn xin gia nhập câu lạc bộ, vị trí thi đấu, thông tin cá nhân (Upsert theo `Mã đăng ký`).
+  4. `DonHang_Shop`: Tiếp nhận đơn hàng DVA Shop với 19 cột chuẩn (`Thời Gian Nhận`, `Mã đơn hàng`, `Phân loại danh mục`, `Tên sản phẩm`, `Size`, `Số lượng`, `Họ tên khách`, `SĐT`, `Email`, `Instagram/Facebook`, `Hình thức nhận`, `Địa chỉ nhận`, `Chiều cao/Cân nặng`, `Tên in áo`, `Số áo in`, `Tổng tiền (VNĐ)`, `Nội dung CK`, `Trạng thái đơn`, `Ghi chú`). Tự động ghi đè đúng dòng cũ theo `Mã đơn hàng` khi khách báo đã chuyển khoản hoặc khi Admin cập nhật trạng thái đơn sang `PAID`, `SHIPPED`, `COMPLETED`, `CANCELLED`.
 
 ### 3.5. Chiến lược Database Index, Soft Visibility & Quản trị Database Neon (Database Strategy & Operations)
 - **Cơ chế Quản trị Database Neon PostgreSQL (Database Invariant):**
@@ -167,9 +173,9 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
     - `AdminHeader.tsx`: Topbar chứa nút toggle sidebar, Hybrid Quick Search bar, vị trí hiển thị duy nhất thông tin Admin kết nối (Avatar initials, Name, Email, Role badge — dropdown trùng lặp trên `Navbar` chính tự động ẩn khi ở route `/admin/*`), nút `Guest Session Email`, nút Refresh dữ liệu và nút thoát ra trang Public.
     - `FeedbackBanner.tsx`: Thông báo trạng thái và kết quả thao tác thời gian thực.
   - `tabs/`: Các component tab độc lập (tích hợp phân trang `Pagination.tsx`):
-    - `OverviewTab.tsx`: Trung tâm số liệu phân tích (Analytics & KPI Hub) gồm 3 tầng: (1) Hàng 6 thẻ Metric KPI (`RevenueKpiCards.tsx`: Total Revenue, Est. Training Tuition, Booking Revenue, Shop Revenue [Coming Soon], Active Athletes, Pending Approvals); (2) Khu vực giữa gồm Biểu đồ cột chồng SVG 6 tháng (`RevenueTrendChart.tsx`) và thẻ Tỷ trọng doanh thu/đăng ký giữa các dịch vụ (`Service Revenue Share`); (3) Khu vực dưới "Recent Activity" tóm tắt 5 đơn đặt sân và 5 lượt đăng ký học gần nhất kèm nút `"View All"`.
+    - `OverviewTab.tsx`: Trung tâm số liệu phân tích (Analytics & KPI Hub) gồm 3 tầng: (1) Hàng 6 thẻ Metric KPI (`RevenueKpiCards.tsx`: Total Revenue, Est. Training Tuition, Booking Revenue, Shop Revenue [tổng hợp trực tiếp từ các đơn hàng `PAID`, `SHIPPED`, `COMPLETED`], Active Athletes, Pending Approvals); (2) Khu vực giữa gồm Biểu đồ cột chồng SVG 6 tháng (`RevenueTrendChart.tsx` tích hợp doanh thu Training + Court Booking + DVA Shop) và thẻ Tỷ trọng doanh thu/đăng ký giữa các dịch vụ (`Service Revenue Share`); (3) Khu vực dưới "Recent Activity" tóm tắt 5 đơn đặt sân và 5 lượt đăng ký học gần nhất kèm nút `"View All"`.
     - `PlayersTab.tsx` (phân trang 12 thẻ/trang), `TrainingTab.tsx` (6 thẻ khóa học/trang, 10 dòng học viên/trang), `BookingsTab.tsx` (10 dòng/trang), `ApplicationsTab.tsx` (10 dòng/trang), `UsersTab.tsx` (10 dòng/trang), `NewsTab.tsx` (6 bài viết/trang), `CourtsTab.tsx`, `CoachesTab.tsx`, `SheetsTab.tsx`.
-    - `StoreTab.tsx`: Placeholder layout khởi tạo phân hệ DVA Store thương mại thể thao cho Phase 2 (0 network calls).
+    - `StoreTab.tsx`: Phân hệ quản trị thương mại thể thao DVA Store Phase 2 hoàn chỉnh gồm: (1) **Orders Management** với bộ lọc trạng thái (`All`, `Pending`, `Paid`, `Shipped`, `Completed`, `Cancelled`), duyệt thanh toán, cập nhật vận chuyển (tự động đồng bộ đè dòng `DonHang_Shop` trên Google Sheets) và nút **"Send Shipping Update"** kích hoạt Resend API gửi email Chặng 2 khi đơn ở trạng thái `SHIPPED`; (2) **Products Catalog** với modal Thêm/Sửa sản phẩm, tải ảnh mặt trước (`frontImage`) & mặt sau (`backImage`) lên Cloudinary, quản lý kho/size và nút toggle `isActive`.
     - `TournamentsTab.tsx`: Trạng thái Coming Soon của giải đấu kèm thông điệp chuẩn hóa: *"Feature Under Development - Hệ thống quản lý giải đấu đang được phát triển và dịch vụ sẽ sớm được triển khai."*
   - `hooks/`: Các custom hook tách biệt logic khỏi UI (`useAdminData`, `useFeedback`, `useAdminMetrics`, `useApplicationActions`, `useCourtCrud`, `useCourtSlotLock`, `useUsersTab`).
   - `components/`: Sub-components chuyên biệt theo từng miền (bao gồm `overview/RevenueKpiCards.tsx`, `overview/RevenueTrendChart.tsx`, `courts/*`, `bookings/*`, `players/*`, `training/*`, `coaches/*`, `news/*`, `users/*`, `sheets/*`).
@@ -238,6 +244,34 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   - **Nấc đang chọn (Active):** Nền chuyển sắc cam thương hiệu (`bg-gradient-to-r from-orange-500 to-amber-500 text-white font-extrabold shadow-sm`), hiển thị kèm cờ SVG inline sắc nét (`w-3.5 h-2.5 rounded-[2px]`): cờ Vương Quốc Anh (`UkFlagIcon` 🇬🇧) khi `EN` active và cờ Việt Nam (`VnFlagIcon` 🇻🇳) khi `VI` active.
   - **Nấc không chọn (Inactive):** Chữ xám mờ (`text-slate-400 hover:text-slate-200 text-xs font-semibold`), tự động ẩn cờ để tiết kiệm không gian và tạo độ tương phản rõ nét, chuyển cảnh mượt (`transition-all duration-200 ease-out`).
   - **Vị trí Tích hợp trên `Navbar.tsx`:** Hiển thị trực tiếp trên thanh Topbar cố định (cả Mobile lẫn Desktop/Tablet, nằm ngay cạnh nút Hamburger / cụm tài khoản) để người dùng đổi ngôn ngữ tức thì mà không cần mở menu, đồng thời hiển thị thêm ở phần chân (footer) của Mobile Menu Drawer.
+
+### 3.9. Kiến trúc Module DVA Shop (Phase 2 & Phase 2.1 Refinements)
+- **Data Models (`prisma/schema.prisma`):**
+  - `Product`: `id`, `slug` (URL slug thân thiện SEO), `name`, `categoryId`, `price`, `originalPrice` (giá gốc trước giảm), `isPaused` (tạm dừng kinh doanh/hết hàng tạm thời), `frontImage`, `backImage`, `sizes` (mặc định `["S", "M", "L", "XL", "2XL"]`), `description`.
+  - `Order`: `id`, `orderCode`, `quantity` (số lượng mua), `totalAmount`, `status` (`PENDING` | `PAID` | `SHIPPED` | `CANCELLED`), `transferContent` (`DVA [CAT_CODE] [SUFFIX]`), `customName` (chỉ in Player Name), `fulfillmentType` (`COURT_PICKUP` | `HOME_DELIVERY`), `pickupLocation`, `shippingAddress`, `note`.
+- **Định tuyến & Phân cấp URL (`src/App.tsx`, `src/types/index.ts`):**
+  - Trang cửa hàng chính: `/shop` (hoặc alias `/services/shop`).
+  - Trang chi tiết sản phẩm chuẩn SEO: `/shop/:categorySlug/:productSlug` (ví dụ `/shop/mens-sleeveless/dva-pro-jersey-2026`). Helper ánh xạ hai chiều `getCategoryUrlSlug()` và `getCategoryFromUrlSlug()`.
+- **Trải nghiệm Khách hàng & Tinh chỉnh UX (Phase 2.1 & Volleyball World Card Architecture):**
+  - **Bố cục Card Compact (Volleyball World Style):** Lưới responsive 2 cột trên điện thoại (`grid-cols-2 gap-3`), 4 cột trên desktop (`lg:grid-cols-4`). Loại bỏ snippet mô tả văn bản ngoài card giúp card ngắn gọn, vuốt mượt mà.
+  - **Tỷ lệ ảnh chuẩn `aspect-[4/5]`:** Khóa cứng tỷ lệ thời trang thể thao 4:5 cho ảnh card, modal Quick View và trang chi tiết với `object-cover object-center`.
+  - **Floating Quick View Button:** Nút icon con mắt bán trong suốt nổi ở góc dưới ảnh bìa, hover/touch hiển thị tức thì.
+  - **Sản phẩm Bóng thi đấu Mikasa V200W (FIVB Official):** Hạng mục `VOLLEYBALLS` (Bóng thi đấu chính thức tiêu chuẩn FIVB Olympic, Size 5).
+  - **Dynamic Form thông minh:** Đối với bóng Mikasa V200W và phụ kiện không cần chọn size: tự động ẩn toàn bộ selector size (S/M/L/XL), nút Size Guide, chiều cao/cân nặng và ô in tên áo; chỉ hiển thị bộ chọn số lượng (Quantity: 1, 2, 3...) và phương thức nhận hàng (Sân 155 Trường Chinh vs Ship COD).
+  - **High-Res Lightbox Zoom:** Trình phóng to ảnh chi tiết (1x → 3x, drag pan, toggle front/back) cho cả ảnh trước và sau.
+  - **Bảng Size & Tùy biến:** Bỏ size `XS` (dải size chuẩn: `S, M, L, XL, 2XL`). Tùy biến in áo: BỎ trường số áo, CHỈ GIỮ trường `"PLAYER NAME"`.
+  - **Bộ chọn số lượng (Quantity Selector):** Cho phép chọn 1, 2, 3... tự động nhân tổng tiền (`price * quantity`), kèm lưu ý các áo trong cùng 1 đơn sẽ áp dụng chung size và tên in (đặt riêng nếu khác thông số).
+  - **Giao nhận:** Mặc định miễn phí nhận tại sân `"155 Truong Chinh - Thanh Xuan - Hanoi (DVA Court - BTL Thong Tin)"`. Khi tick "Home Delivery" mới mở ô nhập địa chỉ nhận hàng kèm ghi chú khách tự thanh toán cước COD khi nhận.
+  - **Chính sách Giá & Giảm giá:** Khi `originalPrice > price`, hiển thị giá gốc gạch ngang bên cạnh giá khuyến mãi kèm badge giảm giá (`-XX%`), áp dụng `whitespace-nowrap` chống rớt dòng chữ "đ".
+  - **Trạng thái Tạm dừng (`isPaused`):** Hiển thị badge `"Temporarily Out of Stock / Coming Back Soon"` và vô hiệu hóa nút `"Buy Now"`.
+- **Tự động Đồng bộ Google Sheets (`DonHang_Shop`):**
+  - Sử dụng chung 1 file Google Spreadsheet của CLB qua Webhook Google Apps Script (`scripts/google-apps-script-dva-shop.js`).
+  - Tự động tạo tab `DonHang_Shop` với 19 cột tiêu chuẩn.
+  - Cơ chế **Idempotent Upsert** theo `Mã đơn hàng`: Khi cập nhật trạng thái đơn sang `PAID` hoặc `SHIPPED`, hệ thống tự ghi đè cập nhật đúng dòng tương ứng, tuyệt đối không sinh dòng rác trùng lặp.
+- **Quản trị Cửa hàng (`StoreTab.tsx`):**
+  - Tab con quản lý: `Orders Management & VietQR`, `Products & Inventory`, `Categories & Merch`.
+  - Form sản phẩm: Chỉnh sửa Tiêu đề, Slug, Rich Text/Markdown Description, Giá gốc & Giá bán thực tế (kèm preview % giảm giá trực tiếp), Toggle trạng thái kinh doanh (`isPaused`).
+  - Quản lý đơn hàng: Tra cứu theo mã đơn, lọc theo trạng thái, nút duyệt thanh toán (`PAID`), nút xác nhận giao hàng (`SHIPPED`) và kích hoạt gửi email Chặng 2.
 
 ---
 

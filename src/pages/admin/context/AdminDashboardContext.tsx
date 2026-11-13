@@ -49,7 +49,7 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
   }, [navigate, onUserChange]);
 
   const currentTabParam = (searchParams.get('tab') || 'OVERVIEW').toUpperCase();
-  const currentViewParam = (searchParams.get('view') || 'PRODUCTS').toUpperCase();
+  const currentViewParam = (searchParams.get('view') || 'ORDERS').toUpperCase();
   const isSuperAdmin = currentUser.role === 'SUPERADMIN';
   const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
 
@@ -60,7 +60,7 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
 
   const storeSubView: StoreSubView = VALID_STORE_VIEWS.includes(currentViewParam as StoreSubView)
     ? (currentViewParam as StoreSubView)
-    : 'PRODUCTS';
+    : 'ORDERS';
 
   const setActiveModule = useCallback(
     (mod: AdminTabId | string, subView?: string) => {

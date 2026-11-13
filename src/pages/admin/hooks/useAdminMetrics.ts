@@ -13,6 +13,7 @@ export interface MonthlyRevenuePoint {
 
 export interface AdminMetrics {
   paidBookingsCount: number;
+  paidStoreOrdersCount: number;
   pendingBookingsCount: number;
   pendingApplicationsCount: number;
   pendingTrainingCount: number;
@@ -83,7 +84,9 @@ export function useAdminMetrics(): AdminMetrics {
     const pendingBookingsCount = bookings.filter((b) => b.paymentStatus === 'PENDING').length;
     const pendingApplicationsCount = applications.filter((a) => a.status === 'PENDING').length;
     const pendingTrainingCount = trainingRegs.filter((r) => r.status === 'PENDING').length;
-    const pendingStoreOrdersCount = storeOrders.filter((o) => o.paymentStatus === 'PENDING').length;
+    const pendingStoreOrdersCount = storeOrders.filter(
+      (o) => (o.status || o.paymentStatus) === 'PENDING'
+    ).length;
 
     const coursePriceById = new Map<string, number>();
     coursesList.forEach((c) => coursePriceById.set(c.id, toNumber(c.price)));
@@ -92,7 +95,10 @@ export function useAdminMetrics(): AdminMetrics {
     const regValue = (courseId: string) => coursePriceById.get(courseId) ?? 0;
     const trainingRevenue = confirmedRegs.reduce((sum, r) => sum + regValue(r.courseId), 0);
 
-    const paidStoreOrders = storeOrders.filter((o) => o.paymentStatus === 'PAID');
+    const paidStoreOrders = storeOrders.filter((o) =>
+      ['PAID', 'SHIPPED', 'COMPLETED'].includes(String(o.status || o.paymentStatus))
+    );
+    const paidStoreOrdersCount = paidStoreOrders.length;
     const storeRevenue = paidStoreOrders.reduce((sum, o) => sum + toNumber(o.totalAmount), 0);
 
     const monthlyRevenue = buildMonthBuckets(new Date());
@@ -112,6 +118,7 @@ export function useAdminMetrics(): AdminMetrics {
 
     return {
       paidBookingsCount,
+      paidStoreOrdersCount,
       pendingBookingsCount,
       pendingApplicationsCount,
       pendingTrainingCount,

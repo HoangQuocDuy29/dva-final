@@ -8,7 +8,7 @@ import { RevenueTrendChart } from '../components/overview/RevenueTrendChart';
 export const OverviewTab: React.FC = () => {
   const {
     setActiveModule,
-    data: { bookings, trainingRegs },
+    data: { bookings, trainingRegs, storeOrders },
   } = useAdminDashboard();
   const {
     totalClubRevenue,
@@ -16,13 +16,15 @@ export const OverviewTab: React.FC = () => {
     trainingRevenue,
     storeRevenue,
     paidBookingsCount,
+    paidStoreOrdersCount,
     confirmedTrainingCount,
   } = useAdminMetrics();
 
   const safeTotal = totalClubRevenue > 0 ? totalClubRevenue : 1;
   const bookingSharePct = totalClubRevenue > 0 ? Math.round((courtRevenue / safeTotal) * 100) : 0;
+  const storeSharePct = totalClubRevenue > 0 ? Math.round((storeRevenue / safeTotal) * 100) : 0;
   const trainingSharePct =
-    totalClubRevenue > 0 ? Math.max(0, 100 - bookingSharePct) : 0;
+    totalClubRevenue > 0 ? Math.max(0, 100 - bookingSharePct - storeSharePct) : 0;
 
   const serviceStreams = [
     {
@@ -48,10 +50,10 @@ export const OverviewTab: React.FC = () => {
     {
       id: 'STORE' as const,
       icon: ShoppingBag,
-      label: 'DVA Store (Coming Soon)',
+      label: 'DVA Store',
       revenue: storeRevenue,
-      pct: 0,
-      volume: 'Phase 2 E-Commerce',
+      pct: storeSharePct,
+      volume: `${paidStoreOrdersCount} paid / ${storeOrders.length} total orders`,
       color: 'bg-[#FACC15]',
       textColor: 'text-[#FACC15]',
     },
@@ -97,11 +99,18 @@ export const OverviewTab: React.FC = () => {
                   title={`Training & Scrimmages: ${trainingSharePct}%`}
                 />
               )}
+              {storeSharePct > 0 && (
+                <div
+                  className="h-full bg-[#FACC15] transition-all duration-500"
+                  style={{ width: `${storeSharePct}%` }}
+                  title={`DVA Store: ${storeSharePct}%`}
+                />
+              )}
             </div>
             <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
               <span>Bookings {bookingSharePct}%</span>
               <span>Training {trainingSharePct}%</span>
-              <span>Shop 0%</span>
+              <span>Shop {storeSharePct}%</span>
             </div>
           </div>
 

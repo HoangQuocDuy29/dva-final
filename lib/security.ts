@@ -174,6 +174,10 @@ const PUBLIC_RULES: Rule[] = [
   rule('POST', /^\/members\/(register|apply)\/?$/),
   rule('POST', /^\/vietqr\/generate\/?$/),
   rule('POST', /^\/webhooks\/payment\/?$/),
+  rule('GET', /^\/store\/products\/?$/),
+  rule('GET', /^\/store\/products\/[^/]+\/?$/),
+  rule('POST', /^\/store\/orders\/?$/),
+  rule('POST', /^\/store\/orders\/[^/]+\/confirm-payment\/?$/),
 ];
 
 const SUPERADMIN_RULES: Rule[] = [
