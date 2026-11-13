@@ -3592,6 +3592,62 @@ app.post('/api/store/orders/:id/shipping-email', ah(async (req, res) => {
   });
 }));
 
+// Admin safe delete order (`PENDING` or `CANCELLED` only; active paid/shipped/completed orders must be cancelled first)
+const NON_DELETABLE_ORDER_STATUSES = new Set(['PAID', 'SHIPPED', 'COMPLETED']);
+
+app.delete('/api/store/orders/:id', ah(async (req, res) => {
+  if (!isStaff(req.user)) {
+    return res.status(403).json({ error: 'Admin access required.' });
+  }
+
+  const { id } = req.params;
+  const existing = await prisma.order.findFirst({
+    where: { OR: [{ id }, { orderCode: id }] },
+    include: { items: true },
+  });
+  if (!existing) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  if (NON_DELETABLE_ORDER_STATUSES.has(existing.status)) {
+    return res.status(400).json({
+      error: 'Cannot delete active paid/shipped order. Please cancel the order first.',
+    });
+  }
+
+  const orderDto = toOrderDto(existing);
+
+  // Atomic deletion inside transaction (no stock adjustment since stock is not deducted on order creation)
+  await prisma.$transaction(async (tx) => {
+    await tx.orderItem.deleteMany({ where: { orderId: existing.id } });
+    await tx.order.delete({ where: { id: existing.id } });
+  });
+
+  // Fire-and-forget audit sync to Google Sheets (`DonHang_Shop`) marking the row DELETED
+  const deletedOrderAuditDto: StoreOrder = {
+    ...orderDto,
+    notes: [
+      orderDto.notes,
+      `Deleted by Admin (${req.user?.email || 'staff'}) at ${new Date().toISOString()}`,
+    ]
+      .filter(Boolean)
+      .join(' | '),
+  };
+
+  dispatchGoogleSheetsWebhookAsync(
+    'Store_Orders',
+    'DonHang_Shop',
+    buildShopOrderSheetPayload(deletedOrderAuditDto, 'DELETED')
+  );
+
+  return res.json({
+    success: true,
+    deletedOrderId: existing.id,
+    orderCode: existing.orderCode,
+    message: `Order ${existing.orderCode} permanently deleted.`,
+  });
+}));
+
 // Unknown /api routes must answer with JSON (not the SPA index.html)
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });

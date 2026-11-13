@@ -20,6 +20,7 @@ import {
   X,
   Loader2,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   OrderStatus,
@@ -221,6 +222,10 @@ export const StoreTab: React.FC = () => {
   const [isSendingDispatch, setIsSendingDispatch] = useState(false);
   const [sendingShippingOrderId, setSendingShippingOrderId] = useState<string | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+
+  // Order Safe Delete Modal State
+  const [deleteModalOrder, setDeleteModalOrder] = useState<StoreOrder | null>(null);
+  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
 
   const filteredProducts = useMemo(() => {
     const q = productQuery.trim().toLowerCase();
@@ -473,6 +478,22 @@ export const StoreTab: React.FC = () => {
     }
   };
 
+  const handleConfirmDeleteOrder = async () => {
+    if (!deleteModalOrder) return;
+    const target = deleteModalOrder;
+    setIsDeletingOrder(true);
+    try {
+      const res = await storeService.deleteOrder(target.id);
+      setStoreOrders((prev) => prev.filter((o) => o.id !== target.id));
+      notify(res?.message || `Order ${target.orderCode} permanently deleted & marked DELETED in Google Sheet.`);
+      setDeleteModalOrder(null);
+    } catch (err: any) {
+      notify(err?.message || 'Unable to delete order.');
+    } finally {
+      setIsDeletingOrder(false);
+    }
+  };
+
   const kpis = [
     {
       icon: Wallet,
@@ -686,6 +707,7 @@ export const StoreTab: React.FC = () => {
                       const effectiveStatus = (o.status || o.paymentStatus || 'PENDING') as OrderStatus;
                       const isUpdating = updatingOrderId === o.id;
                       const isSendingMail = sendingShippingOrderId === o.id;
+                      const isDeleteLocked = ['PAID', 'SHIPPED', 'COMPLETED'].includes(effectiveStatus);
 
                       return (
                         <tr key={o.id} className="hover:bg-slate-800/30 align-top">
@@ -803,27 +825,29 @@ export const StoreTab: React.FC = () => {
                           {/* Actions */}
                           <td className="py-3.5 px-3 text-right">
                             <div className="flex flex-wrap items-center justify-end gap-1.5">
-                              {/* Dedicated Dispatch Email Button (Stage 2) */}
-                              <button
-                                type="button"
-                                disabled={isUpdating || isSendingDispatch}
-                                onClick={() => handleOpenDispatchModal(o)}
-                                className={`px-3 py-1.5 font-bold text-[11px] rounded-xl flex items-center gap-1.5 shadow transition-all cursor-pointer ${
-                                  o.shippingEmailSentAt
-                                    ? 'bg-slate-800 hover:bg-slate-700 text-sky-400 border border-sky-500/40'
-                                    : 'bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white'
-                                }`}
-                                title={
-                                  o.shippingEmailSentAt
-                                    ? 'Resend dispatch notice email to customer'
-                                    : 'Open preview modal & send dispatch notice email to customer'
-                                }
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                                <span>
-                                  {o.shippingEmailSentAt ? 'Resend Dispatch Email' : 'Send Dispatch Email'}
-                                </span>
-                              </button>
+                              {/* Dedicated Dispatch Email Button (Stage 2) — hidden for CANCELLED orders */}
+                              {effectiveStatus !== 'CANCELLED' && (
+                                <button
+                                  type="button"
+                                  disabled={isUpdating || isSendingDispatch || isSendingMail}
+                                  onClick={() => handleOpenDispatchModal(o)}
+                                  className={`px-3 py-1.5 font-bold text-[11px] rounded-xl flex items-center gap-1.5 shadow transition-all cursor-pointer ${
+                                    o.shippingEmailSentAt
+                                      ? 'bg-slate-800 hover:bg-slate-700 text-sky-400 border border-sky-500/40'
+                                      : 'bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white'
+                                  }`}
+                                  title={
+                                    o.shippingEmailSentAt
+                                      ? 'Resend dispatch notice email to customer'
+                                      : 'Open preview modal & send dispatch notice email to customer'
+                                  }
+                                >
+                                  <Send className="w-3.5 h-3.5" />
+                                  <span>
+                                    {o.shippingEmailSentAt ? 'Resend Dispatch Email' : 'Send Dispatch Email'}
+                                  </span>
+                                </button>
+                              )}
 
                               {effectiveStatus === 'PENDING' && (
                                 <button
@@ -868,6 +892,30 @@ export const StoreTab: React.FC = () => {
                                   Cancel
                                 </button>
                               )}
+
+                              {/* Safe Delete Order Button (only enabled for PENDING / CANCELLED) */}
+                              <button
+                                type="button"
+                                disabled={isDeleteLocked || isUpdating || isDeletingOrder}
+                                onClick={() => !isDeleteLocked && setDeleteModalOrder(o)}
+                                title={
+                                  isDeleteLocked
+                                    ? 'Cancel order before deleting'
+                                    : `Delete order ${o.orderCode}`
+                                }
+                                aria-label={
+                                  isDeleteLocked
+                                    ? 'Cancel order before deleting'
+                                    : `Delete order ${o.orderCode}`
+                                }
+                                className={`p-1.5 rounded-xl border transition-colors ${
+                                  isDeleteLocked
+                                    ? 'bg-slate-900/50 border-slate-800 text-slate-500 opacity-40 cursor-not-allowed'
+                                    : 'bg-red-950/30 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 cursor-pointer'
+                                }`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1760,6 +1808,96 @@ export const StoreTab: React.FC = () => {
                     ? 'Confirm & Resend Dispatch Email'
                     : 'Confirm & Send Dispatch Email'}
                 </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* DELETE ORDER CONFIRMATION MODAL                                      */}
+      {/* =================================================================== */}
+      {deleteModalOrder && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#111827] border border-red-900/60 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-950/60 border border-red-800/70 flex items-center justify-center text-red-400">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-black text-base text-white">Delete Store Order?</h3>
+                  <p className="text-[11px] text-slate-400">
+                    This action permanently deletes the order from the database.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isDeletingOrder}
+                onClick={() => setDeleteModalOrder(null)}
+                className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl p-4 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Order Code:</span>
+                <span className="font-mono font-bold text-white">{deleteModalOrder.orderCode}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Customer:</span>
+                <span className="font-bold text-white truncate max-w-[200px]">
+                  {deleteModalOrder.customerName}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Total Amount:</span>
+                <span className="font-mono font-bold text-[#FACC15]">
+                  {Number(deleteModalOrder.totalAmount || 0).toLocaleString('vi-VN')} đ
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Current Status:</span>
+                <span
+                  className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${getOrderStatusBadgeClass(
+                    (deleteModalOrder.status || deleteModalOrder.paymentStatus || 'PENDING') as OrderStatus
+                  )}`}
+                >
+                  {deleteModalOrder.status || deleteModalOrder.paymentStatus || 'PENDING'}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-red-950/30 border border-red-900/50 text-[11px] text-red-200/90 leading-relaxed">
+              Inventory stock will not be modified. The corresponding row in Google Sheets (
+              <span className="font-mono font-semibold text-white">DonHang_Shop</span>) will be updated to{' '}
+              <span className="font-mono font-bold text-red-300">DELETED</span> for audit tracking.
+            </div>
+
+            <div className="pt-1 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeletingOrder}
+                onClick={() => setDeleteModalOrder(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer transition-colors"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingOrder}
+                onClick={handleConfirmDeleteOrder}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-red-950/40 cursor-pointer transition-colors"
+              >
+                {isDeletingOrder ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>{isDeletingOrder ? 'Deleting...' : 'Confirm Delete Order'}</span>
               </button>
             </div>
           </div>

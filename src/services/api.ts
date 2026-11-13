@@ -1241,5 +1241,14 @@ export const storeService = {
       body: payload ? JSON.stringify(payload) : undefined,
     });
   },
+
+  async deleteOrder(
+    orderId: string
+  ): Promise<{ success: boolean; deletedOrderId: string; orderCode: string; message: string }> {
+    return request<{ success: boolean; deletedOrderId: string; orderCode: string; message: string }>(
+      `/store/orders/${encodeURIComponent(orderId)}`,
+      { method: 'DELETE' }
+    );
+  },
 };
 
