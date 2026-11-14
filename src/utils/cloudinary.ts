@@ -6,7 +6,91 @@
  * without needing to manually create folders on Cloudinary Dashboard.
  */
 
-export type CloudinaryModule = 'players' | 'courts' | 'news' | 'coaches' | 'training' | 'general';
+export type CloudinaryModule = 'players' | 'courts' | 'news' | 'coaches' | 'training' | 'shop' | 'general';
+
+export type CloudinaryImagePreset = 'card' | 'thumb' | 'detail' | 'zoom';
+
+const CLOUDINARY_PRESETS: Record<CloudinaryImagePreset, string> = {
+  card: 'f_auto,q_auto:good,w_600,c_limit',
+  thumb: 'f_auto,q_auto,w_160,c_limit',
+  detail: 'f_auto,q_auto:good,w_1000,c_limit',
+  zoom: 'f_auto,q_auto:good,w_1600,c_limit',
+};
+
+const CLOUDINARY_UPLOAD_MARKER = '/image/upload/';
+const CLOUDINARY_TRANSFORM_TOKEN_RE = /(?:^|,)(?:f|q|w|h|c|dpr|e|ar|g|b|r|t|fl|bo|co|o|z)_[^/]+/;
+
+interface ParsedCloudinaryUrl {
+  prefix: string;
+  suffix: string;
+  hasTransform: boolean;
+}
+
+function parseCloudinaryUploadUrl(url?: string | null): ParsedCloudinaryUrl | null {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.startsWith('/') || trimmed.startsWith('data:') || !/^https?:\/\//i.test(trimmed)) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (!parsed.hostname.endsWith('cloudinary.com')) return null;
+  } catch {
+    return null;
+  }
+
+  const markerIdx = trimmed.indexOf(CLOUDINARY_UPLOAD_MARKER);
+  if (markerIdx === -1) return null;
+
+  const prefix = trimmed.slice(0, markerIdx + CLOUDINARY_UPLOAD_MARKER.length);
+  const suffix = trimmed.slice(markerIdx + CLOUDINARY_UPLOAD_MARKER.length);
+  if (!suffix) return null;
+
+  const firstSegment = suffix.split('/')[0] || '';
+  const hasTransform = CLOUDINARY_TRANSFORM_TOKEN_RE.test(firstSegment);
+  return { prefix, suffix, hasTransform };
+}
+
+/**
+ * Inject on-the-fly Cloudinary CDN transformations (`f_auto,q_auto...`) into raw Cloudinary URLs.
+ * Preserves local paths (`/courts/...`), Base64 data URLs, non-Cloudinary URLs, and URLs that already contain transforms.
+ */
+export function optimizeCloudinaryUrl(
+  url?: string | null,
+  presetOrWidth: CloudinaryImagePreset | number = 'card'
+): string {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  const parsed = parseCloudinaryUploadUrl(trimmed);
+  if (!parsed || parsed.hasTransform) return trimmed;
+
+  const transform =
+    typeof presetOrWidth === 'number'
+      ? `f_auto,q_auto:good,w_${Math.max(1, Math.round(presetOrWidth))},c_limit`
+      : CLOUDINARY_PRESETS[presetOrWidth];
+
+  return `${parsed.prefix}${transform}/${parsed.suffix}`;
+}
+
+/**
+ * Generate a responsive `srcSet` string for raw Cloudinary URLs (e.g. `400w, 600w, 800w`).
+ * Returns `undefined` for non-Cloudinary, local, Base64, or already-transformed URLs.
+ */
+export function buildCloudinarySrcSet(
+  url?: string | null,
+  widths: readonly number[] = [400, 600, 800]
+): string | undefined {
+  const parsed = parseCloudinaryUploadUrl(url);
+  if (!parsed || parsed.hasTransform || widths.length === 0) return undefined;
+
+  return widths
+    .map((width) => {
+      const w = Math.max(1, Math.round(width));
+      return `${parsed.prefix}f_auto,q_auto:good,w_${w},c_limit/${parsed.suffix} ${w}w`;
+    })
+    .join(', ');
+}
 
 export interface UploadResult {
   url: string;

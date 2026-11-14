@@ -3053,10 +3053,19 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
 // 12. DVA Shop / Store API (Products & Orders)
 // ==========================================
 
-app.get('/api/store/products', ah(async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+function applyStoreProductCacheHeaders(res: express.Response, isStaffUser: boolean): void {
+  res.vary('Authorization');
+  if (isStaffUser) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  } else {
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+  }
+}
 
+app.get('/api/store/products', ah(async (req, res) => {
   const isStaffUser = isStaff(req.user);
+  applyStoreProductCacheHeaders(res, isStaffUser);
+
   const activeOnlyRequested = req.query.activeOnly === 'true';
   const category = typeof req.query.category === 'string' ? req.query.category.trim().toUpperCase() : '';
 
@@ -3082,7 +3091,8 @@ app.get('/api/store/products', ah(async (req, res) => {
 }));
 
 app.get('/api/store/products/:idOrSlug', ah(async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  const isStaffUser = isStaff(req.user);
+  applyStoreProductCacheHeaders(res, isStaffUser);
 
   const { idOrSlug } = req.params;
   const where: Record<string, any> = {
@@ -3092,7 +3102,7 @@ app.get('/api/store/products/:idOrSlug', ah(async (req, res) => {
       { sku: idOrSlug },
     ],
   };
-  if (!isStaff(req.user)) {
+  if (!isStaffUser) {
     where.isActive = true;
     where.isPaused = false;
   }
@@ -3692,9 +3702,10 @@ async function setupViteOrStatic() {
   }
 }
 
-ensurePostgreSQLSeeded()
+prisma
+  .$connect()
   .catch((err) => {
-    console.warn('[Database] Initial PostgreSQL connection/seed warning:', err?.message || err);
+    console.warn('[Database] Initial PostgreSQL connection warning:', err?.message || err);
   })
   .then(() => setupViteOrStatic())
   .then(() => {
@@ -3707,6 +3718,11 @@ ensurePostgreSQLSeeded()
       console.log(`💳 Bank: ${BANK.id} ${BANK.accountNo} (${BANK.accountName})`);
       console.log(`📊 Google Sheets v4 API Sync: ONLINE`);
       console.log(`=================================================`);
+
+      // Run idempotent seed checks in background so port binding & Render cold starts stay fast
+      void ensurePostgreSQLSeeded().catch((err) => {
+        console.warn('[Database] Background PostgreSQL seed warning:', err?.message || err);
+      });
     });
 
     const shutdown = () => {

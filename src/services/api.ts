@@ -1063,17 +1063,151 @@ export const adminService = {
     }),
 };
 
+const STORE_PRODUCTS_CACHE_PREFIX = 'dva_store_products_v1:';
+const STORE_PRODUCTS_FRESH_MS = 60_000;
+const STORE_PRODUCTS_STALE_MS = 300_000;
+
+interface StoreProductsCacheEntry {
+  data: StoreProduct[];
+  cachedAt: number;
+}
+
+const storeProductsMemoryCache = new Map<string, StoreProductsCacheEntry>();
+const inflightStoreProductsRequests = new Map<string, Promise<StoreProduct[]>>();
+
+function buildStoreProductsCacheKey(params?: { category?: string; activeOnly?: boolean }): string {
+  const category = params?.category && params.category !== 'ALL' ? params.category : 'ALL';
+  return `${params?.activeOnly ? 'active' : 'all'}:${category}`;
+}
+
+function readStoreProductsCache(key: string): { data: StoreProduct[]; isStale: boolean } | null {
+  const now = Date.now();
+  let entry = storeProductsMemoryCache.get(key);
+
+  if (!entry && typeof window !== 'undefined') {
+    try {
+      const raw = window.sessionStorage.getItem(`${STORE_PRODUCTS_CACHE_PREFIX}${key}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as StoreProductsCacheEntry;
+        if (parsed && Array.isArray(parsed.data) && typeof parsed.cachedAt === 'number') {
+          entry = parsed;
+          storeProductsMemoryCache.set(key, entry);
+        }
+      }
+    } catch {
+      // Ignore storage access or JSON parse failures
+    }
+  }
+
+  if (!entry) return null;
+
+  const age = now - entry.cachedAt;
+  if (age > STORE_PRODUCTS_STALE_MS) {
+    storeProductsMemoryCache.delete(key);
+    if (typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.removeItem(`${STORE_PRODUCTS_CACHE_PREFIX}${key}`);
+      } catch {
+        // Ignore storage errors
+      }
+    }
+    return null;
+  }
+
+  return {
+    data: entry.data,
+    isStale: age > STORE_PRODUCTS_FRESH_MS,
+  };
+}
+
+function writeStoreProductsCache(key: string, data: StoreProduct[]): void {
+  const entry: StoreProductsCacheEntry = { data, cachedAt: Date.now() };
+  storeProductsMemoryCache.set(key, entry);
+  if (typeof window !== 'undefined') {
+    try {
+      window.sessionStorage.setItem(`${STORE_PRODUCTS_CACHE_PREFIX}${key}`, JSON.stringify(entry));
+    } catch {
+      // Ignore storage quota or private-mode failures
+    }
+  }
+}
+
+function invalidateStoreProductsCache(): void {
+  storeProductsMemoryCache.clear();
+  if (typeof window !== 'undefined') {
+    try {
+      const keysToDelete: string[] = [];
+      for (let i = 0; i < window.sessionStorage.length; i += 1) {
+        const k = window.sessionStorage.key(i);
+        if (k && k.startsWith(STORE_PRODUCTS_CACHE_PREFIX)) {
+          keysToDelete.push(k);
+        }
+      }
+      keysToDelete.forEach((k) => window.sessionStorage.removeItem(k));
+    } catch {
+      // Ignore storage errors
+    }
+  }
+}
+
 /**
  * DVA Store API Client (Phase 2 Full Implementation).
  * Connects directly to Neon PostgreSQL `/api/store/products` & `/api/store/orders`.
  */
 export const storeService = {
-  async getProducts(params?: { category?: string; activeOnly?: boolean }): Promise<StoreProduct[]> {
+  getCachedProducts(params?: { category?: string; activeOnly?: boolean }): { data: StoreProduct[]; isStale: boolean } | null {
+    if (!params?.activeOnly) return null;
+    return readStoreProductsCache(buildStoreProductsCacheKey(params));
+  },
+
+  invalidateProductsCache(): void {
+    invalidateStoreProductsCache();
+  },
+
+  async getProducts(params?: { category?: string; activeOnly?: boolean; forceRefresh?: boolean }): Promise<StoreProduct[]> {
     const query = new URLSearchParams({
       ...(params?.category && params.category !== 'ALL' ? { category: params.category } : {}),
       ...(params?.activeOnly ? { activeOnly: 'true' } : {}),
     }).toString();
-    return request<StoreProduct[]>(`/store/products${query ? `?${query}` : ''}`, undefined, []);
+    const endpoint = `/store/products${query ? `?${query}` : ''}`;
+
+    if (!params?.activeOnly) {
+      return request<StoreProduct[]>(endpoint, { cache: 'no-store' }, []);
+    }
+
+    const cacheKey = buildStoreProductsCacheKey(params);
+    if (!params.forceRefresh) {
+      const cached = readStoreProductsCache(cacheKey);
+      if (cached && !cached.isStale) {
+        return cached.data;
+      }
+    }
+
+    const existingInflight = inflightStoreProductsRequests.get(endpoint);
+    if (existingInflight) {
+      return existingInflight;
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const data = await request<StoreProduct[]>(endpoint);
+        const list = Array.isArray(data) ? data : [];
+        writeStoreProductsCache(cacheKey, list);
+        return list;
+      } catch (err) {
+        const staleFallback = readStoreProductsCache(cacheKey);
+        if (staleFallback) {
+          return staleFallback.data;
+        }
+        console.warn('[API] Failed fetching store products, showing empty fallback.', err);
+        return [];
+      } finally {
+        inflightStoreProductsRequests.delete(endpoint);
+      }
+    })();
+
+    inflightStoreProductsRequests.set(endpoint, fetchPromise);
+    return fetchPromise;
   },
 
   async getProduct(idOrSlug: string): Promise<StoreProduct> {
@@ -1081,50 +1215,60 @@ export const storeService = {
   },
 
   async createProduct(productData: Partial<StoreProduct>): Promise<StoreProduct> {
-    return request<StoreProduct>('/store/products', {
+    const created = await request<StoreProduct>('/store/products', {
       method: 'POST',
       body: JSON.stringify(productData),
     });
+    invalidateStoreProductsCache();
+    return created;
   },
 
   async updateProduct(productId: string, productData: Partial<StoreProduct>): Promise<StoreProduct> {
-    return request<StoreProduct>(`/store/products/${productId}`, {
+    const updated = await request<StoreProduct>(`/store/products/${productId}`, {
       method: 'PUT',
       body: JSON.stringify(productData),
     });
+    invalidateStoreProductsCache();
+    return updated;
   },
 
   async deleteProduct(productId: string): Promise<{ success: boolean; softDeleted?: boolean; product?: StoreProduct }> {
-    return request<{ success: boolean; softDeleted?: boolean; product?: StoreProduct }>(
+    const res = await request<{ success: boolean; softDeleted?: boolean; product?: StoreProduct }>(
       `/store/products/${productId}`,
       { method: 'DELETE' }
     );
+    invalidateStoreProductsCache();
+    return res;
   },
 
   async toggleProductActive(
     productId: string,
     isActive: boolean
   ): Promise<StoreProduct> {
-    return request<StoreProduct>(
+    const updated = await request<StoreProduct>(
       `/store/products/${productId}/active`,
       {
         method: 'PATCH',
         body: JSON.stringify({ isActive }),
       }
     );
+    invalidateStoreProductsCache();
+    return updated;
   },
 
   async toggleProductPaused(
     productId: string,
     isPaused: boolean
   ): Promise<StoreProduct> {
-    return request<StoreProduct>(
+    const updated = await request<StoreProduct>(
       `/store/products/${productId}/paused`,
       {
         method: 'PATCH',
         body: JSON.stringify({ isPaused }),
       }
     );
+    invalidateStoreProductsCache();
+    return updated;
   },
 
   async getOrders(status?: string): Promise<StoreOrder[]> {

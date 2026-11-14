@@ -35,7 +35,8 @@ import {
   isJerseyCategory,
   slugifyProductName,
 } from '../../../types';
-import { cloudinaryService, storeService } from '../../../services/api';
+import { storeService } from '../../../services/api';
+import { optimizeCloudinaryUrl, uploadToCloudinary } from '../../../utils/cloudinary';
 import { Pagination } from '../../../components/common/Pagination';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { useAdminMetrics } from '../hooks/useAdminMetrics';
@@ -288,11 +289,16 @@ export const StoreTab: React.FC = () => {
     if (!file) return;
     setUploadingSide(side);
     try {
-      const uploadedUrl = await cloudinaryService.uploadImage(file, 'dva_shop');
+      const result = await uploadToCloudinary(file, 'shop');
+      const uploadedUrl = result.secure_url || result.url;
       setProductForm((prev) =>
         side === 'FRONT' ? { ...prev, frontImage: uploadedUrl } : { ...prev, backImage: uploadedUrl }
       );
-      notify(`${side === 'FRONT' ? 'Front' : 'Back'} product image uploaded to Cloudinary.`);
+      if (result.source === 'local_fallback') {
+        notify(`${side === 'FRONT' ? 'Front' : 'Back'} image saved using local fallback (Cloudinary unreachable).`);
+      } else {
+        notify(`${side === 'FRONT' ? 'Front' : 'Back'} product image uploaded to Cloudinary (${result.folder}).`);
+      }
     } catch {
       notify('Image upload failed. Please try again or paste a direct image URL.');
     } finally {
@@ -1013,14 +1019,25 @@ export const StoreTab: React.FC = () => {
                           <td className="py-3 px-3">
                             <div className="flex items-center gap-2">
                               <img
-                                src={p.frontImage || p.imageUrl || '/courts/btl.png'}
+                                src={optimizeCloudinaryUrl(p.frontImage || p.imageUrl || '/courts/btl.png', 'thumb')}
                                 alt={`${p.name} front`}
+                                width={44}
+                                height={44}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-11 h-11 rounded-lg object-cover border border-slate-700"
                                 title="Front Image"
                               />
                               <img
-                                src={p.backImage || p.frontImage || p.imageUrl || '/courts/thecong.png'}
+                                src={optimizeCloudinaryUrl(
+                                  p.backImage || p.frontImage || p.imageUrl || '/courts/thecong.png',
+                                  'thumb'
+                                )}
                                 alt={`${p.name} back`}
+                                width={44}
+                                height={44}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-11 h-11 rounded-lg object-cover border border-slate-700 opacity-85"
                                 title="Back Image (Hover)"
                               />
@@ -1413,8 +1430,9 @@ export const StoreTab: React.FC = () => {
                   />
                   {productForm.frontImage && (
                     <img
-                      src={productForm.frontImage}
+                      src={optimizeCloudinaryUrl(productForm.frontImage, 'card')}
                       alt="Front preview"
+                      decoding="async"
                       className="w-full h-32 object-cover rounded-xl border border-slate-800"
                     />
                   )}
@@ -1447,8 +1465,9 @@ export const StoreTab: React.FC = () => {
                   />
                   {productForm.backImage && (
                     <img
-                      src={productForm.backImage}
+                      src={optimizeCloudinaryUrl(productForm.backImage, 'card')}
                       alt="Back preview"
+                      decoding="async"
                       className="w-full h-32 object-cover rounded-xl border border-slate-800"
                     />
                   )}

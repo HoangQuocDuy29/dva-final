@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ShoppingBag,
@@ -44,15 +44,21 @@ import {
   productRequiresSizeSelection,
   getShopCategoryCode,
   getShopCategoryLabel,
-  getCategoryUrlSlug,
   getProductUrlPath,
   slugifyProductName,
   StoreOrder,
 } from '../types';
 import { storeService } from '../services/api';
-import { VIETNAM_PROVINCES, formatVietnameseAddress } from '../data/vietnamAddressData';
+import type { AdministrativeProvince } from '../data/vietnamAddressData';
+import {
+  optimizeCloudinaryUrl,
+  buildCloudinarySrcSet,
+  type CloudinaryImagePreset,
+} from '../utils/cloudinary';
 
 const DEFAULT_COURT_PICKUP_ADDRESS = '155 Truong Chinh - Thanh Xuan - Hanoi (DVA Court - BTL Thong Tin)';
+const FALLBACK_PRODUCT_IMAGE = '/courts/btl.png';
+const CARD_IMAGE_SIZES = '(max-width: 640px) 48vw, (max-width: 1024px) 32vw, 24vw';
 
 /** Size guide table: strictly starting from S and up (NO XS) */
 const JERSEY_SIZE_GUIDE_ROWS = [
@@ -63,15 +69,367 @@ const JERSEY_SIZE_GUIDE_ROWS = [
   { size: '2XL', height: '188 – 198 cm', weight: '85 – 98 kg', chest: '110 cm', length: '79 cm' },
 ];
 
+interface ShopFadeImageProps {
+  src: string;
+  alt: string;
+  preset: CloudinaryImagePreset;
+  className?: string;
+  width?: number;
+  height?: number;
+  fetchPriority?: 'high' | 'low' | 'auto';
+  loading?: 'eager' | 'lazy';
+  shimmerClassName?: string;
+}
+
+const ShopFadeImage: React.FC<ShopFadeImageProps> = ({
+  src,
+  alt,
+  preset,
+  className = '',
+  width,
+  height,
+  fetchPriority,
+  loading = 'eager',
+  shimmerClassName = 'rounded-2xl',
+}) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  const effectiveRaw = hasError ? FALLBACK_PRODUCT_IMAGE : src || FALLBACK_PRODUCT_IMAGE;
+  const optimizedSrc = optimizeCloudinaryUrl(effectiveRaw, preset);
+
+  useEffect(() => {
+    setHasError(false);
+    setIsLoaded(false);
+  }, [src]);
+
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setIsLoaded(true);
+    }
+  }, [optimizedSrc]);
+
+  return (
+    <>
+      {!isLoaded && (
+        <div
+          aria-hidden="true"
+          className={`absolute inset-0 animate-pulse bg-gradient-to-br from-slate-800/80 via-slate-900 to-slate-800/60 ${shimmerClassName}`}
+        />
+      )}
+      <img
+        ref={imgRef}
+        src={optimizedSrc}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={loading}
+        decoding="async"
+        fetchPriority={fetchPriority}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => {
+          if (!hasError && effectiveRaw !== FALLBACK_PRODUCT_IMAGE) {
+            setHasError(true);
+          } else {
+            setIsLoaded(true);
+          }
+        }}
+        className={`${className} transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </>
+  );
+};
+
+const ShopProductGridSkeleton: React.FC = () => (
+  <div
+    aria-label="Loading store catalog"
+    className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4.5"
+  >
+    {Array.from({ length: 8 }).map((_, idx) => (
+      <div
+        key={`shop-skeleton-${idx}`}
+        className="bg-[#0E1524] border border-slate-800/80 rounded-2xl overflow-hidden flex flex-col justify-between animate-pulse"
+      >
+        <div>
+          <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-slate-800/70 via-slate-900 to-slate-800/60">
+            <div className="absolute top-2.5 left-2.5 h-4 w-12 rounded bg-slate-700/60" />
+            <div className="absolute top-2.5 right-2.5 h-4 w-14 rounded bg-slate-700/60" />
+          </div>
+          <div className="p-2.5 sm:p-3.5 space-y-2">
+            <div className="h-3.5 w-11/12 rounded bg-slate-700/60" />
+            <div className="h-3.5 w-2/3 rounded bg-slate-700/50" />
+            <div className="h-5 w-28 rounded bg-slate-800/90 mt-1" />
+          </div>
+        </div>
+        <div className="px-2.5 pb-2.5 sm:px-3.5 sm:pb-3.5 pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+          <div className="h-4 w-20 rounded bg-slate-700/60" />
+          <div className="h-7 w-14 rounded-lg bg-slate-700/60" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+interface ShopProductCardProps {
+  product: StoreProduct;
+  index: number;
+  discountPct: number | null;
+  onNavigate: (path: string) => void;
+  onQuickView: (product: StoreProduct) => void;
+  onBuyNow: (product: StoreProduct) => void;
+}
+
+const ShopProductCard: React.FC<ShopProductCardProps> = ({
+  product,
+  index,
+  discountPct,
+  onNavigate,
+  onQuickView,
+  onBuyNow,
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [frontLoaded, setFrontLoaded] = useState(false);
+  const [frontError, setFrontError] = useState(false);
+  const [backActivated, setBackActivated] = useState(false);
+  const [backLoaded, setBackLoaded] = useState(false);
+  const [backError, setBackError] = useState(false);
+  const frontImgRef = useRef<HTMLImageElement | null>(null);
+
+  const rawFrontSrc = product.frontImage || product.imageUrl || FALLBACK_PRODUCT_IMAGE;
+  const rawBackSrc = product.backImage || rawFrontSrc;
+  const hasDistinctBack = Boolean(rawBackSrc && rawBackSrc !== rawFrontSrc);
+
+  const effectiveFrontRaw = frontError ? FALLBACK_PRODUCT_IMAGE : rawFrontSrc;
+  const frontSrc = optimizeCloudinaryUrl(effectiveFrontRaw, 'card');
+  const frontSrcSet = frontError ? undefined : buildCloudinarySrcSet(rawFrontSrc, [400, 600, 800]);
+
+  const backSrc = optimizeCloudinaryUrl(rawBackSrc, 'card');
+  const backSrcSet = buildCloudinarySrcSet(rawBackSrc, [400, 600, 800]);
+
+  useEffect(() => {
+    setFrontLoaded(false);
+    setFrontError(false);
+    setBackActivated(false);
+    setBackLoaded(false);
+    setBackError(false);
+  }, [rawFrontSrc, rawBackSrc]);
+
+  useEffect(() => {
+    if (frontImgRef.current?.complete && frontImgRef.current.naturalWidth > 0) {
+      setFrontLoaded(true);
+    }
+  }, [frontSrc]);
+
+  const supportsDesktopHover = () =>
+    typeof window !== 'undefined' && Boolean(window.matchMedia?.('(hover: hover)').matches);
+
+  const handleActivateBackView = () => {
+    if (!supportsDesktopHover()) return;
+    setIsHovered(true);
+    if (hasDistinctBack && !backActivated) {
+      setBackActivated(true);
+    }
+  };
+
+  const handleDeactivateBackView = () => {
+    setIsHovered(false);
+  };
+
+  const isAboveTheFold = index < 4;
+  const showBackImage = Boolean(isHovered && hasDistinctBack && backLoaded && !backError);
+  const isProdJersey = isJerseyCategory(product.category);
+  const isProdBall = isBallProduct(product);
+  const catCode = getShopCategoryCode(product.category);
+  const productPath = getProductUrlPath(product);
+
+  return (
+    <div
+      onMouseEnter={handleActivateBackView}
+      onMouseLeave={handleDeactivateBackView}
+      onFocus={handleActivateBackView}
+      onBlur={handleDeactivateBackView}
+      className="group bg-[#0E1524] border border-slate-800/80 hover:border-red-500/50 rounded-2xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:shadow-red-950/20 hover:-translate-y-1 h-full"
+    >
+      <div className="flex flex-col flex-1">
+        {/* COMPACT IMAGE CONTAINER (aspect-[4/5]) */}
+        <div
+          onClick={() => onNavigate(productPath)}
+          className="relative aspect-[4/5] w-full overflow-hidden bg-slate-900/60 cursor-pointer"
+        >
+          {!frontLoaded && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-800/80 via-slate-900 to-slate-800/60"
+            />
+          )}
+
+          {/* Front Image */}
+          <img
+            ref={frontImgRef}
+            src={frontSrc}
+            srcSet={frontSrcSet}
+            sizes={frontSrcSet ? CARD_IMAGE_SIZES : undefined}
+            alt={`${product.name} - Front View`}
+            width={600}
+            height={750}
+            loading={isAboveTheFold ? 'eager' : 'lazy'}
+            fetchPriority={isAboveTheFold ? 'high' : 'auto'}
+            decoding="async"
+            onLoad={() => setFrontLoaded(true)}
+            onError={() => {
+              if (!frontError && effectiveFrontRaw !== FALLBACK_PRODUCT_IMAGE) {
+                setFrontError(true);
+              } else {
+                setFrontLoaded(true);
+              }
+            }}
+            className={`w-full h-full object-cover object-center transition-all duration-500 ease-out ${
+              !frontLoaded ? 'opacity-0 scale-100' : showBackImage ? 'opacity-0 scale-105' : 'opacity-100 scale-100'
+            }`}
+          />
+
+          {/* Back Image: Lazy-mounted strictly on desktop hover/focus and cross-faded only after onLoad */}
+          {hasDistinctBack && backActivated && !backError && (
+            <img
+              src={backSrc}
+              srcSet={backSrcSet}
+              sizes={backSrcSet ? CARD_IMAGE_SIZES : undefined}
+              alt={`${product.name} - Back View`}
+              width={600}
+              height={750}
+              loading="eager"
+              decoding="async"
+              onLoad={() => setBackLoaded(true)}
+              onError={() => setBackError(true)}
+              className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-500 ease-out ${
+                showBackImage ? 'opacity-100 scale-105' : 'opacity-0 scale-100'
+              }`}
+            />
+          )}
+
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0E1524]/70 via-transparent to-black/25 pointer-events-none" />
+
+          {/* Top Badges */}
+          <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1 pointer-events-none">
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-black/80 backdrop-blur-md text-slate-200 border border-slate-700/80 truncate max-w-[85px] sm:max-w-none">
+              {catCode}
+            </span>
+            <div className="flex items-center gap-1">
+              {discountPct && (
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-red-600 text-white shadow">
+                  -{discountPct}%
+                </span>
+              )}
+              {product.isPaused ? (
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-500 text-black shadow">
+                  Out
+                </span>
+              ) : product.badge ? (
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-orange-600 text-white shadow truncate max-w-[80px]">
+                  {product.badge}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Floating Quick View Action Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onQuickView(product);
+            }}
+            className="absolute bottom-2 right-2 p-1.5 sm:p-2 rounded-xl bg-black/80 hover:bg-red-600 text-white border border-slate-700/80 backdrop-blur-md shadow-lg transition-all cursor-pointer opacity-90 sm:opacity-0 sm:group-hover:opacity-100"
+            title="Quick View"
+          >
+            <Eye className="w-3.5 h-3.5 text-orange-400 group-hover:text-white transition-colors" />
+          </button>
+
+          {/* Front / Back Indicator */}
+          {hasDistinctBack && (
+            <div className="absolute bottom-2 left-2 pointer-events-none">
+              <span className="px-1.5 py-0.5 rounded-md text-[8px] sm:text-[9px] font-bold bg-black/75 backdrop-blur-md text-slate-300 border border-slate-700/70 flex items-center gap-1">
+                <span className={`w-1 h-1 rounded-full ${showBackImage ? 'bg-orange-400' : 'bg-emerald-400'}`} />
+                <span className="hidden sm:inline">{showBackImage ? 'Back' : 'Front'}</span>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* CARD BODY: Clean & Minimalist (No description snippet!) */}
+        <div className="p-2.5 sm:p-3.5 space-y-1.5 flex-1 flex flex-col justify-between">
+          <Link to={productPath} className="block group/title">
+            <h3 className="font-heading font-black text-xs sm:text-sm text-white group-hover/title:text-red-400 transition-colors leading-snug line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem]">
+              {product.name}
+            </h3>
+          </Link>
+
+          {/* Compact Attribute Tag */}
+          <div className="flex items-center gap-1 text-[10px] text-slate-400 truncate">
+            {isProdJersey ? (
+              <span className="px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-300 font-semibold border border-slate-700/60 truncate">
+                5 Sizes (S–2XL) · Custom Print
+              </span>
+            ) : isProdBall ? (
+              <span className="px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-300 font-bold border border-emerald-800/60 truncate">
+                Size 5 · FIVB Match Ball
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-300 font-semibold border border-slate-700/60 truncate">
+                {(Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes : ['Standard']).join(' · ')}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* CARD FOOTER: Compact Price & Buy Now */}
+      <div className="px-2.5 pb-2.5 sm:px-3.5 sm:pb-3.5 pt-2 border-t border-slate-800/80 flex items-center justify-between gap-1.5 shrink-0">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-1 sm:gap-1.5 flex-wrap">
+            <span className="font-heading font-bold text-xs sm:text-sm md:text-base text-emerald-400 whitespace-nowrap">
+              {Number(product.price || 0).toLocaleString('vi-VN')} đ
+            </span>
+            {product.originalPrice && product.originalPrice > product.price && (
+              <span className="text-[10px] sm:text-xs text-slate-500 line-through font-mono whitespace-nowrap">
+                {Number(product.originalPrice).toLocaleString('vi-VN')} đ
+              </span>
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={Boolean(product.isPaused)}
+          onClick={() => onBuyNow(product)}
+          className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg font-heading font-black text-[11px] uppercase tracking-wider flex items-center gap-1 shadow transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+            product.isPaused
+              ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+              : 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white shadow-red-950/40'
+          }`}
+        >
+          <ShoppingBag className="w-3 h-3" />
+          <span>{product.isPaused ? 'Paused' : 'Buy'}</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const ShopPage: React.FC = () => {
   const navigate = useNavigate();
   const { categorySlug, productSlug } = useParams<{ categorySlug?: string; productSlug?: string }>();
 
-  const [products, setProducts] = useState<StoreProduct[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [initialCache] = useState(() => storeService.getCachedProducts({ activeOnly: true }));
+  const [products, setProducts] = useState<StoreProduct[]>(() =>
+    initialCache
+      ? initialCache.data.filter((p) => p.isActive !== false && p.isPaused !== true)
+      : []
+  );
+  const [loading, setLoading] = useState<boolean>(() => !initialCache);
   const [activeCategory, setActiveCategory] = useState<'ALL' | StoreCategoryId>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [hoveredProductId, setHoveredProductId] = useState<string | null>(null);
 
   // Size Guide Modal
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState<boolean>(false);
@@ -118,16 +476,20 @@ export const ShopPage: React.FC = () => {
   const [shippingAddress, setShippingAddress] = useState<string>('');
   const [orderNotes, setOrderNotes] = useState<string>('');
 
-  // 4-Level Cascading Address State (Tỉnh/Thành -> Quận/Huyện -> Phường/Xã -> Số nhà/Đường)
+  // 4-Level Cascading Address State (lazy-loaded on HOME_DELIVERY)
+  const [provinces, setProvinces] = useState<AdministrativeProvince[]>([]);
+  const [formatAddressFn, setFormatAddressFn] = useState<
+    ((street: string, ward: string, district: string, province: string) => string) | null
+  >(null);
   const [selectedProvince, setSelectedProvince] = useState<string>('Hà Nội');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('Quận Thanh Xuân');
   const [selectedWard, setSelectedWard] = useState<string>('Phường Phương Liệt');
   const [specificAddress, setSpecificAddress] = useState<string>('');
 
   const availableDistricts = useMemo(() => {
-    const prov = VIETNAM_PROVINCES.find((p) => p.name === selectedProvince);
+    const prov = provinces.find((p) => p.name === selectedProvince);
     return prov ? prov.districts : [];
-  }, [selectedProvince]);
+  }, [provinces, selectedProvince]);
 
   const availableWards = useMemo(() => {
     const dist = availableDistricts.find((d) => d.name === selectedDistrict);
@@ -136,7 +498,7 @@ export const ShopPage: React.FC = () => {
 
   const handleProvinceChange = (newProvince: string) => {
     setSelectedProvince(newProvince);
-    const prov = VIETNAM_PROVINCES.find((p) => p.name === newProvince);
+    const prov = provinces.find((p) => p.name === newProvince);
     const firstDist = prov?.districts[0]?.name || '';
     setSelectedDistrict(firstDist);
     const firstWard = prov?.districts[0]?.wards[0] || '';
@@ -149,13 +511,6 @@ export const ShopPage: React.FC = () => {
     const firstWard = dist?.wards[0] || '';
     setSelectedWard(firstWard);
   };
-
-  useEffect(() => {
-    if (deliveryMethod === 'HOME_DELIVERY') {
-      const fullAddr = formatVietnameseAddress(specificAddress, selectedWard, selectedDistrict, selectedProvince);
-      setShippingAddress(fullAddr);
-    }
-  }, [deliveryMethod, specificAddress, selectedWard, selectedDistrict, selectedProvince]);
 
   // Submission & Payment State
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -183,12 +538,45 @@ export const ShopPage: React.FC = () => {
   const [detailDelivery, setDetailDelivery] = useState<DeliveryMethod>('COURT_PICKUP');
   const [detailShippingAddress, setDetailShippingAddress] = useState<string>('');
 
+  // Dynamic-import Vietnam administrative address dataset (44 KB) only when HOME_DELIVERY is selected
   useEffect(() => {
+    const needsAddressData = Boolean(selectedProduct && deliveryMethod === 'HOME_DELIVERY');
+    if (!needsAddressData || provinces.length > 0) return;
+
+    let active = true;
+    import('../data/vietnamAddressData').then((mod) => {
+      if (!active) return;
+      setProvinces(mod.VIETNAM_PROVINCES);
+      setFormatAddressFn(() => mod.formatVietnameseAddress);
+    });
+    return () => {
+      active = false;
+    };
+  }, [selectedProduct, deliveryMethod, provinces.length]);
+
+  useEffect(() => {
+    if (deliveryMethod === 'HOME_DELIVERY') {
+      const fullAddr = formatAddressFn
+        ? formatAddressFn(specificAddress, selectedWard, selectedDistrict, selectedProvince)
+        : [specificAddress.trim(), selectedWard, selectedDistrict, selectedProvince].filter(Boolean).join(', ');
+      setShippingAddress(fullAddr);
+    }
+  }, [deliveryMethod, specificAddress, selectedWard, selectedDistrict, selectedProvince, formatAddressFn]);
+
+  useEffect(() => {
+    const shouldRevalidate = !initialCache || initialCache.isStale || initialCache.data.length === 0;
+    if (!shouldRevalidate) return;
+
     let mounted = true;
     const fetchCatalog = async () => {
-      setLoading(true);
+      if (!initialCache) {
+        setLoading(true);
+      }
       try {
-        const res = await storeService.getProducts({ activeOnly: true });
+        const res = await storeService.getProducts({
+          activeOnly: true,
+          forceRefresh: Boolean(initialCache),
+        });
         if (mounted) {
           const activeList = Array.isArray(res)
             ? res.filter((p) => p.isActive !== false && p.isPaused !== true)
@@ -196,7 +584,7 @@ export const ShopPage: React.FC = () => {
           setProducts(activeList);
         }
       } catch {
-        if (mounted) {
+        if (mounted && !initialCache) {
           setProducts([]);
         }
       } finally {
@@ -209,7 +597,7 @@ export const ShopPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [initialCache]);
 
   // Resolve target product if viewing dedicated detail route /shop/:categorySlug/:productSlug
   const currentDetailProduct = useMemo(() => {
@@ -452,13 +840,18 @@ export const ShopPage: React.FC = () => {
             {/* LEFT: GALLERY & HIGH-RES ZOOM VIEWER (5 cols) */}
             <div className="lg:col-span-5 space-y-4">
               <div className="w-full aspect-[4/5] relative overflow-hidden rounded-2xl bg-slate-900/40 border border-slate-800 group shadow-inner">
-                <img
+                <ShopFadeImage
                   src={
                     detailActiveSide === 'BACK' && currentDetailProduct.backImage
                       ? currentDetailProduct.backImage
-                      : currentDetailProduct.frontImage || currentDetailProduct.imageUrl || '/courts/btl.png'
+                      : currentDetailProduct.frontImage || currentDetailProduct.imageUrl || FALLBACK_PRODUCT_IMAGE
                   }
                   alt={currentDetailProduct.name}
+                  preset="detail"
+                  width={1000}
+                  height={1250}
+                  fetchPriority="high"
+                  loading="eager"
                   className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                 />
 
@@ -502,8 +895,15 @@ export const ShopPage: React.FC = () => {
                   }`}
                 >
                   <img
-                    src={currentDetailProduct.frontImage || currentDetailProduct.imageUrl || '/courts/btl.png'}
+                    src={optimizeCloudinaryUrl(
+                      currentDetailProduct.frontImage || currentDetailProduct.imageUrl || FALLBACK_PRODUCT_IMAGE,
+                      'thumb'
+                    )}
                     alt="Front View"
+                    width={64}
+                    height={80}
+                    loading="lazy"
+                    decoding="async"
                     className="w-12 h-16 rounded-lg object-cover object-center border border-slate-700 shrink-0"
                   />
                   <div className="text-left">
@@ -523,8 +923,12 @@ export const ShopPage: React.FC = () => {
                     }`}
                   >
                     <img
-                      src={currentDetailProduct.backImage}
+                      src={optimizeCloudinaryUrl(currentDetailProduct.backImage, 'thumb')}
                       alt="Back View"
+                      width={64}
+                      height={80}
+                      loading="lazy"
+                      decoding="async"
                       className="w-12 h-16 rounded-lg object-cover object-center border border-slate-700 shrink-0"
                     />
                     <div className="text-left">
@@ -906,10 +1310,7 @@ export const ShopPage: React.FC = () => {
           {/* PRODUCT CATALOG GRID */}
           <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-8 sm:pt-10">
             {loading ? (
-              <div className="py-24 flex flex-col items-center justify-center gap-3 text-slate-400">
-                <Loader2 className="w-8 h-8 animate-spin text-red-500" />
-                <p className="text-sm font-semibold">Loading official DVA Store catalog...</p>
-              </div>
+              <ShopProductGridSkeleton />
             ) : products.length === 0 ? (
               <div className="bg-[#0E1524] border border-slate-800 rounded-3xl p-12 text-center space-y-4 max-w-xl mx-auto my-12 shadow-2xl animate-in fade-in">
                 <div className="w-16 h-16 rounded-2xl bg-red-950/40 border border-red-800/60 text-red-400 flex items-center justify-center mx-auto shadow-inner">
@@ -954,157 +1355,17 @@ export const ShopPage: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4.5">
-                {filteredProducts.map((product) => {
-                  const isHovered = hoveredProductId === product.id;
-                  const frontSrc = product.frontImage || product.imageUrl || '/courts/btl.png';
-                  const backSrc = product.backImage || frontSrc;
-                  const hasDistinctBack = backSrc && backSrc !== frontSrc;
-                  const isProdJersey = isJerseyCategory(product.category);
-                  const isProdBall = isBallProduct(product);
-                  const catCode = getShopCategoryCode(product.category);
-                  const productPath = getProductUrlPath(product);
-                  const discountPct = getDiscountPercent(product.originalPrice, product.price);
-
-                  return (
-                    <div
-                      key={product.id}
-                      onMouseEnter={() => setHoveredProductId(product.id)}
-                      onMouseLeave={() => setHoveredProductId(null)}
-                      className="group bg-[#0E1524] border border-slate-800/80 hover:border-red-500/50 rounded-2xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:shadow-red-950/20 hover:-translate-y-1 h-full"
-                    >
-                      <div className="flex flex-col flex-1">
-                        {/* COMPACT IMAGE CONTAINER (aspect-[4/5]) */}
-                        <div
-                          onClick={() => navigate(productPath)}
-                          className="relative aspect-[4/5] w-full overflow-hidden bg-slate-900/60 cursor-pointer"
-                        >
-                          {/* Front Image */}
-                          <img
-                            src={frontSrc}
-                            alt={`${product.name} - Front View`}
-                            className={`w-full h-full object-cover object-center transition-all duration-500 ease-out ${
-                              isHovered && hasDistinctBack ? 'opacity-0 scale-105' : 'opacity-100 scale-100'
-                            }`}
-                          />
-                          {/* Back Image on Hover */}
-                          {hasDistinctBack && (
-                            <img
-                              src={backSrc}
-                              alt={`${product.name} - Back View`}
-                              className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-500 ease-out ${
-                                isHovered ? 'opacity-100 scale-105' : 'opacity-0 scale-100'
-                              }`}
-                            />
-                          )}
-
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#0E1524]/70 via-transparent to-black/25 pointer-events-none" />
-
-                          {/* Top Badges */}
-                          <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1 pointer-events-none">
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-black/80 backdrop-blur-md text-slate-200 border border-slate-700/80 truncate max-w-[85px] sm:max-w-none">
-                              {catCode}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              {discountPct && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-red-600 text-white shadow">
-                                  -{discountPct}%
-                                </span>
-                              )}
-                              {product.isPaused ? (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-500 text-black shadow">
-                                  Out
-                                </span>
-                              ) : product.badge ? (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-orange-600 text-white shadow truncate max-w-[80px]">
-                                  {product.badge}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-
-                          {/* Floating Quick View Action Button */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenQuickView(product);
-                            }}
-                            className="absolute bottom-2 right-2 p-1.5 sm:p-2 rounded-xl bg-black/80 hover:bg-red-600 text-white border border-slate-700/80 backdrop-blur-md shadow-lg transition-all cursor-pointer opacity-90 sm:opacity-0 sm:group-hover:opacity-100"
-                            title="Quick View"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-orange-400 group-hover:text-white transition-colors" />
-                          </button>
-
-                          {/* Front / Back Indicator */}
-                          {hasDistinctBack && (
-                            <div className="absolute bottom-2 left-2 pointer-events-none">
-                              <span className="px-1.5 py-0.5 rounded-md text-[8px] sm:text-[9px] font-bold bg-black/75 backdrop-blur-md text-slate-300 border border-slate-700/70 flex items-center gap-1">
-                                <span className={`w-1 h-1 rounded-full ${isHovered ? 'bg-orange-400' : 'bg-emerald-400'}`} />
-                                <span className="hidden sm:inline">{isHovered ? 'Back' : 'Front'}</span>
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* CARD BODY: Clean & Minimalist (No description snippet!) */}
-                        <div className="p-2.5 sm:p-3.5 space-y-1.5 flex-1 flex flex-col justify-between">
-                          <Link to={productPath} className="block group/title">
-                            <h3 className="font-heading font-black text-xs sm:text-sm text-white group-hover/title:text-red-400 transition-colors leading-snug line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem]">
-                              {product.name}
-                            </h3>
-                          </Link>
-
-                          {/* Compact Attribute Tag */}
-                          <div className="flex items-center gap-1 text-[10px] text-slate-400 truncate">
-                            {isProdJersey ? (
-                              <span className="px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-300 font-semibold border border-slate-700/60 truncate">
-                                5 Sizes (S–2XL) · Custom Print
-                              </span>
-                            ) : isProdBall ? (
-                              <span className="px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-300 font-bold border border-emerald-800/60 truncate">
-                                Size 5 · FIVB Match Ball
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-300 font-semibold border border-slate-700/60 truncate">
-                                {(Array.isArray(product.sizes) && product.sizes.length > 0 ? product.sizes : ['Standard']).join(' · ')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* CARD FOOTER: Compact Price & Buy Now */}
-                      <div className="px-2.5 pb-2.5 sm:px-3.5 sm:pb-3.5 pt-2 border-t border-slate-800/80 flex items-center justify-between gap-1.5 shrink-0">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-1 sm:gap-1.5 flex-wrap">
-                            <span className="font-heading font-bold text-xs sm:text-sm md:text-base text-emerald-400 whitespace-nowrap">
-                              {Number(product.price || 0).toLocaleString('vi-VN')} đ
-                            </span>
-                            {product.originalPrice && product.originalPrice > product.price && (
-                              <span className="text-[10px] sm:text-xs text-slate-500 line-through font-mono whitespace-nowrap">
-                                {Number(product.originalPrice).toLocaleString('vi-VN')} đ
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={Boolean(product.isPaused)}
-                          onClick={() => handleOpenBuyNow(product)}
-                          className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg font-heading font-black text-[11px] uppercase tracking-wider flex items-center gap-1 shadow transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                            product.isPaused
-                              ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                              : 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white shadow-red-950/40'
-                          }`}
-                        >
-                          <ShoppingBag className="w-3 h-3" />
-                          <span>{product.isPaused ? 'Paused' : 'Buy'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {filteredProducts.map((product, index) => (
+                  <ShopProductCard
+                    key={product.id}
+                    product={product}
+                    index={index}
+                    discountPct={getDiscountPercent(product.originalPrice, product.price)}
+                    onNavigate={navigate}
+                    onQuickView={handleOpenQuickView}
+                    onBuyNow={handleOpenBuyNow}
+                  />
+                ))}
               </div>
             )}
           </section>
@@ -1138,13 +1399,18 @@ export const ShopPage: React.FC = () => {
                 {/* Images */}
                 <div className="space-y-3">
                   <div className="w-full aspect-[4/5] relative overflow-hidden rounded-2xl bg-slate-900/40 border border-slate-800 shadow-inner">
-                    <img
+                    <ShopFadeImage
                       src={
                         quickViewActiveImage === 'BACK' && quickViewProduct.backImage
                           ? quickViewProduct.backImage
-                          : quickViewProduct.frontImage || quickViewProduct.imageUrl || '/courts/btl.png'
+                          : quickViewProduct.frontImage || quickViewProduct.imageUrl || FALLBACK_PRODUCT_IMAGE
                       }
                       alt={quickViewProduct.name}
+                      preset="detail"
+                      width={1000}
+                      height={1250}
+                      fetchPriority="high"
+                      loading="eager"
                       className="w-full h-full object-cover object-center"
                     />
 
@@ -1373,15 +1639,19 @@ export const ShopPage: React.FC = () => {
                   transform: `scale(${zoomLightbox.zoomLevel})`,
                   transition: 'transform 0.2s ease-out',
                 }}
-                className="origin-center max-w-full"
+                className="origin-center max-w-full relative"
               >
-                <img
+                <ShopFadeImage
                   src={
                     zoomLightbox.activeSide === 'BACK' && zoomLightbox.backImage
                       ? zoomLightbox.backImage
                       : zoomLightbox.frontImage
                   }
                   alt={zoomLightbox.title}
+                  preset="zoom"
+                  fetchPriority="high"
+                  loading="eager"
+                  shimmerClassName="rounded-xl"
                   className="max-h-[70vh] w-auto rounded-xl shadow-2xl object-contain select-none"
                 />
               </div>
@@ -1507,8 +1777,14 @@ export const ShopPage: React.FC = () => {
                   {/* Product Summary Strip */}
                   <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#0B101B] border border-slate-800">
                     <img
-                      src={selectedProduct.frontImage || selectedProduct.imageUrl || '/courts/btl.png'}
+                      src={optimizeCloudinaryUrl(
+                        selectedProduct.frontImage || selectedProduct.imageUrl || FALLBACK_PRODUCT_IMAGE,
+                        'thumb'
+                      )}
                       alt={selectedProduct.name}
+                      width={64}
+                      height={64}
+                      decoding="async"
                       className="w-16 h-16 rounded-xl object-cover border border-slate-700 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
@@ -1879,11 +2155,17 @@ export const ShopPage: React.FC = () => {
                               onChange={(e) => handleProvinceChange(e.target.value)}
                               className="w-full px-3 py-2 bg-[#0B101B] border border-orange-500/50 rounded-xl text-xs text-white focus:outline-none focus:border-orange-400"
                             >
-                              {VIETNAM_PROVINCES.map((prov) => (
-                                <option key={prov.name} value={prov.name} className="bg-[#0B101B] text-white">
-                                  {prov.name}
+                              {provinces.length === 0 ? (
+                                <option value={selectedProvince} className="bg-[#0B101B] text-white">
+                                  {selectedProvince}
                                 </option>
-                              ))}
+                              ) : (
+                                provinces.map((prov) => (
+                                  <option key={prov.name} value={prov.name} className="bg-[#0B101B] text-white">
+                                    {prov.name}
+                                  </option>
+                                ))
+                              )}
                             </select>
                           </div>
 
@@ -1896,11 +2178,17 @@ export const ShopPage: React.FC = () => {
                               onChange={(e) => handleDistrictChange(e.target.value)}
                               className="w-full px-3 py-2 bg-[#0B101B] border border-orange-500/50 rounded-xl text-xs text-white focus:outline-none focus:border-orange-400"
                             >
-                              {availableDistricts.map((dist) => (
-                                <option key={dist.name} value={dist.name} className="bg-[#0B101B] text-white">
-                                  {dist.name}
+                              {availableDistricts.length === 0 ? (
+                                <option value={selectedDistrict} className="bg-[#0B101B] text-white">
+                                  {selectedDistrict}
                                 </option>
-                              ))}
+                              ) : (
+                                availableDistricts.map((dist) => (
+                                  <option key={dist.name} value={dist.name} className="bg-[#0B101B] text-white">
+                                    {dist.name}
+                                  </option>
+                                ))
+                              )}
                             </select>
                           </div>
 
@@ -1913,11 +2201,17 @@ export const ShopPage: React.FC = () => {
                               onChange={(e) => setSelectedWard(e.target.value)}
                               className="w-full px-3 py-2 bg-[#0B101B] border border-orange-500/50 rounded-xl text-xs text-white focus:outline-none focus:border-orange-400"
                             >
-                              {availableWards.map((w) => (
-                                <option key={w} value={w} className="bg-[#0B101B] text-white">
-                                  {w}
+                              {availableWards.length === 0 ? (
+                                <option value={selectedWard} className="bg-[#0B101B] text-white">
+                                  {selectedWard}
                                 </option>
-                              ))}
+                              ) : (
+                                availableWards.map((w) => (
+                                  <option key={w} value={w} className="bg-[#0B101B] text-white">
+                                    {w}
+                                  </option>
+                                ))
+                              )}
                               <option value="Other (Specify in street address)" className="bg-[#0B101B] text-slate-400">
                                 Other (Specify in street address)
                               </option>
@@ -2002,6 +2296,9 @@ export const ShopPage: React.FC = () => {
                         <img
                           src={paymentInfo.qrUrl}
                           alt="VietQR MB Bank"
+                          width={224}
+                          height={224}
+                          decoding="async"
                           className="w-56 h-56 object-contain"
                         />
                       </div>
