@@ -178,6 +178,10 @@ const PUBLIC_RULES: Rule[] = [
   rule('GET', /^\/store\/products\/[^/]+\/?$/),
   rule('POST', /^\/store\/orders\/?$/),
   rule('POST', /^\/store\/orders\/[^/]+\/confirm-payment\/?$/),
+  rule('GET', /^\/tournaments\/?$/),
+  rule('GET', /^\/tournaments\/[^/]+\/?$/),
+  rule('POST', /^\/tournaments\/[^/]+\/register\/?$/),
+  rule('POST', /^\/tournaments\/[^/]+\/teams\/[^/]+\/confirm-payment\/?$/),
 ];
 
 const SUPERADMIN_RULES: Rule[] = [

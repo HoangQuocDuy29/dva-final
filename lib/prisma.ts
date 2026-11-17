@@ -22,6 +22,11 @@ import {
   Order as DbOrder,
   OrderItem as DbOrderItem,
   GuestSession as DbGuestSession,
+  Tournament as DbTournament,
+  TournamentTeam as DbTournamentTeam,
+  TournamentPlayer as DbTournamentPlayer,
+  TournamentMatch as DbTournamentMatch,
+  TournamentOfficial as DbTournamentOfficial,
 } from '@prisma/client';
 import {
   Booking,
@@ -41,11 +46,27 @@ import {
   StoreOrder,
   StoreOrderItem,
   StoreProduct,
+  Tournament,
+  TournamentFinanceSummary,
+  TournamentMatch,
+  TournamentMatchStage,
+  TournamentMatchStatus,
+  TournamentMode,
+  TournamentOfficial,
+  TournamentOfficialRole,
+  TournamentPlayer,
+  TournamentPodiumOverride,
+  TournamentPrizeTier,
+  TournamentSetFormat,
+  TournamentStatus,
+  TournamentTeam,
+  TournamentTrackingMode,
   TrainingCourse,
   TrainingRegistration,
   countryCodeToFlagEmoji,
   isJerseyCategory,
 } from '../src/types';
+import { normalizeSetScores } from '../src/shared/tournaments';
 import { StoredUser, hashPassword, isBcryptHash, verifyPassword } from './security';
 import { getDefaultWeeklyScheduleForCourt, normalizeWeeklySchedule, normalizeCourtWeeklySchedule } from '../src/shared/schedule';
 import {
@@ -532,6 +553,227 @@ export function toOrderDto(o: (DbOrder & { items?: DbOrderItem[] }) | any): Stor
     notes: o.notes ?? undefined,
     createdAt: safeIsoString(o.createdAt),
     updatedAt: safeIsoString(o.updatedAt),
+  };
+}
+
+// ============================================================================
+// TOURNAMENTS MODULE DTO MAPPERS (SPEC 008)
+// ============================================================================
+
+export function toTournamentPlayerDto(p: DbTournamentPlayer | any): TournamentPlayer {
+  return {
+    id: p.id,
+    teamId: p.teamId,
+    tournamentId: p.tournamentId,
+    linkedPlayerId: p.linkedPlayerId ?? undefined,
+    fullName: p.fullName,
+    jerseyNumber: Number(p.jerseyNumber) || 0,
+    position: (p.position || 'OH') as TournamentPlayer['position'],
+    height: p.height !== null && p.height !== undefined ? Number(p.height) : undefined,
+    spikeTouch: p.spikeTouch !== null && p.spikeTouch !== undefined ? Number(p.spikeTouch) : undefined,
+    avatarUrl: p.avatarUrl ?? undefined,
+    isCaptain: Boolean(p.isCaptain),
+    awards: Array.isArray(p.awards) ? p.awards.map(String) : [],
+    createdAt: p.createdAt ? safeIsoString(p.createdAt) : undefined,
+  };
+}
+
+export function toTournamentTeamDto(
+  t: (DbTournamentTeam & { players?: DbTournamentPlayer[] }) | any,
+  includePrivate: boolean = false
+): TournamentTeam {
+  return {
+    id: t.id,
+    tournamentId: t.tournamentId,
+    name: t.name,
+    shortName: t.shortName ?? undefined,
+    logoUrl: t.logoUrl ?? undefined,
+    isDvaTeam: Boolean(t.isDvaTeam),
+    dvaSquadLevel: t.dvaSquadLevel ?? undefined,
+    pool: t.pool ?? null,
+    seedOrder: Number(t.seedOrder) || 0,
+    manualRankOverride:
+      t.manualRankOverride !== null && t.manualRankOverride !== undefined
+        ? Number(t.manualRankOverride)
+        : null,
+    finalRank:
+      t.finalRank !== null && t.finalRank !== undefined ? Number(t.finalRank) : null,
+    captainName: t.captainName ?? undefined,
+    ...(includePrivate
+      ? {
+          captainPhone: t.captainPhone ?? undefined,
+          captainEmail: t.captainEmail ?? undefined,
+          transferContent: t.transferContent ?? undefined,
+          entryFeeAmount: Number(t.entryFeeAmount) || 0,
+          notes: t.notes ?? undefined,
+          customerConfirmedAt: t.customerConfirmedAt ? safeIsoString(t.customerConfirmedAt) : undefined,
+          paidAt: t.paidAt ? safeIsoString(t.paidAt) : undefined,
+        }
+      : {
+          entryFeeAmount: 0,
+        }),
+    paymentStatus: (t.paymentStatus || 'PENDING') as TournamentTeam['paymentStatus'],
+    ...(Array.isArray(t.players) ? { players: t.players.map(toTournamentPlayerDto) } : {}),
+    createdAt: t.createdAt ? safeIsoString(t.createdAt) : undefined,
+    updatedAt: t.updatedAt ? safeIsoString(t.updatedAt) : undefined,
+  };
+}
+
+export function toTournamentOfficialDto(
+  o: DbTournamentOfficial | any,
+  includePrivate: boolean = false
+): TournamentOfficial {
+  return {
+    id: o.id,
+    tournamentId: o.tournamentId,
+    fullName: o.fullName,
+    role: (o.role || 'MAIN_REFEREE') as TournamentOfficialRole,
+    certification: o.certification ?? undefined,
+    avatarUrl: o.avatarUrl ?? undefined,
+    ...(includePrivate && o.phone ? { phone: o.phone } : {}),
+    sortOrder: Number(o.sortOrder) || 0,
+    createdAt: o.createdAt ? safeIsoString(o.createdAt) : undefined,
+  };
+}
+
+export function toTournamentMatchDto(
+  m: DbTournamentMatch | any,
+  includePrivate: boolean = false
+): TournamentMatch {
+  return {
+    id: m.id,
+    tournamentId: m.tournamentId,
+    matchCode: m.matchCode,
+    stage: (m.stage || 'POOL_A') as TournamentMatchStage,
+    bracketSide: m.bracketSide ?? null,
+    courtName: m.courtName || 'Court 1',
+    scheduledTime: m.scheduledTime ?? undefined,
+    matchOrder: Number(m.matchOrder) || 0,
+    status: (m.status || 'SCHEDULED') as TournamentMatchStatus,
+    setFormat: (m.setFormat || 'BO3') as TournamentSetFormat,
+    homeTeamId: m.homeTeamId ?? null,
+    awayTeamId: m.awayTeamId ?? null,
+    homeLabel: m.homeLabel ?? undefined,
+    awayLabel: m.awayLabel ?? undefined,
+    setScores: normalizeSetScores(m.setScores),
+    homeSetsWon: Number(m.homeSetsWon) || 0,
+    awaySetsWon: Number(m.awaySetsWon) || 0,
+    homePointsTotal: Number(m.homePointsTotal) || 0,
+    awayPointsTotal: Number(m.awayPointsTotal) || 0,
+    winnerTeamId: m.winnerTeamId ?? null,
+    officialId: m.officialId ?? null,
+    assistantOfficialIds: Array.isArray(m.assistantOfficialIds) ? m.assistantOfficialIds.map(String) : [],
+    ...(includePrivate && m.notes ? { notes: m.notes } : {}),
+    createdAt: m.createdAt ? safeIsoString(m.createdAt) : undefined,
+    updatedAt: m.updatedAt ? safeIsoString(m.updatedAt) : undefined,
+  };
+}
+
+export function toTournamentDto(
+  t: (DbTournament & {
+    teams?: DbTournamentTeam[];
+    players?: DbTournamentPlayer[];
+    matches?: DbTournamentMatch[];
+    officials?: DbTournamentOfficial[];
+  }) | any,
+  includePrivate: boolean = false
+): Tournament {
+  const mode = (t.mode || 'HOSTED') as TournamentMode;
+  const rawTeams: any[] = Array.isArray(t.teams) ? t.teams : [];
+  const paidTeamsCount = rawTeams.filter((tm) => tm.paymentStatus === 'PAID').length;
+  const pendingTeamsCount = rawTeams.filter((tm) => tm.paymentStatus === 'PENDING').length;
+
+  // For public visitors:
+  // - HOSTED tournaments only expose PAID teams (preventing unverified spam names/logos)
+  // - PARTICIPATING tournaments expose all non-CANCELLED teams entered by Admin
+  const visibleTeamsRaw = includePrivate
+    ? rawTeams
+    : mode === 'HOSTED'
+    ? rawTeams.filter((tm) => tm.paymentStatus === 'PAID')
+    : rawTeams.filter((tm) => tm.paymentStatus !== 'CANCELLED');
+
+  const visibleTeamIds = new Set(visibleTeamsRaw.map((tm) => tm.id));
+  const rawPlayers: any[] = Array.isArray(t.players) ? t.players : [];
+  const visiblePlayersRaw = includePrivate
+    ? rawPlayers
+    : rawPlayers.filter((pl) => visibleTeamIds.has(pl.teamId));
+
+  const rawMatches: any[] = Array.isArray(t.matches) ? t.matches : [];
+  const rawOfficials: any[] = Array.isArray(t.officials) ? t.officials : [];
+
+  const prizeConfig: TournamentPrizeTier[] = Array.isArray(t.prizeConfig)
+    ? t.prizeConfig.map((p: any) => ({
+        rank: String(p?.rank || '1ST'),
+        label: String(p?.label || ''),
+        cashAmount: p?.cashAmount !== undefined ? Number(p.cashAmount) || 0 : 0,
+        nonCashReward: p?.nonCashReward ? String(p.nonCashReward) : '',
+      }))
+    : [];
+
+  const podiumOverride: TournamentPodiumOverride | null =
+    t.podiumOverride && typeof t.podiumOverride === 'object' && !Array.isArray(t.podiumOverride)
+      ? (t.podiumOverride as TournamentPodiumOverride)
+      : null;
+
+  return {
+    id: t.id,
+    slug: t.slug,
+    name: t.name,
+    subtitle: t.subtitle ?? undefined,
+    mode,
+    trackingMode: (t.trackingMode || 'FULL_BRACKET') as TournamentTrackingMode,
+    status: (t.status || 'UPCOMING') as TournamentStatus,
+    isActive: t.isActive !== false,
+    isRegistrationOpen: Boolean(t.isRegistrationOpen),
+    maxTeams: Number(t.maxTeams) || 8,
+    registrationDeadline: t.registrationDeadline ?? undefined,
+    startDate: t.startDate,
+    endDate: t.endDate ?? undefined,
+    startTime: t.startTime ?? undefined,
+    location: t.location || '155 Truong Chinh, Thanh Xuan, Hanoi (DVA Court - BTL Thong Tin)',
+    mapsUrl: t.mapsUrl ?? undefined,
+    bannerUrl: t.bannerUrl ?? undefined,
+    groupSetFormat: (t.groupSetFormat || 'BO3') as TournamentSetFormat,
+    knockoutSetFormat: (t.knockoutSetFormat || 'BO3') as TournamentSetFormat,
+    entryFeePerTeam: mode === 'HOSTED' ? Number(t.entryFeePerTeam) || 0 : 0,
+    ...(includePrivate && t.internalExpenseNote ? { internalExpenseNote: t.internalExpenseNote } : {}),
+    rulesContent: t.rulesContent ?? undefined,
+    prizeConfig,
+    dvaResultSummary: t.dvaResultSummary ?? undefined,
+    podiumOverride,
+    teams: visibleTeamsRaw.map((tm) => toTournamentTeamDto(tm, includePrivate)),
+    players: visiblePlayersRaw.map(toTournamentPlayerDto),
+    matches: rawMatches.map((m) => toTournamentMatchDto(m, includePrivate)),
+    officials: rawOfficials.map((o) => toTournamentOfficialDto(o, includePrivate)),
+    paidTeamsCount,
+    pendingTeamsCount,
+    createdAt: safeIsoString(t.createdAt),
+    updatedAt: safeIsoString(t.updatedAt),
+  };
+}
+
+export function toTournamentFinanceSummaryDto(
+  t: (DbTournament & { teams?: DbTournamentTeam[] }) | any
+): TournamentFinanceSummary {
+  const mode = (t.mode || 'HOSTED') as TournamentMode;
+  const rawTeams: any[] = Array.isArray(t.teams) ? t.teams : [];
+  return {
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    mode,
+    status: (t.status || 'UPCOMING') as TournamentStatus,
+    startDate: t.startDate,
+    entryFeePerTeam: mode === 'HOSTED' ? Number(t.entryFeePerTeam) || 0 : 0,
+    maxTeams: Number(t.maxTeams) || 8,
+    teams: rawTeams.map((tm) => ({
+      id: tm.id,
+      name: tm.name,
+      paymentStatus: (tm.paymentStatus || 'PENDING') as TournamentTeam['paymentStatus'],
+      entryFeeAmount: Number(tm.entryFeeAmount) || 0,
+      paidAt: tm.paidAt ? safeIsoString(tm.paidAt) : undefined,
+      createdAt: tm.createdAt ? safeIsoString(tm.createdAt) : undefined,
+    })),
   };
 }
 

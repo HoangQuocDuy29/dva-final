@@ -16,7 +16,7 @@ No REST/API contract changes. This file defines the **UI/URL contract** the impl
 | `courts` | Court Schedule & Slots | ADMIN, SUPERADMIN | existing |
 | `bookings` | Court Bookings & VietQR | ADMIN, SUPERADMIN | existing — logic untouched |
 | `store` | DVA Store | ADMIN, SUPERADMIN | **new** placeholder |
-| `tournaments` | Tournaments | ADMIN, SUPERADMIN | **new** Coming Soon |
+| `tournaments` | Tournaments | ADMIN, SUPERADMIN | **new** Full Module (superseded Coming Soon via Spec 008) |
 | `news` | News & Media | ADMIN, SUPERADMIN | existing |
 | `sheets` | Google Sheets Sync | ADMIN, SUPERADMIN | existing |
 | `users` | Staff & Roles | SUPERADMIN only | existing (non-SuperAdmin → `overview`) |
@@ -32,13 +32,13 @@ Unknown values → `overview`. All existing deep links remain valid.
 
 Badges: `bookings` = pending bookings, `applications` = pending applications, `training` = pending registrations; `players`/`training`/`coaches`/`news` show counts.
 
-## 3. Tournaments view — exact copy (FR-007)
+## 3. Tournaments view — exact copy (FR-007, superseded by Spec 008)
 
 ```
 Feature Under Development - Hệ thống quản lý giải đấu đang được phát triển và dịch vụ sẽ sớm được triển khai.
 ```
 
-Rendered verbatim. This is the **only** intentional Vietnamese string introduced by this feature (SC-005 exception). No buttons that trigger writes.
+*(Historical note: Originally rendered verbatim as an SC-005 exception with no write buttons; superseded by Spec 008 (`specs/008-tournaments-module/`), where `TournamentsTab.tsx` now implements the full Tournaments & Leagues management workspace.)*
 
 ## 4. DVA Store view
 

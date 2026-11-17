@@ -6,7 +6,7 @@
  * without needing to manually create folders on Cloudinary Dashboard.
  */
 
-export type CloudinaryModule = 'players' | 'courts' | 'news' | 'coaches' | 'training' | 'shop' | 'general';
+export type CloudinaryModule = 'players' | 'courts' | 'news' | 'coaches' | 'training' | 'shop' | 'tournaments' | 'general';
 
 export type CloudinaryImagePreset = 'card' | 'thumb' | 'detail' | 'zoom';
 

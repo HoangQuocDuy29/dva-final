@@ -1,0 +1,83 @@
+{
+  "header": {
+    "eyebrow": "Hệ thống Giải đấu DVA",
+    "title": "Giải đấu & Cúp CLB",
+    "switcherLabel": "Chọn mùa giải",
+    "shareTournament": "Chia sẻ giải đấu",
+    "emptyTitle": "Chưa có giải đấu nào được công bố",
+    "emptyDesc": "Thông tin các giải đấu sắp tới, lịch thi đấu và cổng đăng ký của DVA Volleyball sẽ hiển thị tại đây."
+  },
+  "tabs": {
+    "overview": "Tổng quan & Bảng vàng",
+    "bracket": "Bảng xếp hạng & Nhánh đấu",
+    "schedule": "Lịch đấu & Kết quả",
+    "rules": "Điều lệ Giải",
+    "officials": "Tổ Trọng tài"
+  },
+  "status": {
+    "UPCOMING": "Sắp diễn ra",
+    "ONGOING": "Đang thi đấu",
+    "COMPLETED": "Đã kết thúc",
+    "CANCELLED": "Đã hủy",
+    "HOSTED": "DVA Đăng cai",
+    "PARTICIPATING": "DVA Tham dự"
+  },
+  "prep": {
+    "badge": "Đang chuẩn bị giải đấu",
+    "title": "Chưa có dữ liệu bảng đấu & lịch thi đấu",
+    "desc": "Giải đấu đang trong giai đoạn chuẩn bị và tiếp nhận đăng ký đội bóng. Sơ đồ nhánh đấu và lịch ra sân 2 sân song song sẽ được cập nhật ngay sau lễ bốc thăm.",
+    "viewRules": "Xem Điều lệ Giải",
+    "registerNow": "Đăng ký Đội ngay"
+  },
+  "registration": {
+    "title": "Đăng ký Tham dự & Lệ phí Giải",
+    "confirmedProgress": "Đội đã chốt suất (PAID)",
+    "pendingNote": "{{count}} đội đang chờ đối soát CK",
+    "entryFee": "Lệ phí mỗi đội",
+    "freeEntry": "Miễn phí",
+    "deadline": "Hạn chót đăng ký",
+    "ctaOpen": "Đăng ký Đội thi đấu",
+    "ctaFull": "Đã đủ 8/8 Đội chính thức",
+    "ctaClosed": "Đã đóng đăng ký"
+  },
+  "podium": {
+    "title": "Bảng vàng Vinh danh & Thành tích",
+    "first": "Hạng Nhất · Vô địch",
+    "second": "Hạng Nhì · Á quân",
+    "third": "Hạng Ba",
+    "individualTitle": "Giải thưởng Cá nhân & MVP",
+    "prizesTitle": "Cơ cấu Giải thưởng"
+  },
+  "bracket": {
+    "standingsTitle": "Bảng Xếp Hạng Vòng Bảng",
+    "poolA": "Bảng A",
+    "poolB": "Bảng B",
+    "knockoutTitle": "Sơ đồ Nhánh đấu Knockout",
+    "leftWing": "Nhánh Trái",
+    "rightWing": "Nhánh Phải",
+    "championship": "Chung kết & Tranh Hạng 3",
+    "tieLegend": "Thứ tự xét hạng: Trận thắng → Điểm FIVB → Hiệu số Set → Hiệu số Điểm → Đối đầu trực tiếp"
+  },
+  "schedule": {
+    "allCourts": "Tất cả Sân",
+    "allTeams": "Tất cả Đội",
+    "noMatchesTitle": "Chưa công bố Lịch thi đấu",
+    "noMatchesDesc": "Lịch thi đấu chính thức cho Sân 1 & Sân 2 sẽ hiển thị tại đây ngay khi BTC chốt bốc thăm."
+  },
+  "rules": {
+    "title": "Điều lệ & Quy định Chính thức",
+    "copyZalo": "Sao chép Link Điều lệ (Zalo)",
+    "empty": "Ban Tổ Chức đang hoàn thiện văn bản điều lệ chi tiết."
+  },
+  "officials": {
+    "title": "Tổ Trọng tài Điều hành Giải",
+    "empty": "Danh sách Tổ Trọng tài đang được BTC cập nhật."
+  },
+  "drawer": {
+    "viewDvaSquad": "Xem Hồ sơ Đội hình DVA",
+    "rosterTitle": "Danh sách Vận động viên",
+    "matchesTitle": "Hành trình Thi đấu tại Giải",
+    "noRoster": "Chưa có danh sách VĐV cho đội này.",
+    "noMatches": "Chưa có dữ liệu trận đấu."
+  }
+}

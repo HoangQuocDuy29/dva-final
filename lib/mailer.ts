@@ -366,6 +366,16 @@ export function generateGuestSessionTransferDescription(
   return `SCRIM ${cleanName} ${ddmm} ${shortTime} ${pos} ${suffix}`.trim();
 }
 
+export function generateTournamentTransferContent(teamShortOrName: string): string {
+  const cleanTeam =
+    removeVietnameseTones(teamShortOrName || 'TEAM')
+      .replace(/[^A-Za-z0-9]/g, '')
+      .toUpperCase()
+      .slice(0, 6) || 'TEAM';
+  const suffix = crypto.randomInt(1000, 9999);
+  return `DVA CUP ${cleanTeam} ${suffix}`.trim();
+}
+
 export function buildBookingVietQrUrl(
   amount: number,
   transferContent: string,
@@ -3039,5 +3049,122 @@ export async function sendShopOrderShippingEmail(
     return false;
   }
 }
+
+export interface TournamentRegistrationEmailPayload {
+  tournamentName: string;
+  tournamentSlug: string;
+  startDate: string;
+  startTime?: string;
+  location: string;
+  teamName: string;
+  captainName: string;
+  captainEmail: string;
+  captainPhone: string;
+  playerCount: number;
+  entryFeeAmount: number;
+  transferContent: string;
+}
+
+export async function sendTournamentRegistrationEmail(
+  payload: TournamentRegistrationEmailPayload
+): Promise<boolean> {
+  try {
+    const recipient = (payload.captainEmail || '').trim().toLowerCase();
+    if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      return false;
+    }
+    const apiKey = getResendApiKey();
+    if (!apiKey) {
+      console.warn('[Tournament Mailer] RESEND_API_KEY not configured; skipping email.');
+      return false;
+    }
+    const client = getResendClient();
+    const sender = getSenderEmail();
+    const admin = getAdminEmail();
+    const qrUrl = buildBookingVietQrUrl(payload.entryFeeAmount, payload.transferContent);
+    const feeText =
+      payload.entryFeeAmount > 0
+        ? `${Number(payload.entryFeeAmount).toLocaleString('vi-VN')} đ`
+        : '0 đ (Free / Waived)';
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Tournament Registration - ${escapeHtml(payload.teamName)}</title></head>
+<body style="margin:0;padding:0;background-color:#0b0f19;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0b0f19;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background-color:#111827;border:1px solid #1e293b;border-radius:20px;overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#8b0000 0%,#ea580c 100%);padding:26px 28px;text-align:center;">
+              <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#fed7aa;margin-bottom:6px;">
+                DVA VOLLEYBALL CLUB · TOURNAMENT ENTRY
+              </div>
+              <h1 style="margin:0;font-size:20px;font-weight:900;color:#ffffff;">
+                🏆 ${escapeHtml(payload.tournamentName)}
+              </h1>
+              <div style="margin-top:10px;font-size:12px;color:#ffedd5;">
+                Team Registration Received / Đã tiếp nhận đăng ký đội thi đấu
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <p style="margin:0 0 12px;font-size:14px;color:#f8fafc;">
+                Dear Captain <strong>${escapeHtml(payload.captainName)}</strong> (Team <strong>${escapeHtml(payload.teamName)}</strong>),
+              </p>
+              <p style="margin:0 0 18px;font-size:13px;line-height:1.6;color:#cbd5e1;">
+                Your team roster (${payload.playerCount} athletes) has been recorded. Your official tournament slot will be locked once your entry fee transfer is verified.<br/>
+                <em>Hồ sơ đội bóng (${payload.playerCount} VĐV) đã được ghi nhận. Suất thi đấu chính thức sẽ được khóa ngay sau khi BTC xác nhận lệ phí.</em>
+              </p>
+
+              <div style="background:#0b0f19;border:1px solid #1e293b;border-radius:14px;padding:16px;margin-bottom:18px;font-size:13px;line-height:1.7;">
+                <div><span style="color:#94a3b8;">Tournament Date / Ngày thi đấu:</span> <strong style="color:#ffffff;">${escapeHtml(payload.startDate)}${payload.startTime ? ` · ${escapeHtml(payload.startTime)}` : ''}</strong></div>
+                <div><span style="color:#94a3b8;">Venue / Địa điểm:</span> <strong style="color:#ffffff;">${escapeHtml(payload.location)}</strong></div>
+                <div><span style="color:#94a3b8;">Entry Fee / Lệ phí giải:</span> <strong style="color:#facc15;">${feeText}</strong></div>
+                <div><span style="color:#94a3b8;">Transfer Memo / Nội dung CK:</span> <strong style="color:#fb923c;font-family:monospace;">${escapeHtml(payload.transferContent)}</strong></div>
+              </div>
+
+              ${
+                payload.entryFeeAmount > 0
+                  ? `<div style="text-align:center;background:#ffffff;border-radius:14px;padding:16px;margin-bottom:18px;">
+                       <img src="${qrUrl}" alt="VietQR Payment" width="210" height="210" style="display:block;margin:0 auto;" />
+                       <div style="font-size:11px;font-weight:700;color:#334155;margin-top:8px;">MB Bank · ${VIETQR_ACCOUNT_NO} · ${VIETQR_ACCOUNT_NAME}</div>
+                     </div>`
+                  : ''
+              }
+
+              <div style="font-size:12px;color:#94a3b8;text-align:center;">
+                Hotline / Zalo BTC: <strong style="color:#ffffff;">0768 299 329</strong>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+
+    const { error } = await client.emails.send({
+      from: sender,
+      to: recipient,
+      subject: `[DVA Tournament] Registration & VietQR - ${payload.teamName} (${payload.tournamentName})`,
+      html,
+      replyTo: admin,
+    });
+
+    if (error) {
+      console.warn('[Tournament Mailer Warning]:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    console.warn('[Tournament Mailer Error]:', err?.message || err);
+    return false;
+  }
+}
+
 
 

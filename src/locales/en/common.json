@@ -6,6 +6,7 @@
     "courtBooking": "Court Booking",
     "training": "Training & Scrimmage",
     "shop": "Shop",
+    "tournaments": "Tournaments",
     "clubInfo": "Information",
     "news": "News",
     "signIn": "Sign In",
@@ -33,6 +34,7 @@
       "squadRosters": "Squad Rosters",
       "courtBooking": "Court Booking",
       "training": "Training & Scrimmage",
+      "tournaments": "Tournaments & Cups",
       "feesSchedules": "Fees & Schedules",
       "clubNews": "Club Bulletin & News",
       "joinSquad": "Join DVA Squad"

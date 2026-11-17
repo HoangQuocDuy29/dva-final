@@ -350,3 +350,197 @@ export const GUEST_SESSION_STATUS_SCHEMA: Schema = {
 export const APPLICATION_ENTRY_FEE_SCHEMA: Schema = {
   entryFee: I(0, 100_000_000),
 };
+
+// ============================================================================
+// TOURNAMENTS & LEAGUES SCHEMAS (SPEC 008)
+// ============================================================================
+export const TOURNAMENT_MODES = ['HOSTED', 'PARTICIPATING'] as const;
+export const TOURNAMENT_TRACKING_MODES = ['FULL_BRACKET', 'DVA_FOCUS'] as const;
+export const TOURNAMENT_STATUSES = ['UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED'] as const;
+export const TOURNAMENT_SET_FORMATS = ['BO3', 'BO2'] as const;
+export const MATCH_STAGES = ['GROUP', 'POOL_A', 'POOL_B', 'QUARTERFINAL', 'SEMIFINAL', 'THIRD_PLACE', 'FINAL'] as const;
+export const MATCH_STATUSES = ['SCHEDULED', 'LIVE', 'COMPLETED', 'CANCELLED'] as const;
+export const OFFICIAL_ROLES = ['MAIN_REFEREE', 'LINE_JUDGE', 'SCORER', 'SUPERVISOR'] as const;
+
+const OPTIONAL_PRIZE_JSON: Rule = (v, k) => {
+  if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array`);
+  return v.slice(0, 12).map((item) => {
+    if (!item || typeof item !== 'object') throw new HttpError(400, `${k} item must be an object`);
+    const obj = item as Record<string, unknown>;
+    return {
+      rank: S(30, 1)(obj.rank ?? '1ST', `${k}.rank`),
+      label: S(100, 1)(obj.label ?? 'Prize', `${k}.label`),
+      cashAmount: obj.cashAmount !== undefined && obj.cashAmount !== null && obj.cashAmount !== ''
+        ? N(0, 1_000_000_000)(obj.cashAmount, `${k}.cashAmount`)
+        : 0,
+      nonCashReward: obj.nonCashReward ? S(200)(obj.nonCashReward, `${k}.nonCashReward`) : '',
+    };
+  });
+};
+
+const OPTIONAL_PODIUM_JSON: Rule = (v, k) => {
+  if (v === null) return null;
+  if (typeof v !== 'object' || Array.isArray(v)) throw new HttpError(400, `${k} must be an object`);
+  const obj = v as Record<string, unknown>;
+  const out: Record<string, any> = {};
+  if (obj.firstName !== undefined) out.firstName = S(120)(obj.firstName, `${k}.firstName`);
+  if (obj.firstLogo !== undefined) out.firstLogo = U(obj.firstLogo, `${k}.firstLogo`);
+  if (obj.secondName !== undefined) out.secondName = S(120)(obj.secondName, `${k}.secondName`);
+  if (obj.secondLogo !== undefined) out.secondLogo = U(obj.secondLogo, `${k}.secondLogo`);
+  if (obj.thirdName !== undefined) out.thirdName = S(120)(obj.thirdName, `${k}.thirdName`);
+  if (obj.thirdLogo !== undefined) out.thirdLogo = U(obj.thirdLogo, `${k}.thirdLogo`);
+  if (Array.isArray(obj.awards)) {
+    out.awards = obj.awards.slice(0, 12).map((a: any) => ({
+      award: S(60, 1)(a?.award ?? 'MVP', `${k}.awards.award`),
+      playerName: S(100, 1)(a?.playerName ?? '', `${k}.awards.playerName`),
+      teamName: a?.teamName ? S(100)(a.teamName, `${k}.awards.teamName`) : '',
+      jerseyNumber: a?.jerseyNumber !== undefined && a?.jerseyNumber !== '' ? I(0, 99)(a.jerseyNumber, `${k}.awards.jerseyNumber`) : undefined,
+    }));
+  }
+  return out;
+};
+
+export const TOURNAMENT_SCHEMA: Schema = {
+  slug: S(150),
+  name: S(180, 2),
+  subtitle: S(300),
+  mode: E(TOURNAMENT_MODES),
+  trackingMode: E(TOURNAMENT_TRACKING_MODES),
+  status: E(TOURNAMENT_STATUSES),
+  isActive: B,
+  isRegistrationOpen: B,
+  maxTeams: I(2, 32),
+  registrationDeadline: OPTIONAL_DATE,
+  startDate: D,
+  endDate: OPTIONAL_DATE,
+  startTime: S(20),
+  location: S(300),
+  mapsUrl: S(500),
+  bannerUrl: U,
+  groupSetFormat: E(TOURNAMENT_SET_FORMATS),
+  knockoutSetFormat: E(TOURNAMENT_SET_FORMATS),
+  entryFeePerTeam: I(0, 100_000_000),
+  internalExpenseNote: S(3000),
+  rulesContent: S(30000),
+  prizeConfig: OPTIONAL_PRIZE_JSON,
+  dvaResultSummary: S(200),
+  podiumOverride: OPTIONAL_PODIUM_JSON,
+};
+
+export const TOURNAMENT_TEAM_ADMIN_SCHEMA: Schema = {
+  name: S(120, 2),
+  shortName: S(12),
+  logoUrl: U,
+  isDvaTeam: B,
+  dvaSquadLevel: LEVEL_RULE,
+  pool: S(5),
+  seedOrder: I(0, 64),
+  manualRankOverride: I(1, 16),
+  finalRank: I(1, 32),
+  captainName: S(100),
+  captainPhone: S(30),
+  captainEmail: OPTIONAL_EMAIL,
+  paymentStatus: E(PAYMENT_STATUSES),
+  entryFeeAmount: I(0, 100_000_000),
+  notes: S(1000),
+};
+
+const REGISTRATION_PLAYERS_RULE: Rule = (v, k) => {
+  if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array`);
+  if (v.length < 6 || v.length > 14) {
+    throw new HttpError(400, 'Roster must contain between 6 and 14 players.');
+  }
+  return v.map((item, idx) => {
+    if (!item || typeof item !== 'object') throw new HttpError(400, `${k}[${idx}] must be an object`);
+    const p = item as Record<string, unknown>;
+    return {
+      fullName: S(100, 2)(p.fullName, `${k}[${idx}].fullName`),
+      jerseyNumber: I(0, 99)(p.jerseyNumber, `${k}[${idx}].jerseyNumber`),
+      position: E(POSITIONS)(String(p.position || 'OH').toUpperCase(), `${k}[${idx}].position`),
+      height: p.height !== undefined && p.height !== null && p.height !== '' ? N(120, 240)(p.height, `${k}[${idx}].height`) : null,
+      spikeTouch: p.spikeTouch !== undefined && p.spikeTouch !== null && p.spikeTouch !== '' ? N(150, 400)(p.spikeTouch, `${k}[${idx}].spikeTouch`) : null,
+      isCaptain: p.isCaptain !== undefined ? Boolean(p.isCaptain) : false,
+    };
+  });
+};
+
+export const TOURNAMENT_PUBLIC_REGISTER_SCHEMA: Schema = {
+  name: S(120, 2),
+  shortName: S(12),
+  logoUrl: U,
+  captainName: S(100, 2),
+  captainPhone: PH,
+  captainEmail: OPTIONAL_EMAIL,
+  notes: S(1000),
+  players: REGISTRATION_PLAYERS_RULE,
+};
+
+export const TOURNAMENT_PLAYER_SCHEMA: Schema = {
+  teamId: S(80, 1),
+  linkedPlayerId: S(80),
+  fullName: S(100, 2),
+  jerseyNumber: I(0, 99),
+  position: E(POSITIONS),
+  height: N(100, 250),
+  spikeTouch: N(150, 400),
+  avatarUrl: U,
+  isCaptain: B,
+  awards: SA(10, 40),
+};
+
+export const TOURNAMENT_MATCH_SCHEMA: Schema = {
+  matchCode: S(30, 1),
+  stage: E(MATCH_STAGES),
+  bracketSide: S(20),
+  courtName: S(40),
+  scheduledTime: S(20),
+  matchOrder: I(0, 200),
+  status: E(MATCH_STATUSES),
+  setFormat: E(TOURNAMENT_SET_FORMATS),
+  homeTeamId: S(80),
+  awayTeamId: S(80),
+  homeLabel: S(120),
+  awayLabel: S(120),
+  officialId: S(80),
+  assistantOfficialIds: SA(10, 80),
+  notes: S(1000),
+};
+
+const SET_SCORES_RULE: Rule = (v, k) => {
+  if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array`);
+  return v.slice(0, 5).map((item, idx) => {
+    if (!item || typeof item !== 'object') throw new HttpError(400, `${k}[${idx}] must be an object`);
+    const s = item as Record<string, unknown>;
+    return {
+      set: I(1, 5)(s.set ?? idx + 1, `${k}[${idx}].set`),
+      home: I(0, 99)(s.home ?? 0, `${k}[${idx}].home`),
+      away: I(0, 99)(s.away ?? 0, `${k}[${idx}].away`),
+      isCompleted: Boolean(s.isCompleted),
+    };
+  });
+};
+
+export const TOURNAMENT_MATCH_SCORE_SCHEMA: Schema = {
+  status: E(MATCH_STATUSES),
+  courtName: S(40),
+  scheduledTime: S(20),
+  setFormat: E(TOURNAMENT_SET_FORMATS),
+  setScores: SET_SCORES_RULE,
+  homeTeamId: S(80),
+  awayTeamId: S(80),
+  homeLabel: S(120),
+  awayLabel: S(120),
+  officialId: S(80),
+  assistantOfficialIds: SA(10, 80),
+  notes: S(1000),
+  forceOverride: B,
+};
+
+export const TOURNAMENT_OFFICIAL_SCHEMA: Schema = {
+  fullName: S(100, 2),
+  role: E(OFFICIAL_ROLES),
+  certification: S(150),
+  avatarUrl: U,
+  phone: S(30),
+  sortOrder: I(0, 200),
+};

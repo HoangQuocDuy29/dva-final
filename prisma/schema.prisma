@@ -558,3 +558,217 @@ model GuestSession {
   @@index([createdAt(sort: Desc)])
   @@map("guest_sessions")
 }
+
+// ============================================================================
+// TOURNAMENTS & LEAGUES MODULE (SPEC 008)
+// ============================================================================
+
+enum TournamentMode {
+  HOSTED
+  PARTICIPATING
+}
+
+enum TournamentTrackingMode {
+  FULL_BRACKET
+  DVA_FOCUS
+}
+
+enum TournamentStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum MatchStage {
+  GROUP
+  POOL_A
+  POOL_B
+  QUARTERFINAL
+  SEMIFINAL
+  THIRD_PLACE
+  FINAL
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum OfficialRole {
+  MAIN_REFEREE
+  LINE_JUDGE
+  SCORER
+  SUPERVISOR
+}
+
+/// Giải đấu bóng chuyền (Đăng cai HOSTED hoặc Đội khách PARTICIPATING)
+model Tournament {
+  id                   String                 @id @default(uuid())
+  slug                 String                 @unique
+  name                 String
+  subtitle             String?
+  mode                 TournamentMode         @default(HOSTED)
+  trackingMode         TournamentTrackingMode @default(FULL_BRACKET)
+  status               TournamentStatus       @default(UPCOMING)
+  isActive             Boolean                @default(true)
+  isRegistrationOpen   Boolean                @default(true)
+  maxTeams             Int                    @default(8)
+  registrationDeadline String?                // YYYY-MM-DD
+  startDate            String                 // YYYY-MM-DD
+  endDate              String?                // YYYY-MM-DD
+  startTime            String?                // HH:mm (VD: "07:30")
+  location             String                 @default("155 Truong Chinh, Thanh Xuan, Hanoi (DVA Court - BTL Thong Tin)")
+  mapsUrl              String?
+  bannerUrl            String?
+  groupSetFormat       String                 @default("BO3") // "BO3" | "BO2"
+  knockoutSetFormat    String                 @default("BO3") // "BO3" | "BO2"
+  entryFeePerTeam      Int                    @default(0) // VNĐ (ép 0 nếu PARTICIPATING)
+  internalExpenseNote  String?                @db.Text // Ghi chú quỹ/chi phí nội bộ (chỉ Admin xem)
+  rulesContent         String?                @db.Text // Điều lệ giải (Markdown/Text)
+  prizeConfig          Json?                  // [{ rank, label, cashAmount?, nonCashReward? }]
+  dvaResultSummary     String?                // VD: "3rd Place — FCB Open Cup 2025"
+  podiumOverride       Json?                  // Podium & giải cá nhân tùy chỉnh cho DVA_FOCUS
+
+  // Relations
+  teams                TournamentTeam[]
+  players              TournamentPlayer[]
+  matches              TournamentMatch[]
+  officials            TournamentOfficial[]
+
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@index([isActive, status, startDate(sort: Desc)])
+  @@index([mode, status])
+  @@index([createdAt(sort: Desc)])
+  @@map("tournaments")
+}
+
+/// Đội bóng tham dự giải đấu kèm trạng thái đóng lệ phí VietQR
+model TournamentTeam {
+  id                  String             @id @default(uuid())
+  tournamentId        String
+  tournament          Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  name                String
+  shortName           String?
+  logoUrl             String?
+  isDvaTeam           Boolean            @default(false)
+  dvaSquadLevel       PlayerLevel?
+  pool                String?            // "A" | "B" | null
+  seedOrder           Int                @default(0)
+  manualRankOverride  Int?
+  finalRank           Int?
+  captainName         String?
+  captainPhone        String?
+  captainEmail        String?
+  paymentStatus       PaymentStatus      @default(PENDING)
+  entryFeeAmount      Int                @default(0)
+  transferContent     String?            @unique
+  customerConfirmedAt DateTime?
+  paidAt              DateTime?
+  notes               String?            @db.Text
+
+  // Relations
+  players             TournamentPlayer[]
+  homeMatches         TournamentMatch[]  @relation("HomeMatches")
+  awayMatches         TournamentMatch[]  @relation("AwayMatches")
+  wonMatches          TournamentMatch[]  @relation("WonMatches")
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([tournamentId, pool, seedOrder])
+  @@index([tournamentId, paymentStatus])
+  @@index([paymentStatus, paidAt(sort: Desc)])
+  @@map("tournament_teams")
+}
+
+/// Danh sách VĐV thi đấu trong từng đội (7-10 VĐV) kèm danh hiệu cá nhân
+model TournamentPlayer {
+  id             String             @id @default(uuid())
+  teamId         String
+  team           TournamentTeam     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  tournamentId   String
+  tournament     Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  linkedPlayerId String?
+  fullName       String
+  jerseyNumber   Int                @default(0)
+  position       VolleyballPosition @default(OH)
+  height         Float?
+  spikeTouch     Float?
+  avatarUrl      String?
+  isCaptain      Boolean            @default(false)
+  awards         String[]           @default([])
+
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([teamId, jerseyNumber(sort: Asc)])
+  @@index([tournamentId])
+  @@map("tournament_players")
+}
+
+/// Trận đấu vòng bảng & loại trực tiếp (hỗ trợ 2 sân song song và tỉ số từng set)
+model TournamentMatch {
+  id                   String              @id @default(uuid())
+  tournamentId         String
+  tournament           Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matchCode            String
+  stage                MatchStage          @default(POOL_A)
+  bracketSide          String?             // "LEFT" | "RIGHT" | "CENTER" | null
+  courtName            String              @default("Court 1")
+  scheduledTime        String?             // HH:mm
+  matchOrder           Int                 @default(0)
+  status               MatchStatus         @default(SCHEDULED)
+  setFormat            String              @default("BO3")
+  homeTeamId           String?
+  homeTeam             TournamentTeam?     @relation("HomeMatches", fields: [homeTeamId], references: [id], onDelete: SetNull)
+  awayTeamId           String?
+  awayTeam             TournamentTeam?     @relation("AwayMatches", fields: [awayTeamId], references: [id], onDelete: SetNull)
+  homeLabel            String?
+  awayLabel            String?
+  setScores            Json                @default("[]")
+  homeSetsWon          Int                 @default(0)
+  awaySetsWon          Int                 @default(0)
+  homePointsTotal      Int                 @default(0)
+  awayPointsTotal      Int                 @default(0)
+  winnerTeamId         String?
+  winnerTeam           TournamentTeam?     @relation("WonMatches", fields: [winnerTeamId], references: [id], onDelete: SetNull)
+  officialId           String?
+  official             TournamentOfficial? @relation("PrimaryOfficial", fields: [officialId], references: [id], onDelete: SetNull)
+  assistantOfficialIds String[]            @default([])
+  notes                String?             @db.Text
+
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@index([tournamentId, matchOrder(sort: Asc)])
+  @@index([tournamentId, stage, status])
+  @@index([officialId])
+  @@map("tournament_matches")
+}
+
+/// Tổ trọng tài điều hành giải đấu
+model TournamentOfficial {
+  id             String            @id @default(uuid())
+  tournamentId   String
+  tournament     Tournament        @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  fullName       String
+  role           OfficialRole      @default(MAIN_REFEREE)
+  certification  String?
+  avatarUrl      String?
+  phone          String?
+  sortOrder      Int               @default(0)
+
+  // Relations
+  primaryMatches TournamentMatch[] @relation("PrimaryOfficial")
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([tournamentId, sortOrder(sort: Asc)])
+  @@map("tournament_officials")
+}

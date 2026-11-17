@@ -33,6 +33,7 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
     storeRevenue,
     guestSessionRevenue,
     tryoutRevenue,
+    tournamentRevenue,
     paidBookingsCount,
     paidStoreOrdersCount,
     paidGuestSessionsCount,
@@ -43,6 +44,7 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
     pendingApplicationsCount,
     pendingStoreOrdersCount,
     pendingGuestSessionsCount,
+    pendingTournamentFeesCount,
     playersCount,
   } = useAdminMetrics();
 
@@ -54,7 +56,8 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
     pendingStoreOrdersCount +
     pendingGuestSessionsCount +
     pendingTrainingCount +
-    pendingApplicationsCount;
+    pendingApplicationsCount +
+    pendingTournamentFeesCount;
 
   const displayedTotal = includeEstTuition ? totalClubRevenue : verifiedClubRevenue;
 
@@ -88,8 +91,11 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
               Verified: {formatVnd(verifiedClubRevenue)} + Est. Tuition: {formatVnd(trainingRevenue)}
             </span>
           ) : (
-            <span className="block truncate" title={`Bookings + Shop + Guest + Tryout | Est. Tuition: ${formatVnd(trainingRevenue)}`}>
-              Bookings + Shop + Guest + Tryout · +Est. Tuition: {formatVnd(trainingRevenue)}
+            <span
+              className="block truncate"
+              title={`Bookings + Shop + Guest + Tryout + Tournaments (${formatVnd(tournamentRevenue)}) | Est. Tuition: ${formatVnd(trainingRevenue)}`}
+            >
+              Bookings + Shop + Guest + Tryout{tournamentRevenue > 0 ? ` + Tour (${formatVnd(tournamentRevenue)})` : ''}
             </span>
           )}
         </div>
@@ -172,12 +178,13 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
         icon={Clock}
         label="Pending Approvals"
         value={`${totalPendingApprovals} Items`}
-        note={`${pendingBookingsCount} bookings · ${pendingStoreOrdersCount} shop · ${pendingGuestSessionsCount} guest · ${pendingTrainingCount} trainees · ${pendingApplicationsCount} tryouts`}
+        note={`${pendingBookingsCount} bookings · ${pendingStoreOrdersCount} shop · ${pendingGuestSessionsCount} guest · ${pendingTournamentFeesCount} tour · ${pendingTrainingCount} trainees · ${pendingApplicationsCount} tryouts`}
         accent="text-amber-400"
         bar="bg-amber-400"
         onClick={() => {
           if (pendingBookingsCount > 0) setActiveModule('BOOKINGS');
           else if (pendingStoreOrdersCount > 0) setActiveModule('STORE');
+          else if (pendingTournamentFeesCount > 0) setActiveModule('TOURNAMENTS');
           else if (pendingGuestSessionsCount > 0 && onJumpToGuestSessions) onJumpToGuestSessions();
           else if (pendingTrainingCount > 0) setActiveModule('TRAINING');
           else setActiveModule('APPLICATIONS');

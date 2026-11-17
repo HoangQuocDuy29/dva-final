@@ -552,3 +552,250 @@ export interface StoreOrderCreatePayload {
     customNumber?: string;
   }>;
 }
+
+// ============================================================================
+// TOURNAMENTS & LEAGUES MODULE (SPEC 008)
+// ============================================================================
+
+export type TournamentMode = 'HOSTED' | 'PARTICIPATING';
+export type TournamentTrackingMode = 'FULL_BRACKET' | 'DVA_FOCUS';
+export type TournamentStatus = 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
+export type TournamentSetFormat = 'BO3' | 'BO2';
+
+export type TournamentMatchStage =
+  | 'GROUP'
+  | 'POOL_A'
+  | 'POOL_B'
+  | 'QUARTERFINAL'
+  | 'SEMIFINAL'
+  | 'THIRD_PLACE'
+  | 'FINAL';
+
+export type TournamentMatchStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
+
+export type TournamentOfficialRole = 'MAIN_REFEREE' | 'LINE_JUDGE' | 'SCORER' | 'SUPERVISOR';
+
+export type TournamentIndividualAward = 'MVP' | 'BEST_SETTER' | 'BEST_SPIKER' | 'BEST_LIBERO';
+
+export const TOURNAMENT_AWARD_LABELS: Record<TournamentIndividualAward, string> = {
+  MVP: 'Tournament MVP',
+  BEST_SETTER: 'Best Setter',
+  BEST_SPIKER: 'Best Spiker',
+  BEST_LIBERO: 'Best Libero',
+};
+
+export const OFFICIAL_ROLE_LABELS: Record<TournamentOfficialRole, string> = {
+  MAIN_REFEREE: '1st Referee',
+  LINE_JUDGE: 'Line Judge',
+  SCORER: 'Match Scorer',
+  SUPERVISOR: 'Tournament Supervisor',
+};
+
+export interface TournamentPrizeTier {
+  rank: string; // '1ST' | '2ND' | '3RD' | 'MVP' | etc.
+  label: string;
+  cashAmount?: number;
+  nonCashReward?: string;
+}
+
+export interface TournamentPodiumAwardEntry {
+  award: TournamentIndividualAward | string;
+  playerName: string;
+  teamName?: string;
+  jerseyNumber?: number;
+}
+
+export interface TournamentPodiumOverride {
+  firstName?: string;
+  firstLogo?: string;
+  secondName?: string;
+  secondLogo?: string;
+  thirdName?: string;
+  thirdLogo?: string;
+  awards?: TournamentPodiumAwardEntry[];
+}
+
+export interface TournamentSetScore {
+  set: number;
+  home: number;
+  away: number;
+  isCompleted: boolean;
+}
+
+export interface TournamentPlayer {
+  id: string;
+  teamId: string;
+  tournamentId: string;
+  linkedPlayerId?: string;
+  fullName: string;
+  jerseyNumber: number;
+  position: VolleyballPosition;
+  height?: number;
+  spikeTouch?: number;
+  avatarUrl?: string;
+  isCaptain: boolean;
+  awards: string[];
+  createdAt?: string;
+}
+
+export interface TournamentTeam {
+  id: string;
+  tournamentId: string;
+  name: string;
+  shortName?: string;
+  logoUrl?: string;
+  isDvaTeam: boolean;
+  dvaSquadLevel?: PlayerLevel;
+  pool?: 'A' | 'B' | string | null;
+  seedOrder: number;
+  manualRankOverride?: number | null;
+  finalRank?: number | null;
+  captainName?: string;
+  captainPhone?: string;
+  captainEmail?: string;
+  paymentStatus: PaymentStatus;
+  entryFeeAmount: number;
+  transferContent?: string;
+  customerConfirmedAt?: string;
+  paidAt?: string;
+  notes?: string;
+  players?: TournamentPlayer[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TournamentOfficial {
+  id: string;
+  tournamentId: string;
+  fullName: string;
+  role: TournamentOfficialRole;
+  certification?: string;
+  avatarUrl?: string;
+  phone?: string;
+  sortOrder: number;
+  createdAt?: string;
+}
+
+export interface TournamentMatch {
+  id: string;
+  tournamentId: string;
+  matchCode: string;
+  stage: TournamentMatchStage;
+  bracketSide?: 'LEFT' | 'RIGHT' | 'CENTER' | string | null;
+  courtName: string;
+  scheduledTime?: string;
+  matchOrder: number;
+  status: TournamentMatchStatus;
+  setFormat: TournamentSetFormat | string;
+  homeTeamId?: string | null;
+  awayTeamId?: string | null;
+  homeLabel?: string;
+  awayLabel?: string;
+  setScores: TournamentSetScore[];
+  homeSetsWon: number;
+  awaySetsWon: number;
+  homePointsTotal: number;
+  awayPointsTotal: number;
+  winnerTeamId?: string | null;
+  officialId?: string | null;
+  assistantOfficialIds: string[];
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TournamentStandingRow {
+  rank: number;
+  teamId: string;
+  teamName: string;
+  shortName?: string;
+  logoUrl?: string;
+  isDvaTeam: boolean;
+  pool: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  fivbPoints: number;
+  setsWon: number;
+  setsLost: number;
+  setRatio: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  pointRatio: number;
+  manualRankOverride?: number | null;
+  hasTieWarning?: boolean;
+}
+
+export interface Tournament {
+  id: string;
+  slug: string;
+  name: string;
+  subtitle?: string;
+  mode: TournamentMode;
+  trackingMode: TournamentTrackingMode;
+  status: TournamentStatus;
+  isActive: boolean;
+  isRegistrationOpen: boolean;
+  maxTeams: number;
+  registrationDeadline?: string;
+  startDate: string;
+  endDate?: string;
+  startTime?: string;
+  location: string;
+  mapsUrl?: string;
+  bannerUrl?: string;
+  groupSetFormat: TournamentSetFormat;
+  knockoutSetFormat: TournamentSetFormat;
+  entryFeePerTeam: number;
+  internalExpenseNote?: string;
+  rulesContent?: string;
+  prizeConfig: TournamentPrizeTier[];
+  dvaResultSummary?: string;
+  podiumOverride?: TournamentPodiumOverride | null;
+  teams: TournamentTeam[];
+  players: TournamentPlayer[];
+  matches: TournamentMatch[];
+  officials: TournamentOfficial[];
+  paidTeamsCount?: number;
+  pendingTeamsCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TournamentFinanceSummary {
+  id: string;
+  name: string;
+  slug: string;
+  mode: TournamentMode;
+  status: TournamentStatus;
+  startDate: string;
+  entryFeePerTeam: number;
+  maxTeams: number;
+  teams: Array<{
+    id: string;
+    name: string;
+    paymentStatus: PaymentStatus;
+    entryFeeAmount: number;
+    paidAt?: string;
+    createdAt?: string;
+  }>;
+}
+
+export interface TournamentPublicRegistrationPayload {
+  name: string;
+  shortName?: string;
+  logoUrl?: string;
+  captainName: string;
+  captainPhone: string;
+  captainEmail?: string;
+  notes?: string;
+  players: Array<{
+    fullName: string;
+    jerseyNumber: number;
+    position: VolleyballPosition;
+    height?: number;
+    spikeTouch?: number;
+    isCaptain?: boolean;
+  }>;
+}

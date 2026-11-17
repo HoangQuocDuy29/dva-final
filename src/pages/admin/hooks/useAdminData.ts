@@ -12,6 +12,8 @@ import {
   StoreProduct,
   StoreOrder,
   GuestSessionRecord,
+  Tournament,
+  TournamentFinanceSummary,
 } from '../../../types';
 import {
   adminService,
@@ -24,6 +26,7 @@ import {
   newsService,
   sheetsService,
   storeService,
+  tournamentService,
 } from '../../../services/api';
 import { normalizeCourtWeeklySchedule } from '../../../shared/schedule';
 import { AdminTabId } from '../types';
@@ -67,11 +70,13 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
   const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([]);
   const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
   const [guestSessions, setGuestSessions] = useState<GuestSessionRecord[]>([]);
+  const [tournamentsSummary, setTournamentsSummary] = useState<TournamentFinanceSummary[]>([]);
+  const [tournamentsList, setTournamentsList] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadedLazyScopesRef = useRef<Set<'COURTS' | 'SHEETS' | 'STORE'>>(new Set());
+  const loadedLazyScopesRef = useRef<Set<'COURTS' | 'SHEETS' | 'STORE' | 'TOURNAMENTS'>>(new Set());
 
-  const fetchLazyScope = useCallback(async (scope: 'COURTS' | 'SHEETS' | 'STORE') => {
+  const fetchLazyScope = useCallback(async (scope: 'COURTS' | 'SHEETS' | 'STORE' | 'TOURNAMENTS') => {
     try {
       if (scope === 'COURTS') {
         const cs = await courtService.getClosedSlots();
@@ -86,6 +91,9 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
         ]);
         setStoreProducts(Array.isArray(products) ? products : []);
         setStoreOrders(Array.isArray(orders) ? orders : []);
+      } else if (scope === 'TOURNAMENTS') {
+        const tours = await tournamentService.getTournaments({ adminMode: true });
+        setTournamentsList(Array.isArray(tours) ? tours : []);
       }
       loadedLazyScopesRef.current.add(scope);
     } catch (e) {
@@ -96,7 +104,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [b, a, t, p, n, courses, coaches, fetchedCourts, fetchedProducts, fetchedOrders, fetchedGuestSessions] = await Promise.all([
+      const [b, a, t, p, n, courses, coaches, fetchedCourts, fetchedProducts, fetchedOrders, fetchedGuestSessions, fetchedTournamentSummary] = await Promise.all([
         bookingService.getBookings(),
         memberService.getApplications(),
         trainingService.getRegistrations(),
@@ -108,6 +116,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
         storeService.getProducts(),
         storeService.getOrders(),
         adminService.getGuestSessions(),
+        tournamentService.getFinanceSummary(),
       ]);
       setBookings(Array.isArray(b) ? b : []);
       setApplications(Array.isArray(a) ? a : []);
@@ -120,6 +129,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       setStoreProducts(Array.isArray(fetchedProducts) ? fetchedProducts : []);
       setStoreOrders(Array.isArray(fetchedOrders) ? fetchedOrders : []);
       setGuestSessions(Array.isArray(fetchedGuestSessions) ? fetchedGuestSessions : []);
+      setTournamentsSummary(Array.isArray(fetchedTournamentSummary) ? fetchedTournamentSummary : []);
       loadedLazyScopesRef.current.add('STORE');
 
       // Also refresh any lazy scopes that have already been visited
@@ -155,6 +165,11 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       !loadedLazyScopesRef.current.has('STORE')
     ) {
       fetchLazyScope('STORE');
+    } else if (
+      activeModule === 'TOURNAMENTS' &&
+      !loadedLazyScopesRef.current.has('TOURNAMENTS')
+    ) {
+      fetchLazyScope('TOURNAMENTS');
     }
   }, [activeModule, fetchLazyScope]);
 
@@ -175,6 +190,8 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       storeProducts,
       storeOrders,
       guestSessions,
+      tournamentsSummary,
+      tournamentsList,
     },
     setData: {
       setBookings,
@@ -190,6 +207,8 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       setStoreProducts,
       setStoreOrders,
       setGuestSessions,
+      setTournamentsSummary,
+      setTournamentsList,
     },
   };
 }

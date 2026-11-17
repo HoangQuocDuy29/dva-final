@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, LayoutGrid, User, CalendarCheck, ShoppingBag, Receipt } from 'lucide-react';
+import { Search, LayoutGrid, User, CalendarCheck, ShoppingBag, Receipt, Trophy } from 'lucide-react';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { getVisibleNavGroups } from '../constants';
 import { AdminTabId } from '../types';
 
 interface QuickSearchResult {
-  kind: 'MODULE' | 'PLAYER' | 'BOOKING' | 'STORE_ORDER' | 'STORE_PRODUCT';
+  kind: 'MODULE' | 'PLAYER' | 'BOOKING' | 'STORE_ORDER' | 'STORE_PRODUCT' | 'TOURNAMENT';
   id: string;
   title: string;
   subtitle?: string;
@@ -20,6 +20,7 @@ const KIND_LABEL: Record<QuickSearchResult['kind'], string> = {
   BOOKING: 'Court Bookings',
   STORE_ORDER: 'Store Orders',
   STORE_PRODUCT: 'Store Products',
+  TOURNAMENT: 'Tournaments',
 };
 const KIND_ICON: Record<QuickSearchResult['kind'], React.ComponentType<{ className?: string }>> = {
   MODULE: LayoutGrid,
@@ -27,6 +28,7 @@ const KIND_ICON: Record<QuickSearchResult['kind'], React.ComponentType<{ classNa
   BOOKING: CalendarCheck,
   STORE_ORDER: Receipt,
   STORE_PRODUCT: ShoppingBag,
+  TOURNAMENT: Trophy,
 };
 
 const STORE_SUBVIEW_SHORTCUTS: {
@@ -64,7 +66,7 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
   const {
     isSuperAdmin,
     setActiveModule,
-    data: { players, bookings, storeOrders, storeProducts },
+    data: { players, bookings, storeOrders, storeProducts, tournamentsSummary },
   } = useAdminDashboard();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -198,14 +200,30 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
         subView: 'products',
       }));
 
+    const matchedTournaments: QuickSearchResult[] = tournamentsSummary
+      .filter(
+        (t) =>
+          (t.name || '').toLowerCase().includes(q) ||
+          (t.slug || '').toLowerCase().includes(q)
+      )
+      .slice(0, MAX_PER_KIND)
+      .map((t) => ({
+        kind: 'TOURNAMENT' as const,
+        id: `tour-${t.id}`,
+        title: t.name,
+        subtitle: `${t.mode} · ${t.status} · ${t.startDate}`,
+        target: 'TOURNAMENTS' as const,
+      }));
+
     return [
       ...modules,
+      ...matchedTournaments,
       ...athletes,
       ...reservations,
       ...matchedStoreOrders,
       ...matchedStoreProducts,
     ];
-  }, [query, isSuperAdmin, players, bookings, storeOrders, storeProducts]);
+  }, [query, isSuperAdmin, players, bookings, storeOrders, storeProducts, tournamentsSummary]);
 
   useEffect(() => setHighlight(0), [query]);
 

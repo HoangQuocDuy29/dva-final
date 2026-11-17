@@ -85,6 +85,7 @@ export const Footer: React.FC = () => {
                 { label: t('footer.links.squadRosters'), path: '/players' },
                 { label: t('footer.links.courtBooking'), path: '/services/court-booking' },
                 { label: t('footer.links.training'), path: '/services/training' },
+                { label: t('footer.links.tournaments'), path: '/tournaments' },
                 { label: t('footer.links.feesSchedules'), path: '/information' },
                 { label: t('footer.links.clubNews'), path: '/news' },
                 { label: t('footer.links.joinSquad'), path: '/register' },

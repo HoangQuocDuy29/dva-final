@@ -273,6 +273,26 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   - Form sản phẩm: Chỉnh sửa Tiêu đề, Slug, Rich Text/Markdown Description, Giá gốc & Giá bán thực tế (kèm preview % giảm giá trực tiếp), Toggle trạng thái kinh doanh (`isPaused`).
   - Quản lý đơn hàng: Tra cứu theo mã đơn, lọc theo trạng thái, nút duyệt thanh toán (`PAID`), nút xác nhận giao hàng (`SHIPPED`) và kích hoạt gửi email Chặng 2.
 
+### 3.10. Kiến trúc Module Tournaments & Leagues (Spec 008)
+- **Data Models (`prisma/schema.prisma`):**
+  - 5 model mới được đồng bộ additive-only: `Tournament`, `TournamentTeam`, `TournamentPlayer`, `TournamentMatch`, `TournamentOfficial` (cùng 6 enums mới `TournamentMode`, `TournamentTrackingMode`, `TournamentStatus`, `MatchStage`, `MatchStatus`, `OfficialRole`).
+  - Tách biệt rõ 2 chế độ: **`HOSTED`** (giải đăng cai, mở đăng ký đội trưởng + VietQR, chỉ đội `PAID` tính vào doanh thu) và **`PARTICIPATING`** (giải đi khách, hỗ trợ `FULL_BRACKET` & `DVA_FOCUS`, tuyệt đối không tính tiền thưởng hay lệ phí vào doanh thu).
+- **Engine Dùng Chung (`src/shared/tournaments.ts`):**
+  - `computePoolStandings()`: Tính bảng xếp hạng vòng bảng BO3/BO2 theo thứ tự `Wins -> FIVB Points -> Set Ratio (chống chia 0 bằng nhân chéo) -> Point Ratio -> Head-to-Head -> manualRankOverride / seedOrder`.
+  - `buildStandard20MatchPlan()`: Sinh lịch thi đấu chuẩn 1 ngày 20 trận xen kẽ trên 2 sân song song (`Court 1` & `Court 2`) đảm bảo mọi đội đều có thời gian nghỉ giữa các lượt trận vòng bảng, kèm 4 trận Tứ kết (`QF1: 1A-4B`, `QF3: 3A-2B`, `QF2: 2A-3B`, `QF4: 4A-1B`), 2 Bán kết, Tranh Hạng 3 và Chung kết.
+  - `resolveDefaultTournament()`: Chọn giải mặc định theo thứ tự `ONGOING -> nearest UPCOMING -> most recent COMPLETED`.
+- **Bảo mật & Đối soát Thanh toán (`lib/security.ts`, `server.ts`, `lib/prisma.ts`, `lib/mailer.ts`):**
+  - `PUBLIC_RULES` chỉ mở đọc `/api/tournaments*`, đăng ký đội `POST /api/tournaments/:slugOrId/register` (rate-limit `publicWriteLimiter`, khóa suất theo số đội `PAID` trong transaction) và `confirm-payment`.
+  - `toTournamentDto(..., includePrivate)` tự động strip toàn bộ PII (`captainPhone`, `captainEmail`, `official.phone`, `transferContent`, `entryFeeAmount`, `internalExpenseNote`) và ẩn đội chưa `PAID` của giải `HOSTED` khi `!isStaff(req.user)`.
+  - `POST /api/webhooks/payment` tự động đối soát `TournamentTeam` theo `transferContent` (`DVA CUP <TEAM> <4RAND>`) và cập nhật `PAID` + `paidAt`.
+- **Tài chính Admin Overview (Phương án A):**
+  - Giữ nguyên lưới 8 thẻ KPI (2×4) trên `RevenueKpiCards.tsx`; cộng `tournamentRevenue` (`HOSTED` & `PAID`) vào `verifiedClubRevenue` (`Total Revenue`) và cộng đội chờ duyệt vào `Pending Approvals`.
+  - Thêm dòng thứ 6 (`Tournament Fees`, màu `#EC4899`) vào `Service Revenue Share` (`OverviewTab.tsx`) và `RevenueTrendChart.tsx`.
+  - `useAdminData.ts` nạp payload nhẹ `/api/admin/tournaments/finance-summary` trên mount và lazy-load full danh sách giải đấu khi mở tab `TOURNAMENTS` (`TournamentsTab.tsx`).
+- **Routing Public & Tối ưu Hình ảnh (`src/App.tsx`, `src/pages/TournamentsPage.tsx`, `src/utils/cloudinary.ts`):**
+  - Các route `/tournaments`, `/tournaments/:slug`, `/tournaments/:slug/:subView` (`overview | bracket | schedule | rules | officials`) cùng map vào `TournamentsPage` với **Tournament Switcher**, **Data-driven Preparation States**, **Team Roster Slide-over Drawer** (kèm link tới `/players/:level` cho đội DVA & huy hiệu giải cá nhân), **Modal Đăng ký đội trưởng + VietQR**, và smart polling 15s khi giải đang `ONGOING`.
+  - `CloudinaryModule` bổ sung `'tournaments'`, dùng `optimizeCloudinaryUrl(url, 96)` cho logo nhánh đấu/BXH và `'thumb'` trong Drawer.
+
 ---
 
 ## 4. 🎨 Quy chuẩn Giao diện & Thiết kế (Design Tokens - Dark Theme DVA)

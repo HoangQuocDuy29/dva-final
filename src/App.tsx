@@ -17,6 +17,7 @@ const NewsDetailPage = lazy(() => import('./pages/NewsDetailPage').then((m) => (
 const CourtBookingPage = lazy(() => import('./pages/CourtBookingPage').then((m) => ({ default: m.CourtBookingPage })));
 const TrainingPage = lazy(() => import('./pages/TrainingPage').then((m) => ({ default: m.TrainingPage })));
 const ShopPage = lazy(() => import('./pages/ShopPage').then((m) => ({ default: m.ShopPage })));
+const TournamentsPage = lazy(() => import('./pages/TournamentsPage').then((m) => ({ default: m.TournamentsPage })));
 const MemberRegisterPage = lazy(() => import('./pages/MemberRegisterPage').then((m) => ({ default: m.MemberRegisterPage })));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
 
@@ -116,6 +117,11 @@ export default function App() {
               <Route path="/shop" element={<ShopPage />} />
               <Route path="/shop/:categorySlug/:productSlug" element={<ShopPage />} />
               <Route path="/services/shop" element={<ShopPage />} />
+
+              {/* Module 7: Tournaments & Leagues */}
+              <Route path="/tournaments" element={<TournamentsPage />} />
+              <Route path="/tournaments/:slug" element={<TournamentsPage />} />
+              <Route path="/tournaments/:slug/:subView" element={<TournamentsPage />} />
 
               {/* Automatic Redirects for Legacy Service URLs */}
               <Route path="/booking" element={<RedirectPreserveQuery to="/services/court-booking" />} />

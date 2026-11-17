@@ -19,6 +19,13 @@ import {
   StoreProduct,
   StoreOrder,
   StoreOrderCreatePayload,
+  Tournament,
+  TournamentFinanceSummary,
+  TournamentMatch,
+  TournamentOfficial,
+  TournamentPlayer,
+  TournamentPublicRegistrationPayload,
+  TournamentTeam,
   getShopCategoryCode
 } from '../types';
 import { 
@@ -1393,6 +1400,339 @@ export const storeService = {
       `/store/orders/${encodeURIComponent(orderId)}`,
       { method: 'DELETE' }
     );
+  },
+};
+
+// ============================================================================
+// TOURNAMENTS & LEAGUES API CLIENT (SPEC 008)
+// ============================================================================
+
+const TOURNAMENTS_CACHE_KEY = 'dva_tournaments_public_v1';
+const TOURNAMENTS_FRESH_MS = 30_000;
+const TOURNAMENTS_STALE_MS = 180_000;
+let tournamentsMemCache: { data: Tournament[]; cachedAt: number } | null = null;
+
+function readTournamentsCache(): { data: Tournament[]; isStale: boolean } | null {
+  const now = Date.now();
+  let entry = tournamentsMemCache;
+  if (!entry && typeof window !== 'undefined') {
+    try {
+      const raw = window.sessionStorage.getItem(TOURNAMENTS_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.data) && typeof parsed.cachedAt === 'number') {
+          entry = parsed;
+          tournamentsMemCache = entry;
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }
+  if (!entry) return null;
+  const age = now - entry.cachedAt;
+  if (age > TOURNAMENTS_STALE_MS) {
+    tournamentsMemCache = null;
+    return null;
+  }
+  return { data: entry.data, isStale: age > TOURNAMENTS_FRESH_MS };
+}
+
+function writeTournamentsCache(data: Tournament[]): void {
+  const entry = { data, cachedAt: Date.now() };
+  tournamentsMemCache = entry;
+  if (typeof window !== 'undefined') {
+    try {
+      window.sessionStorage.setItem(TOURNAMENTS_CACHE_KEY, JSON.stringify(entry));
+    } catch {
+      // ignore storage quota
+    }
+  }
+}
+
+function invalidateTournamentsCache(): void {
+  tournamentsMemCache = null;
+  if (typeof window !== 'undefined') {
+    try {
+      window.sessionStorage.removeItem(TOURNAMENTS_CACHE_KEY);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export const tournamentService = {
+  getCachedTournaments(): { data: Tournament[]; isStale: boolean } | null {
+    return readTournamentsCache();
+  },
+
+  invalidateCache(): void {
+    invalidateTournamentsCache();
+  },
+
+  async getTournaments(opts?: { forceRefresh?: boolean; adminMode?: boolean }): Promise<Tournament[]> {
+    if (opts?.adminMode) {
+      const rows = await request<Tournament[]>('/tournaments', { cache: 'no-store' }, []);
+      return Array.isArray(rows) ? rows : [];
+    }
+    if (!opts?.forceRefresh) {
+      const cached = readTournamentsCache();
+      if (cached && !cached.isStale) return cached.data;
+    }
+    const rows = await request<Tournament[]>('/tournaments', {}, []);
+    const list = Array.isArray(rows) ? rows : [];
+    writeTournamentsCache(list);
+    return list;
+  },
+
+  async getTournament(slugOrId: string, opts?: { noCache?: boolean }): Promise<Tournament> {
+    return request<Tournament>(
+      `/tournaments/${encodeURIComponent(slugOrId)}`,
+      opts?.noCache ? { cache: 'no-store' } : undefined
+    );
+  },
+
+  async getFinanceSummary(): Promise<TournamentFinanceSummary[]> {
+    return request<TournamentFinanceSummary[]>('/admin/tournaments/finance-summary', { cache: 'no-store' }, []);
+  },
+
+  async registerTeam(
+    slugOrId: string,
+    payload: TournamentPublicRegistrationPayload
+  ): Promise<{
+    team: TournamentTeam;
+    teamId: string;
+    payment: {
+      bankId: string;
+      bankName: string;
+      accountNo: string;
+      accountName: string;
+      amount: number;
+      transferContent: string;
+      qrUrl: string;
+    };
+  }> {
+    const res = await deduplicatedPost<any>(
+      `/tournaments/${encodeURIComponent(slugOrId)}/register`,
+      payload
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async confirmTeamPayment(
+    slugOrId: string,
+    teamId: string
+  ): Promise<{ success: boolean; paymentStatus: PaymentStatus; customerConfirmedAt?: string }> {
+    return request(
+      `/tournaments/${encodeURIComponent(slugOrId)}/teams/${encodeURIComponent(teamId)}/confirm-payment`,
+      { method: 'POST' }
+    );
+  },
+
+  async createTournament(payload: Partial<Tournament>): Promise<Tournament> {
+    const created = await request<Tournament>('/tournaments', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    invalidateTournamentsCache();
+    return created;
+  },
+
+  async updateTournament(id: string, payload: Partial<Tournament>): Promise<Tournament> {
+    const updated = await request<Tournament>(`/tournaments/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    invalidateTournamentsCache();
+    return updated;
+  },
+
+  async toggleVisibility(id: string, isActive: boolean): Promise<Tournament> {
+    const updated = await request<Tournament>(`/tournaments/${encodeURIComponent(id)}/visibility`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    });
+    invalidateTournamentsCache();
+    return updated;
+  },
+
+  async toggleRegistration(id: string, isRegistrationOpen: boolean): Promise<Tournament> {
+    const updated = await request<Tournament>(`/tournaments/${encodeURIComponent(id)}/registration`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isRegistrationOpen }),
+    });
+    invalidateTournamentsCache();
+    return updated;
+  },
+
+  async deleteTournament(id: string): Promise<{ success: boolean }> {
+    const res = await request<{ success: boolean }>(`/tournaments/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async addTeam(
+    tournamentId: string,
+    payload: Partial<TournamentTeam> & { importDvaSquad?: boolean }
+  ): Promise<TournamentTeam> {
+    const created = await request<TournamentTeam>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/teams`,
+      { method: 'POST', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return created;
+  },
+
+  async updateTeam(
+    tournamentId: string,
+    teamId: string,
+    payload: Partial<TournamentTeam>
+  ): Promise<TournamentTeam> {
+    const updated = await request<TournamentTeam>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}`,
+      { method: 'PUT', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return updated;
+  },
+
+  async deleteTeam(tournamentId: string, teamId: string): Promise<{ success: boolean }> {
+    const res = await request<{ success: boolean }>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}`,
+      { method: 'DELETE' }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async importDvaSquad(
+    tournamentId: string,
+    teamId: string,
+    level: PlayerLevel
+  ): Promise<{ importedCount: number; players: TournamentPlayer[] }> {
+    const res = await request<{ importedCount: number; players: TournamentPlayer[] }>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}/import-dva-squad`,
+      { method: 'POST', body: JSON.stringify({ level }) }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async addPlayer(tournamentId: string, payload: Partial<TournamentPlayer>): Promise<TournamentPlayer> {
+    const created = await request<TournamentPlayer>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/players`,
+      { method: 'POST', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return created;
+  },
+
+  async updatePlayer(
+    tournamentId: string,
+    playerId: string,
+    payload: Partial<TournamentPlayer>
+  ): Promise<TournamentPlayer> {
+    const updated = await request<TournamentPlayer>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/players/${encodeURIComponent(playerId)}`,
+      { method: 'PUT', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return updated;
+  },
+
+  async deletePlayer(tournamentId: string, playerId: string): Promise<{ success: boolean }> {
+    const res = await request<{ success: boolean }>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/players/${encodeURIComponent(playerId)}`,
+      { method: 'DELETE' }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async addOfficial(tournamentId: string, payload: Partial<TournamentOfficial>): Promise<TournamentOfficial> {
+    const created = await request<TournamentOfficial>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/officials`,
+      { method: 'POST', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return created;
+  },
+
+  async updateOfficial(
+    tournamentId: string,
+    officialId: string,
+    payload: Partial<TournamentOfficial>
+  ): Promise<TournamentOfficial> {
+    const updated = await request<TournamentOfficial>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/officials/${encodeURIComponent(officialId)}`,
+      { method: 'PUT', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return updated;
+  },
+
+  async deleteOfficial(tournamentId: string, officialId: string): Promise<{ success: boolean }> {
+    const res = await request<{ success: boolean }>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/officials/${encodeURIComponent(officialId)}`,
+      { method: 'DELETE' }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async generateSchedule(tournamentId: string, forceReset = false): Promise<Tournament> {
+    const res = await request<Tournament>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/generate-schedule`,
+      { method: 'POST', body: JSON.stringify({ forceReset }) }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async seedKnockout(
+    tournamentId: string,
+    forceOverride = false
+  ): Promise<{ tournament: Tournament; skipped: string[]; warnings: string[] }> {
+    const res = await request<{ tournament: Tournament; skipped: string[]; warnings: string[] }>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/seed-knockout`,
+      { method: 'POST', body: JSON.stringify({ forceOverride }) }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async createMatch(tournamentId: string, payload: Partial<TournamentMatch>): Promise<TournamentMatch> {
+    const created = await request<TournamentMatch>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/matches`,
+      { method: 'POST', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return created;
+  },
+
+  async deleteMatch(tournamentId: string, matchId: string): Promise<{ success: boolean }> {
+    const res = await request<{ success: boolean }>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/matches/${encodeURIComponent(matchId)}`,
+      { method: 'DELETE' }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async updateMatchScore(
+    tournamentId: string,
+    matchId: string,
+    payload: Partial<TournamentMatch> & { forceOverride?: boolean }
+  ): Promise<{ tournament: Tournament; warnings: string[] }> {
+    const res = await request<{ tournament: Tournament; warnings: string[] }>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/matches/${encodeURIComponent(matchId)}/score`,
+      { method: 'PATCH', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return res;
   },
 };
 

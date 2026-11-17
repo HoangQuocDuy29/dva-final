@@ -103,8 +103,8 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         id: 'TOURNAMENTS',
         label: 'Tournaments',
         icon: Trophy,
-        keywords: ['tournaments', 'leagues', 'brackets', 'competition'],
-        status: 'SOON',
+        keywords: ['tournaments', 'leagues', 'brackets', 'competition', 'cups', 'matches'],
+        status: 'NEW',
       },
     ],
   },
@@ -152,6 +152,7 @@ export function getAdminNavBadges(m: {
   pendingApplicationsCount: number;
   pendingTrainingCount: number;
   pendingStoreOrdersCount?: number;
+  pendingTournamentFeesCount?: number;
   playersCount: number;
   coachesCount: number;
   newsCount: number;
@@ -161,6 +162,7 @@ export function getAdminNavBadges(m: {
     APPLICATIONS: { value: m.pendingApplicationsCount, tone: 'alert' },
     TRAINING: { value: m.pendingTrainingCount, tone: 'alert' },
     STORE: { value: m.pendingStoreOrdersCount ?? 0, tone: 'alert' },
+    TOURNAMENTS: { value: m.pendingTournamentFeesCount ?? 0, tone: 'alert' },
     PLAYERS: { value: m.playersCount, tone: 'count' },
     COACHES: { value: m.coachesCount, tone: 'count' },
     NEWS: { value: m.newsCount, tone: 'count' },

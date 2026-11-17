@@ -1,0 +1,83 @@
+{
+  "header": {
+    "eyebrow": "DVA Competitions & Leagues",
+    "title": "Tournaments & Cups",
+    "switcherLabel": "Select Tournament",
+    "shareTournament": "Share Tournament",
+    "emptyTitle": "No Active Tournaments Published Yet",
+    "emptyDesc": "Upcoming DVA Volleyball tournaments, schedules, and open registrations will appear here once published."
+  },
+  "tabs": {
+    "overview": "Overview & Podium",
+    "bracket": "Live Bracket & Standings",
+    "schedule": "Match Schedule & Results",
+    "rules": "Rules & Regulations",
+    "officials": "Officials & Referees"
+  },
+  "status": {
+    "UPCOMING": "Upcoming",
+    "ONGOING": "Live Now",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled",
+    "HOSTED": "DVA Hosted",
+    "PARTICIPATING": "Away Tournament"
+  },
+  "prep": {
+    "badge": "Preparation in Progress",
+    "title": "Bracket & Draw Not Published Yet",
+    "desc": "This tournament is currently preparing and accepting team registrations. Official pool draws, matchups, and court assignments will appear here once published.",
+    "viewRules": "Read Official Rules",
+    "registerNow": "Register Your Team"
+  },
+  "registration": {
+    "title": "Team Registration & Entry Fee",
+    "confirmedProgress": "Confirmed Teams (PAID)",
+    "pendingNote": "{{count}} pending transfer verification",
+    "entryFee": "Entry Fee per Team",
+    "freeEntry": "Free Entry",
+    "deadline": "Registration Deadline",
+    "ctaOpen": "Register Your Team",
+    "ctaFull": "Tournament Slots Full (8/8)",
+    "ctaClosed": "Registration Closed"
+  },
+  "podium": {
+    "title": "Tournament Podium & Champions",
+    "first": "1st Place · Champion",
+    "second": "2nd Place · Runner-Up",
+    "third": "3rd Place",
+    "individualTitle": "Individual Awards & MVP",
+    "prizesTitle": "Prize Structure & Awards"
+  },
+  "bracket": {
+    "standingsTitle": "Group Stage Live Standings",
+    "poolA": "Pool A",
+    "poolB": "Pool B",
+    "knockoutTitle": "Knockout Championship Bracket",
+    "leftWing": "Left Wing",
+    "rightWing": "Right Wing",
+    "championship": "Championship & 3rd Place",
+    "tieLegend": "Ranking Criteria: Wins → FIVB Points → Set Ratio → Point Ratio → Head-to-Head"
+  },
+  "schedule": {
+    "allCourts": "All Courts",
+    "allTeams": "All Teams",
+    "noMatchesTitle": "Match Schedule Coming Soon",
+    "noMatchesDesc": "The match timetable for Court 1 & Court 2 has not been published yet."
+  },
+  "rules": {
+    "title": "Official Tournament Rules & Regulations",
+    "copyZalo": "Copy Direct Rules Link",
+    "empty": "Official rules are being finalized by the Organizing Committee."
+  },
+  "officials": {
+    "title": "Tournament Officials & Referees",
+    "empty": "The officiating crew list is currently being updated."
+  },
+  "drawer": {
+    "viewDvaSquad": "View Official DVA Squad",
+    "rosterTitle": "Team Roster",
+    "matchesTitle": "Tournament Match Journey",
+    "noRoster": "Team roster has not been published yet.",
+    "noMatches": "No matches recorded yet."
+  }
+}

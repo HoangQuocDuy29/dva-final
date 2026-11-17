@@ -11,6 +11,7 @@ export interface MonthlyRevenuePoint {
   store: number;
   guest: number;
   tryout: number;
+  tournament: number;
 }
 
 export interface AdminMetrics {
@@ -18,11 +19,14 @@ export interface AdminMetrics {
   paidStoreOrdersCount: number;
   paidGuestSessionsCount: number;
   approvedTryoutsCount: number;
+  paidTournamentTeamsCount: number;
   pendingBookingsCount: number;
   pendingApplicationsCount: number;
   pendingTrainingCount: number;
   pendingStoreOrdersCount: number;
   pendingGuestSessionsCount: number;
+  pendingTournamentFeesCount: number;
+  hostedTournamentsCount: number;
   playersCount: number;
   coursesCount: number;
   coachesCount: number;
@@ -36,7 +40,9 @@ export interface AdminMetrics {
   storeRevenue: number;
   guestSessionRevenue: number;
   tryoutRevenue: number;
-  /** Verified Cashflow = Court (PAID) + Shop (PAID/SHIPPED/COMPLETED) + Guest Sessions (PAID) + Tryout Fees (APPROVED) */
+  /** Verified tournament entry fees (strictly HOSTED mode + PAID teams). */
+  tournamentRevenue: number;
+  /** Verified Cashflow = Court (PAID) + Shop (PAID/SHIPPED/COMPLETED) + Guest Sessions (PAID) + Tryout Fees (APPROVED) + Tournaments (HOSTED & PAID) */
   verifiedClubRevenue: number;
   /** Combined Total = Verified Cashflow + Est. Training Tuition */
   totalClubRevenue: number;
@@ -71,6 +77,7 @@ function buildMonthBuckets(now: Date): MonthlyRevenuePoint[] {
       store: 0,
       guest: 0,
       tryout: 0,
+      tournament: 0,
     });
   }
   return buckets;
@@ -89,6 +96,8 @@ export function useAdminMetrics(): AdminMetrics {
     storeProducts,
     storeOrders,
     guestSessions,
+    tournamentsSummary,
+    tournamentsList,
   } = data;
 
   return useMemo(() => {
@@ -128,8 +137,35 @@ export function useAdminMetrics(): AdminMetrics {
       app.entryFee !== undefined && app.entryFee !== null ? toNumber(app.entryFee) : 100000;
     const tryoutRevenue = approvedApplications.reduce((sum, a) => sum + tryoutFeeOf(a), 0);
 
+    // Strictly count HOSTED tournaments (PARTICIPATING tournaments NEVER enter revenue)
+    const hostedSource =
+      tournamentsList.length > 0
+        ? tournamentsList.filter((t) => t.mode === 'HOSTED')
+        : tournamentsSummary.filter((t) => t.mode === 'HOSTED');
+
+    const hostedTournamentsCount = hostedSource.length;
+    const paidTournamentTeams: Array<{ amount: number; paidAt?: string; createdAt?: string }> = [];
+    let pendingTournamentFeesCount = 0;
+
+    for (const tour of hostedSource) {
+      for (const tm of tour.teams || []) {
+        if (tm.paymentStatus === 'PAID') {
+          paidTournamentTeams.push({
+            amount: toNumber(tm.entryFeeAmount ?? tour.entryFeePerTeam),
+            paidAt: tm.paidAt,
+            createdAt: tm.createdAt,
+          });
+        } else if (tm.paymentStatus === 'PENDING') {
+          pendingTournamentFeesCount += 1;
+        }
+      }
+    }
+
+    const paidTournamentTeamsCount = paidTournamentTeams.length;
+    const tournamentRevenue = paidTournamentTeams.reduce((sum, t) => sum + t.amount, 0);
+
     const verifiedClubRevenue =
-      courtRevenue + storeRevenue + guestSessionRevenue + tryoutRevenue;
+      courtRevenue + storeRevenue + guestSessionRevenue + tryoutRevenue + tournamentRevenue;
     const totalClubRevenue = verifiedClubRevenue + trainingRevenue;
 
     const monthlyRevenue = buildMonthBuckets(new Date());
@@ -154,17 +190,24 @@ export function useAdminMetrics(): AdminMetrics {
       const bucket = bucketByKey.get(toMonthKey(a.approvedAt ?? a.updatedAt ?? a.createdAt) ?? '');
       if (bucket) bucket.tryout += tryoutFeeOf(a);
     });
+    paidTournamentTeams.forEach((tm) => {
+      const bucket = bucketByKey.get(toMonthKey(tm.paidAt ?? tm.createdAt) ?? '');
+      if (bucket) bucket.tournament += tm.amount;
+    });
 
     return {
       paidBookingsCount,
       paidStoreOrdersCount,
       paidGuestSessionsCount,
       approvedTryoutsCount,
+      paidTournamentTeamsCount,
       pendingBookingsCount,
       pendingApplicationsCount,
       pendingTrainingCount,
       pendingStoreOrdersCount,
       pendingGuestSessionsCount,
+      pendingTournamentFeesCount,
+      hostedTournamentsCount,
       playersCount: players.length,
       coursesCount: coursesList.length,
       coachesCount: coachesList.length,
@@ -177,6 +220,7 @@ export function useAdminMetrics(): AdminMetrics {
       storeRevenue,
       guestSessionRevenue,
       tryoutRevenue,
+      tournamentRevenue,
       verifiedClubRevenue,
       totalClubRevenue,
       confirmedTrainingCount: confirmedRegs.length,
@@ -193,5 +237,7 @@ export function useAdminMetrics(): AdminMetrics {
     storeProducts,
     storeOrders,
     guestSessions,
+    tournamentsSummary,
+    tournamentsList,
   ]);
 }

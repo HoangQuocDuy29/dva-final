@@ -41,6 +41,13 @@ import {
   POSITIONS,
   PRODUCT_SCHEMA,
   REGISTRATION_STATUSES,
+  TOURNAMENT_MATCH_SCHEMA,
+  TOURNAMENT_MATCH_SCORE_SCHEMA,
+  TOURNAMENT_OFFICIAL_SCHEMA,
+  TOURNAMENT_PLAYER_SCHEMA,
+  TOURNAMENT_PUBLIC_REGISTER_SCHEMA,
+  TOURNAMENT_SCHEMA,
+  TOURNAMENT_TEAM_ADMIN_SCHEMA,
   TRAINING_REGISTER_SCHEMA,
 } from './lib/schemas';
 import {
@@ -53,6 +60,12 @@ import {
   rangesOverlap,
   toMinutes,
 } from './src/shared/schedule';
+import {
+  buildStandard20MatchPlan,
+  computePoolStandings,
+  computeSetTotals,
+  slugifyTournamentName,
+} from './src/shared/tournaments';
 import {
   ensurePostgreSQLSeeded,
   fromRotationEnum,
@@ -72,6 +85,12 @@ import {
   toRegistrationDto,
   toRotationEnum,
   toStoredUser,
+  toTournamentDto,
+  toTournamentFinanceSummaryDto,
+  toTournamentMatchDto,
+  toTournamentOfficialDto,
+  toTournamentPlayerDto,
+  toTournamentTeamDto,
 } from './lib/prisma';
 import {
   countryCodeToFlagEmoji,
@@ -85,6 +104,7 @@ import {
   ADMIN_ALERT_EMAIL,
   buildBookingVietQrUrl,
   generateGuestSessionTransferDescription,
+  generateTournamentTransferContent,
   sendAdminNotification,
   sendAdminNotificationEmail,
   notifyAdminNewSubmission,
@@ -95,6 +115,7 @@ import {
   sendGuestSessionEmail,
   sendShopOrderConfirmationEmail,
   sendShopOrderShippingEmail,
+  sendTournamentRegistrationEmail,
   GuestSessionEmailPayload,
 } from './lib/mailer';
 
@@ -487,6 +508,8 @@ app.use(['/api/bookings', '/api/courts/book'], (req, res, next) => (req.method =
 app.use('/api/training/register', publicWriteLimiter);
 app.use(['/api/members/register', '/api/members/apply'], publicWriteLimiter);
 app.use('/api/store/orders', (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
+app.use('/api/tournaments/:slugOrId/register', (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
+app.use('/api/tournaments/:slugOrId/teams/:teamId/confirm-payment', (req, res, next) => (req.method === 'POST' ? publicWriteLimiter(req, res, next) : next()));
 app.use('/api/vietqr/generate', (req, res, next) => (req.method === 'POST' ? vietQrLimiter(req, res, next) : next()));
 
 // 1. Auth, Users & RBAC
@@ -2997,6 +3020,49 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
       });
     }
 
+    // Fallback sang Tournament Team Entry Fee (HOSTED) nếu khớp transferContent (VD: "DVA CUP FCB 8492")
+    const pendingTourneyTeams = await prisma.tournamentTeam.findMany({
+      where: {
+        paymentStatus: 'PENDING',
+        transferContent: { not: null },
+      },
+      include: { tournament: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const matchedTeam =
+      pendingTourneyTeams.find((tm) => {
+        const cleanTransfer = (tm.transferContent || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        return Boolean(cleanTransfer && normalizedContent.includes(cleanTransfer));
+      }) ?? null;
+
+    if (matchedTeam && matchedTeam.tournament?.mode === 'HOSTED') {
+      const dueAmount = Number(matchedTeam.entryFeeAmount) || 0;
+      if (!Number.isFinite(amount) || amount < dueAmount) {
+        return res.status(200).json({
+          success: false,
+          message: 'Insufficient payment amount for Tournament team registration',
+        });
+      }
+
+      const parsedTxDate = transactionDate ? new Date(transactionDate) : new Date();
+      const confirmedAt = Number.isNaN(parsedTxDate.getTime()) ? new Date() : parsedTxDate;
+
+      await prisma.tournamentTeam.update({
+        where: { id: matchedTeam.id },
+        data: {
+          paymentStatus: 'PAID',
+          paidAt: matchedTeam.paidAt ?? confirmedAt,
+          customerConfirmedAt: matchedTeam.customerConfirmedAt ?? confirmedAt,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Tournament team entry fee processed automatically via webhook',
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Transaction ignored',
@@ -3655,6 +3721,1117 @@ app.delete('/api/store/orders/:id', ah(async (req, res) => {
     deletedOrderId: existing.id,
     orderCode: existing.orderCode,
     message: `Order ${existing.orderCode} permanently deleted.`,
+  });
+}));
+
+// ==========================================
+// 13. Tournaments & Leagues API (Spec 008)
+// ==========================================
+
+function applyTournamentCacheHeaders(
+  res: express.Response,
+  isStaffUser: boolean,
+  status?: string
+): void {
+  res.vary('Authorization');
+  if (isStaffUser) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  } else if (status === 'ONGOING') {
+    res.setHeader('Cache-Control', 'public, max-age=5, stale-while-revalidate=15');
+  } else {
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+  }
+}
+
+async function generateUniqueTournamentSlug(raw: string, excludeId?: string): Promise<string> {
+  const base = slugifyTournamentName(raw);
+  let candidate = base;
+  for (let i = 0; i < 6; i++) {
+    const existing = await prisma.tournament.findFirst({
+      where: {
+        slug: candidate,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: { id: true },
+    });
+    if (!existing) return candidate;
+    candidate = `${base}-${crypto.randomInt(100, 999)}`;
+  }
+  return `${base}-${Date.now().toString(36).slice(-4)}`;
+}
+
+async function generateUniqueTournamentTransferMemo(teamShortOrName: string): Promise<string> {
+  for (let i = 0; i < 6; i++) {
+    const candidate = generateTournamentTransferContent(teamShortOrName);
+    const exists = await prisma.tournamentTeam.findUnique({
+      where: { transferContent: candidate },
+      select: { id: true },
+    });
+    if (!exists) return candidate;
+  }
+  return `${generateTournamentTransferContent(teamShortOrName)} ${crypto.randomInt(10, 99)}`;
+}
+
+const TOURNAMENT_FULL_INCLUDE = {
+  teams: {
+    orderBy: [{ pool: 'asc' as const }, { seedOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+  players: {
+    orderBy: [{ isCaptain: 'desc' as const }, { jerseyNumber: 'asc' as const }],
+  },
+  matches: {
+    orderBy: [{ matchOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+  officials: {
+    orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
+};
+
+// Admin lightweight finance summary for Dashboard Overview & RevenueTrendChart
+app.get('/api/admin/tournaments/finance-summary', ah(async (_req, res) => {
+  const rows = await prisma.tournament.findMany({
+    where: { mode: 'HOSTED' },
+    include: {
+      teams: {
+        select: {
+          id: true,
+          name: true,
+          paymentStatus: true,
+          entryFeeAmount: true,
+          paidAt: true,
+          createdAt: true,
+        },
+      },
+    },
+    orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+  });
+  res.json(rows.map(toTournamentFinanceSummaryDto));
+}));
+
+// Public & Staff tournament list
+app.get('/api/tournaments', ah(async (req, res) => {
+  const isStaffUser = isStaff(req.user);
+  applyTournamentCacheHeaders(res, isStaffUser);
+
+  const where: Record<string, any> = {};
+  if (!isStaffUser) {
+    where.isActive = true;
+    where.status = { not: 'CANCELLED' };
+  }
+
+  const rows = await prisma.tournament.findMany({
+    where,
+    include: TOURNAMENT_FULL_INCLUDE,
+    orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+  });
+
+  res.json(rows.map((row) => toTournamentDto(row, isStaffUser)));
+}));
+
+// Public & Staff single tournament lookup by id or slug
+app.get('/api/tournaments/:slugOrId', ah(async (req, res) => {
+  const isStaffUser = isStaff(req.user);
+  const { slugOrId } = req.params;
+
+  const row = await prisma.tournament.findFirst({
+    where: {
+      OR: [{ id: slugOrId }, { slug: slugOrId }],
+      ...(!isStaffUser ? { isActive: true, status: { not: 'CANCELLED' } } : {}),
+    },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+
+  if (!row) {
+    return res.status(404).json({ error: 'Tournament not found.' });
+  }
+
+  applyTournamentCacheHeaders(res, isStaffUser, row.status);
+  res.json(toTournamentDto(row, isStaffUser));
+}));
+
+// Public Team Captain Registration (1 unified form for whole team + roster) -> VietQR
+app.post('/api/tournaments/:slugOrId/register', ah(async (req, res) => {
+  const { slugOrId } = req.params;
+  const data = sanitize(req.body, TOURNAMENT_PUBLIC_REGISTER_SCHEMA, {
+    required: ['name', 'captainName', 'captainPhone', 'players'],
+  });
+
+  const result = await prisma.$transaction(async (tx) => {
+    const tournament = await tx.tournament.findFirst({
+      where: {
+        OR: [{ id: slugOrId }, { slug: slugOrId }],
+        isActive: true,
+      },
+    });
+    if (!tournament) {
+      throw new HttpError(404, 'Tournament not found or currently unavailable.');
+    }
+    if (tournament.mode !== 'HOSTED') {
+      throw new HttpError(400, 'Public registration is only enabled for DVA Hosted tournaments.');
+    }
+    if (tournament.status !== 'UPCOMING' || !tournament.isRegistrationOpen) {
+      throw new HttpError(400, 'Registration for this tournament is currently closed.');
+    }
+
+    const paidCount = await tx.tournamentTeam.count({
+      where: {
+        tournamentId: tournament.id,
+        paymentStatus: 'PAID',
+      },
+    });
+    if (paidCount >= tournament.maxTeams) {
+      throw new HttpError(
+        409,
+        `Tournament slots are already full (${paidCount}/${tournament.maxTeams} confirmed teams).`
+      );
+    }
+
+    const duplicateTeam = await tx.tournamentTeam.findFirst({
+      where: {
+        tournamentId: tournament.id,
+        paymentStatus: { not: 'CANCELLED' },
+        name: { equals: data.name, mode: 'insensitive' },
+      },
+    });
+    if (duplicateTeam) {
+      throw new HttpError(409, `A team named "${data.name}" has already registered for this tournament.`);
+    }
+
+    const entryFeeAmount = Math.max(0, Number(tournament.entryFeePerTeam) || 0);
+    const shortName = (data.shortName || data.name)
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 6) || 'TEAM';
+    const transferContent = await generateUniqueTournamentTransferMemo(shortName);
+
+    const existingTeamsCount = await tx.tournamentTeam.count({
+      where: { tournamentId: tournament.id },
+    });
+
+    const isFree = entryFeeAmount === 0;
+    const now = new Date();
+    const createdTeam = await tx.tournamentTeam.create({
+      data: {
+        id: `tt-${crypto.randomUUID()}`,
+        tournamentId: tournament.id,
+        name: data.name,
+        shortName,
+        logoUrl: data.logoUrl || null,
+        isDvaTeam: false,
+        seedOrder: existingTeamsCount + 1,
+        captainName: data.captainName,
+        captainPhone: data.captainPhone,
+        captainEmail: data.captainEmail || null,
+        paymentStatus: isFree ? 'PAID' : 'PENDING',
+        entryFeeAmount,
+        transferContent,
+        paidAt: isFree ? now : null,
+        notes: data.notes || null,
+      },
+    });
+
+    const createdPlayers = await Promise.all(
+      (data.players as any[]).map((pl) =>
+        tx.tournamentPlayer.create({
+          data: {
+            id: `tp-${crypto.randomUUID()}`,
+            teamId: createdTeam.id,
+            tournamentId: tournament.id,
+            fullName: pl.fullName,
+            jerseyNumber: Number(pl.jerseyNumber) || 0,
+            position: pl.position || 'OH',
+            height: pl.height ?? null,
+            spikeTouch: pl.spikeTouch ?? null,
+            isCaptain: Boolean(pl.isCaptain),
+            awards: [],
+          },
+        })
+      )
+    );
+
+    return { tournament, createdTeam, createdPlayers, entryFeeAmount, transferContent };
+  });
+
+  const { tournament, createdTeam, createdPlayers, entryFeeAmount, transferContent } = result;
+  const qrUrl = buildBookingVietQrUrl(entryFeeAmount, transferContent);
+
+  if (createdTeam.captainEmail) {
+    void sendTournamentRegistrationEmail({
+      tournamentName: tournament.name,
+      tournamentSlug: tournament.slug,
+      startDate: tournament.startDate,
+      startTime: tournament.startTime ?? undefined,
+      location: tournament.location,
+      teamName: createdTeam.name,
+      captainName: createdTeam.captainName || data.captainName,
+      captainEmail: createdTeam.captainEmail,
+      captainPhone: createdTeam.captainPhone || data.captainPhone,
+      playerCount: createdPlayers.length,
+      entryFeeAmount,
+      transferContent,
+    });
+  }
+
+  void sendAdminNotification({
+    type: 'TOURNAMENT',
+    title: `Đăng Ký Giải Đấu Mới: ${tournament.name}`,
+    code: transferContent,
+    customerName: `${createdTeam.name} (Capt: ${createdTeam.captainName})`,
+    phone: createdTeam.captainPhone || data.captainPhone,
+    email: createdTeam.captainEmail || undefined,
+    amount: entryFeeAmount,
+    transferContent,
+    details: `Số VĐV: ${createdPlayers.length} | Trạng thái: ${createdTeam.paymentStatus}`,
+  }).catch((err: any) => console.warn('[Tournament Admin Notify Error]:', err?.message || err));
+
+  return res.status(201).json({
+    team: toTournamentTeamDto({ ...createdTeam, players: createdPlayers }, false),
+    teamId: createdTeam.id,
+    payment: {
+      bankId: BANK.id,
+      bankName: 'MB Bank (Military Commercial Joint Stock Bank)',
+      accountNo: BANK.accountNo,
+      accountName: BANK.accountName,
+      amount: entryFeeAmount,
+      transferContent,
+      qrUrl,
+    },
+  });
+}));
+
+// Public 1-way captain confirmation ("I Have Completed Payment Transfer")
+app.post('/api/tournaments/:slugOrId/teams/:teamId/confirm-payment', ah(async (req, res) => {
+  const { slugOrId, teamId } = req.params;
+  const tournament = await prisma.tournament.findFirst({
+    where: { OR: [{ id: slugOrId }, { slug: slugOrId }], isActive: true },
+  });
+  if (!tournament) {
+    return res.status(404).json({ error: 'Tournament not found.' });
+  }
+  const team = await prisma.tournamentTeam.findFirst({
+    where: { id: teamId, tournamentId: tournament.id },
+  });
+  if (!team) {
+    return res.status(404).json({ error: 'Team registration not found.' });
+  }
+
+  const updated = await prisma.tournamentTeam.update({
+    where: { id: team.id },
+    data: {
+      customerConfirmedAt: team.customerConfirmedAt ?? new Date(),
+    },
+  });
+
+  void sendAdminNotification({
+    type: 'TOURNAMENT',
+    title: `Đội Báo Đã CK Lệ Phí Giải (${tournament.name})`,
+    code: updated.transferContent || updated.id,
+    customerName: `${updated.name} (Capt: ${updated.captainName || 'N/A'})`,
+    phone: updated.captainPhone || '',
+    email: updated.captainEmail || undefined,
+    amount: updated.entryFeeAmount,
+    transferContent: updated.transferContent || undefined,
+    details: `Đội trưởng xác nhận đã chuyển khoản lệ phí giải. Vui lòng đối soát và duyệt PAID trong Admin Hub.`,
+  }).catch((err: any) => console.warn('[Tournament Confirm Admin Alert]:', err?.message || err));
+
+  return res.json({
+    success: true,
+    paymentStatus: updated.paymentStatus,
+    customerConfirmedAt: updated.customerConfirmedAt?.toISOString(),
+  });
+}));
+
+// Admin: Create Tournament
+app.post('/api/tournaments', ah(async (req, res) => {
+  const data = sanitize(req.body, TOURNAMENT_SCHEMA, {
+    required: ['name', 'startDate'],
+  });
+  const mode = (data.mode || 'HOSTED') as 'HOSTED' | 'PARTICIPATING';
+  const trackingMode = mode === 'HOSTED' ? 'FULL_BRACKET' : (data.trackingMode || 'FULL_BRACKET');
+  const slug = await generateUniqueTournamentSlug(data.slug || data.name);
+
+  const created = await prisma.tournament.create({
+    data: {
+      id: `tour-${crypto.randomUUID()}`,
+      slug,
+      name: data.name,
+      subtitle: data.subtitle ?? null,
+      mode,
+      trackingMode,
+      status: data.status || 'UPCOMING',
+      isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
+      isRegistrationOpen:
+        mode === 'HOSTED'
+          ? data.isRegistrationOpen !== undefined
+            ? Boolean(data.isRegistrationOpen)
+            : true
+          : false,
+      maxTeams: data.maxTeams ?? 8,
+      registrationDeadline: data.registrationDeadline ?? null,
+      startDate: data.startDate,
+      endDate: data.endDate ?? data.startDate,
+      startTime: data.startTime ?? '07:30',
+      location: data.location || '155 Truong Chinh, Thanh Xuan, Hanoi (DVA Court - BTL Thong Tin)',
+      mapsUrl: data.mapsUrl ?? null,
+      bannerUrl: data.bannerUrl ?? null,
+      groupSetFormat: data.groupSetFormat || 'BO3',
+      knockoutSetFormat: data.knockoutSetFormat || 'BO3',
+      entryFeePerTeam: mode === 'HOSTED' ? Math.max(0, Number(data.entryFeePerTeam) || 0) : 0,
+      internalExpenseNote: data.internalExpenseNote ?? null,
+      rulesContent: data.rulesContent ?? null,
+      prizeConfig: (data.prizeConfig ?? []) as any,
+      dvaResultSummary: data.dvaResultSummary ?? null,
+      podiumOverride: (data.podiumOverride ?? null) as any,
+    },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+
+  res.status(201).json(toTournamentDto(created, true));
+}));
+
+// Admin: Update Tournament (with revenue guard when switching HOSTED -> PARTICIPATING)
+app.put('/api/tournaments/:id', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.tournament.findUnique({
+    where: { id },
+    include: { teams: true },
+  });
+  if (!existing) {
+    return res.status(404).json({ error: 'Tournament not found.' });
+  }
+
+  const data = sanitize(req.body, TOURNAMENT_SCHEMA, { partial: true });
+  const nextMode = data.mode ?? existing.mode;
+
+  if (existing.mode === 'HOSTED' && nextMode === 'PARTICIPATING') {
+    const hasPaidRevenue = existing.teams.some(
+      (tm) => tm.paymentStatus === 'PAID' && (Number(tm.entryFeeAmount) || 0) > 0
+    );
+    if (hasPaidRevenue) {
+      return res.status(400).json({
+        error: 'Cannot switch to PARTICIPATING mode while PAID team entry fees exist. Cancel/refund PAID teams first.',
+      });
+    }
+  }
+
+  let nextSlug: string | undefined;
+  if (data.slug !== undefined && data.slug.trim() && data.slug.trim() !== existing.slug) {
+    nextSlug = await generateUniqueTournamentSlug(data.slug, id);
+  }
+
+  const updated = await prisma.tournament.update({
+    where: { id },
+    data: {
+      ...data,
+      ...(nextSlug ? { slug: nextSlug } : {}),
+      ...(nextMode === 'PARTICIPATING'
+        ? { entryFeePerTeam: 0, isRegistrationOpen: false }
+        : data.mode === 'HOSTED'
+        ? { trackingMode: 'FULL_BRACKET' }
+        : {}),
+      ...(req.body?.registrationDeadline === null || req.body?.registrationDeadline === ''
+        ? { registrationDeadline: null }
+        : {}),
+      ...(req.body?.podiumOverride === null ? { podiumOverride: null as any } : {}),
+    },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+
+  res.json(toTournamentDto(updated, true));
+}));
+
+// Admin: Quick toggle visibility & registration open
+app.patch('/api/tournaments/:id/visibility', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.tournament.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Tournament not found.' });
+  const nextActive = typeof req.body?.isActive === 'boolean' ? req.body.isActive : !existing.isActive;
+  const updated = await prisma.tournament.update({
+    where: { id },
+    data: { isActive: nextActive },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+  res.json(toTournamentDto(updated, true));
+}));
+
+app.patch('/api/tournaments/:id/registration', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.tournament.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Tournament not found.' });
+  const nextOpen =
+    typeof req.body?.isRegistrationOpen === 'boolean'
+      ? req.body.isRegistrationOpen
+      : !existing.isRegistrationOpen;
+  const updated = await prisma.tournament.update({
+    where: { id },
+    data: { isRegistrationOpen: nextOpen },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+  res.json(toTournamentDto(updated, true));
+}));
+
+// Admin: Delete Tournament (blocked if HOSTED has PAID entry fees)
+app.delete('/api/tournaments/:id', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.tournament.findUnique({
+    where: { id },
+    include: { teams: true },
+  });
+  if (!existing) return res.status(404).json({ error: 'Tournament not found.' });
+
+  if (existing.mode === 'HOSTED') {
+    const paidSum = existing.teams
+      .filter((t) => t.paymentStatus === 'PAID')
+      .reduce((sum, t) => sum + (Number(t.entryFeeAmount) || 0), 0);
+    if (paidSum > 0) {
+      return res.status(400).json({
+        error: `Cannot delete tournament with ${paidSum.toLocaleString('vi-VN')} đ of PAID entry fees. Cancel paid teams first.`,
+      });
+    }
+  }
+
+  await prisma.tournament.delete({ where: { id } });
+  res.json({ success: true });
+}));
+
+// Admin: Add Team (with optional DVA Squad auto-import)
+app.post('/api/tournaments/:id/teams', ah(async (req, res) => {
+  const { id } = req.params;
+  const tournament = await prisma.tournament.findUnique({ where: { id } });
+  if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
+
+  const data = sanitize(req.body, TOURNAMENT_TEAM_ADMIN_SCHEMA, { required: ['name'] });
+  const importDvaSquad = Boolean(req.body?.importDvaSquad);
+
+  const created = await prisma.$transaction(async (tx) => {
+    const count = await tx.tournamentTeam.count({ where: { tournamentId: id } });
+    const paymentStatus = (data.paymentStatus || (tournament.mode === 'PARTICIPATING' ? 'PAID' : 'PENDING')) as 'PENDING' | 'PAID' | 'CANCELLED';
+    const entryFeeAmount =
+      tournament.mode === 'HOSTED'
+        ? data.entryFeeAmount !== undefined
+          ? Number(data.entryFeeAmount)
+          : tournament.entryFeePerTeam
+        : 0;
+    const shortName =
+      (data.shortName || data.name).trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'TEAM';
+    const transferContent = tournament.mode === 'HOSTED' ? await generateUniqueTournamentTransferMemo(shortName) : null;
+
+    const team = await tx.tournamentTeam.create({
+      data: {
+        id: `tt-${crypto.randomUUID()}`,
+        tournamentId: id,
+        name: data.name,
+        shortName,
+        logoUrl: data.logoUrl || null,
+        isDvaTeam: Boolean(data.isDvaTeam),
+        dvaSquadLevel: data.isDvaTeam && data.dvaSquadLevel ? data.dvaSquadLevel : null,
+        pool: data.pool && (data.pool === 'A' || data.pool === 'B') ? data.pool : null,
+        seedOrder: data.seedOrder ?? count + 1,
+        manualRankOverride: data.manualRankOverride ?? null,
+        finalRank: data.finalRank ?? null,
+        captainName: data.captainName ?? null,
+        captainPhone: data.captainPhone ?? null,
+        captainEmail: data.captainEmail || null,
+        paymentStatus,
+        entryFeeAmount,
+        transferContent,
+        paidAt: paymentStatus === 'PAID' ? new Date() : null,
+        notes: data.notes ?? null,
+      },
+    });
+
+    if (importDvaSquad && team.isDvaTeam && team.dvaSquadLevel) {
+      const clubPlayers = await tx.player.findMany({
+        where: { level: team.dvaSquadLevel, isActive: true },
+        orderBy: [{ isCaptain: 'desc' }, { jerseyNumber: 'asc' }],
+        take: 14,
+      });
+      for (const cp of clubPlayers) {
+        await tx.tournamentPlayer.create({
+          data: {
+            id: `tp-${crypto.randomUUID()}`,
+            teamId: team.id,
+            tournamentId: id,
+            linkedPlayerId: cp.id,
+            fullName: cp.fullName,
+            jerseyNumber: cp.jerseyNumber,
+            position: cp.position,
+            height: cp.height,
+            spikeTouch: cp.spikeTouch,
+            avatarUrl: cp.avatarUrl || null,
+            isCaptain: cp.isCaptain,
+            awards: [],
+          },
+        });
+      }
+    }
+
+    return team;
+  });
+
+  res.status(201).json(toTournamentTeamDto(created, true));
+}));
+
+// Admin: Update Team (Pool, Seed, Payment Status, Manual Rank, Contact)
+app.put('/api/tournaments/:id/teams/:teamId', ah(async (req, res) => {
+  const { id, teamId } = req.params;
+  const existing = await prisma.tournamentTeam.findFirst({
+    where: { id: teamId, tournamentId: id },
+    include: { tournament: true },
+  });
+  if (!existing) return res.status(404).json({ error: 'Team not found.' });
+
+  const data = sanitize(req.body, TOURNAMENT_TEAM_ADMIN_SCHEMA, { partial: true });
+  const nextStatus = data.paymentStatus ?? existing.paymentStatus;
+  let nextPaidAt = existing.paidAt;
+  if (data.paymentStatus === 'PAID') {
+    nextPaidAt = existing.paidAt ?? new Date();
+  } else if (data.paymentStatus === 'PENDING' || data.paymentStatus === 'CANCELLED') {
+    nextPaidAt = null;
+  }
+
+  const rawPool = req.body?.pool;
+  const resolvedPool =
+    rawPool === null || rawPool === ''
+      ? null
+      : data.pool === 'A' || data.pool === 'B'
+      ? data.pool
+      : undefined;
+
+  const updated = await prisma.tournamentTeam.update({
+    where: { id: teamId },
+    data: {
+      ...data,
+      ...(resolvedPool !== undefined ? { pool: resolvedPool } : {}),
+      ...(req.body?.manualRankOverride === null || req.body?.manualRankOverride === '' ? { manualRankOverride: null } : {}),
+      ...(req.body?.finalRank === null || req.body?.finalRank === '' ? { finalRank: null } : {}),
+      ...(req.body?.dvaSquadLevel === null || req.body?.dvaSquadLevel === '' ? { dvaSquadLevel: null } : {}),
+      ...(existing.tournament.mode === 'PARTICIPATING' ? { entryFeeAmount: 0 } : {}),
+      paymentStatus: nextStatus,
+      paidAt: nextPaidAt,
+    },
+  });
+
+  res.json(toTournamentTeamDto(updated, true));
+}));
+
+// Admin: Import DVA Squad into existing TournamentTeam
+app.post('/api/tournaments/:id/teams/:teamId/import-dva-squad', ah(async (req, res) => {
+  const { id, teamId } = req.params;
+  const team = await prisma.tournamentTeam.findFirst({
+    where: { id: teamId, tournamentId: id },
+  });
+  if (!team) return res.status(404).json({ error: 'Team not found.' });
+
+  const targetLevel = normalizeSquad(req.body?.level || team.dvaSquadLevel || 'SENIOR').toUpperCase() as
+    | 'SENIOR'
+    | 'JUNIOR'
+    | 'YOUTH';
+
+  const clubPlayers = await prisma.player.findMany({
+    where: { level: targetLevel, isActive: true },
+    orderBy: [{ isCaptain: 'desc' }, { jerseyNumber: 'asc' }],
+    take: 14,
+  });
+
+  const existingRoster = await prisma.tournamentPlayer.findMany({
+    where: { teamId: team.id },
+    select: { linkedPlayerId: true },
+  });
+  const alreadyLinked = new Set(existingRoster.map((r) => r.linkedPlayerId).filter(Boolean));
+
+  const createdRows = [];
+  for (const cp of clubPlayers) {
+    if (alreadyLinked.has(cp.id)) continue;
+    const row = await prisma.tournamentPlayer.create({
+      data: {
+        id: `tp-${crypto.randomUUID()}`,
+        teamId: team.id,
+        tournamentId: id,
+        linkedPlayerId: cp.id,
+        fullName: cp.fullName,
+        jerseyNumber: cp.jerseyNumber,
+        position: cp.position,
+        height: cp.height,
+        spikeTouch: cp.spikeTouch,
+        avatarUrl: cp.avatarUrl || null,
+        isCaptain: cp.isCaptain,
+        awards: [],
+      },
+    });
+    createdRows.push(toTournamentPlayerDto(row));
+  }
+
+  await prisma.tournamentTeam.update({
+    where: { id: team.id },
+    data: { isDvaTeam: true, dvaSquadLevel: targetLevel },
+  });
+
+  res.json({ importedCount: createdRows.length, players: createdRows });
+}));
+
+// Admin: Delete Team (blocked if HOSTED and PAID with fee > 0)
+app.delete('/api/tournaments/:id/teams/:teamId', ah(async (req, res) => {
+  const { id, teamId } = req.params;
+  const existing = await prisma.tournamentTeam.findFirst({
+    where: { id: teamId, tournamentId: id },
+    include: { tournament: true },
+  });
+  if (!existing) return res.status(404).json({ error: 'Team not found.' });
+
+  if (
+    existing.tournament.mode === 'HOSTED' &&
+    existing.paymentStatus === 'PAID' &&
+    (Number(existing.entryFeeAmount) || 0) > 0
+  ) {
+    return res.status(400).json({
+      error: 'Cannot delete a PAID team directly. Change payment status to CANCELLED first to keep financial audit intact.',
+    });
+  }
+
+  await prisma.tournamentTeam.delete({ where: { id: teamId } });
+  res.json({ success: true });
+}));
+
+// Admin: Tournament Player CRUD & Awards
+app.post('/api/tournaments/:id/players', ah(async (req, res) => {
+  const { id } = req.params;
+  const data = sanitize(req.body, TOURNAMENT_PLAYER_SCHEMA, { required: ['teamId', 'fullName'] });
+  const team = await prisma.tournamentTeam.findFirst({ where: { id: data.teamId, tournamentId: id } });
+  if (!team) return res.status(404).json({ error: 'Team not found in tournament.' });
+
+  const created = await prisma.tournamentPlayer.create({
+    data: {
+      id: `tp-${crypto.randomUUID()}`,
+      teamId: team.id,
+      tournamentId: id,
+      linkedPlayerId: data.linkedPlayerId || null,
+      fullName: data.fullName,
+      jerseyNumber: data.jerseyNumber ?? 0,
+      position: data.position || 'OH',
+      height: data.height ?? null,
+      spikeTouch: data.spikeTouch ?? null,
+      avatarUrl: data.avatarUrl || null,
+      isCaptain: Boolean(data.isCaptain),
+      awards: Array.isArray(data.awards) ? data.awards : [],
+    },
+  });
+  res.status(201).json(toTournamentPlayerDto(created));
+}));
+
+app.put('/api/tournaments/:id/players/:playerId', ah(async (req, res) => {
+  const { id, playerId } = req.params;
+  const existing = await prisma.tournamentPlayer.findFirst({ where: { id: playerId, tournamentId: id } });
+  if (!existing) return res.status(404).json({ error: 'Player not found.' });
+  const data = sanitize(req.body, TOURNAMENT_PLAYER_SCHEMA, { partial: true });
+  const { teamId: _ignore, ...rest } = data;
+  const updated = await prisma.tournamentPlayer.update({
+    where: { id: playerId },
+    data: {
+      ...rest,
+      ...(req.body?.height === null || req.body?.height === '' ? { height: null } : {}),
+      ...(req.body?.spikeTouch === null || req.body?.spikeTouch === '' ? { spikeTouch: null } : {}),
+    },
+  });
+  res.json(toTournamentPlayerDto(updated));
+}));
+
+app.delete('/api/tournaments/:id/players/:playerId', ah(async (req, res) => {
+  const { id, playerId } = req.params;
+  const existing = await prisma.tournamentPlayer.findFirst({ where: { id: playerId, tournamentId: id } });
+  if (!existing) return res.status(404).json({ error: 'Player not found.' });
+  await prisma.tournamentPlayer.delete({ where: { id: playerId } });
+  res.json({ success: true });
+}));
+
+// Admin: Tournament Officials CRUD
+app.post('/api/tournaments/:id/officials', ah(async (req, res) => {
+  const { id } = req.params;
+  const tournament = await prisma.tournament.findUnique({ where: { id } });
+  if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
+  const data = sanitize(req.body, TOURNAMENT_OFFICIAL_SCHEMA, { required: ['fullName'] });
+  const created = await prisma.tournamentOfficial.create({
+    data: {
+      id: `off-${crypto.randomUUID()}`,
+      tournamentId: id,
+      fullName: data.fullName,
+      role: data.role || 'MAIN_REFEREE',
+      certification: data.certification ?? null,
+      avatarUrl: data.avatarUrl || null,
+      phone: data.phone ?? null,
+      sortOrder: data.sortOrder ?? 0,
+    },
+  });
+  res.status(201).json(toTournamentOfficialDto(created, true));
+}));
+
+app.put('/api/tournaments/:id/officials/:officialId', ah(async (req, res) => {
+  const { id, officialId } = req.params;
+  const existing = await prisma.tournamentOfficial.findFirst({ where: { id: officialId, tournamentId: id } });
+  if (!existing) return res.status(404).json({ error: 'Official not found.' });
+  const data = sanitize(req.body, TOURNAMENT_OFFICIAL_SCHEMA, { partial: true });
+  const updated = await prisma.tournamentOfficial.update({
+    where: { id: officialId },
+    data,
+  });
+  res.json(toTournamentOfficialDto(updated, true));
+}));
+
+app.delete('/api/tournaments/:id/officials/:officialId', ah(async (req, res) => {
+  const { id, officialId } = req.params;
+  const existing = await prisma.tournamentOfficial.findFirst({ where: { id: officialId, tournamentId: id } });
+  if (!existing) return res.status(404).json({ error: 'Official not found.' });
+  await prisma.tournamentOfficial.delete({ where: { id: officialId } });
+  res.json({ success: true });
+}));
+
+// Admin: Generate Standard 20-Match 2-Court 1-Day Schedule
+app.post('/api/tournaments/:id/generate-schedule', ah(async (req, res) => {
+  const { id } = req.params;
+  const forceReset = Boolean(req.body?.forceReset);
+
+  const tournament = await prisma.tournament.findUnique({
+    where: { id },
+    include: { teams: true, matches: true },
+  });
+  if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
+
+  const poolA = tournament.teams
+    .filter((t) => t.pool === 'A' && t.paymentStatus !== 'CANCELLED')
+    .sort((a, b) => a.seedOrder - b.seedOrder)
+    .map((t) => toTournamentTeamDto(t, true));
+  const poolB = tournament.teams
+    .filter((t) => t.pool === 'B' && t.paymentStatus !== 'CANCELLED')
+    .sort((a, b) => a.seedOrder - b.seedOrder)
+    .map((t) => toTournamentTeamDto(t, true));
+
+  if (poolA.length < 4 || poolB.length < 4) {
+    return res.status(400).json({
+      error: `Pool A (${poolA.length}/4) and Pool B (${poolB.length}/4) must each have 4 teams assigned before generating the 20-match schedule.`,
+    });
+  }
+
+  const hasActiveOrFinishedMatches = tournament.matches.some(
+    (m) => m.status === 'LIVE' || m.status === 'COMPLETED'
+  );
+  if (hasActiveOrFinishedMatches && !forceReset) {
+    return res.status(409).json({
+      error: 'Matches are already LIVE or COMPLETED. Pass forceReset=true if you explicitly want to wipe and regenerate the schedule.',
+    });
+  }
+
+  const templates = buildStandard20MatchPlan(
+    poolA,
+    poolB,
+    (tournament.groupSetFormat as 'BO3' | 'BO2') || 'BO3',
+    (tournament.knockoutSetFormat as 'BO3' | 'BO2') || 'BO3'
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tournamentMatch.deleteMany({ where: { tournamentId: id } });
+    for (const tpl of templates) {
+      await tx.tournamentMatch.create({
+        data: {
+          id: `tm-${crypto.randomUUID()}`,
+          tournamentId: id,
+          matchCode: tpl.matchCode,
+          stage: tpl.stage,
+          bracketSide: tpl.bracketSide,
+          courtName: tpl.courtName,
+          scheduledTime: tpl.scheduledTime,
+          matchOrder: tpl.matchOrder,
+          status: 'SCHEDULED',
+          setFormat: tpl.setFormat,
+          homeTeamId: tpl.homeTeamId,
+          awayTeamId: tpl.awayTeamId,
+          homeLabel: tpl.homeLabel,
+          awayLabel: tpl.awayLabel,
+          setScores: [],
+        },
+      });
+    }
+  });
+
+  const refreshed = await prisma.tournament.findUnique({
+    where: { id },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+  res.json(toTournamentDto(refreshed, true));
+}));
+
+// Admin: Lock Pool Standings & Seed Quarterfinals (QF1..QF4) safely
+app.post('/api/tournaments/:id/seed-knockout', ah(async (req, res) => {
+  const { id } = req.params;
+  const forceOverride = Boolean(req.body?.forceOverride);
+
+  const tournament = await prisma.tournament.findUnique({
+    where: { id },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+  if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
+
+  const dto = toTournamentDto(tournament, true);
+  const standingsA = computePoolStandings(dto.teams, dto.matches, 'A');
+  const standingsB = computePoolStandings(dto.teams, dto.matches, 'B');
+
+  if (standingsA.length < 4 || standingsB.length < 4) {
+    return res.status(400).json({
+      error: 'Both Pool A and Pool B need 4 teams to seed the 8-team Quarterfinals.',
+    });
+  }
+
+  const qfTargets: Array<{
+    code: string;
+    home: typeof standingsA[number];
+    away: typeof standingsB[number];
+  }> = [
+    { code: 'QF1', home: standingsA[0], away: standingsB[3] }, // 1A vs 4B
+    { code: 'QF3', home: standingsA[2], away: standingsB[1] }, // 3A vs 2B
+    { code: 'QF2', home: standingsA[1], away: standingsB[2] }, // 2A vs 3B
+    { code: 'QF4', home: standingsA[3], away: standingsB[0] }, // 4A vs 1B
+  ];
+
+  const skipped: string[] = [];
+  await prisma.$transaction(async (tx) => {
+    for (const target of qfTargets) {
+      const existingMatch = tournament.matches.find((m) => m.matchCode === target.code);
+      if (!existingMatch) continue;
+      if (existingMatch.status !== 'SCHEDULED' && !forceOverride) {
+        skipped.push(`${target.code} (${existingMatch.status})`);
+        continue;
+      }
+      await tx.tournamentMatch.update({
+        where: { id: existingMatch.id },
+        data: {
+          homeTeamId: target.home.teamId,
+          awayTeamId: target.away.teamId,
+          homeLabel: target.home.teamName,
+          awayLabel: target.away.teamName,
+        },
+      });
+    }
+  });
+
+  const refreshed = await prisma.tournament.findUnique({
+    where: { id },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+  res.json({
+    tournament: toTournamentDto(refreshed, true),
+    skipped,
+    warnings:
+      skipped.length > 0
+        ? [`Skipped ${skipped.join(', ')} because match is already LIVE or COMPLETED.`]
+        : [],
+  });
+}));
+
+// Admin: Create custom match (for DVA_FOCUS or custom adjustments)
+app.post('/api/tournaments/:id/matches', ah(async (req, res) => {
+  const { id } = req.params;
+  const tournament = await prisma.tournament.findUnique({ where: { id } });
+  if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
+
+  const data = sanitize(req.body, TOURNAMENT_MATCH_SCHEMA, { required: ['matchCode'] });
+  const count = await prisma.tournamentMatch.count({ where: { tournamentId: id } });
+
+  const created = await prisma.tournamentMatch.create({
+    data: {
+      id: `tm-${crypto.randomUUID()}`,
+      tournamentId: id,
+      matchCode: data.matchCode,
+      stage: data.stage || 'GROUP',
+      bracketSide: data.bracketSide || null,
+      courtName: data.courtName || 'Court 1',
+      scheduledTime: data.scheduledTime || null,
+      matchOrder: data.matchOrder ?? count + 1,
+      status: data.status || 'SCHEDULED',
+      setFormat: data.setFormat || tournament.groupSetFormat || 'BO3',
+      homeTeamId: data.homeTeamId || null,
+      awayTeamId: data.awayTeamId || null,
+      homeLabel: data.homeLabel || null,
+      awayLabel: data.awayLabel || null,
+      officialId: data.officialId || null,
+      assistantOfficialIds: Array.isArray(data.assistantOfficialIds) ? data.assistantOfficialIds : [],
+      notes: data.notes || null,
+    },
+  });
+  res.status(201).json(toTournamentMatchDto(created, true));
+}));
+
+app.delete('/api/tournaments/:id/matches/:matchId', ah(async (req, res) => {
+  const { id, matchId } = req.params;
+  const existing = await prisma.tournamentMatch.findFirst({ where: { id: matchId, tournamentId: id } });
+  if (!existing) return res.status(404).json({ error: 'Match not found.' });
+  await prisma.tournamentMatch.delete({ where: { id: matchId } });
+  res.json({ success: true });
+}));
+
+// Admin: Update Match Score, Court, Status, Officials + Guarded Downstream Propagation
+app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => {
+  const { id, matchId } = req.params;
+  const existing = await prisma.tournamentMatch.findFirst({
+    where: { id: matchId, tournamentId: id },
+  });
+  if (!existing) return res.status(404).json({ error: 'Match not found.' });
+
+  const data = sanitize(req.body, TOURNAMENT_MATCH_SCORE_SCHEMA, { partial: true });
+  const forceOverride = Boolean(data.forceOverride);
+
+  const nextStatus = (data.status ?? existing.status) as 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
+  const nextFormat = (data.setFormat ?? existing.setFormat) as 'BO3' | 'BO2';
+  const nextHomeId =
+    req.body?.homeTeamId === null || req.body?.homeTeamId === ''
+      ? null
+      : (data.homeTeamId ?? existing.homeTeamId);
+  const nextAwayId =
+    req.body?.awayTeamId === null || req.body?.awayTeamId === ''
+      ? null
+      : (data.awayTeamId ?? existing.awayTeamId);
+  const nextOfficialId =
+    req.body?.officialId === null || req.body?.officialId === ''
+      ? null
+      : (data.officialId ?? existing.officialId);
+
+  const rawScores = data.setScores !== undefined ? data.setScores : existing.setScores;
+  const computed = computeSetTotals(rawScores, nextFormat, nextHomeId, nextAwayId, nextStatus);
+
+  const warnings: string[] = [];
+
+  await prisma.$transaction(async (tx) => {
+    const updatedMatch = await tx.tournamentMatch.update({
+      where: { id: matchId },
+      data: {
+        status: nextStatus,
+        setFormat: nextFormat,
+        ...(data.courtName !== undefined ? { courtName: data.courtName } : {}),
+        ...(data.scheduledTime !== undefined ? { scheduledTime: data.scheduledTime } : {}),
+        homeTeamId: nextHomeId,
+        awayTeamId: nextAwayId,
+        ...(data.homeLabel !== undefined ? { homeLabel: data.homeLabel } : {}),
+        ...(data.awayLabel !== undefined ? { awayLabel: data.awayLabel } : {}),
+        officialId: nextOfficialId,
+        ...(data.assistantOfficialIds !== undefined
+          ? { assistantOfficialIds: data.assistantOfficialIds }
+          : {}),
+        ...(data.notes !== undefined ? { notes: data.notes } : {}),
+        setScores: computed.setScores as any,
+        homeSetsWon: computed.homeSetsWon,
+        awaySetsWon: computed.awaySetsWon,
+        homePointsTotal: computed.homePointsTotal,
+        awayPointsTotal: computed.awayPointsTotal,
+        winnerTeamId: nextStatus === 'COMPLETED' ? computed.winnerTeamId : null,
+      },
+    });
+
+    // Guarded Downstream Propagation & Podium Rank Assignment
+    if (updatedMatch.status === 'COMPLETED' && updatedMatch.winnerTeamId) {
+      const teams = await tx.tournamentTeam.findMany({ where: { tournamentId: id } });
+      const teamMap = new Map(teams.map((t) => [t.id, t]));
+      const winner = teamMap.get(updatedMatch.winnerTeamId);
+      const loserId =
+        updatedMatch.homeTeamId && updatedMatch.awayTeamId
+          ? updatedMatch.winnerTeamId === updatedMatch.homeTeamId
+            ? updatedMatch.awayTeamId
+            : updatedMatch.homeTeamId
+          : null;
+      const loser = loserId ? teamMap.get(loserId) : undefined;
+
+      const advanceSlot = async (
+        targetCode: string,
+        slotSide: 'HOME' | 'AWAY',
+        teamObj: typeof winner
+      ) => {
+        if (!teamObj) return;
+        const target = await tx.tournamentMatch.findFirst({
+          where: { tournamentId: id, matchCode: targetCode },
+        });
+        if (!target) return;
+        if (target.status !== 'SCHEDULED' && !forceOverride) {
+          warnings.push(
+            `Downstream match ${targetCode} is already ${target.status}; slot was not overwritten automatically.`
+          );
+          return;
+        }
+        await tx.tournamentMatch.update({
+          where: { id: target.id },
+          data:
+            slotSide === 'HOME'
+              ? { homeTeamId: teamObj.id, homeLabel: teamObj.name }
+              : { awayTeamId: teamObj.id, awayLabel: teamObj.name },
+        });
+      };
+
+      if (updatedMatch.matchCode === 'QF1') await advanceSlot('SF1', 'HOME', winner);
+      if (updatedMatch.matchCode === 'QF3') await advanceSlot('SF1', 'AWAY', winner);
+      if (updatedMatch.matchCode === 'QF2') await advanceSlot('SF2', 'HOME', winner);
+      if (updatedMatch.matchCode === 'QF4') await advanceSlot('SF2', 'AWAY', winner);
+
+      if (updatedMatch.matchCode === 'SF1') {
+        await advanceSlot('FINAL', 'HOME', winner);
+        await advanceSlot('3RD', 'HOME', loser);
+      }
+      if (updatedMatch.matchCode === 'SF2') {
+        await advanceSlot('FINAL', 'AWAY', winner);
+        await advanceSlot('3RD', 'AWAY', loser);
+      }
+
+      if (updatedMatch.matchCode === 'FINAL' || updatedMatch.stage === 'FINAL') {
+        await tx.tournamentTeam.update({
+          where: { id: updatedMatch.winnerTeamId },
+          data: { finalRank: 1 },
+        });
+        if (loserId) {
+          await tx.tournamentTeam.update({
+            where: { id: loserId },
+            data: { finalRank: 2 },
+          });
+        }
+      }
+
+      if (updatedMatch.matchCode === '3RD' || updatedMatch.stage === 'THIRD_PLACE') {
+        await tx.tournamentTeam.update({
+          where: { id: updatedMatch.winnerTeamId },
+          data: { finalRank: 3 },
+        });
+        if (loserId) {
+          await tx.tournamentTeam.update({
+            where: { id: loserId },
+            data: { finalRank: 4 },
+          });
+        }
+      }
+    }
+
+    // Warn if a Pool match was edited while Knockout matches are already LIVE/COMPLETED
+    if (
+      (updatedMatch.stage === 'POOL_A' || updatedMatch.stage === 'POOL_B') &&
+      updatedMatch.status === 'COMPLETED'
+    ) {
+      const liveOrDoneKnockout = await tx.tournamentMatch.count({
+        where: {
+          tournamentId: id,
+          stage: { in: ['QUARTERFINAL', 'SEMIFINAL', 'THIRD_PLACE', 'FINAL'] },
+          status: { in: ['LIVE', 'COMPLETED'] },
+        },
+      });
+      if (liveOrDoneKnockout > 0) {
+        warnings.push(
+          'Pool score updated while Knockout matches are already LIVE/COMPLETED. Review Quarterfinal pairings manually if rankings changed.'
+        );
+      }
+    }
+  });
+
+  const refreshed = await prisma.tournament.findUnique({
+    where: { id },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+
+  res.json({
+    tournament: toTournamentDto(refreshed, true),
+    warnings,
   });
 }));
 

@@ -1,0 +1,675 @@
+import type {
+  Tournament,
+  TournamentMatch,
+  TournamentMatchStage,
+  TournamentSetFormat,
+  TournamentSetScore,
+  TournamentStandingRow,
+  TournamentTeam,
+} from '../types';
+
+/** Convert tournament title into clean URL slug. */
+export function slugifyTournamentName(name: string): string {
+  return (
+    (name || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[đĐ]/g, 'd')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80) || 'tournament'
+  );
+}
+
+/** Local YYYY-MM-DD date helper avoiding UTC off-by-one shifts. */
+export function getTodayLocalYmd(now: Date = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Smart Default Tournament Resolver:
+ * 1. ONGOING (earliest startDate first; HOSTED prioritized on tie)
+ * 2. Nearest UPCOMING (startDate >= todayLocal ASC, fallback latest UPCOMING)
+ * 3. Most recent COMPLETED (startDate DESC)
+ */
+export function resolveDefaultTournament<T extends Pick<Tournament, 'status' | 'isActive' | 'startDate' | 'mode'>>(
+  list: T[]
+): T | null {
+  const visible = list.filter((t) => t.isActive !== false && t.status !== 'CANCELLED');
+  if (visible.length === 0) return null;
+
+  const ongoing = visible
+    .filter((t) => t.status === 'ONGOING')
+    .sort((a, b) => {
+      if (a.mode !== b.mode) return a.mode === 'HOSTED' ? -1 : 1;
+      return a.startDate.localeCompare(b.startDate);
+    });
+  if (ongoing.length > 0) return ongoing[0];
+
+  const today = getTodayLocalYmd();
+  const upcomingFuture = visible
+    .filter((t) => t.status === 'UPCOMING' && t.startDate >= today)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  if (upcomingFuture.length > 0) return upcomingFuture[0];
+
+  const upcomingAny = visible
+    .filter((t) => t.status === 'UPCOMING')
+    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+  if (upcomingAny.length > 0) return upcomingAny[0];
+
+  const completed = visible
+    .filter((t) => t.status === 'COMPLETED')
+    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+  if (completed.length > 0) return completed[0];
+
+  return visible[0];
+}
+
+/** Normalize raw JSON setScores array into typed TournamentSetScore[]. */
+export function normalizeSetScores(raw: unknown): TournamentSetScore[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item, idx) => {
+      if (!item || typeof item !== 'object') return null;
+      const obj = item as Record<string, unknown>;
+      const setNum = Math.max(1, Math.min(5, Math.round(Number(obj.set) || idx + 1)));
+      const home = Math.max(0, Math.min(99, Math.round(Number(obj.home) || 0)));
+      const away = Math.max(0, Math.min(99, Math.round(Number(obj.away) || 0)));
+      const isCompleted = Boolean(obj.isCompleted);
+      return { set: setNum, home, away, isCompleted };
+    })
+    .filter((s): s is TournamentSetScore => s !== null)
+    .sort((a, b) => a.set - b.set);
+}
+
+/**
+ * Compute match sets won, total points, and winnerTeamId from setScores.
+ * Only sets marked `isCompleted === true` count toward `homeSetsWon` / `awaySetsWon`.
+ */
+export function computeSetTotals(
+  rawScores: unknown,
+  setFormat: TournamentSetFormat | string,
+  homeTeamId?: string | null,
+  awayTeamId?: string | null,
+  matchStatus?: string
+): {
+  setScores: TournamentSetScore[];
+  homeSetsWon: number;
+  awaySetsWon: number;
+  homePointsTotal: number;
+  awayPointsTotal: number;
+  winnerSide: 'HOME' | 'AWAY' | null;
+  winnerTeamId: string | null;
+} {
+  const setScores = normalizeSetScores(rawScores);
+  let homeSetsWon = 0;
+  let awaySetsWon = 0;
+  let homePointsTotal = 0;
+  let awayPointsTotal = 0;
+
+  for (const s of setScores) {
+    homePointsTotal += s.home;
+    awayPointsTotal += s.away;
+    if (s.isCompleted && s.home !== s.away) {
+      if (s.home > s.away) homeSetsWon += 1;
+      else awaySetsWon += 1;
+    }
+  }
+
+  let winnerSide: 'HOME' | 'AWAY' | null = null;
+  const format = String(setFormat || 'BO3').toUpperCase();
+  if (format === 'BO2') {
+    if (homeSetsWon === 2 && awaySetsWon === 0) winnerSide = 'HOME';
+    else if (awaySetsWon === 2 && homeSetsWon === 0) winnerSide = 'AWAY';
+    else if (matchStatus === 'COMPLETED' && homeSetsWon !== awaySetsWon) {
+      winnerSide = homeSetsWon > awaySetsWon ? 'HOME' : 'AWAY';
+    }
+  } else {
+    if (homeSetsWon >= 2 && homeSetsWon > awaySetsWon) winnerSide = 'HOME';
+    else if (awaySetsWon >= 2 && awaySetsWon > homeSetsWon) winnerSide = 'AWAY';
+    else if (matchStatus === 'COMPLETED' && homeSetsWon !== awaySetsWon) {
+      winnerSide = homeSetsWon > awaySetsWon ? 'HOME' : 'AWAY';
+    }
+  }
+
+  const winnerTeamId =
+    winnerSide === 'HOME'
+      ? homeTeamId ?? null
+      : winnerSide === 'AWAY'
+      ? awayTeamId ?? null
+      : null;
+
+  return {
+    setScores,
+    homeSetsWon,
+    awaySetsWon,
+    homePointsTotal,
+    awayPointsTotal,
+    winnerSide,
+    winnerTeamId,
+  };
+}
+
+/** Safe ratio comparison avoiding Infinity/NaN & float drift via cross-multiplication. */
+function compareRatiosDesc(aNum: number, aDen: number, bNum: number, bDen: number): number {
+  const aEmpty = aNum === 0 && aDen === 0;
+  const bEmpty = bNum === 0 && bDen === 0;
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+
+  if (aDen === 0 && bDen === 0) return bNum - aNum;
+  if (aDen === 0) return -1; // A has undefeated ratio -> ahead
+  if (bDen === 0) return 1;
+
+  return bNum * aDen - aNum * bDen;
+}
+
+function safeRatioValue(num: number, den: number): number {
+  if (den === 0) return num > 0 ? 999.99 : 0;
+  return Math.round((num / den) * 1000) / 1000;
+}
+
+/**
+ * Compute live Pool Standings (Pool A or Pool B).
+ * Confirmed tie-breaker order:
+ *   1. Wins (W) DESC
+ *   2. FIVB Points DESC (BO3: 2-0=3, 2-1=2, 1-2=1, 0-2=0 | BO2: 2-0=3, 1-1=1 each, 0-2=0)
+ *   3. Set Ratio (Sets Won / Sets Lost) DESC
+ *   4. Point Ratio (Points For / Points Against) DESC
+ *   5. Head-to-Head result between tied teams
+ *   6. seedOrder ASC
+ * Supports optional `manualRankOverride` for coin-toss / organizer resolution.
+ */
+export function computePoolStandings(
+  teams: TournamentTeam[],
+  matches: TournamentMatch[],
+  pool: 'A' | 'B'
+): TournamentStandingRow[] {
+  const poolTeams = teams.filter(
+    (t) =>
+      String(t.pool || '').toUpperCase() === pool &&
+      t.paymentStatus !== 'CANCELLED'
+  );
+  if (poolTeams.length === 0) return [];
+
+  const stageTarget: TournamentMatchStage = pool === 'A' ? 'POOL_A' : 'POOL_B';
+  const completedPoolMatches = matches.filter(
+    (m) => m.status === 'COMPLETED' && (m.stage === stageTarget || m.stage === 'GROUP')
+  );
+
+  const statsMap = new Map<string, TournamentStandingRow>();
+  const h2hWins = new Map<string, number>(); // key `${winnerId}:${loserId}` -> count
+
+  for (const t of poolTeams) {
+    statsMap.set(t.id, {
+      rank: 0,
+      teamId: t.id,
+      teamName: t.name,
+      shortName: t.shortName,
+      logoUrl: t.logoUrl,
+      isDvaTeam: t.isDvaTeam,
+      pool,
+      played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      fivbPoints: 0,
+      setsWon: 0,
+      setsLost: 0,
+      setRatio: 0,
+      pointsFor: 0,
+      pointsAgainst: 0,
+      pointRatio: 0,
+      manualRankOverride: t.manualRankOverride ?? null,
+      hasTieWarning: false,
+    });
+  }
+
+  for (const m of completedPoolMatches) {
+    if (!m.homeTeamId || !m.awayTeamId) continue;
+    const home = statsMap.get(m.homeTeamId);
+    const away = statsMap.get(m.awayTeamId);
+    if (!home || !away) continue;
+
+    home.played += 1;
+    away.played += 1;
+
+    home.setsWon += m.homeSetsWon;
+    home.setsLost += m.awaySetsWon;
+    away.setsWon += m.awaySetsWon;
+    away.setsLost += m.homeSetsWon;
+
+    home.pointsFor += m.homePointsTotal;
+    home.pointsAgainst += m.awayPointsTotal;
+    away.pointsFor += m.awayPointsTotal;
+    away.pointsAgainst += m.homePointsTotal;
+
+    const format = String(m.setFormat || 'BO3').toUpperCase();
+    const isDraw =
+      format === 'BO2' && m.homeSetsWon === m.awaySetsWon && !m.winnerTeamId;
+
+    if (isDraw) {
+      home.draws += 1;
+      away.draws += 1;
+      home.fivbPoints += 1;
+      away.fivbPoints += 1;
+    } else {
+      const homeWon =
+        m.winnerTeamId === home.teamId ||
+        (!m.winnerTeamId && m.homeSetsWon > m.awaySetsWon);
+      if (homeWon) {
+        home.wins += 1;
+        away.losses += 1;
+        if (format === 'BO2') {
+          home.fivbPoints += 3;
+        } else {
+          const isSweep = m.awaySetsWon === 0;
+          home.fivbPoints += isSweep ? 3 : 2;
+          away.fivbPoints += isSweep ? 0 : 1;
+        }
+        h2hWins.set(`${home.teamId}:${away.teamId}`, (h2hWins.get(`${home.teamId}:${away.teamId}`) || 0) + 1);
+      } else {
+        away.wins += 1;
+        home.losses += 1;
+        if (format === 'BO2') {
+          away.fivbPoints += 3;
+        } else {
+          const isSweep = m.homeSetsWon === 0;
+          away.fivbPoints += isSweep ? 3 : 2;
+          home.fivbPoints += isSweep ? 0 : 1;
+        }
+        h2hWins.set(`${away.teamId}:${home.teamId}`, (h2hWins.get(`${away.teamId}:${home.teamId}`) || 0) + 1);
+      }
+    }
+  }
+
+  const seedById = new Map(poolTeams.map((t) => [t.id, t.seedOrder]));
+  const rows = Array.from(statsMap.values()).map((r) => ({
+    ...r,
+    setRatio: safeRatioValue(r.setsWon, r.setsLost),
+    pointRatio: safeRatioValue(r.pointsFor, r.pointsAgainst),
+  }));
+
+  // Natural athletic sort
+  rows.sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.fivbPoints !== a.fivbPoints) return b.fivbPoints - a.fivbPoints;
+
+    const setCmp = compareRatiosDesc(a.setsWon, a.setsLost, b.setsWon, b.setsLost);
+    if (setCmp !== 0) return setCmp;
+
+    const ptCmp = compareRatiosDesc(a.pointsFor, a.pointsAgainst, b.pointsFor, b.pointsAgainst);
+    if (ptCmp !== 0) return ptCmp;
+
+    const aBeatB = h2hWins.get(`${a.teamId}:${b.teamId}`) || 0;
+    const bBeatA = h2hWins.get(`${b.teamId}:${a.teamId}`) || 0;
+    if (aBeatB !== bBeatA) return bBeatA - aBeatB;
+
+    return (seedById.get(a.teamId) ?? 0) - (seedById.get(b.teamId) ?? 0);
+  });
+
+  // Flag exact statistical ties (after matches played) so Admin sees when H2H / manual tiebreak matters
+  for (let i = 0; i < rows.length - 1; i++) {
+    const cur = rows[i];
+    const nxt = rows[i + 1];
+    if (
+      cur.played > 0 &&
+      nxt.played > 0 &&
+      cur.wins === nxt.wins &&
+      cur.fivbPoints === nxt.fivbPoints &&
+      compareRatiosDesc(cur.setsWon, cur.setsLost, nxt.setsWon, nxt.setsLost) === 0 &&
+      compareRatiosDesc(cur.pointsFor, cur.pointsAgainst, nxt.pointsFor, nxt.pointsAgainst) === 0
+    ) {
+      cur.hasTieWarning = true;
+      nxt.hasTieWarning = true;
+    }
+  }
+
+  // Apply manualRankOverride if Admin pinned specific ranks
+  const hasAnyManual = rows.some((r) => r.manualRankOverride !== null && r.manualRankOverride !== undefined);
+  let ordered = rows;
+  if (hasAnyManual) {
+    const result: (TournamentStandingRow | null)[] = new Array(rows.length).fill(null);
+    const unpinned: TournamentStandingRow[] = [];
+
+    for (const r of rows) {
+      const targetIdx =
+        r.manualRankOverride !== null && r.manualRankOverride !== undefined
+          ? r.manualRankOverride - 1
+          : -1;
+      if (targetIdx >= 0 && targetIdx < result.length && !result[targetIdx]) {
+        result[targetIdx] = r;
+      } else {
+        unpinned.push(r);
+      }
+    }
+
+    let uIdx = 0;
+    for (let i = 0; i < result.length; i++) {
+      if (!result[i]) {
+        result[i] = unpinned[uIdx++];
+      }
+    }
+    ordered = result.filter((r): r is TournamentStandingRow => r !== null);
+  }
+
+  return ordered.map((row, idx) => ({
+    ...row,
+    rank: idx + 1,
+  }));
+}
+
+export interface GeneratedMatchTemplate {
+  matchCode: string;
+  stage: TournamentMatchStage;
+  bracketSide: 'LEFT' | 'RIGHT' | 'CENTER' | null;
+  courtName: string;
+  scheduledTime: string;
+  matchOrder: number;
+  setFormat: TournamentSetFormat;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  homeLabel: string;
+  awayLabel: string;
+}
+
+/**
+ * Generates the balanced 20-match 1-day schedule across 2 parallel courts:
+ * - Pool A (6 matches) & Pool B (6 matches) interleaved so every team rests between matches
+ * - QF1 (1A vs 4B), QF3 (3A vs 2B) -> Left Wing -> SF1
+ * - QF2 (2A vs 3B), QF4 (4A vs 1B) -> Right Wing -> SF2
+ * - 3RD (Loser SF1 vs Loser SF2) & FINAL (Winner SF1 vs Winner SF2) -> Center
+ */
+export function buildStandard20MatchPlan(
+  poolATeams: TournamentTeam[],
+  poolBTeams: TournamentTeam[],
+  groupSetFormat: TournamentSetFormat = 'BO3',
+  knockoutSetFormat: TournamentSetFormat = 'BO3'
+): GeneratedMatchTemplate[] {
+  const a = [...poolATeams].sort((x, y) => x.seedOrder - y.seedOrder);
+  const b = [...poolBTeams].sort((x, y) => x.seedOrder - y.seedOrder);
+
+  const labelOrSeed = (arr: TournamentTeam[], idx: number, prefix: string) =>
+    arr[idx]?.name || `${prefix}${idx + 1}`;
+  const idOrNull = (arr: TournamentTeam[], idx: number) => arr[idx]?.id ?? null;
+
+  const matches: GeneratedMatchTemplate[] = [
+    // Round 1 Pool A (08:00)
+    {
+      matchCode: 'PA-1',
+      stage: 'POOL_A',
+      bracketSide: null,
+      courtName: 'Court 1',
+      scheduledTime: '08:00',
+      matchOrder: 1,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(a, 0),
+      awayTeamId: idOrNull(a, 3),
+      homeLabel: labelOrSeed(a, 0, 'A'),
+      awayLabel: labelOrSeed(a, 3, 'A'),
+    },
+    {
+      matchCode: 'PA-2',
+      stage: 'POOL_A',
+      bracketSide: null,
+      courtName: 'Court 2',
+      scheduledTime: '08:00',
+      matchOrder: 2,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(a, 1),
+      awayTeamId: idOrNull(a, 2),
+      homeLabel: labelOrSeed(a, 1, 'A'),
+      awayLabel: labelOrSeed(a, 2, 'A'),
+    },
+    // Round 1 Pool B (08:50)
+    {
+      matchCode: 'PB-1',
+      stage: 'POOL_B',
+      bracketSide: null,
+      courtName: 'Court 1',
+      scheduledTime: '08:50',
+      matchOrder: 3,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(b, 0),
+      awayTeamId: idOrNull(b, 3),
+      homeLabel: labelOrSeed(b, 0, 'B'),
+      awayLabel: labelOrSeed(b, 3, 'B'),
+    },
+    {
+      matchCode: 'PB-2',
+      stage: 'POOL_B',
+      bracketSide: null,
+      courtName: 'Court 2',
+      scheduledTime: '08:50',
+      matchOrder: 4,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(b, 1),
+      awayTeamId: idOrNull(b, 2),
+      homeLabel: labelOrSeed(b, 1, 'B'),
+      awayLabel: labelOrSeed(b, 2, 'B'),
+    },
+    // Round 2 Pool A (09:40)
+    {
+      matchCode: 'PA-3',
+      stage: 'POOL_A',
+      bracketSide: null,
+      courtName: 'Court 1',
+      scheduledTime: '09:40',
+      matchOrder: 5,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(a, 0),
+      awayTeamId: idOrNull(a, 2),
+      homeLabel: labelOrSeed(a, 0, 'A'),
+      awayLabel: labelOrSeed(a, 2, 'A'),
+    },
+    {
+      matchCode: 'PA-4',
+      stage: 'POOL_A',
+      bracketSide: null,
+      courtName: 'Court 2',
+      scheduledTime: '09:40',
+      matchOrder: 6,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(a, 1),
+      awayTeamId: idOrNull(a, 3),
+      homeLabel: labelOrSeed(a, 1, 'A'),
+      awayLabel: labelOrSeed(a, 3, 'A'),
+    },
+    // Round 2 Pool B (10:30)
+    {
+      matchCode: 'PB-3',
+      stage: 'POOL_B',
+      bracketSide: null,
+      courtName: 'Court 1',
+      scheduledTime: '10:30',
+      matchOrder: 7,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(b, 0),
+      awayTeamId: idOrNull(b, 2),
+      homeLabel: labelOrSeed(b, 0, 'B'),
+      awayLabel: labelOrSeed(b, 2, 'B'),
+    },
+    {
+      matchCode: 'PB-4',
+      stage: 'POOL_B',
+      bracketSide: null,
+      courtName: 'Court 2',
+      scheduledTime: '10:30',
+      matchOrder: 8,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(b, 1),
+      awayTeamId: idOrNull(b, 3),
+      homeLabel: labelOrSeed(b, 1, 'B'),
+      awayLabel: labelOrSeed(b, 3, 'B'),
+    },
+    // Round 3 Pool A (11:20)
+    {
+      matchCode: 'PA-5',
+      stage: 'POOL_A',
+      bracketSide: null,
+      courtName: 'Court 1',
+      scheduledTime: '11:20',
+      matchOrder: 9,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(a, 0),
+      awayTeamId: idOrNull(a, 1),
+      homeLabel: labelOrSeed(a, 0, 'A'),
+      awayLabel: labelOrSeed(a, 1, 'A'),
+    },
+    {
+      matchCode: 'PA-6',
+      stage: 'POOL_A',
+      bracketSide: null,
+      courtName: 'Court 2',
+      scheduledTime: '11:20',
+      matchOrder: 10,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(a, 2),
+      awayTeamId: idOrNull(a, 3),
+      homeLabel: labelOrSeed(a, 2, 'A'),
+      awayLabel: labelOrSeed(a, 3, 'A'),
+    },
+    // Round 3 Pool B (12:10)
+    {
+      matchCode: 'PB-5',
+      stage: 'POOL_B',
+      bracketSide: null,
+      courtName: 'Court 1',
+      scheduledTime: '12:10',
+      matchOrder: 11,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(b, 0),
+      awayTeamId: idOrNull(b, 1),
+      homeLabel: labelOrSeed(b, 0, 'B'),
+      awayLabel: labelOrSeed(b, 1, 'B'),
+    },
+    {
+      matchCode: 'PB-6',
+      stage: 'POOL_B',
+      bracketSide: null,
+      courtName: 'Court 2',
+      scheduledTime: '12:10',
+      matchOrder: 12,
+      setFormat: groupSetFormat,
+      homeTeamId: idOrNull(b, 2),
+      awayTeamId: idOrNull(b, 3),
+      homeLabel: labelOrSeed(b, 2, 'B'),
+      awayLabel: labelOrSeed(b, 3, 'B'),
+    },
+    // Quarterfinals (Afternoon)
+    {
+      matchCode: 'QF1',
+      stage: 'QUARTERFINAL',
+      bracketSide: 'LEFT',
+      courtName: 'Court 1',
+      scheduledTime: '14:00',
+      matchOrder: 13,
+      setFormat: knockoutSetFormat,
+      homeTeamId: null,
+      awayTeamId: null,
+      homeLabel: '1st Pool A',
+      awayLabel: '4th Pool B',
+    },
+    {
+      matchCode: 'QF3',
+      stage: 'QUARTERFINAL',
+      bracketSide: 'LEFT',
+      courtName: 'Court 2',
+      scheduledTime: '14:00',
+      matchOrder: 14,
+      setFormat: knockoutSetFormat,
+      homeTeamId: null,
+      awayTeamId: null,
+      homeLabel: '3rd Pool A',
+      awayLabel: '2nd Pool B',
+    },
+    {
+      matchCode: 'QF2',
+      stage: 'QUARTERFINAL',
+      bracketSide: 'RIGHT',
+      courtName: 'Court 1',
+      scheduledTime: '15:00',
+      matchOrder: 15,
+      setFormat: knockoutSetFormat,
+      homeTeamId: null,
+      awayTeamId: null,
+      homeLabel: '2nd Pool A',
+      awayLabel: '3rd Pool B',
+    },
+    {
+      matchCode: 'QF4',
+      stage: 'QUARTERFINAL',
+      bracketSide: 'RIGHT',
+      courtName: 'Court 2',
+      scheduledTime: '15:00',
+      matchOrder: 16,
+      setFormat: knockoutSetFormat,
+      homeTeamId: null,
+      awayTeamId: null,
+      homeLabel: '4th Pool A',
+      awayLabel: '1st Pool B',
+    },
+    // Semifinals
+    {
+      matchCode: 'SF1',
+      stage: 'SEMIFINAL',
+      bracketSide: 'LEFT',
+      courtName: 'Court 1',
+      scheduledTime: '16:15',
+      matchOrder: 17,
+      setFormat: knockoutSetFormat,
+      homeTeamId: null,
+      awayTeamId: null,
+      homeLabel: 'Winner QF1',
+      awayLabel: 'Winner QF3',
+    },
+    {
+      matchCode: 'SF2',
+      stage: 'SEMIFINAL',
+      bracketSide: 'RIGHT',
+      courtName: 'Court 2',
+      scheduledTime: '16:15',
+      matchOrder: 18,
+      setFormat: knockoutSetFormat,
+      homeTeamId: null,
+      awayTeamId: null,
+      homeLabel: 'Winner QF2',
+      awayLabel: 'Winner QF4',
+    },
+    // 3rd Place & Final
+    {
+      matchCode: '3RD',
+      stage: 'THIRD_PLACE',
+      bracketSide: 'CENTER',
+      courtName: 'Court 2',
+      scheduledTime: '17:30',
+      matchOrder: 19,
+      setFormat: knockoutSetFormat,
+      homeTeamId: null,
+      awayTeamId: null,
+      homeLabel: 'Loser SF1',
+      awayLabel: 'Loser SF2',
+    },
+    {
+      matchCode: 'FINAL',
+      stage: 'FINAL',
+      bracketSide: 'CENTER',
+      courtName: 'Court 1',
+      scheduledTime: '18:30',
+      matchOrder: 20,
+      setFormat: knockoutSetFormat,
+      homeTeamId: null,
+      awayTeamId: null,
+      homeLabel: 'Winner SF1',
+      awayLabel: 'Winner SF2',
+    },
+  ];
+
+  return matches;
+}

@@ -7,6 +7,7 @@ import {
   ShoppingBag,
   Ticket,
   UserCheck,
+  Trophy,
 } from 'lucide-react';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { useAdminMetrics } from '../hooks/useAdminMetrics';
@@ -26,10 +27,13 @@ export const OverviewTab: React.FC = () => {
     storeRevenue,
     guestSessionRevenue,
     tryoutRevenue,
+    tournamentRevenue,
     paidBookingsCount,
     paidStoreOrdersCount,
     paidGuestSessionsCount,
     approvedTryoutsCount,
+    paidTournamentTeamsCount,
+    hostedTournamentsCount,
     confirmedTrainingCount,
   } = useAdminMetrics();
 
@@ -45,12 +49,13 @@ export const OverviewTab: React.FC = () => {
   const storeSharePct = pctOf(storeRevenue);
   const guestSharePct = pctOf(guestSessionRevenue);
   const tryoutSharePct = pctOf(tryoutRevenue);
+  const tournamentSharePct = pctOf(tournamentRevenue);
   const trainingSharePct =
     totalClubRevenue > 0
       ? Math.max(
           0,
           Math.round(
-            (100 - bookingSharePct - storeSharePct - guestSharePct - tryoutSharePct) * 10
+            (100 - bookingSharePct - storeSharePct - guestSharePct - tryoutSharePct - tournamentSharePct) * 10
           ) / 10
         )
       : 0;
@@ -101,6 +106,17 @@ export const OverviewTab: React.FC = () => {
       onClick: () => setActiveModule('APPLICATIONS'),
     },
     {
+      id: 'TOURNAMENTS' as const,
+      icon: Trophy,
+      label: 'Tournament Fees (Hosted)',
+      revenue: tournamentRevenue,
+      pct: tournamentSharePct,
+      volume: `${paidTournamentTeamsCount} paid teams / ${hostedTournamentsCount} hosted cups`,
+      color: 'bg-[#EC4899]',
+      textColor: 'text-[#EC4899]',
+      onClick: () => setActiveModule('TOURNAMENTS'),
+    },
+    {
       id: 'TRAINING' as const,
       icon: Dumbbell,
       label: 'Training & Scrimmages (Est.)',
@@ -129,7 +145,7 @@ export const OverviewTab: React.FC = () => {
           <div className="space-y-1">
             <h3 className="font-bold text-sm text-white flex items-center gap-2">
               <PieChart className="w-4 h-4 text-[#38BDF8]" />
-              Service Revenue Share (5 Streams)
+              Service Revenue Share (All Streams)
             </h3>
             <p className="text-[11px] text-slate-500">
               Revenue distribution across verified cashflow &amp; estimated academy tuition
@@ -155,6 +171,7 @@ export const OverviewTab: React.FC = () => {
               <span>Shop {storeSharePct}%</span>
               <span>Guest {guestSharePct}%</span>
               <span>Tryouts {tryoutSharePct}%</span>
+              <span>Tour {tournamentSharePct}%</span>
               <span>Training {trainingSharePct}%</span>
             </div>
           </div>

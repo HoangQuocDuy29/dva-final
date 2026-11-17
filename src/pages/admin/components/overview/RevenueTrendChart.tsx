@@ -7,6 +7,7 @@ const SERIES = [
   { key: 'store', label: 'DVA Store', color: '#FACC15' },
   { key: 'guest', label: 'Guest Sessions', color: '#A855F7' },
   { key: 'tryout', label: 'Tryout Fees', color: '#10B981' },
+  { key: 'tournament', label: 'Tournaments', color: '#EC4899' },
   { key: 'training', label: 'Training (est.)', color: '#38BDF8' },
 ] as const;
 
@@ -36,7 +37,7 @@ export const RevenueTrendChart: React.FC = () => {
   }, []);
 
   const totals = monthlyRevenue.map(
-    (p) => p.court + p.store + p.guest + p.tryout + p.training
+    (p) => p.court + p.store + p.guest + p.tryout + p.tournament + p.training
   );
   const max = Math.max(...totals, 0);
   const isEmpty = max === 0;
@@ -69,7 +70,7 @@ export const RevenueTrendChart: React.FC = () => {
             Revenue Trend — Last 6 Months
           </h3>
           <p className="text-[11px] text-slate-500">
-            Verified cashflow (Bookings, Shop, Guest Sessions, Tryout Fees) &amp; Est. Training Tuition
+            Verified cashflow (Bookings, Shop, Guest Sessions, Tryout Fees, Tournaments) &amp; Est. Training Tuition
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

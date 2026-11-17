@@ -14,6 +14,8 @@ import {
   StoreOrder,
   StoreSubView,
   GuestSessionRecord,
+  Tournament,
+  TournamentFinanceSummary,
 } from '../../types';
 
 export type AdminTabId =
@@ -72,6 +74,8 @@ export interface AdminDataState {
   storeProducts: StoreProduct[];
   storeOrders: StoreOrder[];
   guestSessions: GuestSessionRecord[];
+  tournamentsSummary: TournamentFinanceSummary[];
+  tournamentsList: Tournament[];
 }
 
 export interface AdminDataSetters {
@@ -88,6 +92,8 @@ export interface AdminDataSetters {
   setStoreProducts: React.Dispatch<React.SetStateAction<StoreProduct[]>>;
   setStoreOrders: React.Dispatch<React.SetStateAction<StoreOrder[]>>;
   setGuestSessions: React.Dispatch<React.SetStateAction<GuestSessionRecord[]>>;
+  setTournamentsSummary: React.Dispatch<React.SetStateAction<TournamentFinanceSummary[]>>;
+  setTournamentsList: React.Dispatch<React.SetStateAction<Tournament[]>>;
 }
 
 export interface AdminDashboardContextValue {
