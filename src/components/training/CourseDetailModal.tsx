@@ -66,7 +66,7 @@ export const CourseDetailModal: React.FC<CourseDetailModalProps> = ({
     >
       {/* Container cuộn dọc thống nhất (Single Scroll Container) */}
       <div
-        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0B0F19] rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl text-white"
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto no-scrollbar bg-[#0B0F19] rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl text-white"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 1. HERO HEADER */}

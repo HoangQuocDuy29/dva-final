@@ -306,7 +306,7 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
         </div>
 
         {/* Readonly script snippet */}
-        <pre className="p-3.5 bg-[#080C14] rounded-xl border border-slate-800 text-[10px] font-mono text-slate-300 max-h-52 overflow-y-auto leading-relaxed">
+        <pre className="p-3.5 bg-[#080C14] rounded-xl border border-slate-800 text-[10px] font-mono text-slate-300 max-h-52 overflow-y-auto no-scrollbar leading-relaxed">
           {GOOGLE_APPS_SCRIPT_TEMPLATE}
         </pre>
       </div>

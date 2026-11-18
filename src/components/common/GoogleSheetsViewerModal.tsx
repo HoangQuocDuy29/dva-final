@@ -177,7 +177,7 @@ export const GoogleSheetsViewerModal: React.FC<GoogleSheetsViewerModalProps> = (
         </div>
 
         {/* Sheet Table Viewer */}
-        <div className="flex-1 overflow-auto p-4 bg-[#0B0F19]">
+        <div className="flex-1 overflow-auto no-scrollbar p-4 bg-[#0B0F19]">
           {currentRows.length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-sm">
               No entries currently recorded in sheet tab: {activeTab}.

@@ -5,11 +5,13 @@ import {
   CalendarPlus,
   CheckCircle2,
   GitBranch,
+  Loader2,
   Minus,
   Play,
   Plus,
   ShieldCheck,
   Trash2,
+  Trophy,
   Users,
   X,
 } from 'lucide-react';
@@ -25,6 +27,8 @@ import {
   MatchStageFilterKey,
   TournamentCourtFilter,
   computePoolStandings,
+  getSetTargetPoints,
+  isVolleyballSetWon,
   matchesStageFilter,
   matchesTournamentCourtFilter,
   normalizeTournamentCourtName,
@@ -46,9 +50,12 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
   const [stageFilter, setStageFilter] = useState<MatchStageFilterKey>('ALL');
   const [courtFilter, setCourtFilter] = useState<TournamentCourtFilter>('ALL');
   const [busyAction, setBusyAction] = useState(false);
+  const [seedingStep, setSeedingStep] = useState<'GROUP' | 'QF' | 'SF' | 'FINALS' | null>(null);
 
   // Live Scorer Modal state
   const [scoringMatch, setScoringMatch] = useState<TournamentMatch | null>(null);
+  const [editMatchCode, setEditMatchCode] = useState('');
+  const [editMatchOrder, setEditMatchOrder] = useState('1');
   const [editStatus, setEditStatus] = useState<TournamentMatchStatus>('SCHEDULED');
   const [editCourt, setEditCourt] = useState('Court A');
   const [editTime, setEditTime] = useState('');
@@ -100,47 +107,95 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
   );
 
   const filteredMatches = useMemo(() => {
-    return tournament.matches.filter((m) => {
-      if (!matchesStageFilter(m.stage, stageFilter)) return false;
-      if (!matchesTournamentCourtFilter(m.courtName, courtFilter)) return false;
-      return true;
-    });
+    return tournament.matches
+      .filter((m) => {
+        if (!matchesStageFilter(m.stage, stageFilter)) return false;
+        if (!matchesTournamentCourtFilter(m.courtName, courtFilter)) return false;
+        return true;
+      })
+      .sort((a, b) => (a.matchOrder ?? 0) - (b.matchOrder ?? 0));
   }, [tournament.matches, stageFilter, courtFilter]);
 
-  const handleGenerateSchedule = async () => {
+  const handleGenerateGroupSchedule = async () => {
     const hasMatches = tournament.matches.length > 0;
     const forceReset = hasMatches
       ? window.confirm(
-          'This will replace existing matches for this tournament with the standard 20-match 2-court 1-day schedule. Continue?'
+          'Giải đấu đã có các trận trước đó. Xác nhận khởi tạo lại 12 trận Vòng bảng (PA-1..PA-6 & PB-1..PB-6)?'
         )
       : false;
     if (hasMatches && !forceReset) return;
 
     setBusyAction(true);
+    setSeedingStep('GROUP');
     try {
-      await tournamentService.generateSchedule(tournament.id, forceReset);
+      await tournamentService.generateGroupSchedule(tournament.id, forceReset);
       await onRefresh();
-      notify('Generated balanced 20-match 2-court schedule!');
+      if (stageFilter !== 'ALL') setStageFilter('POOL');
+      notify('Đã khởi tạo 12 trận Vòng bảng (Pool A: PA-1..PA-6 · Pool B: PB-1..PB-6)!');
     } catch (err: any) {
-      notify(err?.message || 'Unable to generate schedule.');
+      notify(err?.message || 'Unable to generate 12-match Group Stage schedule.', 5000);
     } finally {
+      setSeedingStep(null);
       setBusyAction(false);
     }
   };
 
-  const handleSeedKnockout = async () => {
+  const handleSeedQuarterfinals = async () => {
     setBusyAction(true);
+    setSeedingStep('QF');
     try {
-      const res = await tournamentService.seedKnockout(tournament.id, false);
+      const res = await tournamentService.seedQuarterfinals(tournament.id, false);
       await onRefresh();
-      if (res.warnings.length > 0) {
-        notify(res.warnings[0], 5000);
+      if (stageFilter !== 'ALL') setStageFilter('QUARTERFINAL');
+      if (res.warnings?.length > 0) {
+        notify(res.warnings[0], 5500);
       } else {
-        notify('Quarterfinals (QF1–QF4) seeded from Pool A & Pool B standings!');
+        notify('Đã tạo & xếp cặp Tứ kết (QF1–QF4) từ BXH Pool A & Pool B!');
       }
     } catch (err: any) {
-      notify(err?.message || 'Unable to seed Quarterfinals.');
+      notify(err?.message || 'Unable to seed Quarterfinals.', 5000);
     } finally {
+      setSeedingStep(null);
+      setBusyAction(false);
+    }
+  };
+
+  const handleSeedSemifinals = async () => {
+    setBusyAction(true);
+    setSeedingStep('SF');
+    try {
+      const res = await tournamentService.seedSemifinals(tournament.id, false);
+      await onRefresh();
+      if (stageFilter !== 'ALL') setStageFilter('SEMIFINAL');
+      if (res.warnings?.length > 0) {
+        notify(res.warnings.join(' '), 6000);
+      } else {
+        notify('Đã đẩy 4 đội thắng Tứ kết vào Bán kết (SF1 & SF2)!');
+      }
+    } catch (err: any) {
+      notify(err?.message || 'Unable to seed Semi-Finals.', 5000);
+    } finally {
+      setSeedingStep(null);
+      setBusyAction(false);
+    }
+  };
+
+  const handleSeedFinals = async () => {
+    setBusyAction(true);
+    setSeedingStep('FINALS');
+    try {
+      const res = await tournamentService.seedFinals(tournament.id, false);
+      await onRefresh();
+      if (stageFilter !== 'ALL') setStageFilter('FINALS');
+      if (res.warnings?.length > 0) {
+        notify(res.warnings.join(' '), 6000);
+      } else {
+        notify('Đã đẩy cặp Tranh Hạng 3 (3RD) & Chung kết (FINAL)!');
+      }
+    } catch (err: any) {
+      notify(err?.message || 'Unable to seed Finals.', 5000);
+    } finally {
+      setSeedingStep(null);
       setBusyAction(false);
     }
   };
@@ -179,44 +234,134 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
   };
 
   const openScorer = (match: TournamentMatch) => {
+    const normalizedCourt = normalizeTournamentCourtName(match.courtName || 'Court A');
+    const resolvedFormat = (
+      (match.setFormat || tournament.groupSetFormat || 'BO3').toUpperCase() as TournamentSetFormat
+    );
+    const initialSets = match.setScores?.length
+      ? match.setScores.map((s) => ({ ...s }))
+      : [{ set: 1, home: 0, away: 0, isCompleted: false }];
     setScoringMatch(match);
+    setEditMatchCode((match.matchCode || '').trim().toUpperCase());
+    setEditMatchOrder(String(Number.isFinite(match.matchOrder) ? match.matchOrder : 0));
     setEditStatus(match.status);
-    setEditCourt(normalizeTournamentCourtName(match.courtName || 'Court A'));
+    setEditCourt(normalizedCourt === 'Court B' ? 'Court B' : 'Court A');
     setEditTime(match.scheduledTime || '');
-    setEditFormat((match.setFormat as TournamentSetFormat) || 'BO3');
+    setEditFormat(resolvedFormat);
     setEditHomeId(match.homeTeamId || '');
     setEditAwayId(match.awayTeamId || '');
     setEditHomeLabel(match.homeLabel || '');
     setEditAwayLabel(match.awayLabel || '');
     setEditOfficialId(match.officialId || '');
-    setEditSets(
-      match.setScores?.length
-        ? match.setScores.map((s) => ({ ...s }))
-        : [{ set: 1, home: 0, away: 0, isCompleted: false }]
+    setEditSets(resolvedFormat === 'BO1_25' ? [initialSets[0]] : initialSets);
+  };
+
+  const handleEditFormatChange = (nextFormat: TournamentSetFormat) => {
+    setEditFormat(nextFormat);
+    if (nextFormat === 'BO1_25') {
+      setEditSets((prev) => [prev[0] || { set: 1, home: 0, away: 0, isCompleted: false }]);
+    } else if (nextFormat === 'BO2') {
+      setEditSets((prev) => prev.slice(0, 2));
+    }
+  };
+
+  const updateSetPointValue = (setIdx: number, side: 'home' | 'away', nextRaw: number) => {
+    const nextVal = Math.max(0, Math.round(Number(nextRaw) || 0));
+    setEditSets((prev) =>
+      prev.map((s, idx) => {
+        if (idx !== setIdx) return s;
+        const nextHome = side === 'home' ? nextVal : s.home;
+        const nextAway = side === 'away' ? nextVal : s.away;
+        const target = getSetTargetPoints(s.set, editFormat);
+        const stillWon = isVolleyballSetWon(nextHome, nextAway, target);
+        return {
+          ...s,
+          [side]: nextVal,
+          isCompleted: stillWon ? s.isCompleted : false,
+        };
+      })
     );
   };
 
   const stepPoint = (setIdx: number, side: 'home' | 'away', delta: number) => {
     setEditSets((prev) =>
-      prev.map((s, idx) =>
-        idx === setIdx ? { ...s, [side]: Math.max(0, Math.min(99, s[side] + delta)) } : s
-      )
+      prev.map((s, idx) => {
+        if (idx !== setIdx) return s;
+        const nextVal = Math.max(0, s[side] + delta);
+        const nextHome = side === 'home' ? nextVal : s.home;
+        const nextAway = side === 'away' ? nextVal : s.away;
+        const target = getSetTargetPoints(s.set, editFormat);
+        const stillWon = isVolleyballSetWon(nextHome, nextAway, target);
+        return {
+          ...s,
+          [side]: nextVal,
+          isCompleted: stillWon ? s.isCompleted : false,
+        };
+      })
     );
   };
 
-  const saveScore = async (overrideStatus?: TournamentMatchStatus) => {
+  const saveScore = async (
+    overrideStatus?: TournamentMatchStatus,
+    overrideSets?: TournamentSetScore[]
+  ) => {
     if (!scoringMatch) return;
+    const normalizedCode = editMatchCode.trim().toUpperCase();
+    if (!normalizedCode) {
+      notify('Match Code cannot be empty.');
+      return;
+    }
+    const trimmedOrder = editMatchOrder.trim();
+    const parsedOrder = Number(trimmedOrder);
+    if (trimmedOrder === '' || !Number.isInteger(parsedOrder) || parsedOrder < 0 || parsedOrder > 999) {
+      notify('Order must be an integer between 0 and 999.');
+      return;
+    }
+    const normalizedCourt =
+      normalizeTournamentCourtName(editCourt) === 'Court B' ? 'Court B' : 'Court A';
+
     const targetStatus = overrideStatus || editStatus;
-    const normalizedSets = editSets.map((s) =>
-      targetStatus === 'COMPLETED' ? { ...s, isCompleted: true } : s
+    const sourceSets = (overrideSets ?? editSets).slice(
+      0,
+      editFormat === 'BO1_25' ? 1 : editFormat === 'BO2' ? 2 : 5
     );
+
+    let normalizedSets: TournamentSetScore[];
+    if (targetStatus === 'COMPLETED') {
+      if (editFormat === 'BO1_25') {
+        const s1 = sourceSets[0];
+        if (!s1 || !isVolleyballSetWon(s1.home, s1.away, 25)) {
+          notify('Set 1 chưa đạt điều kiện thắng chuẩn 25 điểm (tối thiểu 25 điểm và cách biệt >= 2 điểm).');
+          return;
+        }
+        normalizedSets = [{ ...s1, set: 1, isCompleted: true }];
+      } else {
+        const playedSets = sourceSets.filter(
+          (s, idx) => idx === 0 || s.home > 0 || s.away > 0 || s.isCompleted
+        );
+        for (const s of playedSets) {
+          const target = getSetTargetPoints(s.set, editFormat);
+          if (!isVolleyballSetWon(s.home, s.away, target)) {
+            notify(
+              `Set ${s.set} chưa đạt điều kiện thắng (tối thiểu ${target} điểm và cách biệt >= 2 điểm).`
+            );
+            return;
+          }
+        }
+        normalizedSets = playedSets.map((s) => ({ ...s, isCompleted: true }));
+      }
+    } else {
+      normalizedSets = sourceSets;
+    }
 
     setBusyAction(true);
     try {
       const res = await tournamentService.updateMatchScore(tournament.id, scoringMatch.id, {
+        matchCode: normalizedCode,
+        matchOrder: parsedOrder,
         status: targetStatus,
-        courtName: editCourt,
-        scheduledTime: editTime || undefined,
+        courtName: normalizedCourt,
+        scheduledTime: editTime.trim() || undefined,
         setFormat: editFormat,
         homeTeamId: editHomeId || null,
         awayTeamId: editAwayId || null,
@@ -229,7 +374,7 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
       setScoringMatch(null);
       if (res.autoSeededQuarterfinals && res.warnings?.length) {
         notify(
-          `${scoringMatch.matchCode} completed · Quarterfinals seeded (note: ${res.warnings.join(' ')})`,
+          `${normalizedCode} completed · Quarterfinals seeded (note: ${res.warnings.join(' ')})`,
           6000
         );
       } else if (res.autoSeededQuarterfinals) {
@@ -238,12 +383,14 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
           5000
         );
       } else if (res.warnings?.length > 0) {
-        notify(`Saved ${scoringMatch.matchCode} — Notice: ${res.warnings.join(' ')}`, 6000);
+        notify(`Saved ${normalizedCode} — Notice: ${res.warnings.join(' ')}`, 6000);
       } else {
         notify(
           targetStatus === 'COMPLETED'
-            ? `${scoringMatch.matchCode} completed & standings/bracket updated!`
-            : `Updated live score for ${scoringMatch.matchCode}.`
+            ? `${normalizedCode} completed & standings/bracket updated!`
+            : targetStatus === 'LIVE'
+            ? `Updated live score for ${normalizedCode}.`
+            : `Saved changes for ${normalizedCode}.`
         );
       }
     } catch (err: any) {
@@ -396,21 +543,61 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
                 <button
                   type="button"
                   disabled={busyAction}
-                  onClick={handleGenerateSchedule}
-                  className="px-3.5 py-2 rounded-xl bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-[#38BDF8] font-bold flex items-center gap-1.5 cursor-pointer"
+                  onClick={handleGenerateGroupSchedule}
+                  title="Tạo 12 trận Vòng bảng (Pool A: PA-1..PA-6, Pool B: PB-1..PB-6)"
+                  className="px-3.5 py-2 rounded-xl bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-[#38BDF8] font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
-                  <CalendarPlus className="w-3.5 h-3.5" />
-                  <span>Generate 20-Match 2-Court Schedule</span>
+                  {seedingStep === 'GROUP' ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <CalendarPlus className="w-3.5 h-3.5" />
+                  )}
+                  <span>Generate 12-Match Group Stage</span>
                 </button>
-                <button
-                  type="button"
-                  disabled={busyAction}
-                  onClick={handleSeedKnockout}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 cursor-pointer"
-                >
-                  <GitBranch className="w-3.5 h-3.5" />
-                  <span>Seed Quarterfinals (QF1–QF4)</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={busyAction}
+                    onClick={handleSeedQuarterfinals}
+                    title="Ghép cặp 1A–4B, 2A–3B, 3A–2B, 4A–1B từ BXH Vòng bảng"
+                    className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  >
+                    {seedingStep === 'QF' ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <GitBranch className="w-3.5 h-3.5" />
+                    )}
+                    <span>1. Seed QF (QF1–QF4)</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyAction}
+                    onClick={handleSeedSemifinals}
+                    title="Lấy 4 đội thắng Tứ kết ghép cặp Win QF1 vs Win QF3 & Win QF2 vs Win QF4"
+                    className="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  >
+                    {seedingStep === 'SF' ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <GitBranch className="w-3.5 h-3.5" />
+                    )}
+                    <span>2. Seed SF (SF1–SF2)</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyAction}
+                    onClick={handleSeedFinals}
+                    title="Đẩy 2 đội thua Bán kết vào Tranh Hạng 3 và 2 đội thắng Bán kết vào Chung kết"
+                    className="px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  >
+                    {seedingStep === 'FINALS' ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trophy className="w-3.5 h-3.5" />
+                    )}
+                    <span>3. Seed Finals (3rd &amp; Final)</span>
+                  </button>
+                </div>
               </>
             )}
             <button
@@ -452,7 +639,7 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
       {tournament.matches.length === 0 ? (
         <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-10 text-center text-xs text-slate-500">
           No matches yet. Assign 4 teams to Pool A and 4 teams to Pool B, then click{' '}
-          <strong className="text-[#38BDF8]">Generate 20-Match 2-Court Schedule</strong> (or click{' '}
+          <strong className="text-[#38BDF8]">Generate 12-Match Group Stage</strong> (or click{' '}
           <strong className="text-white">+ Add Match</strong> for DVA Focus mode).
         </div>
       ) : filteredMatches.length === 0 ? (
@@ -668,11 +855,11 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
       {/* Touch-Friendly Courtside Live Scorer Modal */}
       {scoringMatch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md">
-          <div className="w-full max-w-2xl bg-[#111827] border border-[#1E293B] rounded-3xl p-5 sm:p-6 text-white space-y-4 max-h-[92vh] overflow-y-auto text-xs">
+          <div className="w-full max-w-2xl bg-[#111827] border border-[#1E293B] rounded-3xl p-5 sm:p-6 text-white space-y-4 max-h-[92vh] overflow-y-auto no-scrollbar text-xs">
             <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
               <div>
                 <h4 className="font-heading font-black text-base">
-                  Courtside Scorer · {scoringMatch.matchCode} ({scoringMatch.stage})
+                  Courtside Scorer · {editMatchCode.trim().toUpperCase() || scoringMatch.matchCode} ({scoringMatch.stage})
                 </h4>
                 <p className="text-[11px] text-slate-400">
                   Tap +1 / -1 to update live points, lock completed sets, then finish match to advance winner.
@@ -688,7 +875,32 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
             </div>
 
             {/* Meta controls */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,0.75fr)_minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.85fr)] gap-2.5">
+              <div>
+                <label className="block text-slate-400 mb-1">Match Code</label>
+                <input
+                  type="text"
+                  maxLength={30}
+                  value={editMatchCode}
+                  onChange={(e) => setEditMatchCode(e.target.value.toUpperCase())}
+                  onBlur={() => setEditMatchCode((prev) => prev.trim().toUpperCase())}
+                  placeholder="PA-1"
+                  className="w-full px-2.5 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B] font-mono font-bold text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-400 mb-1">Order</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  step={1}
+                  value={editMatchOrder}
+                  onChange={(e) => setEditMatchOrder(e.target.value)}
+                  placeholder="1"
+                  className="w-full px-2 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B] font-mono text-center text-white"
+                />
+              </div>
               <div>
                 <label className="block text-slate-400 mb-1">Status</label>
                 <select
@@ -727,11 +939,12 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
                 <label className="block text-slate-400 mb-1">Format</label>
                 <select
                   value={editFormat}
-                  onChange={(e) => setEditFormat(e.target.value as TournamentSetFormat)}
+                  onChange={(e) => handleEditFormatChange(e.target.value as TournamentSetFormat)}
                   className="w-full px-2.5 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B]"
                 >
                   <option value="BO3">BO3</option>
                   <option value="BO2">BO2</option>
+                  <option value="BO1_25">BO1 (25)</option>
                 </select>
               </div>
             </div>
@@ -793,121 +1006,185 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
             </div>
 
             {/* Set-by-Set Touch Steppers */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-white">Set Scores (Touch Steppers)</span>
-                {editSets.length < 5 && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setEditSets((prev) => [
-                        ...prev,
-                        { set: prev.length + 1, home: 0, away: 0, isCompleted: false },
-                      ])
-                    }
-                    className="px-2.5 py-1 rounded-lg bg-[#1E293B] hover:bg-slate-700 text-sky-300 font-bold cursor-pointer"
-                  >
-                    + Add Set {editSets.length + 1}
-                  </button>
-                )}
-              </div>
+            {(() => {
+              const visibleSets = editFormat === 'BO1_25' ? editSets.slice(0, 1) : editSets;
+              const maxSetsForFormat = editFormat === 'BO1_25' ? 1 : editFormat === 'BO2' ? 2 : 5;
+              const bo1Set = visibleSets[0];
+              const bo1Won =
+                editFormat === 'BO1_25' && bo1Set && isVolleyballSetWon(bo1Set.home, bo1Set.away, 25);
+              const bo1HomeWon = Boolean(bo1Set && bo1Set.home > bo1Set.away);
+              const bo1WinnerName = bo1HomeWon
+                ? editHomeLabel.trim() || teamById.get(editHomeId)?.name || 'Home'
+                : editAwayLabel.trim() || teamById.get(editAwayId)?.name || 'Away';
+              const bo1Scoreline = bo1HomeWon ? '1 - 0' : '0 - 1';
 
-              {editSets.map((s, idx) => (
-                <div
-                  key={s.set}
-                  className="p-3 rounded-2xl bg-[#0B0F19] border border-[#1E293B] flex flex-wrap items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-lg bg-[#111827] font-mono font-black text-[#F97316]">
-                      SET {s.set}
+              return (
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-white">
+                      Set Scores (Touch Steppers)
+                      {editFormat === 'BO1_25' && (
+                        <span className="ml-2 text-[10px] font-semibold text-sky-300">
+                          · 1 Set chuẩn 25 điểm (cách biệt ≥ 2, không giới hạn trần)
+                        </span>
+                      )}
                     </span>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={s.isCompleted}
-                        onChange={(e) =>
-                          setEditSets((prev) =>
-                            prev.map((item, i) =>
-                              i === idx ? { ...item, isCompleted: e.target.checked } : item
-                            )
-                          )
+                    {editFormat !== 'BO1_25' && visibleSets.length < maxSetsForFormat && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditSets((prev) => [
+                            ...prev,
+                            { set: prev.length + 1, home: 0, away: 0, isCompleted: false },
+                          ])
                         }
-                        className="accent-emerald-500 w-4 h-4"
-                      />
-                      <span>Set Final</span>
-                    </label>
+                        className="px-2.5 py-1 rounded-lg bg-[#1E293B] hover:bg-slate-700 text-sky-300 font-bold cursor-pointer"
+                      >
+                        + Add Set {visibleSets.length + 1}
+                      </button>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    {/* Home stepper */}
-                    <div className="flex items-center gap-1.5">
+                  {visibleSets.map((s, idx) => {
+                    const targetPts = getSetTargetPoints(s.set, editFormat);
+                    const setWon = isVolleyballSetWon(s.home, s.away, targetPts);
+                    const isDeuce = s.home >= targetPts - 1 && s.away >= targetPts - 1 && !setWon;
+
+                    return (
+                      <div
+                        key={s.set}
+                        className="p-3 rounded-2xl bg-[#0B0F19] border border-[#1E293B] flex flex-wrap items-center justify-between gap-3"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#111827] font-mono font-black text-[#F97316]">
+                            SET {s.set}
+                          </span>
+                          <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={s.isCompleted}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                if (checked && !setWon) {
+                                  notify(
+                                    `Set ${s.set} chưa đạt điều kiện thắng (tối thiểu ${targetPts} điểm và cách biệt >= 2 điểm).`
+                                  );
+                                  return;
+                                }
+                                setEditSets((prev) =>
+                                  prev.map((item, i) =>
+                                    i === idx ? { ...item, isCompleted: checked } : item
+                                  )
+                                );
+                              }}
+                              className="accent-emerald-500 w-4 h-4"
+                            />
+                            <span>Set Final</span>
+                          </label>
+                          {isDeuce && (
+                            <span className="px-2 py-0.5 rounded bg-amber-950/80 border border-amber-700/60 text-amber-300 text-[10px] font-bold">
+                              Deuce · Cách biệt ≥ 2
+                            </span>
+                          )}
+                          {setWon && !s.isCompleted && (
+                            <span className="px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 text-[10px] font-bold">
+                              Đủ điểm thắng ({s.home}–{s.away})
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          {/* Home stepper */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => stepPoint(idx, 'home', -1)}
+                              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <input
+                              type="number"
+                              min={0}
+                              value={s.home}
+                              onChange={(e) =>
+                                updateSetPointValue(idx, 'home', Number(e.target.value) || 0)
+                              }
+                              className="w-14 h-9 text-center font-mono font-black text-base rounded-xl bg-[#111827] border border-[#1E293B]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => stepPoint(idx, 'home', 1)}
+                              className="w-9 h-9 rounded-xl bg-[#F97316] hover:bg-orange-500 text-white flex items-center justify-center cursor-pointer"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <span className="font-black text-slate-500">:</span>
+
+                          {/* Away stepper */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => stepPoint(idx, 'away', -1)}
+                              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <input
+                              type="number"
+                              min={0}
+                              value={s.away}
+                              onChange={(e) =>
+                                updateSetPointValue(idx, 'away', Number(e.target.value) || 0)
+                              }
+                              className="w-14 h-9 text-center font-mono font-black text-base rounded-xl bg-[#111827] border border-[#1E293B]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => stepPoint(idx, 'away', 1)}
+                              className="w-9 h-9 rounded-xl bg-[#38BDF8] hover:bg-sky-400 text-slate-950 flex items-center justify-center cursor-pointer"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {bo1Won && bo1Set && (
+                    <div className="p-3 rounded-2xl bg-emerald-950/35 border border-emerald-600/50 flex flex-wrap items-center justify-between gap-2.5 text-[11px]">
+                      <div className="flex items-center gap-2 text-emerald-200">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>
+                          Set 1 đạt điều kiện thắng (<strong>{bo1Set.home}–{bo1Set.away}</strong>, cách biệt ≥ 2 điểm) ·{' '}
+                          <strong className="text-white">{bo1WinnerName}</strong> thắng{' '}
+                          <strong className="font-mono text-emerald-300">{bo1Scoreline}</strong>.
+                        </span>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => stepPoint(idx, 'home', -1)}
-                        className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer"
+                        disabled={busyAction}
+                        onClick={() => {
+                          const finalized: TournamentSetScore[] = [
+                            { ...bo1Set, set: 1, isCompleted: true },
+                          ];
+                          setEditSets(finalized);
+                          setEditStatus('COMPLETED');
+                          void saveScore('COMPLETED', finalized);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0"
                       >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <input
-                        type="number"
-                        min={0}
-                        max={99}
-                        value={s.home}
-                        onChange={(e) =>
-                          setEditSets((prev) =>
-                            prev.map((item, i) =>
-                              i === idx ? { ...item, home: Math.max(0, Number(e.target.value) || 0) } : item
-                            )
-                          )
-                        }
-                        className="w-12 h-9 text-center font-mono font-black text-base rounded-xl bg-[#111827] border border-[#1E293B]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => stepPoint(idx, 'home', 1)}
-                        className="w-9 h-9 rounded-xl bg-[#F97316] hover:bg-orange-500 text-white flex items-center justify-center cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Hoàn tất Set 1 &amp; Chốt trận ({bo1Scoreline})</span>
                       </button>
                     </div>
-
-                    <span className="font-black text-slate-500">:</span>
-
-                    {/* Away stepper */}
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => stepPoint(idx, 'away', -1)}
-                        className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center cursor-pointer"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <input
-                        type="number"
-                        min={0}
-                        max={99}
-                        value={s.away}
-                        onChange={(e) =>
-                          setEditSets((prev) =>
-                            prev.map((item, i) =>
-                              i === idx ? { ...item, away: Math.max(0, Number(e.target.value) || 0) } : item
-                            )
-                          )
-                        }
-                        className="w-12 h-9 text-center font-mono font-black text-base rounded-xl bg-[#111827] border border-[#1E293B]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => stepPoint(idx, 'away', 1)}
-                        className="w-9 h-9 rounded-xl bg-[#38BDF8] hover:bg-sky-400 text-slate-950 flex items-center justify-center cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
 
             {/* Courtside Matchday Check-in Roster (Verified Eligible Athletes Only) */}
             {(editHomeId || editAwayId) && (
@@ -965,7 +1242,7 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
                               <span>No VERIFIED athletes found yet. Review roster in Teams tab.</span>
                             </p>
                           ) : (
-                            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto no-scrollbar pr-1">
                               {verified.map((pl) => (
                                 <span
                                   key={pl.id}
@@ -1011,6 +1288,14 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
                 className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold cursor-pointer"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busyAction}
+                onClick={() => saveScore()}
+                className="px-4 py-2.5 rounded-xl bg-[#F97316] hover:bg-orange-500 text-white font-bold cursor-pointer"
+              >
+                Save
               </button>
               <button
                 type="button"

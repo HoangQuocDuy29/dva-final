@@ -39,7 +39,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
       <form
         onSubmit={onSubmit}
-        className="w-[95%] sm:w-full max-w-md bg-[#0F1727] border border-slate-700 rounded-2xl sm:rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-[95%] sm:w-full max-w-md bg-[#0F1727] border border-slate-700 rounded-2xl sm:rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar"
       >
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h3 className="text-base font-black text-white">Tạo Tài Khoản Mới</h3>

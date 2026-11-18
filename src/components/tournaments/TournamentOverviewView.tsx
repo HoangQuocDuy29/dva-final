@@ -279,7 +279,13 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
                   {t(`status.${tournament.status}`)}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0B0F19] border border-[#1E293B] text-slate-300">
-                  {tournament.groupSetFormat} Group · {tournament.knockoutSetFormat} Knockout
+                  {tournament.groupSetFormat === 'BO1_25'
+                    ? `${t('rules.quick.groupPrefix')}: ${t('rules.quick.bo1Desc')}`
+                    : `${tournament.groupSetFormat} ${t('rules.quick.groupPrefix')}`}{' '}
+                  ·{' '}
+                  {tournament.knockoutSetFormat === 'BO1_25'
+                    ? `${t('rules.quick.knockoutPrefix')}: ${t('rules.quick.bo1Desc')}`
+                    : `${tournament.knockoutSetFormat} ${t('rules.quick.knockoutPrefix')}`}
                 </span>
               </div>
 

@@ -363,7 +363,7 @@ export const APPLICATION_ENTRY_FEE_SCHEMA: Schema = {
 export const TOURNAMENT_MODES = ['HOSTED', 'PARTICIPATING'] as const;
 export const TOURNAMENT_TRACKING_MODES = ['FULL_BRACKET', 'DVA_FOCUS'] as const;
 export const TOURNAMENT_STATUSES = ['UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED'] as const;
-export const TOURNAMENT_SET_FORMATS = ['BO3', 'BO2'] as const;
+export const TOURNAMENT_SET_FORMATS = ['BO3', 'BO2', 'BO1_25'] as const;
 export const MATCH_STAGES = ['GROUP', 'POOL_A', 'POOL_B', 'QUARTERFINAL', 'SEMIFINAL', 'THIRD_PLACE', 'FINAL'] as const;
 export const MATCH_STATUSES = ['SCHEDULED', 'LIVE', 'COMPLETED', 'CANCELLED'] as const;
 export const OFFICIAL_ROLES = ['MAIN_REFEREE', 'LINE_JUDGE', 'SCORER', 'SUPERVISOR'] as const;
@@ -575,7 +575,7 @@ export const TOURNAMENT_MATCH_SCHEMA: Schema = {
   bracketSide: S(20),
   courtName: S(40),
   scheduledTime: S(20),
-  matchOrder: I(0, 200),
+  matchOrder: I(0, 999),
   status: E(MATCH_STATUSES),
   setFormat: E(TOURNAMENT_SET_FORMATS),
   homeTeamId: S(80),
@@ -594,14 +594,16 @@ const SET_SCORES_RULE: Rule = (v, k) => {
     const s = item as Record<string, unknown>;
     return {
       set: I(1, 5)(s.set ?? idx + 1, `${k}[${idx}].set`),
-      home: I(0, 99)(s.home ?? 0, `${k}[${idx}].home`),
-      away: I(0, 99)(s.away ?? 0, `${k}[${idx}].away`),
+      home: I(0, 999)(s.home ?? 0, `${k}[${idx}].home`),
+      away: I(0, 999)(s.away ?? 0, `${k}[${idx}].away`),
       isCompleted: Boolean(s.isCompleted),
     };
   });
 };
 
 export const TOURNAMENT_MATCH_SCORE_SCHEMA: Schema = {
+  matchCode: S(30, 1),
+  matchOrder: I(0, 999),
   status: E(MATCH_STATUSES),
   courtName: S(40),
   scheduledTime: S(20),

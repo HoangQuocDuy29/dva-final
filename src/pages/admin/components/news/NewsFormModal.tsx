@@ -58,7 +58,7 @@ export const NewsFormModal: React.FC<NewsFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-      <div className="w-[95%] sm:w-full max-w-xl md:max-w-2xl bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-700 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
+      <div className="w-[95%] sm:w-full max-w-xl md:max-w-2xl bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-700 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
         <div className="flex justify-between items-center border-b border-slate-800 pb-3">
           <div>
             <h3 className="font-heading font-black text-lg text-white">

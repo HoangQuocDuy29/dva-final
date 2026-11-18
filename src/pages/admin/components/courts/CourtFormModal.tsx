@@ -71,7 +71,7 @@ export const CourtFormModal: React.FC<CourtFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
-      <div className="w-[95%] sm:w-full max-w-2xl md:max-w-3xl bg-[#0F1623] border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+      <div className="w-[95%] sm:w-full max-w-2xl md:max-w-3xl bg-[#0F1623] border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto no-scrollbar">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div>
             <h3 className="text-lg font-black text-white">

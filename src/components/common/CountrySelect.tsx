@@ -197,7 +197,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
             ref={listRef}
             role="listbox"
             tabIndex={-1}
-            className="max-h-64 overflow-y-auto divide-y divide-slate-800/40 overscroll-contain"
+            className="max-h-64 overflow-y-auto no-scrollbar divide-y divide-slate-800/40 overscroll-contain"
           >
             {filteredCountries.length === 0 ? (
               <div className="p-5 text-center text-xs text-slate-400 space-y-1">

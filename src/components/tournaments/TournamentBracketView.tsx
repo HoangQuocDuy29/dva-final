@@ -549,7 +549,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
             <span>{t('bracket.knockoutTitle')}</span>
           </h3>
 
-          <div className="rounded-3xl border border-[#1E293B] bg-[#0B0F19] p-4 sm:p-6 overflow-x-auto">
+          <div className="rounded-3xl border border-[#1E293B] bg-[#0B0F19] p-4 sm:p-6 overflow-x-auto no-scrollbar">
             <div className="min-w-[920px] grid grid-cols-5 gap-4 items-center">
               {/* Col 1: Left Wing QF1 & QF3 */}
               <div className="space-y-6">

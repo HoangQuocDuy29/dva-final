@@ -254,6 +254,30 @@ export function resolveDefaultTournament<T extends Pick<Tournament, 'status' | '
   return visible[0];
 }
 
+/** Target points to win a volleyball set: 15 pts for BO3 deciding Set 3+, 25 pts otherwise. */
+export function getSetTargetPoints(
+  setNumber: number,
+  setFormat: TournamentSetFormat | string
+): number {
+  const format = String(setFormat || 'BO3').toUpperCase();
+  if (format === 'BO3' && setNumber >= 3) return 15;
+  return 25;
+}
+
+/**
+ * Standard volleyball win-by-2 check (no upper point ceiling):
+ * A team wins the set once `Math.max(homePts, awayPts) >= targetPoints` AND `Math.abs(homePts - awayPts) >= 2`.
+ */
+export function isVolleyballSetWon(
+  homePts: number,
+  awayPts: number,
+  targetPoints: number = 25
+): boolean {
+  const h = Math.max(0, Number(homePts) || 0);
+  const a = Math.max(0, Number(awayPts) || 0);
+  return Math.max(h, a) >= targetPoints && Math.abs(h - a) >= 2;
+}
+
 /** Normalize raw JSON setScores array into typed TournamentSetScore[]. */
 export function normalizeSetScores(raw: unknown): TournamentSetScore[] {
   if (!Array.isArray(raw)) return [];
@@ -262,8 +286,8 @@ export function normalizeSetScores(raw: unknown): TournamentSetScore[] {
       if (!item || typeof item !== 'object') return null;
       const obj = item as Record<string, unknown>;
       const setNum = Math.max(1, Math.min(5, Math.round(Number(obj.set) || idx + 1)));
-      const home = Math.max(0, Math.min(99, Math.round(Number(obj.home) || 0)));
-      const away = Math.max(0, Math.min(99, Math.round(Number(obj.away) || 0)));
+      const home = Math.max(0, Math.min(999, Math.round(Number(obj.home) || 0)));
+      const away = Math.max(0, Math.min(999, Math.round(Number(obj.away) || 0)));
       const isCompleted = Boolean(obj.isCompleted);
       return { set: setNum, home, away, isCompleted };
     })
@@ -273,7 +297,8 @@ export function normalizeSetScores(raw: unknown): TournamentSetScore[] {
 
 /**
  * Compute match sets won, total points, and winnerTeamId from setScores.
- * Only sets marked `isCompleted === true` count toward `homeSetsWon` / `awaySetsWon`.
+ * Only sets marked `isCompleted === true` (or Set 1 of a COMPLETED BO1_25 match)
+ * that satisfy the win-by-2 target (25 pts, or 15 pts for BO3 Set 3) count toward sets won.
  */
 export function computeSetTotals(
   rawScores: unknown,
@@ -290,7 +315,19 @@ export function computeSetTotals(
   winnerSide: 'HOME' | 'AWAY' | null;
   winnerTeamId: string | null;
 } {
-  const setScores = normalizeSetScores(rawScores);
+  const format = String(setFormat || 'BO3').toUpperCase();
+  const normalized = normalizeSetScores(rawScores);
+  const setScores = (format === 'BO1_25' ? normalized.slice(0, 1) : normalized).map((s) => {
+    if (
+      format === 'BO1_25' &&
+      matchStatus === 'COMPLETED' &&
+      isVolleyballSetWon(s.home, s.away, getSetTargetPoints(s.set, format))
+    ) {
+      return { ...s, isCompleted: true };
+    }
+    return s;
+  });
+
   let homeSetsWon = 0;
   let awaySetsWon = 0;
   let homePointsTotal = 0;
@@ -299,15 +336,18 @@ export function computeSetTotals(
   for (const s of setScores) {
     homePointsTotal += s.home;
     awayPointsTotal += s.away;
-    if (s.isCompleted && s.home !== s.away) {
+    const target = getSetTargetPoints(s.set, format);
+    if (s.isCompleted && isVolleyballSetWon(s.home, s.away, target)) {
       if (s.home > s.away) homeSetsWon += 1;
       else awaySetsWon += 1;
     }
   }
 
   let winnerSide: 'HOME' | 'AWAY' | null = null;
-  const format = String(setFormat || 'BO3').toUpperCase();
-  if (format === 'BO2') {
+  if (format === 'BO1_25') {
+    if (homeSetsWon >= 1 && homeSetsWon > awaySetsWon) winnerSide = 'HOME';
+    else if (awaySetsWon >= 1 && awaySetsWon > homeSetsWon) winnerSide = 'AWAY';
+  } else if (format === 'BO2') {
     if (homeSetsWon === 2 && awaySetsWon === 0) winnerSide = 'HOME';
     else if (awaySetsWon === 2 && homeSetsWon === 0) winnerSide = 'AWAY';
     else if (matchStatus === 'COMPLETED' && homeSetsWon !== awaySetsWon) {
@@ -421,22 +461,36 @@ export function computePoolStandings(
     const away = statsMap.get(m.awayTeamId);
     if (!home || !away) continue;
 
+    const format = String(m.setFormat || 'BO3').toUpperCase();
+    const derived =
+      format === 'BO1_25' &&
+      m.homeSetsWon + m.awaySetsWon === 0 &&
+      Array.isArray(m.setScores) &&
+      m.setScores.length > 0
+        ? computeSetTotals(m.setScores, 'BO1_25', m.homeTeamId, m.awayTeamId, m.status)
+        : null;
+
+    const effHomeSets = derived ? derived.homeSetsWon : m.homeSetsWon;
+    const effAwaySets = derived ? derived.awaySetsWon : m.awaySetsWon;
+    const effHomePts = derived ? derived.homePointsTotal : m.homePointsTotal;
+    const effAwayPts = derived ? derived.awayPointsTotal : m.awayPointsTotal;
+    const effWinnerId = derived ? derived.winnerTeamId : m.winnerTeamId;
+
     home.played += 1;
     away.played += 1;
 
-    home.setsWon += m.homeSetsWon;
-    home.setsLost += m.awaySetsWon;
-    away.setsWon += m.awaySetsWon;
-    away.setsLost += m.homeSetsWon;
+    home.setsWon += effHomeSets;
+    home.setsLost += effAwaySets;
+    away.setsWon += effAwaySets;
+    away.setsLost += effHomeSets;
 
-    home.pointsFor += m.homePointsTotal;
-    home.pointsAgainst += m.awayPointsTotal;
-    away.pointsFor += m.awayPointsTotal;
-    away.pointsAgainst += m.homePointsTotal;
+    home.pointsFor += effHomePts;
+    home.pointsAgainst += effAwayPts;
+    away.pointsFor += effAwayPts;
+    away.pointsAgainst += effHomePts;
 
-    const format = String(m.setFormat || 'BO3').toUpperCase();
     const isDraw =
-      format === 'BO2' && m.homeSetsWon === m.awaySetsWon && !m.winnerTeamId;
+      format === 'BO2' && effHomeSets === effAwaySets && !effWinnerId;
 
     if (isDraw) {
       home.draws += 1;
@@ -445,15 +499,15 @@ export function computePoolStandings(
       away.fivbPoints += 1;
     } else {
       const homeWon =
-        m.winnerTeamId === home.teamId ||
-        (!m.winnerTeamId && m.homeSetsWon > m.awaySetsWon);
+        effWinnerId === home.teamId ||
+        (!effWinnerId && effHomeSets > effAwaySets);
       if (homeWon) {
         home.wins += 1;
         away.losses += 1;
-        if (format === 'BO2') {
+        if (format === 'BO1_25' || format === 'BO2') {
           home.fivbPoints += 3;
         } else {
-          const isSweep = m.awaySetsWon === 0;
+          const isSweep = effAwaySets === 0;
           home.fivbPoints += isSweep ? 3 : 2;
           away.fivbPoints += isSweep ? 0 : 1;
         }
@@ -461,10 +515,10 @@ export function computePoolStandings(
       } else {
         away.wins += 1;
         home.losses += 1;
-        if (format === 'BO2') {
+        if (format === 'BO1_25' || format === 'BO2') {
           away.fivbPoints += 3;
         } else {
-          const isSweep = m.homeSetsWon === 0;
+          const isSweep = effHomeSets === 0;
           away.fivbPoints += isSweep ? 3 : 2;
           home.fivbPoints += isSweep ? 0 : 1;
         }
@@ -564,17 +618,14 @@ export interface GeneratedMatchTemplate {
 }
 
 /**
- * Generates the balanced 20-match 1-day schedule across 2 parallel courts:
- * - Pool A (6 matches) & Pool B (6 matches) interleaved so every team rests between matches
- * - QF1 (1A vs 4B), QF3 (3A vs 2B) -> Left Wing -> SF1
- * - QF2 (2A vs 3B), QF4 (4A vs 1B) -> Right Wing -> SF2
- * - 3RD (Loser SF1 vs Loser SF2) & FINAL (Winner SF1 vs Winner SF2) -> Center
+ * Generates the balanced 12-match Group Stage schedule across 2 parallel courts (Court A & Court B):
+ * - Pool A (PA-1..PA-6) & Pool B (PB-1..PB-6) interleaved so no team plays two consecutive matches without rest.
+ * - Knockout matches (QF, SF, 3RD, FINAL) are seeded separately via Admin bracket actions.
  */
-export function buildStandard20MatchPlan(
+export function buildGroupStage12MatchPlan(
   poolATeams: TournamentTeam[],
   poolBTeams: TournamentTeam[],
-  groupSetFormat: TournamentSetFormat = 'BO3',
-  knockoutSetFormat: TournamentSetFormat = 'BO3'
+  groupSetFormat: TournamentSetFormat = 'BO3'
 ): GeneratedMatchTemplate[] {
   const a = [...poolATeams].sort((x, y) => x.seedOrder - y.seedOrder);
   const b = [...poolBTeams].sort((x, y) => x.seedOrder - y.seedOrder);
@@ -583,7 +634,7 @@ export function buildStandard20MatchPlan(
     arr[idx]?.name || `${prefix}${idx + 1}`;
   const idOrNull = (arr: TournamentTeam[], idx: number) => arr[idx]?.id ?? null;
 
-  const matches: GeneratedMatchTemplate[] = [
+  return [
     // Round 1 Pool A (08:00)
     {
       matchCode: 'PA-1',
@@ -746,6 +797,20 @@ export function buildStandard20MatchPlan(
       homeLabel: labelOrSeed(b, 2, 'B'),
       awayLabel: labelOrSeed(b, 3, 'B'),
     },
+  ];
+}
+
+/**
+ * Generates the balanced 20-match 1-day schedule (12 group matches + 8 knockout placeholders).
+ */
+export function buildStandard20MatchPlan(
+  poolATeams: TournamentTeam[],
+  poolBTeams: TournamentTeam[],
+  groupSetFormat: TournamentSetFormat = 'BO3',
+  knockoutSetFormat: TournamentSetFormat = 'BO3'
+): GeneratedMatchTemplate[] {
+  const matches: GeneratedMatchTemplate[] = [
+    ...buildGroupStage12MatchPlan(poolATeams, poolBTeams, groupSetFormat),
     // Quarterfinals (Afternoon)
     {
       matchCode: 'QF1',
@@ -1033,15 +1098,35 @@ export function resolveTournamentPodiumTeams(
 }
 
 /**
- * Normalize legacy `"Court 1"` / `"Court 2"` court labels to `"Court A"` / `"Court B"`.
+ * Normalize legacy `"Court 1"` / `"Court 2"` and spacing/casing variants to `"Court A"` / `"Court B"`.
  */
 export function normalizeTournamentCourtName(
   raw?: string | null
 ): 'Court A' | 'Court B' | string {
-  const trimmed = (raw || '').trim();
-  if (!trimmed || trimmed === 'Court 1') return 'Court A';
-  if (trimmed === 'Court 2') return 'Court B';
-  return trimmed;
+  const collapsed = (raw || '').trim().replace(/\s+/g, ' ');
+  if (!collapsed) return 'Court A';
+  const lower = collapsed.toLowerCase();
+  if (
+    lower === 'court a' ||
+    lower === 'court 1' ||
+    lower === 'sân a' ||
+    lower === 'sân 1' ||
+    lower === 'san a' ||
+    lower === 'san 1'
+  ) {
+    return 'Court A';
+  }
+  if (
+    lower === 'court b' ||
+    lower === 'court 2' ||
+    lower === 'sân b' ||
+    lower === 'sân 2' ||
+    lower === 'san b' ||
+    lower === 'san 2'
+  ) {
+    return 'Court B';
+  }
+  return collapsed;
 }
 
 export type TournamentCourtFilter = 'ALL' | 'Court A' | 'Court B';

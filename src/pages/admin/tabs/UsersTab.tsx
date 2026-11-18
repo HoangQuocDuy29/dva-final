@@ -56,7 +56,7 @@ export const UsersTab: React.FC = () => {
         </button>
       </div>
 
-      <div className="overflow-x-auto scrollbar-thin">
+      <div className="overflow-x-auto no-scrollbar">
         <table className="w-full min-w-[560px] text-xs text-left">
           <thead className="text-slate-400 uppercase text-[10px] border-b border-slate-800">
             <tr>

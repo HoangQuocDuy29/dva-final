@@ -137,10 +137,12 @@
       "setRulesLabel": "Set Scoring Format",
       "bo3Desc": "BO3 — Sets 1 & 2 to 25 pts, Deciding Set 3 to 15 pts",
       "bo2Desc": "BO2 — 2 Fixed Sets to 25 pts (1-1 Draw possible in Pool)",
+      "bo1Desc": "1 Set (25 pts, win by 2)",
       "groupPrefix": "Group",
       "knockoutPrefix": "Knockout",
       "fivbLabel": "FIVB Standings Points",
       "fivbLines": "2-0 Win (+3 pts) · 2-1 Win (+2 pts) · 1-2 Loss (+1 pt) · 0-2 Loss (0 pts)",
+      "fivbBo1Lines": "BO1 (25 pts): Win (+3 pts) · Loss (0 pts) · Set & Point Ratio tie-break",
       "fivbBo2Note": "BO2 1-1 Draw (+1 pt each)",
       "tieBreakLabel": "Tie-Breaker Hierarchy",
       "tieStep1": "1. Wins (W)",
@@ -169,11 +171,98 @@
       "checkinTitle": "Check-in Window",
       "checkinDesc": "Captains & full squads check in at the court desk at least 30 minutes before kick-off{{time}}.",
       "uniformTitle": "Uniforms & Numbers",
-      "uniformDesc": "Matching team jerseys with clear numbers (1–99). Libero must wear a distinct contrasting jersey.",
+      "uniformDesc": "Matching uniforms are optional for grassroots play; clear jersey numbers (1–99) and contrasting Libero tops are recommended.",
       "rosterTitle": "Squad Roster (7–10 Players)",
       "rosterDesc": "Recommended 7–10 active matchday athletes (6–14 max registered on portal), locked before kickoff.",
       "protestTitle": "Refereeing & Protests",
       "protestDesc": "Only the Team Captain may respectfully query calls; 1st Referee & Organizing Committee decisions are final."
+    },
+    "fivb": {
+      "sectionTitle": "FIVB Volleyball Rules & Recent Updates",
+      "badge": "FIVB Official Rules",
+      "rule1Title": "1. Anti-Screening Rule on Service (Updated)",
+      "rule1Desc": "Serving team players must NOT raise their hands above the head, jump, or move laterally to screen the receiving players' view of the server and the flight path of the ball.",
+      "rule2Title": "2. Ceiling Contact Rule",
+      "rule2Desc": "If the ball contacts the ceiling or overhead obstruction and drops back onto the same touching team's court while they still have remaining hits (1st or 2nd contact), play continues with no fault. If it crosses onto the opponent's side after hitting the ceiling, it is a fault.",
+      "rule3Title": "3. Net, Center Line & Libero",
+      "rule3Desc": "Touching the top white band of the net or antennas is a fault; stepping on the center line is allowed as long as part of the foot remains on or above the line without interfering with the opponent; the Libero may not serve, block, or complete an attack hit entirely above the top of the net.",
+      "ctaLabel": "Read Official FIVB Volleyball Rules"
+    },
+    "eligibility": {
+      "sectionTitle": "Amateur Eligibility Rules (Local Rules)",
+      "badge": "Roster Screening",
+      "notAllowedTitle": "Ineligible Participants (Strictly NOT Permitted):",
+      "notAllowed1": "Full-time students majoring in volleyball at Sports Universities or Physical Education Colleges (TDTT).",
+      "notAllowed2": "Professional or semi-professional athletes, as well as athletes rostered in national youth, talent academies, or provincial/ministerial teams competing in national leagues.",
+      "captainNote": "The Team Captain bears full responsibility for the accuracy and integrity of the registered squad roster."
+    },
+    "spectator": {
+      "title": "Venue Entry & Spectator Ticket Policy",
+      "badge": "Gymnasium Gate",
+      "feeLabel": "Spectator / Supporter Entry Fee:",
+      "feeValue": "30,000 VND / person",
+      "feeNote": "(collected at the gymnasium entry gate).",
+      "freeLabel": "Free Admission:",
+      "freeValue": "100% Free entry for officially registered Athletes and Coaches listed on participating team rosters."
+    },
+    "discipline": {
+      "title": "IX. Discipline & Protests",
+      "part1Title": "1. General Disciplinary Principles:",
+      "p1_1Label": "1.1. Respect for Rules & Referees:",
+      "p1_1Desc": "All athletes, coaches, and team members must strictly follow the rules of play and instructions of match officials.",
+      "p1_2Label": "1.2. Sportsmanship & Non-Provocation:",
+      "p1_2Item1": "Any verbal abuse, insults, or threats directed toward opponents, referees, the Organizing Committee, or spectators are strictly prohibited.",
+      "p1_2Item2": "Teams, individuals, and supporters affiliated with a team who violate tournament regulations, rules of play, or engage in disruptive behavior affecting the event will face appropriate disciplinary sanctions.",
+      "part2Title": "2. Violations & Disciplinary Penalties:",
+      "colNo": "No.",
+      "colViolation": "Violation",
+      "colPenalty": "Disciplinary Penalty",
+      "rows": [
+        { "no": "1", "violation": "Leaving the court without permission", "penalty": "Official warning or disqualification from the match" },
+        { "no": "2", "violation": "Insulting referees (verbal or gesture)", "penalty": "1-match suspension" },
+        { "no": "3", "violation": "Physical altercation or fighting between players", "penalty": "Expulsion from the tournament" },
+        { "no": "4", "violation": "Failure to follow substitution procedures", "penalty": "Official warning and written incident report" },
+        { "no": "5", "violation": "Intentional delay of game", "penalty": "Point deduction, 0-2 forfeit, expulsion on repeat offense" },
+        { "no": "6", "violation": "Fielding an ineligible player", "penalty": "Match forfeit and disqualification of the team" },
+        { "no": "7", "violation": "Falsifying player identity or registration records", "penalty": "Ban from current and next tournament editions" }
+      ],
+      "part3Title": "3. Protest Procedure & Resolution:",
+      "p3Item1": "Protests must be submitted via Email within 15 minutes after the conclusion of the match.",
+      "p3Item2Prefix": "Email subject:",
+      "p3EmailSubject": "[Team …] – PROTEST",
+      "p3Item2Mid": "sent to",
+      "p3Email": "dvavolleyballclub@gmail.com",
+      "copyEmail": "Copy Email",
+      "copiedEmail": "Copied!",
+      "sendEmail": "Send Protest Email",
+      "p3Item3": "The Organizing Committee only accepts protests from the official Team Captain.",
+      "p3Item4": "Teams must submit a protest fee of 200,000 VND (Two hundred thousand VND) per eligibility protest case along with verifiable evidence against the protested team. If the protest is upheld, the fee is refunded; if rejected, the fee is added to the organizing fund.",
+      "p3Item5": "All decisions of the Organizing Committee are final."
+    },
+    "sectionX": {
+      "title": "X. Match Officiating",
+      "desc": "Participating teams do not need to provide cross-court line judges or referees. The Organizing Committee assigns the full officiating crew."
+    },
+    "sectionXI": {
+      "title": "XI. Other Regulations",
+      "desc": "Only the Organizing Committee reserves the right to amend or supplement these regulations if necessary. For matters not covered herein, the Organizing Committee's decision is final."
+    },
+    "sectionXII": {
+      "title": "XII. Logistics & Venue Requirements",
+      "items": [
+        "Matching team uniforms are not mandatory.",
+        "The Organizing Committee provides 1 case of bottled water per team.",
+        "Teams are responsible for safeguarding personal belongings and preserving gymnasium facilities (proper court shoes, training/match equipment, venue property) and must not enter restricted areas outside the designated competition zone.",
+        "Teams arrange their own transportation and other personal/team expenses.",
+        "Each team is advised to bring its own club volleyballs for warm-up and safeguard them.",
+        "Teams are encouraged to minimize vehicles (ideally 2 riders per motorbike; venue parking ticket is 5,000 VND/vehicle)."
+      ]
+    },
+    "signoff": {
+      "regards": "Best regards,",
+      "committee": "ORGANIZING COMMITTEE",
+      "name": "Quốc Duy",
+      "club": "DVA Volleyball Club"
     }
   },
   "officials": {

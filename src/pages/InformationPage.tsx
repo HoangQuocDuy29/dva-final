@@ -283,7 +283,7 @@ export const InformationPage: React.FC = () => {
 
           {/* Desktop & Tablet Table View (>= 768px: hidden md:block) with independent scroll indicator */}
           <div className="hidden md:block border border-slate-800 rounded-3xl overflow-hidden bg-[#161F30] shadow-xl">
-            <div className="overflow-x-auto scrollbar-thin">
+            <div className="overflow-x-auto no-scrollbar">
               <table className="w-full min-w-[620px] text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-[#0E1524] text-white font-bold border-b border-slate-800">

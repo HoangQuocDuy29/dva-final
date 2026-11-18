@@ -1394,7 +1394,7 @@ export const ShopPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-6">
+            <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Images */}
                 <div className="space-y-3">
@@ -1633,7 +1633,7 @@ export const ShopPage: React.FC = () => {
             </div>
 
             {/* Zoom Image Canvas */}
-            <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-[#05070C]">
+            <div className="flex-1 overflow-auto no-scrollbar p-4 flex items-center justify-center bg-[#05070C]">
               <div
                 style={{
                   transform: `scale(${zoomLightbox.zoomLevel})`,
@@ -1683,7 +1683,7 @@ export const ShopPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-6">
+            <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
               <div className="rounded-2xl border border-slate-800 overflow-hidden">
                 <table className="w-full text-left text-xs text-slate-300">
                   <thead className="bg-[#161F30] text-slate-200 uppercase font-black tracking-wider text-[11px] border-b border-slate-800">
@@ -1771,7 +1771,7 @@ export const ShopPage: React.FC = () => {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-6">
+            <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
               {checkoutStep === 'FORM' && (
                 <form onSubmit={handleCreateOrderSubmit} className="space-y-6">
                   {/* Product Summary Strip */}

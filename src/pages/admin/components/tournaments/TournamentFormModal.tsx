@@ -241,7 +241,7 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
-      <div className="w-full max-w-3xl bg-[#111827] border border-[#1E293B] rounded-3xl shadow-2xl text-white max-h-[92vh] overflow-y-auto">
+      <div className="w-full max-w-3xl bg-[#111827] border border-[#1E293B] rounded-3xl shadow-2xl text-white max-h-[92vh] overflow-y-auto no-scrollbar">
         <div className="sticky top-0 z-10 bg-[#111827]/95 backdrop-blur px-6 py-4 border-b border-[#1E293B] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Trophy className="w-5 h-5 text-[#F97316]" />
@@ -464,8 +464,9 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
                 onChange={(e) => setGroupSetFormat(e.target.value as TournamentSetFormat)}
                 className="w-full px-3 py-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
               >
-                <option value="BO3">BO3 (Best of 3)</option>
-                <option value="BO2">BO2 (2 Sets)</option>
+                <option value="BO3">BO3 (Best of 3: 25-25-15)</option>
+                <option value="BO2">BO2 (2 Sets: 25-25)</option>
+                <option value="BO1_25">1 Set (25 pts, win by 2) — Đấu 1 set 25 điểm, cách biệt 2 điểm</option>
               </select>
             </div>
             <div>
@@ -475,8 +476,9 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
                 onChange={(e) => setKnockoutSetFormat(e.target.value as TournamentSetFormat)}
                 className="w-full px-3 py-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
               >
-                <option value="BO3">BO3 (Best of 3)</option>
-                <option value="BO2">BO2 (2 Sets)</option>
+                <option value="BO3">BO3 (Best of 3: 25-25-15)</option>
+                <option value="BO2">BO2 (2 Sets: 25-25)</option>
+                <option value="BO1_25">1 Set (25 pts, win by 2) — Đấu 1 set 25 điểm, cách biệt 2 điểm</option>
               </select>
             </div>
             <div>

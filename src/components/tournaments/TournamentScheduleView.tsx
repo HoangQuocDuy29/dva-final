@@ -71,14 +71,16 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
   );
 
   const filteredMatches = useMemo(() => {
-    return tournament.matches.filter((m) => {
-      if (!matchesStageFilter(m.stage, stageFilter)) return false;
-      if (!matchesTournamentCourtFilter(m.courtName, courtFilter)) return false;
-      if (teamFilter !== 'ALL' && m.homeTeamId !== teamFilter && m.awayTeamId !== teamFilter) {
-        return false;
-      }
-      return true;
-    });
+    return tournament.matches
+      .filter((m) => {
+        if (!matchesStageFilter(m.stage, stageFilter)) return false;
+        if (!matchesTournamentCourtFilter(m.courtName, courtFilter)) return false;
+        if (teamFilter !== 'ALL' && m.homeTeamId !== teamFilter && m.awayTeamId !== teamFilter) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (a.matchOrder ?? 0) - (b.matchOrder ?? 0));
   }, [tournament.matches, stageFilter, courtFilter, teamFilter]);
 
   if (tournament.matches.length === 0) {

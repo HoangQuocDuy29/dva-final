@@ -562,7 +562,7 @@ export interface StoreOrderCreatePayload {
 export type TournamentMode = 'HOSTED' | 'PARTICIPATING';
 export type TournamentTrackingMode = 'FULL_BRACKET' | 'DVA_FOCUS';
 export type TournamentStatus = 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
-export type TournamentSetFormat = 'BO3' | 'BO2';
+export type TournamentSetFormat = 'BO3' | 'BO2' | 'BO1_25';
 
 export type TournamentMatchStage =
   | 'GROUP'

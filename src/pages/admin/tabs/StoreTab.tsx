@@ -695,7 +695,7 @@ export const StoreTab: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto no-scrollbar">
                 <table className="w-full min-w-[960px] text-xs text-left border-collapse">
                   <thead>
                     <tr className="bg-[#0B0F19] text-slate-400 font-bold border-b border-[#1E293B]">
@@ -995,7 +995,7 @@ export const StoreTab: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto no-scrollbar">
                 <table className="w-full min-w-[760px] text-xs text-left border-collapse">
                   <thead>
                     <tr className="bg-[#0B0F19] text-slate-400 font-bold border-b border-[#1E293B]">
@@ -1196,7 +1196,7 @@ export const StoreTab: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveProduct} className="p-6 overflow-y-auto space-y-4 text-xs">
+            <form onSubmit={handleSaveProduct} className="p-6 overflow-y-auto no-scrollbar space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slate-300 mb-1">Product Name *</label>
@@ -1544,8 +1544,8 @@ export const StoreTab: React.FC = () => {
 
       {/* Stage 2 Dedicated Dispatch Email Preview Modal */}
       {dispatchModalOrder && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#0B111E] border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-6 relative max-h-[92vh] overflow-y-auto my-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
+          <div className="bg-[#0B111E] border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-6 relative max-h-[92vh] overflow-y-auto no-scrollbar my-auto">
             {/* Header */}
             <div className="flex items-start justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">

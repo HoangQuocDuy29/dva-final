@@ -67,13 +67,16 @@ import {
   rangesOverlap,
   toMinutes,
 } from './src/shared/schedule';
+import type { TournamentSetFormat } from './src/types';
 import {
   DREAM_TEAM_AWARD_CODES,
   DREAM_TEAM_SLOTS,
-  buildStandard20MatchPlan,
+  buildGroupStage12MatchPlan,
   computeCrossPoolQuarterfinalPairings,
   computePoolStandings,
   computeSetTotals,
+  getSetTargetPoints,
+  isVolleyballSetWon,
   normalizeTournamentCourtName,
   slugifyTournamentName,
 } from './src/shared/tournaments';
@@ -4200,24 +4203,52 @@ app.put('/api/tournaments/:id', ah(async (req, res) => {
     nextSlug = await generateUniqueTournamentSlug(data.slug, id);
   }
 
-  const updated = await prisma.tournament.update({
-    where: { id },
-    data: {
-      ...data,
-      ...(nextSlug ? { slug: nextSlug } : {}),
-      ...(nextMode === 'PARTICIPATING'
-        ? { entryFeePerTeam: 0, isRegistrationOpen: false }
-        : data.mode === 'HOSTED'
-        ? { trackingMode: 'FULL_BRACKET' }
-        : {}),
-      ...(req.body?.registrationDeadline === null || req.body?.registrationDeadline === ''
-        ? { registrationDeadline: null }
-        : {}),
-      ...(req.body?.startTime === null || req.body?.startTime === '' ? { startTime: null } : {}),
-      ...(req.body?.endTime === null || req.body?.endTime === '' ? { endTime: null } : {}),
-      ...(req.body?.podiumOverride === null ? { podiumOverride: null as any } : {}),
-    },
-    include: TOURNAMENT_FULL_INCLUDE,
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.tournament.update({
+      where: { id },
+      data: {
+        ...data,
+        ...(nextSlug ? { slug: nextSlug } : {}),
+        ...(nextMode === 'PARTICIPATING'
+          ? { entryFeePerTeam: 0, isRegistrationOpen: false }
+          : data.mode === 'HOSTED'
+          ? { trackingMode: 'FULL_BRACKET' }
+          : {}),
+        ...(req.body?.registrationDeadline === null || req.body?.registrationDeadline === ''
+          ? { registrationDeadline: null }
+          : {}),
+        ...(req.body?.startTime === null || req.body?.startTime === '' ? { startTime: null } : {}),
+        ...(req.body?.endTime === null || req.body?.endTime === '' ? { endTime: null } : {}),
+        ...(req.body?.podiumOverride === null ? { podiumOverride: null as any } : {}),
+      },
+    });
+
+    if (data.groupSetFormat && data.groupSetFormat !== existing.groupSetFormat) {
+      await tx.tournamentMatch.updateMany({
+        where: {
+          tournamentId: id,
+          stage: { in: ['POOL_A', 'POOL_B', 'GROUP'] },
+          status: 'SCHEDULED',
+        },
+        data: { setFormat: data.groupSetFormat },
+      });
+    }
+
+    if (data.knockoutSetFormat && data.knockoutSetFormat !== existing.knockoutSetFormat) {
+      await tx.tournamentMatch.updateMany({
+        where: {
+          tournamentId: id,
+          stage: { in: ['QUARTERFINAL', 'SEMIFINAL', 'THIRD_PLACE', 'FINAL'] },
+          status: 'SCHEDULED',
+        },
+        data: { setFormat: data.knockoutSetFormat },
+      });
+    }
+
+    return tx.tournament.findUnique({
+      where: { id },
+      include: TOURNAMENT_FULL_INCLUDE,
+    });
   });
 
   res.json(toTournamentDto(updated, true));
@@ -4800,8 +4831,8 @@ app.delete('/api/tournaments/:id/officials/:officialId', ah(async (req, res) => 
   res.json({ success: true });
 }));
 
-// Admin: Generate Standard 20-Match 2-Court 1-Day Schedule
-app.post('/api/tournaments/:id/generate-schedule', ah(async (req, res) => {
+// Admin: Generate Standard 12-Match Group Stage (Pool A: PA-1..PA-6, Pool B: PB-1..PB-6)
+async function handleGenerateGroupStageSchedule(req: express.Request, res: express.Response) {
   const { id } = req.params;
   const forceReset = Boolean(req.body?.forceReset);
 
@@ -4822,32 +4853,37 @@ app.post('/api/tournaments/:id/generate-schedule', ah(async (req, res) => {
 
   if (poolA.length < 4 || poolB.length < 4) {
     return res.status(400).json({
-      error: `Pool A (${poolA.length}/4) and Pool B (${poolB.length}/4) must each have 4 teams assigned before generating the 20-match schedule.`,
+      error: `Pool A (${poolA.length}/4) and Pool B (${poolB.length}/4) must each have 4 teams assigned before generating the 12-match Group Stage schedule.`,
     });
   }
 
+  const existingGroupMatches = tournament.matches.filter(
+    (m) => m.stage === 'POOL_A' || m.stage === 'POOL_B' || m.stage === 'GROUP'
+  );
   const hasActiveOrFinishedMatches = tournament.matches.some(
     (m) => m.status === 'LIVE' || m.status === 'COMPLETED'
   );
-  if (hasActiveOrFinishedMatches && !forceReset) {
+  if ((existingGroupMatches.length > 0 || hasActiveOrFinishedMatches) && !forceReset) {
     return res.status(409).json({
-      error: 'Matches are already LIVE or COMPLETED. Pass forceReset=true if you explicitly want to wipe and regenerate the schedule.',
+      error:
+        'Group Stage matches already exist (or matches are already LIVE/COMPLETED). Confirm reset (forceReset=true) before regenerating.',
     });
   }
 
-  const templates = buildStandard20MatchPlan(
+  const templates = buildGroupStage12MatchPlan(
     poolA,
     poolB,
-    (tournament.groupSetFormat as 'BO3' | 'BO2') || 'BO3',
-    (tournament.knockoutSetFormat as 'BO3' | 'BO2') || 'BO3'
+    (tournament.groupSetFormat as TournamentSetFormat) || 'BO3'
   );
 
   await prisma.$transaction(async (tx) => {
-    await tx.tournamentTeam.updateMany({
-      where: { tournamentId: id },
-      data: { finalRank: null },
-    });
-    await tx.tournamentMatch.deleteMany({ where: { tournamentId: id } });
+    if (forceReset) {
+      await tx.tournamentTeam.updateMany({
+        where: { tournamentId: id },
+        data: { finalRank: null },
+      });
+      await tx.tournamentMatch.deleteMany({ where: { tournamentId: id } });
+    }
     for (const tpl of templates) {
       await tx.tournamentMatch.create({
         data: {
@@ -4875,69 +4911,182 @@ app.post('/api/tournaments/:id/generate-schedule', ah(async (req, res) => {
     where: { id },
     include: TOURNAMENT_FULL_INCLUDE,
   });
-  res.json(toTournamentDto(refreshed, true));
-}));
+  return res.json(toTournamentDto(refreshed, true));
+}
+
+app.post('/api/admin/tournaments/:id/generate-schedule', ah(handleGenerateGroupStageSchedule));
+app.post('/api/tournaments/:id/generate-schedule', ah(handleGenerateGroupStageSchedule));
+
+interface BracketSlotUpsertInput {
+  matchCode: string;
+  stage: 'QUARTERFINAL' | 'SEMIFINAL' | 'THIRD_PLACE' | 'FINAL';
+  bracketSide: 'LEFT' | 'RIGHT' | 'CENTER';
+  courtName: 'Court A' | 'Court B';
+  scheduledTime: string;
+  matchOrder: number;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  homeLabel: string;
+  awayLabel: string;
+}
+
+async function upsertBracketSlotsTx(
+  tx: any,
+  tournament: { id: string; knockoutSetFormat?: string | null },
+  rawMatches: any[],
+  slots: BracketSlotUpsertInput[],
+  forceOverride: boolean
+): Promise<{ seededCodes: string[]; skipped: string[] }> {
+  const seededCodes: string[] = [];
+  const skipped: string[] = [];
+
+  for (const slot of slots) {
+    const existingMatch = rawMatches.find(
+      (m: any) =>
+        String(m.matchCode || '').toUpperCase() === slot.matchCode.toUpperCase() ||
+        ((slot.stage === 'THIRD_PLACE' || slot.stage === 'FINAL') && m.stage === slot.stage)
+    );
+
+    if (existingMatch) {
+      if (existingMatch.status !== 'SCHEDULED' && !forceOverride) {
+        skipped.push(`${slot.matchCode} (${existingMatch.status})`);
+        continue;
+      }
+      await tx.tournamentMatch.update({
+        where: { id: existingMatch.id },
+        data: {
+          homeTeamId: slot.homeTeamId,
+          awayTeamId: slot.awayTeamId,
+          homeLabel: slot.homeLabel,
+          awayLabel: slot.awayLabel,
+        },
+      });
+      seededCodes.push(slot.matchCode);
+    } else {
+      await tx.tournamentMatch.create({
+        data: {
+          id: `tm-${crypto.randomUUID()}`,
+          tournamentId: tournament.id,
+          matchCode: slot.matchCode,
+          stage: slot.stage,
+          bracketSide: slot.bracketSide,
+          courtName: slot.courtName,
+          scheduledTime: slot.scheduledTime,
+          matchOrder: slot.matchOrder,
+          status: 'SCHEDULED',
+          setFormat: tournament.knockoutSetFormat || 'BO3',
+          homeTeamId: slot.homeTeamId,
+          awayTeamId: slot.awayTeamId,
+          homeLabel: slot.homeLabel,
+          awayLabel: slot.awayLabel,
+          setScores: [],
+        },
+      });
+      seededCodes.push(slot.matchCode);
+    }
+  }
+
+  return { seededCodes, skipped };
+}
 
 /**
- * Shared transaction helper that seeds Quarterfinals (QF1–QF4) from Pool A & B standings:
+ * Shared transaction helper that seeds (updates or creates) Quarterfinals (QF1–QF4) from Pool A & B standings:
  * QF1: 1A vs 4B | QF3: 3A vs 2B | QF2: 2A vs 3B | QF4: 4A vs 1B
  */
 async function seedQuarterfinalsFromStandingsTx(
   tx: any,
   tournamentId: string,
   forceOverride: boolean
-): Promise<{ seededCodes: string[]; skipped: string[]; insufficientPools: boolean }> {
-  const [rawTeams, rawMatches] = await Promise.all([
+): Promise<{
+  seededCodes: string[];
+  skipped: string[];
+  insufficientPools: boolean;
+  poolACount: number;
+  poolBCount: number;
+}> {
+  const [tournament, rawTeams, rawMatches] = await Promise.all([
+    tx.tournament.findUnique({ where: { id: tournamentId } }),
     tx.tournamentTeam.findMany({ where: { tournamentId } }),
     tx.tournamentMatch.findMany({ where: { tournamentId } }),
   ]);
   const teamsDto = rawTeams.map((t: any) => toTournamentTeamDto(t, true));
   const matchesDto = rawMatches.map((m: any) => toTournamentMatchDto(m, true));
+  const poolA = computePoolStandings(teamsDto, matchesDto, 'A');
+  const poolB = computePoolStandings(teamsDto, matchesDto, 'B');
   const plan = computeCrossPoolQuarterfinalPairings(teamsDto, matchesDto);
-  if (!plan) {
-    return { seededCodes: [], skipped: [], insufficientPools: true };
+  if (!plan || !tournament) {
+    return {
+      seededCodes: [],
+      skipped: [],
+      insufficientPools: true,
+      poolACount: poolA.length,
+      poolBCount: poolB.length,
+    };
   }
 
-  const seededCodes: string[] = [];
-  const skipped: string[] = [];
+  const maxPoolOrder = Math.max(
+    12,
+    ...rawMatches
+      .filter((m: any) => m.stage === 'POOL_A' || m.stage === 'POOL_B' || m.stage === 'GROUP')
+      .map((m: any) => Number(m.matchOrder) || 0)
+  );
 
-  for (const target of plan.pairings) {
-    const existingMatch = rawMatches.find((m: any) => m.matchCode === target.matchCode);
-    if (!existingMatch) continue;
-    if (existingMatch.status !== 'SCHEDULED' && !forceOverride) {
-      skipped.push(`${target.matchCode} (${existingMatch.status})`);
-      continue;
-    }
-    await tx.tournamentMatch.update({
-      where: { id: existingMatch.id },
-      data: {
-        homeTeamId: target.home.teamId,
-        awayTeamId: target.away.teamId,
-        homeLabel: target.home.teamName,
-        awayLabel: target.away.teamName,
-      },
-    });
-    seededCodes.push(target.matchCode);
-  }
+  const metaByCode: Record<
+    'QF1' | 'QF2' | 'QF3' | 'QF4',
+    { bracketSide: 'LEFT' | 'RIGHT'; courtName: 'Court A' | 'Court B'; scheduledTime: string; orderOffset: number }
+  > = {
+    QF1: { bracketSide: 'LEFT', courtName: 'Court A', scheduledTime: '14:00', orderOffset: 1 },
+    QF3: { bracketSide: 'LEFT', courtName: 'Court B', scheduledTime: '14:00', orderOffset: 2 },
+    QF2: { bracketSide: 'RIGHT', courtName: 'Court A', scheduledTime: '15:00', orderOffset: 3 },
+    QF4: { bracketSide: 'RIGHT', courtName: 'Court B', scheduledTime: '15:00', orderOffset: 4 },
+  };
 
-  return { seededCodes, skipped, insufficientPools: false };
+  const slots: BracketSlotUpsertInput[] = plan.pairings.map((p) => {
+    const meta = metaByCode[p.matchCode];
+    return {
+      matchCode: p.matchCode,
+      stage: 'QUARTERFINAL',
+      bracketSide: meta.bracketSide,
+      courtName: meta.courtName,
+      scheduledTime: meta.scheduledTime,
+      matchOrder: maxPoolOrder + meta.orderOffset,
+      homeTeamId: p.home.teamId,
+      awayTeamId: p.away.teamId,
+      homeLabel: p.home.teamName,
+      awayLabel: p.away.teamName,
+    };
+  });
+
+  const { seededCodes, skipped } = await upsertBracketSlotsTx(
+    tx,
+    tournament,
+    rawMatches,
+    slots,
+    forceOverride
+  );
+
+  return {
+    seededCodes,
+    skipped,
+    insufficientPools: false,
+    poolACount: poolA.length,
+    poolBCount: poolB.length,
+  };
 }
 
-// Admin: Lock Pool Standings & Seed Quarterfinals (QF1..QF4) safely
-app.post('/api/tournaments/:id/seed-knockout', ah(async (req, res) => {
+async function handleSeedQuarterfinals(req: express.Request, res: express.Response) {
   const { id } = req.params;
   const forceOverride = Boolean(req.body?.forceOverride);
 
   const tournament = await prisma.tournament.findUnique({ where: { id } });
   if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
 
-  const { skipped, insufficientPools } = await prisma.$transaction((tx) =>
-    seedQuarterfinalsFromStandingsTx(tx, id, forceOverride)
-  );
+  const { seededCodes, skipped, insufficientPools, poolACount, poolBCount } =
+    await prisma.$transaction((tx) => seedQuarterfinalsFromStandingsTx(tx, id, forceOverride));
 
   if (insufficientPools) {
     return res.status(400).json({
-      error: 'Both Pool A and Pool B need 4 teams to seed the 8-team Quarterfinals.',
+      error: `Both Pool A (${poolACount}/4) and Pool B (${poolBCount}/4) need 4 teams to seed Quarterfinals (QF1–QF4). / Cần đủ 4 đội ở cả Bảng A và Bảng B để xếp cặp Tứ kết.`,
     });
   }
 
@@ -4945,15 +5094,213 @@ app.post('/api/tournaments/:id/seed-knockout', ah(async (req, res) => {
     where: { id },
     include: TOURNAMENT_FULL_INCLUDE,
   });
-  res.json({
+  return res.json({
     tournament: toTournamentDto(refreshed, true),
+    seededCodes,
     skipped,
     warnings:
       skipped.length > 0
         ? [`Skipped ${skipped.join(', ')} because match is already LIVE or COMPLETED.`]
         : [],
   });
-}));
+}
+
+async function handleSeedSemifinals(req: express.Request, res: express.Response) {
+  const { id } = req.params;
+  const forceOverride = Boolean(req.body?.forceOverride);
+
+  const tournament = await prisma.tournament.findUnique({ where: { id } });
+  if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
+
+  const { seededCodes, skipped, pendingSources } = await prisma.$transaction(async (tx) => {
+    const [rawTeams, rawMatches] = await Promise.all([
+      tx.tournamentTeam.findMany({ where: { tournamentId: id } }),
+      tx.tournamentMatch.findMany({ where: { tournamentId: id } }),
+    ]);
+    const teamMap = new Map(rawTeams.map((t: any) => [t.id, t]));
+    const findByCode = (code: string) =>
+      rawMatches.find((m: any) => String(m.matchCode || '').toUpperCase() === code.toUpperCase());
+
+    const pending: string[] = [];
+    const getQfWinner = (code: string) => {
+      const m = findByCode(code);
+      if (m && m.status === 'COMPLETED' && m.winnerTeamId) {
+        const tm = teamMap.get(m.winnerTeamId);
+        if (tm) return tm;
+      }
+      pending.push(code);
+      return null;
+    };
+
+    const wQf1 = getQfWinner('QF1');
+    const wQf3 = getQfWinner('QF3');
+    const wQf2 = getQfWinner('QF2');
+    const wQf4 = getQfWinner('QF4');
+
+    const maxQfOrder = Math.max(
+      16,
+      ...rawMatches
+        .filter((m: any) => m.stage === 'QUARTERFINAL')
+        .map((m: any) => Number(m.matchOrder) || 0)
+    );
+
+    const slots: BracketSlotUpsertInput[] = [
+      {
+        matchCode: 'SF1',
+        stage: 'SEMIFINAL',
+        bracketSide: 'LEFT',
+        courtName: 'Court A',
+        scheduledTime: '16:15',
+        matchOrder: maxQfOrder + 1,
+        homeTeamId: wQf1?.id ?? null,
+        awayTeamId: wQf3?.id ?? null,
+        homeLabel: wQf1?.name ?? 'Winner QF1',
+        awayLabel: wQf3?.name ?? 'Winner QF3',
+      },
+      {
+        matchCode: 'SF2',
+        stage: 'SEMIFINAL',
+        bracketSide: 'RIGHT',
+        courtName: 'Court B',
+        scheduledTime: '16:15',
+        matchOrder: maxQfOrder + 2,
+        homeTeamId: wQf2?.id ?? null,
+        awayTeamId: wQf4?.id ?? null,
+        homeLabel: wQf2?.name ?? 'Winner QF2',
+        awayLabel: wQf4?.name ?? 'Winner QF4',
+      },
+    ];
+
+    const resUpsert = await upsertBracketSlotsTx(tx, tournament, rawMatches, slots, forceOverride);
+    return { ...resUpsert, pendingSources: pending };
+  });
+
+  const warnings: string[] = [];
+  if (pendingSources.length > 0) {
+    warnings.push(
+      `Các trận ${pendingSources.join(', ')} chưa COMPLETED — đã điền sẵn đội thắng hiện có và giữ placeholder (Winner QFx) cho nhánh còn lại.`
+    );
+  }
+  if (skipped.length > 0) {
+    warnings.push(`Skipped ${skipped.join(', ')} because match is already LIVE or COMPLETED.`);
+  }
+
+  const refreshed = await prisma.tournament.findUnique({
+    where: { id },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+  return res.json({
+    tournament: toTournamentDto(refreshed, true),
+    seededCodes,
+    pendingSources,
+    skipped,
+    warnings,
+  });
+}
+
+async function handleSeedFinals(req: express.Request, res: express.Response) {
+  const { id } = req.params;
+  const forceOverride = Boolean(req.body?.forceOverride);
+
+  const tournament = await prisma.tournament.findUnique({ where: { id } });
+  if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
+
+  const { seededCodes, skipped, pendingSources } = await prisma.$transaction(async (tx) => {
+    const [rawTeams, rawMatches] = await Promise.all([
+      tx.tournamentTeam.findMany({ where: { tournamentId: id } }),
+      tx.tournamentMatch.findMany({ where: { tournamentId: id } }),
+    ]);
+    const teamMap = new Map(rawTeams.map((t: any) => [t.id, t]));
+    const findByCode = (code: string) =>
+      rawMatches.find((m: any) => String(m.matchCode || '').toUpperCase() === code.toUpperCase());
+
+    const pending: string[] = [];
+    const getSfOutcome = (code: string) => {
+      const m = findByCode(code);
+      if (m && m.status === 'COMPLETED' && m.winnerTeamId) {
+        const winner = teamMap.get(m.winnerTeamId) || null;
+        const loserId =
+          m.homeTeamId && m.awayTeamId
+            ? m.winnerTeamId === m.homeTeamId
+              ? m.awayTeamId
+              : m.homeTeamId
+            : null;
+        const loser = loserId ? teamMap.get(loserId) || null : null;
+        if (winner) return { winner, loser };
+      }
+      pending.push(code);
+      return { winner: null, loser: null };
+    };
+
+    const sf1 = getSfOutcome('SF1');
+    const sf2 = getSfOutcome('SF2');
+
+    const maxSfOrder = Math.max(
+      18,
+      ...rawMatches
+        .filter((m: any) => m.stage === 'SEMIFINAL')
+        .map((m: any) => Number(m.matchOrder) || 0)
+    );
+
+    const slots: BracketSlotUpsertInput[] = [
+      {
+        matchCode: '3RD',
+        stage: 'THIRD_PLACE',
+        bracketSide: 'CENTER',
+        courtName: 'Court B',
+        scheduledTime: '17:30',
+        matchOrder: maxSfOrder + 1,
+        homeTeamId: sf1.loser?.id ?? null,
+        awayTeamId: sf2.loser?.id ?? null,
+        homeLabel: sf1.loser?.name ?? 'Loser SF1',
+        awayLabel: sf2.loser?.name ?? 'Loser SF2',
+      },
+      {
+        matchCode: 'FINAL',
+        stage: 'FINAL',
+        bracketSide: 'CENTER',
+        courtName: 'Court A',
+        scheduledTime: '18:30',
+        matchOrder: maxSfOrder + 2,
+        homeTeamId: sf1.winner?.id ?? null,
+        awayTeamId: sf2.winner?.id ?? null,
+        homeLabel: sf1.winner?.name ?? 'Winner SF1',
+        awayLabel: sf2.winner?.name ?? 'Winner SF2',
+      },
+    ];
+
+    const resUpsert = await upsertBracketSlotsTx(tx, tournament, rawMatches, slots, forceOverride);
+    return { ...resUpsert, pendingSources: pending };
+  });
+
+  const warnings: string[] = [];
+  if (pendingSources.length > 0) {
+    warnings.push(
+      `Các trận ${pendingSources.join(', ')} chưa COMPLETED — đã điền sẵn đội đã xác định và giữ placeholder (Winner/Loser SFx) cho nhánh còn lại.`
+    );
+  }
+  if (skipped.length > 0) {
+    warnings.push(`Skipped ${skipped.join(', ')} because match is already LIVE or COMPLETED.`);
+  }
+
+  const refreshed = await prisma.tournament.findUnique({
+    where: { id },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+  return res.json({
+    tournament: toTournamentDto(refreshed, true),
+    seededCodes,
+    pendingSources,
+    skipped,
+    warnings,
+  });
+}
+
+// Admin: Seed Quarterfinals, Semi-Finals & Finals (upsert missing/scheduled slots safely)
+app.post('/api/admin/tournaments/:id/seed-quarterfinals', ah(handleSeedQuarterfinals));
+app.post('/api/tournaments/:id/seed-knockout', ah(handleSeedQuarterfinals));
+app.post('/api/admin/tournaments/:id/seed-semifinals', ah(handleSeedSemifinals));
+app.post('/api/admin/tournaments/:id/seed-finals', ah(handleSeedFinals));
 
 // Admin: Create custom match (for DVA_FOCUS or custom adjustments)
 app.post('/api/tournaments/:id/matches', ah(async (req, res) => {
@@ -4968,7 +5315,7 @@ app.post('/api/tournaments/:id/matches', ah(async (req, res) => {
     data: {
       id: `tm-${crypto.randomUUID()}`,
       tournamentId: id,
-      matchCode: data.matchCode,
+      matchCode: data.matchCode.trim().toUpperCase(),
       stage: data.stage || 'GROUP',
       bracketSide: data.bracketSide || null,
       courtName: normalizeTournamentCourtName(data.courtName || 'Court A'),
@@ -4996,19 +5343,30 @@ app.delete('/api/tournaments/:id/matches/:matchId', ah(async (req, res) => {
   res.json({ success: true });
 }));
 
-// Admin: Update Match Score, Court, Status, Officials + Guarded Downstream Propagation
-app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => {
-  const { id, matchId } = req.params;
+// Admin: Update Match Code, Order, Score, Court, Status, Officials + Guarded Downstream Propagation
+async function handleUpdateTournamentMatch(
+  req: express.Request,
+  res: express.Response,
+  tournamentId?: string
+) {
+  const { matchId } = req.params;
   const existing = await prisma.tournamentMatch.findFirst({
-    where: { id: matchId, tournamentId: id },
+    where: tournamentId ? { id: matchId, tournamentId } : { id: matchId },
   });
   if (!existing) return res.status(404).json({ error: 'Match not found.' });
+  const id = existing.tournamentId;
+
+  if (Object.prototype.hasOwnProperty.call(req.body || {}, 'matchCode') && req.body.matchCode === null) {
+    return res.status(400).json({ error: 'matchCode cannot be empty.' });
+  }
 
   const data = sanitize(req.body, TOURNAMENT_MATCH_SCORE_SCHEMA, { partial: true });
   const forceOverride = Boolean(data.forceOverride);
 
+  const nextMatchCode =
+    data.matchCode !== undefined ? data.matchCode.trim().toUpperCase() : undefined;
   const nextStatus = (data.status ?? existing.status) as 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
-  const nextFormat = (data.setFormat ?? existing.setFormat) as 'BO3' | 'BO2';
+  const nextFormat = (data.setFormat ?? existing.setFormat) as TournamentSetFormat;
   const nextHomeId =
     req.body?.homeTeamId === null || req.body?.homeTeamId === ''
       ? null
@@ -5025,6 +5383,38 @@ app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => 
   const rawScores = data.setScores !== undefined ? data.setScores : existing.setScores;
   const computed = computeSetTotals(rawScores, nextFormat, nextHomeId, nextAwayId, nextStatus);
 
+  if (
+    nextStatus === 'COMPLETED' &&
+    (data.setScores !== undefined || (data.status === 'COMPLETED' && existing.status !== 'COMPLETED'))
+  ) {
+    if (String(nextFormat).toUpperCase() === 'BO1_25') {
+      const s1 = computed.setScores[0];
+      if (!s1 || !isVolleyballSetWon(s1.home, s1.away, 25)) {
+        return res.status(400).json({
+          error: 'BO1_25 match requires Set 1 to reach at least 25 points with a minimum 2-point lead.',
+        });
+      }
+    } else {
+      const invalidCompletedSet = computed.setScores.find(
+        (s) =>
+          s.isCompleted &&
+          (s.home > 0 || s.away > 0) &&
+          !isVolleyballSetWon(s.home, s.away, getSetTargetPoints(s.set, nextFormat))
+      );
+      if (invalidCompletedSet) {
+        const target = getSetTargetPoints(invalidCompletedSet.set, nextFormat);
+        return res.status(400).json({
+          error: `Set ${invalidCompletedSet.set} has not met the win-by-2 requirement (minimum ${target} points and 2-point lead).`,
+        });
+      }
+      if (computed.homeSetsWon === 0 && computed.awaySetsWon === 0) {
+        return res.status(400).json({
+          error: 'Completed match requires at least one valid winning set score.',
+        });
+      }
+    }
+  }
+
   const warnings: string[] = [];
   let autoSeededQuarterfinals = false;
 
@@ -5032,6 +5422,8 @@ app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => 
     const updatedMatch = await tx.tournamentMatch.update({
       where: { id: matchId },
       data: {
+        ...(nextMatchCode !== undefined ? { matchCode: nextMatchCode } : {}),
+        ...(data.matchOrder !== undefined ? { matchOrder: data.matchOrder } : {}),
         status: nextStatus,
         setFormat: nextFormat,
         ...(data.courtName !== undefined
@@ -5197,6 +5589,14 @@ app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => 
     warnings,
     autoSeededQuarterfinals,
   });
+}
+
+app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => {
+  await handleUpdateTournamentMatch(req, res, req.params.id);
+}));
+
+app.patch('/api/admin/tournaments/matches/:matchId', ah(async (req, res) => {
+  await handleUpdateTournamentMatch(req, res);
 }));
 
 // Unknown /api routes must answer with JSON (not the SPA index.html)

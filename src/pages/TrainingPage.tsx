@@ -841,7 +841,7 @@ export const TrainingPage: React.FC = () => {
             </div>
 
             {/* Modal Body */}
-            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 text-xs">
+            <div className="p-4 sm:p-6 overflow-y-auto no-scrollbar space-y-4 sm:space-y-5 text-xs">
               
               {/* STEP 1: ATHLETE REGISTRATION FORM */}
               {modalStep === 'FORM' && (

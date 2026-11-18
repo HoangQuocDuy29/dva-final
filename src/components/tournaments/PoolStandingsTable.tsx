@@ -32,7 +32,7 @@ export const PoolStandingsTable: React.FC<PoolStandingsTableProps> = ({
     {rows.length === 0 ? (
       <div className="p-6 text-center text-xs text-slate-500">Teams pending draw assignment.</div>
     ) : (
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto no-scrollbar">
         <table className="w-full text-xs text-left">
           <thead>
             <tr className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-[#1E293B] bg-[#0B0F19]/40">

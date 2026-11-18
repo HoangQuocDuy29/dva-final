@@ -223,7 +223,7 @@ const DreamTeamSlotPickerCard: React.FC<SlotPickerCardProps> = ({
             )}
           </div>
 
-          <div className="max-h-60 overflow-y-auto divide-y divide-[#1E293B]">
+          <div className="max-h-60 overflow-y-auto no-scrollbar divide-y divide-[#1E293B]">
             {filteredOptions.length === 0 ? (
               <div className="p-4 text-center text-[11px] text-slate-500">
                 No matching VERIFIED athletes found.

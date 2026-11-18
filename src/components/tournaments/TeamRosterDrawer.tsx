@@ -145,7 +145,7 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-5 sm:p-6 space-y-6">
           {/* Team Roster */}
           <section className="space-y-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">

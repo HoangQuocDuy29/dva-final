@@ -66,7 +66,7 @@ const AdminDashboardShell: React.FC = () => {
 
       <div
         ref={mainScrollRef}
-        className="flex-1 min-w-0 h-[calc(100vh-5rem)] overflow-y-auto flex flex-col"
+        className="flex-1 min-w-0 h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar flex flex-col"
       >
         {/* Sticky Topbar: toggles, module title, quick search, admin identity & actions */}
         <AdminHeader />

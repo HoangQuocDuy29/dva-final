@@ -38,7 +38,7 @@ export const ApplicationsTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto scrollbar-thin">
+      <div className="overflow-x-auto no-scrollbar">
         <table className="w-full min-w-[720px] text-xs text-left border-collapse">
           <thead>
             <tr className="bg-[#0E1524] text-slate-400 font-bold border-b border-slate-800">

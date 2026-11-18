@@ -1481,7 +1481,11 @@ export const tournamentService = {
       const cached = readTournamentsCache();
       if (cached && !cached.isStale) return cached.data;
     }
-    const rows = await request<Tournament[]>('/tournaments', {}, []);
+    const rows = await request<Tournament[]>(
+      '/tournaments',
+      opts?.forceRefresh ? { cache: 'no-store' } : {},
+      []
+    );
     const list = Array.isArray(rows) ? rows : [];
     writeTournamentsCache(list);
     return list;
@@ -1702,10 +1706,79 @@ export const tournamentService = {
     return res;
   },
 
-  async generateSchedule(tournamentId: string, forceReset = false): Promise<Tournament> {
+  async generateGroupSchedule(tournamentId: string, forceReset = false): Promise<Tournament> {
     const res = await request<Tournament>(
-      `/tournaments/${encodeURIComponent(tournamentId)}/generate-schedule`,
+      `/admin/tournaments/${encodeURIComponent(tournamentId)}/generate-schedule`,
       { method: 'POST', body: JSON.stringify({ forceReset }) }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async generateSchedule(tournamentId: string, forceReset = false): Promise<Tournament> {
+    return this.generateGroupSchedule(tournamentId, forceReset);
+  },
+
+  async seedQuarterfinals(
+    tournamentId: string,
+    forceOverride = false
+  ): Promise<{ tournament: Tournament; seededCodes?: string[]; skipped: string[]; warnings: string[] }> {
+    const res = await request<{
+      tournament: Tournament;
+      seededCodes?: string[];
+      skipped: string[];
+      warnings: string[];
+    }>(
+      `/admin/tournaments/${encodeURIComponent(tournamentId)}/seed-quarterfinals`,
+      { method: 'POST', body: JSON.stringify({ forceOverride }) }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async seedSemifinals(
+    tournamentId: string,
+    forceOverride = false
+  ): Promise<{
+    tournament: Tournament;
+    seededCodes?: string[];
+    pendingSources?: string[];
+    skipped: string[];
+    warnings: string[];
+  }> {
+    const res = await request<{
+      tournament: Tournament;
+      seededCodes?: string[];
+      pendingSources?: string[];
+      skipped: string[];
+      warnings: string[];
+    }>(
+      `/admin/tournaments/${encodeURIComponent(tournamentId)}/seed-semifinals`,
+      { method: 'POST', body: JSON.stringify({ forceOverride }) }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async seedFinals(
+    tournamentId: string,
+    forceOverride = false
+  ): Promise<{
+    tournament: Tournament;
+    seededCodes?: string[];
+    pendingSources?: string[];
+    skipped: string[];
+    warnings: string[];
+  }> {
+    const res = await request<{
+      tournament: Tournament;
+      seededCodes?: string[];
+      pendingSources?: string[];
+      skipped: string[];
+      warnings: string[];
+    }>(
+      `/admin/tournaments/${encodeURIComponent(tournamentId)}/seed-finals`,
+      { method: 'POST', body: JSON.stringify({ forceOverride }) }
     );
     invalidateTournamentsCache();
     return res;
@@ -1714,13 +1787,8 @@ export const tournamentService = {
   async seedKnockout(
     tournamentId: string,
     forceOverride = false
-  ): Promise<{ tournament: Tournament; skipped: string[]; warnings: string[] }> {
-    const res = await request<{ tournament: Tournament; skipped: string[]; warnings: string[] }>(
-      `/tournaments/${encodeURIComponent(tournamentId)}/seed-knockout`,
-      { method: 'POST', body: JSON.stringify({ forceOverride }) }
-    );
-    invalidateTournamentsCache();
-    return res;
+  ): Promise<{ tournament: Tournament; seededCodes?: string[]; skipped: string[]; warnings: string[] }> {
+    return this.seedQuarterfinals(tournamentId, forceOverride);
   },
 
   async createMatch(tournamentId: string, payload: Partial<TournamentMatch>): Promise<TournamentMatch> {

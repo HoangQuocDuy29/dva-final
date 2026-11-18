@@ -137,10 +137,12 @@
       "setRulesLabel": "Luật tính điểm Set",
       "bo3Desc": "BO3 — Set 1 & 2 chạm 25 điểm, Set 3 quyết định chạm 15 điểm",
       "bo2Desc": "BO2 — Đấu 2 Set chạm 25 điểm (Vòng bảng có thể hòa 1-1)",
+      "bo1Desc": "1 Set (25 điểm, cách biệt 2 điểm)",
       "groupPrefix": "Vòng bảng",
       "knockoutPrefix": "Knockout",
       "fivbLabel": "Thang điểm BXH FIVB",
       "fivbLines": "Thắng 2-0 (+3đ) · Thắng 2-1 (+2đ) · Thua 1-2 (+1đ) · Thua 0-2 (+0đ)",
+      "fivbBo1Lines": "BO1 (25đ): Thắng (+3đ) · Thua (+0đ) · Xét hiệu số Set & Điểm khi bằng điểm",
       "fivbBo2Note": "BO2 Hòa 1-1 (+1đ mỗi đội)",
       "tieBreakLabel": "Tiêu chí Xét Thứ hạng",
       "tieStep1": "1. Số trận thắng (W)",
@@ -169,11 +171,98 @@
       "checkinTitle": "Thời gian Check-in",
       "checkinDesc": "Đội trưởng và VĐV có mặt làm thủ tục kiểm tra danh sách ít nhất 30 phút trước giờ khai mạc{{time}}.",
       "uniformTitle": "Trang phục & Số áo",
-      "uniformDesc": "Thi đấu đồng phục cùng màu, số áo rõ ràng (1–99); VĐV Libero bắt buộc mặc áo khác màu.",
+      "uniformDesc": "Không bắt buộc đồng phục đồng bộ; khuyến khích áo có số rõ ràng (1–99) và Libero mặc áo khác màu.",
       "rosterTitle": "Nhân sự 7–10 VĐV",
       "rosterDesc": "Đội hình thi đấu tiêu chuẩn 7–10 VĐV (cổng đăng ký tối đa 6–14 VĐV), chốt danh sách trước giờ bóng lăn.",
       "protestTitle": "Khiếu nại Trọng tài",
       "protestDesc": "Chỉ Đội trưởng được trao đổi văn minh với Trọng tài chính; quyết định của Tổ Trọng tài & BTC là quyết định cuối cùng."
+    },
+    "fivb": {
+      "sectionTitle": "Luật Thi Đấu FIVB Áp Dụng & Điểm Mới Cập Nhật",
+      "badge": "FIVB Official Rules",
+      "rule1Title": "1. Chống che chắn khi phát bóng (Anti-Screening Rule — Cập nhật mới)",
+      "rule1Desc": "Cầu thủ đội phát bóng không được giơ tay qua đầu, nhảy hoặc di chuyển ngang để che tầm nhìn của cầu thủ nhận phát bóng đối phương đối với người phát bóng và quỹ đạo bay của bóng.",
+      "rule2Title": "2. Quy tắc bóng chạm trần nhà thi đấu (Ceiling Contact Rule)",
+      "rule2Desc": "Nếu bóng chạm trần nhà hoặc vật cản phía trên sân nhưng vẫn rơi xuống phần sân của chính đội vừa chạm bóng và đội đó vẫn còn lượt chạm bóng hợp lệ (chạm lần 1 hoặc lần 2), trận đấu vẫn tiếp tục không bị mất điểm. Nếu bóng chạm trần rồi bay sang phần sân đối phương thì bị tính lỗi mất điểm.",
+      "rule3Title": "3. Lưới, vạch giữa sân & Libero",
+      "rule3Desc": "Chạm mép trên băng trắng lưới hoặc cột giới hạn là phạm lỗi; bàn chân được phép dẫm vạch giữa sân miễn một phần bàn chân vẫn chạm vạch (không gây cản trở đối phương); Libero không được phát bóng, chắn bóng hoặc đập bóng hoàn toàn trên mép trên lưới.",
+      "ctaLabel": "Xem tài liệu Luật Bóng chuyền Chính thức FIVB"
+    },
+    "eligibility": {
+      "sectionTitle": "Điều Kiện Nhân Sự Giải Phong Trào (Local Rules)",
+      "badge": "Kiểm tra Tư cách VĐV",
+      "notAllowedTitle": "Đối tượng KHÔNG được phép tham dự:",
+      "notAllowed1": "Sinh viên đang theo học chính quy tại các trường Đại học / Cao đẳng Thể dục Thể thao (TDTT) chuyên ngành bóng chuyền.",
+      "notAllowed2": "Vận động viên chuyên nghiệp, bán chuyên nghiệp hoặc VĐV thuộc biên chế các tuyến năng khiếu, tuyến trẻ, đội tuyển tỉnh/thành/ngành đang tham gia các giải đấu quốc gia.",
+      "captainNote": "Đội trưởng chịu trách nhiệm hoàn toàn về tính trung thực của danh sách VĐV đã đăng ký."
+    },
+    "spectator": {
+      "title": "Quy Định Vào Sân & Vé Khán Giả",
+      "badge": "Cổng Nhà Thi Đấu",
+      "feeLabel": "Phí vào sân đối với khán giả / cổ động viên:",
+      "feeValue": "30.000đ / người",
+      "feeNote": "(thu tại cổng kiểm soát nhà thi đấu).",
+      "freeLabel": "Đối tượng miễn phí:",
+      "freeValue": "Miễn phí hoàn toàn đối với Vận động viên (VĐV) và Huấn luyện viên (Coach) có tên trong danh sách đăng ký chính thức của các đội tham dự giải."
+    },
+    "discipline": {
+      "title": "IX. Kỷ luật – Khiếu nại",
+      "part1Title": "1. Nguyên tắc chung về kỷ luật:",
+      "p1_1Label": "1.1. Tôn trọng luật và trọng tài:",
+      "p1_1Desc": "Vận động viên, huấn luyện viên và thành viên đội bóng bắt buộc phải tuân thủ luật thi đấu và hướng dẫn của trọng tài.",
+      "p1_2Label": "1.2. Ứng xử văn hóa, không khiêu khích:",
+      "p1_2Item1": "Cấm mọi hành vi xúc phạm, lăng mạ, đe dọa đối phương, trọng tài, BTC hoặc khán giả.",
+      "p1_2Item2": "Tập thể, cá nhân và các cổ động viên liên quan đến đội bóng vi phạm Điều lệ, luật và các quy định của BTC hay có hành vi quá khích gây ảnh hưởng đến Giải sẽ tuỳ theo mức độ chịu các hình thức kỷ luật thích hợp.",
+      "part2Title": "2. Các hành vi vi phạm và hình thức xử lý:",
+      "colNo": "STT",
+      "colViolation": "Hành vi vi phạm",
+      "colPenalty": "Hình thức xử lý",
+      "rows": [
+        { "no": "1", "violation": "Tự ý rời sân thi đấu", "penalty": "Cảnh cáo hoặc loại khỏi trận đấu" },
+        { "no": "2", "violation": "Xúc phạm trọng tài (lời nói/hành động)", "penalty": "Đình chỉ 1 trận" },
+        { "no": "3", "violation": "Xô xát, đánh nhau giữa VĐV", "penalty": "Loại khỏi giải" },
+        { "no": "4", "violation": "Không tuân thủ thay người theo quy định", "penalty": "Phạt cảnh cáo, lập biên bản" },
+        { "no": "5", "violation": "Trì hoãn trận đấu có chủ đích", "penalty": "Trừ điểm, xử thua 0-2, loại khỏi giải (nếu tái phạm)" },
+        { "no": "6", "violation": "Sử dụng VĐV không đủ tư cách", "penalty": "Xử thua, loại đội bóng ra khỏi giải" },
+        { "no": "7", "violation": "Gian lận lý lịch, hồ sơ đăng ký", "penalty": "Cấm thi đấu giải hiện tại và giải kế tiếp" }
+      ],
+      "part3Title": "3. Quyền khiếu nại và xử lý:",
+      "p3Item1": "Khiếu nại phải được gửi bằng Email trong vòng 15 phút sau trận đấu.",
+      "p3Item2Prefix": "Tiêu đề email:",
+      "p3EmailSubject": "[Đội …] – KHIẾU NẠI",
+      "p3Item2Mid": "gửi tới",
+      "p3Email": "dvavolleyballclub@gmail.com",
+      "copyEmail": "Sao chép Email",
+      "copiedEmail": "Đã sao chép!",
+      "sendEmail": "Gửi Email Khiếu Nại",
+      "p3Item3": "BTC chỉ nhận khiếu nại từ Đội trưởng của các Đội.",
+      "p3Item4": "Đội bóng phải đóng lệ phí 200.000đ (Hai trăm nghìn đồng) cho 01 trường hợp khiếu nại về nhân sự và đội khiếu nại phải đưa ra bằng chứng xác thực đội bị khiếu nại. Khiếu nại đúng, Ban Tổ chức sẽ hoàn trả lại lệ phí; khiếu nại sai, Ban Tổ chức sẽ bổ sung vào phí tổ chức.",
+      "p3Item5": "Mọi quyết định của BTC là cuối cùng."
+    },
+    "sectionX": {
+      "title": "X. Công tác trọng tài",
+      "desc": "Các đội không cần bố trí người bắt trọng tài chéo. BTC sẽ phụ trách toàn bộ công tác trọng tài."
+    },
+    "sectionXI": {
+      "title": "XI. Quy định khác",
+      "desc": "Điều lệ này chỉ có Ban Tổ chức có quyền sửa đổi hoặc bổ sung nếu xét thấy cần thiết. Những nội dung không có trong điều lệ, quyết định cuối cùng thuộc về Ban Tổ chức."
+    },
+    "sectionXII": {
+      "title": "XII. Yêu cầu khác",
+      "items": [
+        "Các đội không nhất thiết phải có đồng phục.",
+        "BTC bố trí cho mỗi đội 1 thùng nước.",
+        "Các đội chủ động bảo quản tài sản cá nhân và đảm bảo tài sản của Nhà thi đấu (giày/trang thiết bị thi đấu - tập luyện/cơ sở vật chất sở tại), không được tự ý ra vào các khu vực khác ngoài khu vực thi đấu được quy định rõ.",
+        "Các đội chủ động phương tiện đi lại và các chi phí khác của đội.",
+        "Mỗi đội nên mang theo bóng của riêng CLB để khởi động và tự bảo quản.",
+        "Các đội hạn chế tối đa nhất có thể phương tiện di chuyển (khuyến khích 2 người/phương tiện, vé xe 5.000đ/xe)."
+      ]
+    },
+    "signoff": {
+      "regards": "Trân trọng!",
+      "committee": "BAN TỔ CHỨC",
+      "name": "Quốc Duy",
+      "club": "DVA Volleyball Club"
     }
   },
   "officials": {

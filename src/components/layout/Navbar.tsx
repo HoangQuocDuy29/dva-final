@@ -453,7 +453,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div
-          className={`w-full md:hidden pointer-events-auto transition-all duration-300 ease-out animate-in slide-in-from-top-2 max-h-[calc(100vh-5rem)] overflow-y-auto ${
+          className={`w-full md:hidden pointer-events-auto transition-all duration-300 ease-out animate-in slide-in-from-top-2 max-h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar ${
             isScrolled
               ? 'mt-2 max-w-6xl rounded-2xl bg-[#0F1420] border border-slate-700/60 shadow-2xl p-4 space-y-3'
               : 'max-w-7xl rounded-b-2xl bg-[#0F1420] border-x border-b border-slate-800 px-4 pt-4 pb-6 space-y-3 shadow-2xl'

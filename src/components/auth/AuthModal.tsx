@@ -80,7 +80,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           </div>
         )}
 
-        <div className="p-5 sm:p-6 overflow-y-auto">
+        <div className="p-5 sm:p-6 overflow-y-auto no-scrollbar">
           <form onSubmit={handleLogin} className="space-y-4 text-xs">
             <div>
               <label htmlFor="auth-email" className="block font-semibold text-slate-300 mb-1.5">

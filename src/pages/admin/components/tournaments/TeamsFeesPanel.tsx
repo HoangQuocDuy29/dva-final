@@ -577,7 +577,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
           No teams added yet. Teams can register publicly on `/tournaments/{tournament.slug}` or you can add teams manually above.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-[#1E293B] bg-[#111827]">
+        <div className="overflow-x-auto no-scrollbar rounded-3xl border border-[#1E293B] bg-[#111827]">
           <table className="w-full min-w-[840px] text-xs text-left border-collapse">
             <thead>
               <tr className="bg-[#0B0F19] text-slate-400 font-bold border-b border-[#1E293B]">
@@ -817,7 +817,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
       {/* Add / Edit Team Modal */}
       {teamModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm">
-          <div className="w-full max-w-xl bg-[#111827] border border-[#1E293B] rounded-3xl p-6 text-white space-y-4 max-h-[90vh] overflow-y-auto text-xs">
+          <div className="w-full max-w-xl bg-[#111827] border border-[#1E293B] rounded-3xl p-6 text-white space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar text-xs">
             <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
               <h4 className="font-heading font-black text-base flex items-center gap-2">
                 <Shield className="w-4 h-4 text-[#F97316]" />
@@ -1050,7 +1050,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
       {/* Team Roster & Individual Awards Modal */}
       {rosterTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm">
-          <div className="w-full max-w-5xl bg-[#111827] border border-[#1E293B] rounded-3xl p-6 text-white space-y-4 max-h-[92vh] overflow-y-auto text-xs">
+          <div className="w-full max-w-5xl bg-[#111827] border border-[#1E293B] rounded-3xl p-6 text-white space-y-4 max-h-[92vh] overflow-y-auto no-scrollbar text-xs">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E293B] pb-3">
               <div>
                 <h4 className="font-heading font-black text-base flex items-center gap-2">

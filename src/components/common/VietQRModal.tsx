@@ -136,7 +136,7 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 text-xs">
+        <div className="p-4 sm:p-6 overflow-y-auto no-scrollbar space-y-4 sm:space-y-5 text-xs">
 
           {/* VIEW STATE 2: ONE-WAY CONFIRMATION SCREEN (NO TIMEOUT AUTO-CLOSE) */}
           {isSubmitted ? (

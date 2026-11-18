@@ -291,7 +291,7 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto text-xs space-y-5">
+        <div className="p-5 sm:p-6 overflow-y-auto no-scrollbar text-xs space-y-5">
           {errorMsg && (
             <div className="p-3.5 rounded-2xl bg-red-950/60 border border-red-700 text-red-200 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
