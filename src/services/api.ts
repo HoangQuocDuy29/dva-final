@@ -199,7 +199,13 @@ async function request<T>(endpoint: string, options?: RequestInit, fallbackData?
     } catch {
       // non-JSON error body
     }
-    if (res.status === 401 && token) {
+    const currentToken = localStorage.getItem(TOKEN_KEY);
+    if (
+      res.status === 401 &&
+      token &&
+      endpoint !== '/auth/login' &&
+      currentToken === token
+    ) {
       clearSession();
       window.dispatchEvent(new Event('dva:session-expired'));
     }
@@ -232,6 +238,10 @@ export const authService = {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
   },
 
+  hasToken(): boolean {
+    return Boolean(localStorage.getItem(TOKEN_KEY));
+  },
+
   logout(): User {
     clearSession();
     return GUEST_USER;
@@ -239,9 +249,13 @@ export const authService = {
 
   /** Re-validates the stored session with the server and returns the fresh profile. */
   async me(): Promise<User> {
+    const tokenAtCall = localStorage.getItem(TOKEN_KEY);
+    if (!tokenAtCall) return GUEST_USER;
     const current = this.getCurrentUser();
     const res = await request<{ user: User }>('/auth/me', {}, { user: current });
-    this.setCurrentUser(res.user);
+    if (localStorage.getItem(TOKEN_KEY) === tokenAtCall) {
+      this.setCurrentUser(res.user);
+    }
     return res.user;
   },
 
@@ -974,6 +988,27 @@ export const memberService = {
       method: 'PATCH',
       body: JSON.stringify({ paymentStatus }),
     });
+  },
+
+  async updateTryout(
+    id: string,
+    payload: {
+      level?: PlayerLevel;
+      status?: ApplicationStatus;
+      reviewNotes?: string;
+      coachNotes?: string;
+      entryFee?: number;
+    }
+  ): Promise<MemberApplication> {
+    const res = await request<MemberApplication>(`/admin/tryouts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    if (payload.status === 'APPROVED') {
+      playersCache.invalidate();
+      homeSummaryCache.invalidate();
+    }
+    return res;
   },
 
   async evaluate(

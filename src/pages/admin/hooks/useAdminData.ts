@@ -18,6 +18,7 @@ import {
 } from '../../../types';
 import {
   adminService,
+  authService,
   bookingService,
   courtService,
   memberService,
@@ -61,7 +62,8 @@ const ADMIN_PERMITTED_DATA_TABS = new Set<AdminTabId>(['OVERVIEW', 'APPLICATIONS
  */
 export function useAdminData(
   activeModule: AdminTabId = 'OVERVIEW',
-  isSuperAdmin: boolean = false
+  isSuperAdmin: boolean = false,
+  isAdmin: boolean = false
 ) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [courtsList, setCourtsList] = useState<Court[]>([]);
@@ -92,6 +94,7 @@ export function useAdminData(
 
   const fetchScopeData = useCallback(
     async (scope: AdminTabId, force: boolean = false) => {
+      if (!isAdmin || !authService.hasToken()) return;
       if (scope === 'OVERVIEW' || scope === 'USERS') return;
       if (!isSuperAdmin && !ADMIN_PERMITTED_DATA_TABS.has(scope)) return;
       if (!force && (loadedScopesRef.current.has(scope) || inflightScopesRef.current.has(scope))) return;
@@ -175,10 +178,11 @@ export function useAdminData(
         inflightScopesRef.current.delete(scope);
       }
     },
-    [isSuperAdmin, markScopeLoaded]
+    [isAdmin, isSuperAdmin, markScopeLoaded]
   );
 
   const loadOverviewOnly = useCallback(async () => {
+    if (!isAdmin || !authService.hasToken()) return;
     const summary = await adminService.getOverviewSummary();
     setOverviewSummary(summary || null);
     markScopeLoaded('OVERVIEW');
@@ -211,10 +215,11 @@ export function useAdminData(
         setGuestSessions(summary.guestSessions);
       }
     }
-  }, [isSuperAdmin, markScopeLoaded]);
+  }, [isAdmin, isSuperAdmin, markScopeLoaded]);
 
   // Refresh overview + ONLY currently visited permitted scopes (never pre-loads unvisited tabs)
   const fetchData = useCallback(async () => {
+    if (!isAdmin || !authService.hasToken()) return;
     setLoading(true);
     try {
       await loadOverviewOnly();
@@ -243,6 +248,10 @@ export function useAdminData(
   useEffect(() => {
     loadedScopesRef.current.clear();
     setLoadedScopes(new Set());
+    if (!isAdmin || !authService.hasToken()) {
+      setLoading(false);
+      return;
+    }
 
     let cancelled = false;
     (async () => {
@@ -264,10 +273,11 @@ export function useAdminData(
     };
     // Intentionally triggered only on role / mount; tab switches below trigger lazy loading
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuperAdmin]);
+  }, [isAdmin, isSuperAdmin]);
 
   // Lazy-fetch exact dataset whenever the user switches to a new tab
   useEffect(() => {
+    if (!isAdmin || !authService.hasToken()) return;
     if (activeModule === 'OVERVIEW' || activeModule === 'USERS') return;
     if (!isSuperAdmin && !ADMIN_PERMITTED_DATA_TABS.has(activeModule)) return;
     if (loadedScopesRef.current.has(activeModule)) return;

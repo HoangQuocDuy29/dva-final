@@ -25,6 +25,15 @@ function resolveAssignedPlayerLevel(requested: unknown, fallback: unknown): Assi
   return 'JUNIOR';
 }
 
+export function assertCanRejectApplication(isSuperAdminUser: boolean, ...candidates: unknown[]): void {
+  if (isSuperAdminUser) return;
+  for (const val of candidates) {
+    if (String(val ?? '').trim().toUpperCase() === 'REJECTED') {
+      throw new HttpError(403, 'Only SUPERADMIN can reject applications');
+    }
+  }
+}
+
 function deriveLevelFromExperience(experience?: string, birthYear?: number): 'SENIOR' | 'JUNIOR' | 'YOUTH' {
   const exp = (experience || '').toLowerCase();
   if (exp.includes('3+') || exp.includes('senior') || exp.includes('advanced') || exp.includes('trên 3')) {
@@ -197,6 +206,7 @@ export async function updateApplicationStatus(
   input: { status: string; reviewNotes?: string; entryFee?: number },
   isSuperAdminUser: boolean
 ) {
+  assertCanRejectApplication(isSuperAdminUser, input.status);
   if (!isSuperAdminUser && input.status === 'APPROVED') {
     throw new HttpError(
       403,
@@ -242,6 +252,82 @@ export async function updateApplicationStatus(
   };
 }
 
+export async function updateTryoutApplication(
+  id: string,
+  input: {
+    level?: string;
+    status?: string;
+    conclusion?: string;
+    outcome?: string;
+    reviewNotes?: string;
+    coachNotes?: string;
+    entryFee?: number;
+  },
+  isSuperAdminUser: boolean
+) {
+  const targetStatus = input.status ?? input.conclusion ?? input.outcome;
+  assertCanRejectApplication(isSuperAdminUser, input.status, input.conclusion, input.outcome);
+
+  if (!isSuperAdminUser && targetStatus === 'APPROVED') {
+    throw new HttpError(
+      403,
+      'Direct priority approval is restricted to SUPERADMIN. Use the Evaluation Scorecard to evaluate candidates.'
+    );
+  }
+  if (!isSuperAdminUser && input.entryFee !== undefined) {
+    throw new HttpError(403, 'Only SUPERADMIN can perform this action.');
+  }
+
+  const existing = await prisma.memberApplication.findUnique({ where: { id } });
+  if (!existing) throw new HttpError(404, 'Application not found');
+
+  const nextLevel =
+    input.level !== undefined ? resolveAssignedPlayerLevel(input.level, existing.level) : existing.level;
+
+  const existingPay = String(existing.paymentStatus || 'PENDING').toUpperCase();
+  const resolvedFee =
+    isSuperAdminUser && input.entryFee !== undefined
+      ? input.entryFee
+      : existingPay === 'FREE'
+        ? 0
+        : (existing.entryFee ?? 100000);
+
+  let promoted = false;
+  const updated = await prisma.$transaction(async (tx) => {
+    const updateData: Record<string, any> = {};
+    if (input.level !== undefined) updateData.level = nextLevel;
+    if (input.reviewNotes !== undefined) updateData.reviewNotes = input.reviewNotes;
+    if (input.coachNotes !== undefined) updateData.coachNotes = input.coachNotes;
+    if (isSuperAdminUser && input.entryFee !== undefined) updateData.entryFee = input.entryFee;
+
+    if (targetStatus !== undefined) {
+      updateData.status = targetStatus as any;
+      if (targetStatus === 'APPROVED') {
+        updateData.approvedAt = existing.approvedAt ?? new Date();
+        updateData.entryFee = resolvedFee;
+      } else {
+        updateData.approvedAt = null;
+      }
+    }
+
+    const appUpdated = await tx.memberApplication.update({
+      where: { id },
+      data: updateData,
+    });
+
+    if (targetStatus === 'APPROVED') {
+      promoted = await promoteApplicationToPlayerIfNeeded(tx, { ...existing, level: nextLevel });
+    }
+    return appUpdated;
+  });
+
+  if (promoted) {
+    invalidateCache(['players', 'home']);
+  }
+
+  return toApplicationDto(updated, isSuperAdminUser);
+}
+
 export async function updateApplicationEntryFee(id: string, entryFee: number) {
   const existing = await prisma.memberApplication.findUnique({ where: { id }, select: { id: true } });
   if (!existing) throw new HttpError(404, 'Application not found');
@@ -284,6 +370,7 @@ export async function evaluateApplication(
   actor: { fullName?: string; role?: string },
   isSuperAdminUser: boolean
 ) {
+  assertCanRejectApplication(isSuperAdminUser, input.status);
   const existing = await prisma.memberApplication.findUnique({ where: { id } });
   if (!existing) throw new HttpError(404, 'Application not found');
 
@@ -415,6 +502,8 @@ export async function sendTryoutEmail(
   const resolvedOutcome: 'APPROVED' | 'REJECTED' | null =
     requestedOutcome ||
     (existing.status === 'APPROVED' || existing.status === 'REJECTED' ? existing.status : null);
+
+  assertCanRejectApplication(isSuperAdminUser, requestedOutcome, resolvedOutcome);
 
   if (!resolvedOutcome) {
     throw new HttpError(400, 'Vui lòng chấm điểm hoặc chọn kết luận (APPROVED / REJECTED) trước khi gửi mail kết quả.');

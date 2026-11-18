@@ -45,13 +45,13 @@ export const MatchScoreboardRow: React.FC<MatchScoreboardRowProps> = ({
         logoUrl={team.logoUrl}
         name={displayName}
         shortName={team.shortName}
-        sizeClass="w-10 h-10"
+        sizeClass="w-9 h-9 sm:w-10 sm:h-10"
         imgWidth={160}
       />
     ) : (
       <div
         title={displayName}
-        className="w-10 h-10 rounded-full shrink-0 border border-dashed border-white/20 bg-slate-900/70 flex items-center justify-center text-slate-400"
+        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full shrink-0 border border-dashed border-white/20 bg-slate-900/70 flex items-center justify-center text-slate-400"
       >
         <Shield className="w-4 h-4 opacity-65" />
       </div>
@@ -60,7 +60,7 @@ export const MatchScoreboardRow: React.FC<MatchScoreboardRowProps> = ({
     const textNode = (
       <div className="min-w-0 flex-1 space-y-0.5">
         <div
-          className={`text-xs sm:text-sm leading-tight line-clamp-2 transition-colors ${
+          className={`text-[11px] sm:text-sm leading-tight break-words sm:line-clamp-2 transition-colors ${
             won
               ? 'font-black text-emerald-400'
               : lost
@@ -73,14 +73,14 @@ export const MatchScoreboardRow: React.FC<MatchScoreboardRowProps> = ({
           {displayName}
         </div>
         {badge && (
-          <div className={`pt-0.5 flex ${isHome ? 'justify-start' : 'justify-end'}`}>
+          <div className={`hidden sm:flex pt-0.5 ${isHome ? 'justify-start' : 'justify-end'}`}>
             {badge}
           </div>
         )}
       </div>
     );
 
-    const sideClass = `flex items-center gap-2.5 sm:gap-3 min-w-0 ${
+    const sideClass = `flex items-center gap-1.5 sm:gap-3 min-w-0 ${
       isHome ? 'justify-start text-left' : 'justify-end text-right'
     } ${lost ? 'opacity-65' : ''}`;
 
@@ -112,28 +112,38 @@ export const MatchScoreboardRow: React.FC<MatchScoreboardRowProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5 sm:gap-3 py-1">
-      {renderTeamSide('HOME', homeTeam, match.homeLabel, homeBadge)}
+    <div className="space-y-1.5">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 sm:gap-3 py-1">
+        {renderTeamSide('HOME', homeTeam, match.homeLabel, homeBadge)}
 
-      {/* Center VS / Set Scoreline Pill */}
-      <div className="flex flex-col items-center justify-center px-3 sm:px-3.5 py-1.5 rounded-xl bg-slate-900/90 border border-white/10 min-w-[72px] shrink-0">
-        {showScore ? (
-          <>
-            <span className="font-mono font-black text-base leading-tight text-amber-400 tabular-nums whitespace-nowrap">
-              {match.homeSetsWon} - {match.awaySetsWon}
-            </span>
-            {match.setScores?.length > 0 && (
-              <span className="text-[10px] font-mono text-slate-400 mt-0.5 text-center leading-tight max-w-[116px] sm:max-w-none tabular-nums">
-                {match.setScores.map((s) => `${s.home}-${s.away}`).join(' · ')}
+        {/* Center VS / Set Scoreline Pill */}
+        <div className="flex flex-col items-center justify-center px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-slate-900/90 border border-white/10 min-w-[60px] sm:min-w-[72px] shrink-0">
+          {showScore ? (
+            <>
+              <span className="font-mono font-black text-sm sm:text-base leading-tight text-amber-400 tabular-nums whitespace-nowrap">
+                {match.homeSetsWon} - {match.awaySetsWon}
               </span>
-            )}
-          </>
-        ) : (
-          <span className="text-amber-400 font-extrabold text-sm tracking-wider">VS</span>
-        )}
+              {match.setScores?.length > 0 && (
+                <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 mt-0.5 text-center leading-tight max-w-[92px] sm:max-w-none tabular-nums">
+                  {match.setScores.map((s) => `${s.home}-${s.away}`).join(' · ')}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-amber-400 font-extrabold text-xs sm:text-sm tracking-wider">VS</span>
+          )}
+        </div>
+
+        {renderTeamSide('AWAY', awayTeam, match.awayLabel, awayBadge)}
       </div>
 
-      {renderTeamSide('AWAY', awayTeam, match.awayLabel, awayBadge)}
+      {/* Mobile-only Outcome Pills Strip (prevents squeezing team names between logo & scoreboard) */}
+      {(homeBadge || awayBadge) && (
+        <div className="flex sm:hidden flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-[#1E293B]/60">
+          <div className="flex items-center justify-start min-w-0">{homeBadge}</div>
+          <div className="flex items-center justify-end min-w-0 ml-auto">{awayBadge}</div>
+        </div>
+      )}
     </div>
   );
 };

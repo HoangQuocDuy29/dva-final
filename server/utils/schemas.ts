@@ -349,6 +349,16 @@ export const APPLICATION_STATUS_UPDATE_SCHEMA: Schema = {
   entryFee: I(0, 100_000_000),
 };
 
+export const TRYOUT_PATCH_SCHEMA: Schema = {
+  level: LEVEL_RULE,
+  status: E(APPLICATION_STATUSES),
+  conclusion: E(APPLICATION_STATUSES),
+  outcome: E(APPLICATION_STATUSES),
+  reviewNotes: S(500),
+  coachNotes: S(2000),
+  entryFee: I(0, 100_000_000),
+};
+
 export const APPLICATION_PAYMENT_STATUS_SCHEMA: Schema = {
   paymentStatus: E(TRYOUT_PAYMENT_STATUSES),
 };

@@ -132,14 +132,14 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
       >
         <div className="flex items-center justify-between text-[10px]">
           <span className="font-mono font-black text-slate-400">{m?.matchCode || fallbackTitle}</span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {m?.courtName && (
-              <span className="text-sky-400 font-semibold">
+              <span className="text-sky-400 font-semibold whitespace-nowrap shrink-0">
                 {normalizeTournamentCourtName(m.courtName)}
               </span>
             )}
             {isLive && (
-              <span className="px-1.5 py-0.5 rounded bg-red-600 text-white font-black uppercase animate-pulse">
+              <span className="px-1.5 py-0.5 rounded bg-red-600 text-white font-black uppercase animate-pulse whitespace-nowrap shrink-0">
                 LIVE
               </span>
             )}

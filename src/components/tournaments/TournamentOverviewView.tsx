@@ -761,9 +761,9 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
 
       {/* 5. CONFIRMED PARTICIPATING TEAMS GRID (Clickable -> Roster Drawer) */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <h3 className="font-heading font-black text-lg text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-[#38BDF8]" />
+            <Users className="w-5 h-5 text-[#38BDF8] shrink-0" />
             <span>Participating Teams ({tournament.teams.length})</span>
           </h3>
           <span className="text-[11px] text-slate-400">Click any team to inspect squad roster &amp; match history</span>
@@ -774,7 +774,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
             Confirmed teams will appear here once registrations are verified.
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
             {tournament.teams.map((tm) => {
               const count = tournament.players.filter(
                 (p) => p.teamId === tm.id && p.eligibilityStatus !== 'REJECTED'
@@ -784,20 +784,20 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
                   key={tm.id}
                   type="button"
                   onClick={() => onSelectTeam(tm)}
-                  className="text-left p-4 rounded-2xl bg-[#111827] hover:bg-[#161F30] border border-[#1E293B] hover:border-[#F97316]/50 transition-all flex items-center gap-3 cursor-pointer group"
+                  className="text-left p-3 sm:p-4 rounded-2xl bg-[#111827] hover:bg-[#161F30] border border-[#1E293B] hover:border-[#F97316]/50 transition-all flex items-center gap-2.5 sm:gap-3 cursor-pointer group min-w-0 overflow-hidden"
                 >
                   <TeamLogoBadge
                     logoUrl={tm.logoUrl}
                     name={tm.name}
                     shortName={tm.shortName}
-                    sizeClass="w-11 h-11"
+                    sizeClass="w-9 h-9 sm:w-11 sm:h-11"
                     imgWidth={160}
                   />
                   <div className="min-w-0">
                     <div className="font-bold text-xs sm:text-sm text-white group-hover:text-orange-400 transition-colors truncate">
                       {tm.name}
                     </div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <div className="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
                       {tm.pool && <span className="font-mono text-[#38BDF8]">Pool {tm.pool}</span>}
                       <span>· {count} players</span>
                     </div>

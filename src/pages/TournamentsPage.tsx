@@ -152,13 +152,15 @@ export const TournamentsPage: React.FC = () => {
     activeSubView === 'overview' ? '' : `/${activeSubView}`
   }`;
 
+  const visibleNavTabs = navTabs.filter((tab) => !tab.hidden);
+
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white py-8 sm:py-12">
+    <div className="min-h-screen bg-[#0B0F19] text-white py-8 sm:py-12 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         {/* Persistent Header & Smart Tournament Switcher */}
-        <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-6 space-y-5">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1">
+        <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-4 sm:p-6 space-y-5 overflow-hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full min-w-0">
+            <div className="space-y-1 min-w-0">
               <span className="text-[11px] font-black uppercase tracking-widest text-[#F97316]">
                 {t('header.eyebrow')}
               </span>
@@ -173,14 +175,14 @@ export const TournamentsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto min-w-0 max-w-full">
               {/* Tournament Switcher Dropdown */}
-              <div className="relative">
+              <div className="relative w-full sm:w-auto min-w-0 max-w-full overflow-hidden rounded-xl">
                 <select
                   aria-label={t('header.switcherLabel')}
                   value={activeTournament.slug}
                   onChange={(e) => handleSwitchTournament(e.target.value)}
-                  className="appearance-none pl-4 pr-10 py-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] hover:border-[#F97316]/60 text-xs sm:text-sm font-bold text-white cursor-pointer focus:outline-none"
+                  className="w-full min-w-0 max-w-full truncate appearance-none pl-3 sm:pl-4 pr-9 sm:pr-10 py-2.5 box-border rounded-xl bg-[#0B0F19] border border-[#1E293B] hover:border-[#F97316]/60 text-[11px] sm:text-sm font-bold text-white cursor-pointer focus:outline-none"
                 >
                   {tournaments.map((item) => (
                     <option key={item.id} value={item.slug}>
@@ -193,46 +195,54 @@ export const TournamentsPage: React.FC = () => {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-px bottom-px right-px w-11 rounded-r-[11px] bg-gradient-to-l from-[#0B0F19] via-[#0B0F19] to-transparent flex items-center justify-end pr-2.5 z-10"
+                >
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                </span>
               </div>
 
-              <ShareButton
-                url={shareUrl}
-                title={activeTournament.name}
-                text={`Follow ${activeTournament.name} on DVA Volleyball Club`}
-                label={t('header.shareTournament')}
-              />
+              <div className="flex items-center justify-start shrink-0">
+                <ShareButton
+                  url={shareUrl}
+                  title={activeTournament.name}
+                  text={`Follow ${activeTournament.name} on DVA Volleyball Club`}
+                  label={t('header.shareTournament')}
+                />
+              </div>
             </div>
           </div>
 
           {/* Sub-view Navigation Pills */}
           <nav
             aria-label="Tournament sections"
-            className="flex flex-wrap items-center gap-1.5 pt-4 border-t border-[#1E293B]"
+            className="grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-1.5 pt-4 border-t border-[#1E293B]"
           >
-            {navTabs
-              .filter((tab) => !tab.hidden)
-              .map(({ id, label, icon: Icon }) => {
-                const isActive = activeSubView === id;
-                const to =
-                  id === 'overview'
-                    ? `/tournaments/${activeTournament.slug}`
-                    : `/tournaments/${activeTournament.slug}/${id}`;
-                return (
-                  <Link
-                    key={id}
-                    to={to}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
-                      isActive
-                        ? 'bg-gradient-to-r from-[#8B0000] to-[#F97316] text-white shadow'
-                        : 'bg-[#0B0F19] text-slate-400 hover:text-white border border-[#1E293B]'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{label}</span>
-                  </Link>
-                );
-              })}
+            {visibleNavTabs.map(({ id, label, icon: Icon }, idx) => {
+              const isActive = activeSubView === id;
+              const to =
+                id === 'overview'
+                  ? `/tournaments/${activeTournament.slug}`
+                  : `/tournaments/${activeTournament.slug}/${id}`;
+              const isOddLast = visibleNavTabs.length % 2 === 1 && idx === visibleNavTabs.length - 1;
+              return (
+                <Link
+                  key={id}
+                  to={to}
+                  className={`px-3 sm:px-3.5 py-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 text-center sm:text-left leading-tight transition-all min-w-0 ${
+                    isOddLast ? 'col-span-2 sm:col-span-1' : ''
+                  } ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#8B0000] to-[#F97316] text-white shadow'
+                      : 'bg-[#0B0F19] text-slate-400 hover:text-white border border-[#1E293B]'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="sm:whitespace-nowrap">{label}</span>
+                </Link>
+              );
+            })}
           </nav>
         </div>
 

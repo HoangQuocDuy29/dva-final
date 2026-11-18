@@ -1,9 +1,16 @@
-# Feature Specification: Verified 5-Stream Cashflow Analytics (Tryout Fees & Guest Session Revenue) on Admin Dashboard
+# Feature Specification: Verified Cashflow Analytics (Tryout Fees & Guest Session Revenue) on Admin Dashboard
 
 **Feature Branch**: `feat/dashboard-cashflow`  
 **Base Commit**: `66f72c8` (`main`)  
 **Created**: 2026-11-13  
-**Status**: Approved for Implementation  
+**Last Amended**: 2026-11-19  
+**Status**: Implemented & Extended  
+
+> [!NOTE]
+> **Implementation Amendments (Through 2026-11-19):**
+> - **Database:** Migrated from Neon to **Supabase PostgreSQL** (`ap-southeast-1`, Transaction Pooler `:6543` runtime / `DIRECT_URL :5432` CLI).
+> - **Tryout Payment Decoupling (`prisma/schema.prisma`, `server/modules/tryouts/*`, `useAdminMetrics.ts`):** `MemberApplication` added `paymentStatus` (`PENDING | PAID | FREE`), `paidAt`, `evaluationScores`, `scheduledDate`, and `resultEmailSentAt`. `tryoutRevenue` counts applications with `paymentStatus === 'PAID' || (status === 'APPROVED' && paymentStatus !== 'FREE')` (with monthly buckets using `paidAt ?? approvedAt ?? updatedAt ?? createdAt`). Editing `entryFee` (`PATCH /members/applications/:id/entry-fee`) and `paymentStatus` (`PATCH /members/applications/:id/payment-status`) is restricted to `SUPERADMIN`, while `ADMIN` is blocked from seeing financial figures and blocked from rejecting applications (`403 Forbidden`).
+> - **6th Revenue Stream (Spec 008):** `Tournament Fees` (`HOSTED` + `PAID`, `#EC4899`) was added alongside the original 5 streams in `RevenueKpiCards.tsx`, `OverviewTab.tsx`, and `RevenueTrendChart.tsx`.
 
 ---
 

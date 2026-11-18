@@ -41,34 +41,13 @@ export interface AdminDashboardPageProps {
 }
 
 const AdminDashboardShell: React.FC = () => {
-  const { isAdmin, isSuperAdmin, onOpenSheets, activeModule } =
+  const { isSuperAdmin, onOpenSheets, activeModule } =
     useAdminDashboard();
   const mainScrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     mainScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeModule]);
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-[#0B0F19] text-white py-24 text-center space-y-4">
-        <Shield className="w-12 h-12 text-red-500 mx-auto" />
-        <h2 className="text-xl font-bold">
-          Access Restricted to Club Administrators
-        </h2>
-        <p className="text-slate-400 text-xs max-w-md mx-auto">
-          Please switch to SUPERADMIN (Hoang Quoc Duy) or ADMIN (Tran Minh Tuan)
-          from the profile menu to access the workspace.
-        </p>
-        <Link
-          to="/"
-          className="inline-block px-5 py-2.5 bg-slate-800 text-white rounded-xl text-xs font-semibold hover:bg-slate-700"
-        >
-          Return to Home
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="h-[calc(100vh-5rem)] bg-[#0B0F19] text-white flex overflow-hidden">
@@ -143,8 +122,30 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   onOpenSheets,
   onUserChange,
 }) => {
+  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#0B0F19] text-white py-24 text-center space-y-4">
+        <Shield className="w-12 h-12 text-red-500 mx-auto" />
+        <h2 className="text-xl font-bold">
+          Access Restricted to Club Administrators
+        </h2>
+        <p className="text-slate-400 text-xs max-w-md mx-auto">
+          Please sign in with a SUPERADMIN or ADMIN account from the profile menu to access the workspace.
+        </p>
+        <Link
+          to="/"
+          className="inline-block px-5 py-2.5 bg-slate-800 text-white rounded-xl text-xs font-semibold hover:bg-slate-700"
+        >
+          Return to Home
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <AdminDashboardProvider
+      key={currentUser.id}
       currentUser={currentUser}
       onOpenSheets={onOpenSheets}
       onUserChange={onUserChange}

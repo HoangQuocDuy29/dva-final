@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { ApplicationStatus, MemberApplication, TryoutPaymentStatus } from '../../../types';
+import { ApplicationStatus, MemberApplication, PlayerLevel, TryoutPaymentStatus } from '../../../types';
 import { memberService, playerService } from '../../../services/api';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 
@@ -12,7 +12,7 @@ export function useApplicationActions() {
 
   const handleUpdateApplicationStatus = useCallback(
     async (appId: string, status: ApplicationStatus, entryFee?: number) => {
-      if (!isSuperAdmin && status === 'APPROVED') return;
+      if (!isSuperAdmin && (status === 'APPROVED' || status === 'REJECTED')) return;
       try {
         const res = await memberService.updateStatus(appId, status, undefined, entryFee);
         setApplications((prev) =>
@@ -56,8 +56,31 @@ export function useApplicationActions() {
   );
 
   const handleRejectApplication = useCallback(
-    (appId: string) => handleUpdateApplicationStatus(appId, 'REJECTED'),
-    [handleUpdateApplicationStatus]
+    (appId: string) => {
+      if (!isSuperAdmin) return Promise.resolve();
+      return handleUpdateApplicationStatus(appId, 'REJECTED');
+    },
+    [isSuperAdmin, handleUpdateApplicationStatus]
+  );
+
+  const handleUpdateApplicationLevel = useCallback(
+    async (app: MemberApplication, nextLevel: PlayerLevel): Promise<MemberApplication | null> => {
+      if (!isSuperAdmin) return null;
+      const currentLevel = String(app.level || 'JUNIOR').trim().toUpperCase();
+      if (currentLevel === nextLevel) return null;
+
+      const updated = await memberService.updateTryout(app.id, { level: nextLevel });
+      setApplications((prev) =>
+        prev.map((a) =>
+          a.id === app.id
+            ? { ...a, ...updated, level: updated.level || nextLevel }
+            : a
+        )
+      );
+      notify(`Đã cập nhật cấp độ ${app.fullName} → ${nextLevel}.`, 3500);
+      return updated;
+    },
+    [isSuperAdmin, setApplications, notify]
   );
 
   /**
@@ -155,6 +178,7 @@ export function useApplicationActions() {
     handleUpdateApplicationStatus,
     handleApproveApplication,
     handleRejectApplication,
+    handleUpdateApplicationLevel,
     handleChangePaymentStatus,
     handleApplicationUpdated,
     handleUpdateEntryFee,

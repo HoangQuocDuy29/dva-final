@@ -2,18 +2,20 @@ import { Router } from 'express';
 import { isSuperAdmin } from '../../middlewares/auth.middleware';
 import { requireAdminOrSuperAdmin, requireSuperAdmin } from '../../middlewares/rbac.middleware';
 import { ah, publicWriteLimiter } from '../../middlewares/error.middleware';
-import { sanitize } from '../../utils/validation';
+import { HttpError, sanitize } from '../../utils/validation';
 import {
   APPLICATION_ENTRY_FEE_SCHEMA,
   APPLICATION_PAYMENT_STATUS_SCHEMA,
   APPLICATION_STATUS_UPDATE_SCHEMA,
   MEMBER_REGISTER_SCHEMA,
   TRYOUT_EVALUATE_SCHEMA,
+  TRYOUT_PATCH_SCHEMA,
   TRYOUT_REGISTER_SCHEMA,
   TRYOUT_SCHEDULE_EMAIL_SCHEMA,
   TRYOUT_UNIFIED_EMAIL_SCHEMA,
 } from '../../utils/schemas';
 import {
+  assertCanRejectApplication,
   deleteApplication,
   evaluateApplication,
   listApplications,
@@ -22,6 +24,7 @@ import {
   updateApplicationEntryFee,
   updateApplicationPaymentStatus,
   updateApplicationStatus,
+  updateTryoutApplication,
 } from './tryouts.service';
 
 export const tryoutsRouter = Router();
@@ -53,11 +56,28 @@ tryoutsRouter.post(
 );
 
 tryoutsRouter.patch(
+  '/admin/tryouts/:id',
+  requireAdminOrSuperAdmin,
+  ah(async (req, res) => {
+    const superAdmin = isSuperAdmin(req.user);
+    assertCanRejectApplication(superAdmin, req.body?.status, req.body?.conclusion, req.body?.outcome);
+    const data = sanitize(req.body, TRYOUT_PATCH_SCHEMA, { partial: true });
+    if (Object.keys(data).length === 0) {
+      throw new HttpError(400, 'No valid update fields provided.');
+    }
+    const dto = await updateTryoutApplication(req.params.id, data as any, superAdmin);
+    res.json(dto);
+  })
+);
+
+tryoutsRouter.patch(
   '/members/applications/:id/status',
   requireAdminOrSuperAdmin,
   ah(async (req, res) => {
+    const superAdmin = isSuperAdmin(req.user);
+    assertCanRejectApplication(superAdmin, req.body?.status, req.body?.conclusion, req.body?.outcome);
     const data = sanitize(req.body, APPLICATION_STATUS_UPDATE_SCHEMA, { required: ['status'] });
-    const result = await updateApplicationStatus(req.params.id, data as any, isSuperAdmin(req.user));
+    const result = await updateApplicationStatus(req.params.id, data as any, superAdmin);
     res.json(result);
   })
 );
@@ -85,12 +105,14 @@ tryoutsRouter.patch(
 );
 
 const handleEvaluate = ah(async (req, res) => {
+  const superAdmin = isSuperAdmin(req.user);
+  assertCanRejectApplication(superAdmin, req.body?.status, req.body?.conclusion, req.body?.outcome);
   const data = sanitize(req.body, TRYOUT_EVALUATE_SCHEMA, { required: ['scores', 'status'] });
   const dto = await evaluateApplication(
     req.params.id,
     data as any,
     req.user || {},
-    isSuperAdmin(req.user)
+    superAdmin
   );
   res.json(dto);
 });
@@ -118,13 +140,15 @@ tryoutsRouter.post(
   '/admin/tryouts/:id/send-email',
   requireAdminOrSuperAdmin,
   ah(async (req, res) => {
+    const superAdmin = isSuperAdmin(req.user);
+    assertCanRejectApplication(superAdmin, req.body?.outcome, req.body?.status, req.body?.conclusion);
     const body = sanitize(req.body ?? {}, TRYOUT_UNIFIED_EMAIL_SCHEMA, { required: ['kind'] });
     const result = await sendTryoutEmail(
       req.params.id,
       body,
       body.kind,
       req.user || {},
-      isSuperAdmin(req.user)
+      superAdmin
     );
     res.json(result);
   })

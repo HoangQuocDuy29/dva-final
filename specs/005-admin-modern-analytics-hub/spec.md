@@ -2,8 +2,18 @@
 
 **Feature Branch**: `005-admin-modern-analytics-hub`  
 **Created**: 2026-11-10  
-**Status**: Draft  
+**Last Amended**: 2026-11-19  
+**Status**: Implemented & Extended (See Amendments Below)  
 **Input**: User description: "[SPEC-DRIVEN] Nâng cấp Giao diện Admin Dashboard (Dark Modern Analytics & Modular Hub) - Chế độ Giám sát Nghiêm ngặt (Strict Review Mode)"
+
+> [!NOTE]
+> **Implementation Amendments (Through 2026-11-19):**
+> - **Database Migration:** Live production database migrated 1:1 from Neon Serverless PostgreSQL to **Supabase PostgreSQL** (`ap-southeast-1`, Transaction Pooler IPv4 `:6543` runtime / `DIRECT_URL` Session Pooler `:5432` CLI).
+> - **6-Stream Revenue Analytics (`useAdminMetrics.ts`, `OverviewTab.tsx`, `RevenueKpiCards.tsx`, `RevenueTrendChart.tsx`):** Expanded beyond initial 4 KPI placeholders to **6 revenue streams**: `Court Bookings` (`PAID`), `DVA Store` (Full Phase 2 Orders), `Guest Sessions` (`PAID`), `Tryout Fees` (`paymentStatus === 'PAID'` or unpaid legacy `APPROVED`), `Tournament Fees` (`HOSTED` & `PAID`, via Spec 008), plus `Est. Training Tuition` (`CONFIRMED`), retaining the 2×4 KPI layout for `SUPERADMIN`.
+> - **Strict RBAC & Lazy-Load Hardening (`constants.ts`, `useAdminData.ts`, `AdminDashboardPage.tsx`, `AdminDashboardContext.tsx`, `tryouts.service.ts`):**
+>   - `ADMIN` role is strictly scoped via `ADMIN_ALLOWED_TABS` to 4 tabs (`OVERVIEW` non-financial ops cards, `APPLICATIONS` without `REJECTED` or financial fields, `TOURNAMENTS` read-only, `NEWS` create/edit without `DELETE`), while all other 8 tabs require `SUPERADMIN`.
+>   - `ADMIN` is blocked from rejecting Tryout applications (`403 Forbidden: Only SUPERADMIN can reject applications`) on both backend and UI (`ApplicationsTab`, `EvaluationScorecardModal`); `SUPERADMIN` can also update `Level` (`SENIOR`/`JUNIOR`/`YOUTH`) inline via `PATCH /api/admin/tryouts/:id`.
+>   - `useAdminData.ts` lazy-loads tab datasets strictly on demand (`overview-summary` on mount) and guards against missing tokens (`authService.hasToken()`); `AdminDashboardPage.tsx` blocks `!isAdmin` before mounting `<AdminDashboardProvider key={currentUser.id}>` to prevent stale `401` races across sign-out/sign-in.
 
 ---
 

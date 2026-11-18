@@ -194,6 +194,7 @@ const PUBLIC_RULES: Rule[] = [
 const ADMIN_ALLOWED_RULES: Rule[] = [
   rule('GET', /^\/admin\/overview-summary\/?$/),
   rule('GET', /^\/members\/applications\/?$/),
+  rule('PATCH', /^\/admin\/tryouts\/[^/]+\/?$/),
   rule('PATCH', /^\/members\/applications\/[^/]+\/status\/?$/),
   rule('PATCH', /^\/members\/applications\/[^/]+\/evaluate\/?$/),
   rule('PATCH', /^\/admin\/tryouts\/[^/]+\/evaluate\/?$/),

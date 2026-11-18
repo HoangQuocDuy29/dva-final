@@ -1,6 +1,6 @@
 # Data Model: DVA Tournaments & Leagues Module
 
-**Feature**: `008-tournaments-module` | **Database**: Neon PostgreSQL (Additive-Only via `npx prisma db push`)
+**Feature**: `008-tournaments-module` | **Database**: Supabase PostgreSQL (Additive-Only via `npx prisma db push`)
 
 ---
 
@@ -26,7 +26,7 @@ Tournament (1) ──< (N) TournamentTeam (1) ──< (N) TournamentPlayer
    - `startDate`, `endDate`, `startTime`, `endTime`: `YYYY-MM-DD` dates and `HH:mm` times (supports 1-day morning-to-evening or multi-day ranges).
    - `isActive`: Soft visibility flag (`false` hides unfinished drafts from `/tournaments`).
    - `isRegistrationOpen`, `isRosterLocked`, `requireBirthYear`, `maxTeams` (default `8`), `registrationDeadline`.
-   - `groupSetFormat` & `knockoutSetFormat`: `"BO3"` | `"BO2"`.
+   - `groupSetFormat` & `knockoutSetFormat`: `"BO3"` | `"BO2"` | `"BO1_25"` (Single Set to 25 pts).
    - `prizeConfig` (Json): Flexible array `[{ rank, label, cashAmount?, nonCashReward?, prizeMode? }]` (`prizeMode`: `'HONOR_ONLY' | 'CASH_AND_TROPHIES'`, display-only awards for both `HOSTED` and `PARTICIPATING`).
    - `podiumOverride` (Json): Optional podium override (`firstName`/`secondName`/`thirdName`), 8-slot FIVB `dreamTeam` (`MVP`, `BEST_OH_1`, `BEST_OH_2`, `BEST_MB_1`, `BEST_MB_2`, `BEST_OP`, `BEST_SETTER`, `BEST_LIBERO`), and legacy `awards` summary.
    - `internalExpenseNote`: Admin-only text field (stripped from public DTOs).

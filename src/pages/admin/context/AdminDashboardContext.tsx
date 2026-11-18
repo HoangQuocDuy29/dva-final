@@ -44,7 +44,6 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
     if (onUserChange) {
       onUserChange(guestUser);
     }
-    window.dispatchEvent(new Event('dva:session-expired'));
     navigate('/', { replace: true });
   }, [navigate, onUserChange]);
 
@@ -88,7 +87,7 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
   );
 
   const { feedback, setFeedback, notify } = useFeedback();
-  const { loading, fetchData, data, setData } = useAdminData(activeModule, isSuperAdmin);
+  const { loading, fetchData, data, setData } = useAdminData(activeModule, isSuperAdmin, isAdmin);
 
   // Court Schedule & Slot Lock Control state (shared across COURTS and BOOKINGS)
   const [selectedManageCourtId, setSelectedManageCourtId] = useState<string>('court-btl');

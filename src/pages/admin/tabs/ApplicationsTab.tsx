@@ -1,10 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertCircle,
   Award,
   Calendar,
   CheckCircle2,
+  ChevronDown,
   ClipboardCheck,
   Clock,
+  Loader2,
   Mail,
   Search,
   ShieldCheck,
@@ -14,6 +17,7 @@ import {
 import {
   ApplicationStatus,
   MemberApplication,
+  PlayerLevel,
   TryoutPaymentStatus,
   VolleyballPosition,
 } from '../../../types';
@@ -26,6 +30,18 @@ import { EvaluationScorecardModal } from '../components/applications/EvaluationS
 
 const APPS_PAGE_SIZE = 10;
 const POSITIONS_ORDER: VolleyballPosition[] = ['OH', 'MB', 'OP', 'S', 'L'];
+const LEVEL_OPTIONS: readonly PlayerLevel[] = ['SENIOR', 'JUNIOR', 'YOUTH'] as const;
+const LEVEL_BADGE_STYLES: Record<PlayerLevel, string> = {
+  SENIOR: 'bg-orange-950/80 text-orange-300 border-orange-600/60 hover:border-orange-400',
+  JUNIOR: 'bg-sky-950/80 text-sky-300 border-sky-600/60 hover:border-sky-400',
+  YOUTH: 'bg-purple-950/80 text-purple-300 border-purple-600/60 hover:border-purple-400',
+};
+
+function normalizePlayerLevel(raw?: string): PlayerLevel {
+  const upper = String(raw || 'JUNIOR').trim().toUpperCase();
+  if (upper === 'SENIOR' || upper === 'JUNIOR' || upper === 'YOUTH') return upper;
+  return 'JUNIOR';
+}
 
 type StatusFilter = 'ALL' | ApplicationStatus;
 type PaymentFilter = 'ALL' | TryoutPaymentStatus;
@@ -38,6 +54,7 @@ export const ApplicationsTab: React.FC = () => {
   const {
     handleApproveApplication,
     handleRejectApplication,
+    handleUpdateApplicationLevel,
     handleChangePaymentStatus,
     handleApplicationUpdated,
     handleDeleteApplication,
@@ -49,6 +66,48 @@ export const ApplicationsTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [schedulingApp, setSchedulingApp] = useState<MemberApplication | null>(null);
   const [evaluatingApp, setEvaluatingApp] = useState<MemberApplication | null>(null);
+  const [updatingLevelId, setUpdatingLevelId] = useState<string | null>(null);
+  const [levelToast, setLevelToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const levelToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (levelToastTimerRef.current) clearTimeout(levelToastTimerRef.current);
+    };
+  }, []);
+
+  const showLevelToast = (type: 'success' | 'error', text: string) => {
+    if (levelToastTimerRef.current) clearTimeout(levelToastTimerRef.current);
+    setLevelToast({ type, text });
+    levelToastTimerRef.current = setTimeout(() => {
+      setLevelToast(null);
+      levelToastTimerRef.current = null;
+    }, 3200);
+  };
+
+  const onInlineLevelChange = async (app: MemberApplication, nextLevel: PlayerLevel) => {
+    if (!isSuperAdmin) return;
+    if (normalizePlayerLevel(app.level) === nextLevel) return;
+    setUpdatingLevelId(app.id);
+    try {
+      await handleUpdateApplicationLevel(app, nextLevel);
+      showLevelToast('success', `Đã cập nhật cấp độ ${app.fullName} → ${nextLevel}`);
+    } catch (err: any) {
+      showLevelToast('error', err?.message || 'Không thể cập nhật cấp độ. Vui lòng thử lại.');
+    } finally {
+      setUpdatingLevelId(null);
+    }
+  };
+
+  const activeSchedulingApp = useMemo(
+    () => (schedulingApp ? applications.find((a) => a.id === schedulingApp.id) || schedulingApp : null),
+    [applications, schedulingApp]
+  );
+
+  const activeEvaluatingApp = useMemo(
+    () => (evaluatingApp ? applications.find((a) => a.id === evaluatingApp.id) || evaluatingApp : null),
+    [applications, evaluatingApp]
+  );
 
   const analytics = useMemo(() => {
     let pending = 0;
@@ -395,7 +454,41 @@ export const ApplicationsTab: React.FC = () => {
 
                       {/* 2. Division & Physical */}
                       <td className="py-3.5 px-3 space-y-1">
-                        <span className="font-bold text-orange-400 block">{app.level}</span>
+                        {(() => {
+                          const currentLevel = normalizePlayerLevel(app.level);
+                          const isUpdatingThis = updatingLevelId === app.id;
+                          return isSuperAdmin ? (
+                            <div className="relative inline-flex items-center">
+                              <select
+                                aria-label={`Level for ${app.fullName}`}
+                                value={currentLevel}
+                                disabled={isUpdatingThis}
+                                onChange={(e) =>
+                                  void onInlineLevelChange(app, e.target.value as PlayerLevel)
+                                }
+                                title="Đổi nhanh cấp độ SENIOR / JUNIOR / YOUTH"
+                                className={`appearance-none pl-2.5 pr-7 py-1 rounded-lg border text-[11px] font-black tracking-wide uppercase cursor-pointer focus:outline-none transition-colors disabled:opacity-60 ${LEVEL_BADGE_STYLES[currentLevel]}`}
+                              >
+                                {LEVEL_OPTIONS.map((lvl) => (
+                                  <option key={lvl} value={lvl} className="bg-[#0B0F19] text-white">
+                                    {lvl}
+                                  </option>
+                                ))}
+                              </select>
+                              {isUpdatingThis ? (
+                                <Loader2 className="w-3 h-3 animate-spin text-white absolute right-2 pointer-events-none" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5 opacity-80 absolute right-1.5 pointer-events-none" />
+                              )}
+                            </div>
+                          ) : (
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-lg border text-[11px] font-black tracking-wide uppercase ${LEVEL_BADGE_STYLES[currentLevel]}`}
+                            >
+                              {currentLevel}
+                            </span>
+                          );
+                        })()}
                         <div className="font-mono text-[11px] text-slate-300">
                           {app.height}cm
                           {app.weight > 0 ? ` / ${app.weight}kg` : ''}
@@ -655,7 +748,7 @@ export const ApplicationsTab: React.FC = () => {
                                 <span>{app.scheduledDate ? 'Hẹn lại' : 'Hẹn Try-Out'}</span>
                               </button>
 
-                              {app.status !== 'REJECTED' && (
+                              {isSuperAdmin && app.status !== 'REJECTED' && (
                                 <button
                                   type="button"
                                   onClick={() => handleRejectApplication(app.id)}
@@ -708,7 +801,7 @@ export const ApplicationsTab: React.FC = () => {
 
         {/* Schedule Try-Out Invitation Modal */}
         <ScheduleTryoutModal
-          application={schedulingApp}
+          application={activeSchedulingApp}
           isSuperAdmin={isSuperAdmin}
           onClose={() => setSchedulingApp(null)}
           onScheduled={(updatedApp, message) => handleApplicationUpdated(updatedApp, message, false)}
@@ -716,11 +809,30 @@ export const ApplicationsTab: React.FC = () => {
 
         {/* 4-Criteria Evaluation Scorecard & Result Email Modal */}
         <EvaluationScorecardModal
-          application={evaluatingApp}
+          application={activeEvaluatingApp}
+          isSuperAdmin={isSuperAdmin}
           onClose={() => setEvaluatingApp(null)}
           onUpdated={handleApplicationUpdated}
         />
       </div>
+
+      {levelToast && (
+        <div
+          role="status"
+          className={`fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-2xl border shadow-xl text-xs font-bold flex items-center gap-2 animate-in fade-in ${
+            levelToast.type === 'success'
+              ? 'bg-emerald-950/95 border-emerald-500/70 text-emerald-200'
+              : 'bg-red-950/95 border-red-500/70 text-red-200'
+          }`}
+        >
+          {levelToast.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+          )}
+          <span>{levelToast.text}</span>
+        </div>
+      )}
     </div>
   );
 };

@@ -782,24 +782,24 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             {readOnly ? (
-                              <span className="px-2 py-0.5 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-sky-300 font-bold">
+                              <span className="px-2 py-0.5 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-sky-300 font-bold whitespace-nowrap shrink-0">
                                 {normalizeTournamentCourtName(m.courtName)}
                               </span>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => handleSwapCourt(m)}
-                                className="px-2 py-0.5 rounded-lg bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-sky-300 font-bold inline-flex items-center gap-1 cursor-pointer"
+                                className="px-2 py-0.5 rounded-lg bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-sky-300 font-bold inline-flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
                                 title="Swap between Court A & Court B"
                               >
-                                <ArrowLeftRight className="w-3 h-3" />
+                                <ArrowLeftRight className="w-3 h-3 shrink-0" />
                                 <span>{normalizeTournamentCourtName(m.courtName)}</span>
                               </button>
                             )}
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase whitespace-nowrap shrink-0 ${
                                 m.status === 'LIVE'
                                   ? 'bg-red-600 text-white animate-pulse'
                                   : isDone

@@ -46,6 +46,7 @@ function normalizeAssignedLevel(raw?: string): PlayerLevel {
 
 interface EvaluationScorecardModalProps {
   application: MemberApplication | null;
+  isSuperAdmin: boolean;
   onClose: () => void;
   onUpdated: (
     updatedApp: MemberApplication,
@@ -80,10 +81,10 @@ const COACH_FEEDBACK_PRESETS: Record<ConclusionChoice, readonly string[]> = {
   ],
 };
 
-function resolveInitialConclusion(app: MemberApplication): ConclusionChoice {
+function resolveInitialConclusion(app: MemberApplication, isSuperAdmin: boolean): ConclusionChoice {
   if (app.status === 'APPROVED') return 'APPROVED';
   if (app.status === 'RETEST') return 'RETEST';
-  if (app.status === 'REJECTED') return 'REJECTED';
+  if (app.status === 'REJECTED' && isSuperAdmin) return 'REJECTED';
   return 'APPROVED';
 }
 
@@ -116,6 +117,7 @@ function getGroupPreviewMeta(levelRaw: string): {
 
 export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> = ({
   application,
+  isSuperAdmin,
   onClose,
   onUpdated,
 }) => {
@@ -139,10 +141,10 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
     setAttitude(Number(prev?.attitude) >= 1 && Number(prev?.attitude) <= 5 ? Number(prev?.attitude) : 4);
     setCoachNotes(application.coachNotes || '');
     setAssignedLevel(normalizeAssignedLevel(application.level));
-    setConclusion(resolveInitialConclusion(application));
+    setConclusion(resolveInitialConclusion(application, isSuperAdmin));
     setErrorMsg(null);
     setMobileView('SCORECARD');
-  }, [application]);
+  }, [application, isSuperAdmin]);
 
   const totalScore = physical + technique + tactical + attitude;
 
@@ -203,6 +205,10 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
   };
 
   const handleSaveOnly = async () => {
+    if (!isSuperAdmin && conclusion === 'REJECTED') {
+      setErrorMsg('Only SUPERADMIN can reject applications');
+      return;
+    }
     setErrorMsg(null);
     setSubmitting('SAVE');
     try {
@@ -232,6 +238,10 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
   const handleSaveAndSendEmail = async () => {
     if (conclusion === 'RETEST') {
       await handleSaveOnly();
+      return;
+    }
+    if (!isSuperAdmin && conclusion === 'REJECTED') {
+      setErrorMsg('Only SUPERADMIN can reject applications');
       return;
     }
     setErrorMsg(null);
@@ -494,7 +504,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                 <label className="block text-xs font-bold text-slate-300">
                   Kết luận chuyên môn của Ban Huấn luyện
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className={`grid grid-cols-1 ${isSuperAdmin ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-2`}>
                   <button
                     type="button"
                     onClick={() => setConclusion('APPROVED')}
@@ -528,22 +538,24 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                     <span className="text-[10px] opacity-80 block">RETEST · Đánh giá thêm</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setConclusion('REJECTED')}
-                    title="Chưa đạt tiêu chuẩn đợt này"
-                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer space-y-0.5 ${
-                      conclusion === 'REJECTED'
-                        ? 'bg-red-950/80 border-red-500 text-red-200 shadow-lg shadow-red-950/40'
-                        : 'bg-[#0B0F19] border-slate-800 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 font-black text-xs">
-                      <XCircle className="w-4 h-4 text-red-400 shrink-0" />
-                      <span>Rất tiếc (Chưa đạt)</span>
-                    </div>
-                    <span className="text-[10px] opacity-80 block">REJECTED · Gửi góp ý</span>
-                  </button>
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setConclusion('REJECTED')}
+                      title="Chưa đạt tiêu chuẩn đợt này"
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer space-y-0.5 ${
+                        conclusion === 'REJECTED'
+                          ? 'bg-red-950/80 border-red-500 text-red-200 shadow-lg shadow-red-950/40'
+                          : 'bg-[#0B0F19] border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-black text-xs">
+                        <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                        <span>Rất tiếc (Chưa đạt)</span>
+                      </div>
+                      <span className="text-[10px] opacity-80 block">REJECTED · Gửi góp ý</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
