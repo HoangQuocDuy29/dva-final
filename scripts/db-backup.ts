@@ -297,6 +297,7 @@ function pushPrismaSchemaToLocal(localUrl: string): void {
     env: {
       ...process.env,
       DATABASE_URL: localUrl,
+      DIRECT_URL: localUrl,
     },
   });
 }

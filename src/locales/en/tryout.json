@@ -61,67 +61,14 @@
       }
     ]
   },
-  "form": {
-    "sectionTitle": "3. Direct Try-Out Registration",
-    "sectionSubtitle": "Your profile is sent directly to the DVA Coaching Staff dashboard. We will email your official Try-Out schedule once confirmed.",
-    "fullName": "Full Name *",
-    "fullNamePlaceholder": "e.g., Nguyen Minh Quan",
-    "birthYear": "Birth Year *",
-    "birthYearPlaceholder": "e.g., 2004",
-    "phone": "Phone / Zalo Number *",
-    "phonePlaceholder": "e.g., 0912 345 678",
-    "email": "Email Address *",
-    "emailPlaceholder": "e.g., minhquan@gmail.com",
-    "height": "Height (cm) *",
-    "heightPlaceholder": "e.g., 178",
-    "position": "Primary Playing Position *",
-    "positions": {
-      "OH": "OH — Outside Hitter",
-      "MB": "MB — Middle Blocker",
-      "OP": "OP — Opposite Spiker",
-      "S": "S — Setter",
-      "L": "L — Libero"
-    },
-    "experience": "Volleyball Experience *",
-    "experienceOptions": [
-      "Under 6 months (Beginner / Fundamentals)",
-      "6 months – 1 year (Youth / Basic 4-2)",
-      "1 – 3 years (Intermediate / 5-1 & 6-2)",
-      "3+ years (Senior / Competitive League)"
-    ],
-    "experienceDetailPlaceholder": "Optional: previous club, school team, or tactical rotation experience (5-1 / 6-2 / 4-2)...",
-    "preferredDays": "Preferred Try-Out Schedule *",
-    "preferredDaysHint": "Select one or more weekly slots that fit your availability:",
-    "daySlots": [
-      { "id": "Mon (18:00 - 19:00)", "label": "Monday · 18:00 – 19:00" },
-      { "id": "Wed (18:00 - 19:00)", "label": "Wednesday · 18:00 – 19:00" },
-      { "id": "Fri (18:00 - 19:00)", "label": "Friday · 18:00 – 19:00" },
-      { "id": "Sat (18:00 - 19:00)", "label": "Saturday · 18:00 – 19:00" },
-      { "id": "Sun (13:30 - 14:30)", "label": "Sunday · 13:30 – 14:30" }
-    ],
-    "submit": "Submit Try-Out Registration",
-    "submitting": "Submitting Try-Out Profile...",
-    "errors": {
-      "fullName": "Please enter your full name (at least 2 characters).",
-      "birthYear": "Please enter a valid birth year (1960 – 2016).",
-      "phone": "Please enter a valid phone / Zalo number (8–15 digits).",
-      "email": "Please enter a valid email address.",
-      "height": "Please enter your height in cm (100 – 250).",
-      "preferredDays": "Please select at least one preferred Try-Out day/time slot."
-    }
-  },
-  "success": {
-    "badge": "TRY-OUT APPLICATION RECEIVED",
-    "title": "Registration Submitted Successfully!",
-    "subtitle": "Your profile has been sent directly to the DVA Coaching Staff Tryout Board.",
-    "passId": "Application ID",
-    "athlete": "Athlete",
-    "position": "Position",
-    "division": "Projected Division",
-    "preferred": "Preferred Slots",
-    "nextStepTitle": "What Happens Next?",
-    "nextStepDesc": "Sessions open once 5+ athletes register for a time slot. Our Head Coach will send an official Try-Out Invitation Email (with exact date, time, and entrance guide to 155 Truong Chinh) to your inbox.",
-    "registerAnother": "Submit Another Application",
-    "viewInfo": "Back to Club Information"
+  "cta": {
+    "badge": "5+ Athletes Required",
+    "title": "Try-Out sessions open when 5+ athletes register",
+    "scheduleSummary": "18:00–19:00 Mon, Wed, Fri, Sat & 13:30–14:30 Sunday at 155 Truong Chinh, Thanh Xuan",
+    "desc": "Submit your full athlete profile on the official DVA Registration page so our Coaching Staff can review your application and send your Try-Out invitation email.",
+    "eveningChip": "18:00–19:00 · Mon, Wed, Fri, Sat",
+    "sundayChip": "13:30–14:30 · Sunday",
+    "venueChip": "155 Truong Chinh, Thanh Xuan",
+    "button": "Register for Try-Out"
   }
 }

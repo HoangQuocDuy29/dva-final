@@ -61,67 +61,14 @@
       }
     ]
   },
-  "form": {
-    "sectionTitle": "3. Form Đăng Ký Try-Out Trực Tiếp",
-    "sectionSubtitle": "Hồ sơ của bạn được chuyển thẳng về hệ thống Tryout Applications của Ban Huấn luyện DVA để xếp lịch test sớm nhất.",
-    "fullName": "Họ và tên *",
-    "fullNamePlaceholder": "VD: Nguyễn Minh Quân",
-    "birthYear": "Năm sinh *",
-    "birthYearPlaceholder": "VD: 2004",
-    "phone": "Số điện thoại / Zalo *",
-    "phonePlaceholder": "VD: 0912 345 678",
-    "email": "Email liên hệ *",
-    "emailPlaceholder": "VD: minhquan@gmail.com",
-    "height": "Chiều cao (cm) *",
-    "heightPlaceholder": "VD: 178",
-    "position": "Vị trí sở trường *",
-    "positions": {
-      "OH": "OH — Chủ công (Outside Hitter)",
-      "MB": "MB — Phụ công (Middle Blocker)",
-      "OP": "OP — Đối chuyền (Opposite Spiker)",
-      "S": "S — Chuyền hai (Setter)",
-      "L": "L — Libero (Phòng thủ)"
-    },
-    "experience": "Kinh nghiệm chơi bóng *",
-    "experienceOptions": [
-      "Dưới 6 tháng (Mới chơi / Cơ bản)",
-      "6 tháng – 1 năm (Youth / Sơ đồ 4-2)",
-      "1 – 3 năm (Junior / Sơ đồ 5-1 & 6-2)",
-      "Trên 3 năm (Senior / Thi đấu phong trào nâng cao)"
-    ],
-    "experienceDetailPlaceholder": "Tùy chọn: CLB từng tham gia, đội tuyển trường hoặc mức độ nắm bắt chiến thuật 5-1 / 6-2...",
-    "preferredDays": "Khung ngày mong muốn *",
-    "preferredDaysHint": "Chọn một hoặc nhiều khung giờ Try-Out phù hợp với lịch của bạn:",
-    "daySlots": [
-      { "id": "Thứ 2 (18:00 - 19:00)", "label": "Thứ 2 · 18:00 – 19:00" },
-      { "id": "Thứ 4 (18:00 - 19:00)", "label": "Thứ 4 · 18:00 – 19:00" },
-      { "id": "Thứ 6 (18:00 - 19:00)", "label": "Thứ 6 · 18:00 – 19:00" },
-      { "id": "Thứ 7 (18:00 - 19:00)", "label": "Thứ 7 · 18:00 – 19:00" },
-      { "id": "Chủ Nhật (13:30 - 14:30)", "label": "Chủ Nhật · 13:30 – 14:30" }
-    ],
-    "submit": "Gửi Đăng Ký Try-Out",
-    "submitting": "Đang gửi hồ sơ đăng ký...",
-    "errors": {
-      "fullName": "Vui lòng nhập họ và tên (tối thiểu 2 ký tự).",
-      "birthYear": "Vui lòng nhập năm sinh hợp lệ (1960 – 2016).",
-      "phone": "Vui lòng nhập SĐT / Zalo hợp lệ (8–15 chữ số).",
-      "email": "Vui lòng nhập địa chỉ email hợp lệ.",
-      "height": "Vui lòng nhập chiều cao theo cm (100 – 250).",
-      "preferredDays": "Vui lòng chọn ít nhất một khung ngày Try-Out mong muốn."
-    }
-  },
-  "success": {
-    "badge": "ĐÃ TIẾP NHẬN HỒ SƠ TRY-OUT",
-    "title": "Đăng Ký Try-Out Thành Công!",
-    "subtitle": "Thông tin của bạn đã được lưu trực tiếp vào danh sách Tryout Applications của CLB DVA.",
-    "passId": "Mã hồ sơ",
-    "athlete": "Vận động viên",
-    "position": "Vị trí",
-    "division": "Nhóm dự kiến",
-    "preferred": "Khung ngày mong muốn",
-    "nextStepTitle": "Quy trình tiếp theo",
-    "nextStepDesc": "Buổi Try-Out sẽ mở khi đủ từ 5 VĐV đăng ký trở lên. Ban Huấn luyện sẽ gửi Email Thư mời Try-Out chính thức (kèm ngày giờ cụ thể và hướng dẫn vào sân 155 Trường Chinh) qua hòm thư bạn vừa đăng ký.",
-    "registerAnother": "Đăng ký thêm hồ sơ khác",
-    "viewInfo": "Quay lại trang Thông tin CLB"
+  "cta": {
+    "badge": "Từ 5 VĐV đăng ký trở lên",
+    "title": "Mở buổi Try-Out khi có từ 5 VĐV đăng ký trở lên",
+    "scheduleSummary": "Lịch 18:00–19:00 T2, T4, T6, T7 & 13:30–14:30 Chủ Nhật tại 155 Trường Chinh, Thanh Xuân",
+    "desc": "Điền đầy đủ hồ sơ ứng viên tại trang Đăng Ký chính thức của DVA Volleyball Club để Ban Huấn luyện xếp lịch đánh giá và gửi Thư mời Try-Out qua Email.",
+    "eveningChip": "18:00–19:00 · T2, T4, T6, T7",
+    "sundayChip": "13:30–14:30 · Chủ Nhật",
+    "venueChip": "155 Trường Chinh, Thanh Xuân",
+    "button": "Đăng Ký Try-Out Ngay"
   }
 }
