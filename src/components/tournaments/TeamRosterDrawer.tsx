@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Award, ArrowUpRight, Calendar, MapPin, Shield, Trophy, Users, X } from 'lucide-react';
+import { ArrowUpRight, Calendar, MapPin, Shield, Trophy, Users, X } from 'lucide-react';
 import {
   POSITION_LABELS,
   TOURNAMENT_AWARD_LABELS,
@@ -9,7 +9,7 @@ import {
   TournamentIndividualAward,
   TournamentTeam,
 } from '../../types';
-import { computePoolStandings } from '../../shared/tournaments';
+import { computePoolStandings, normalizeTournamentCourtName } from '../../shared/tournaments';
 import { optimizeCloudinaryUrl } from '../../utils/cloudinary';
 import { TeamLogoBadge } from './TeamLogoBadge';
 
@@ -43,7 +43,7 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
   const roster = useMemo(() => {
     if (!team) return [];
     return tournament.players
-      .filter((p) => p.teamId === team.id)
+      .filter((p) => p.teamId === team.id && p.eligibilityStatus !== 'REJECTED')
       .sort((a, b) => Number(b.isCaptain) - Number(a.isCaptain) || a.jerseyNumber - b.jerseyNumber);
   }, [tournament.players, team]);
 
@@ -186,13 +186,26 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
                           </div>
                         )}
                         <div className="min-w-0">
-                          <div className="font-bold text-sm text-white flex items-center gap-1.5 truncate">
+                          <div className="font-bold text-sm text-white flex flex-wrap items-center gap-1.5">
                             <span className="truncate">{pl.fullName}</span>
                             {pl.isCaptain && (
                               <span className="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 text-[9px] font-black uppercase">
                                 C
                               </span>
                             )}
+                            {pl.awards.map((aw) => (
+                              <span
+                                key={aw}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                                  aw === 'MVP'
+                                    ? 'bg-[#FACC15]/20 border-[#FACC15]/60 text-[#FACC15]'
+                                    : 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                                }`}
+                              >
+                                <span>{aw === 'MVP' ? '🏆' : '⭐'}</span>
+                                <span>{TOURNAMENT_AWARD_LABELS[aw as TournamentIndividualAward] || aw}</span>
+                              </span>
+                            ))}
                           </div>
                           <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-x-2">
                             <span className="font-mono text-orange-400 font-bold">#{pl.jerseyNumber}</span>
@@ -202,20 +215,6 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
                           </div>
                         </div>
                       </div>
-
-                      {pl.awards.length > 0 && (
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          {pl.awards.map((aw) => (
-                            <span
-                              key={aw}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FACC15]/20 border border-[#FACC15]/50 text-[#FACC15] text-[10px] font-black uppercase"
-                            >
-                              <Award className="w-3 h-3" />
-                              {TOURNAMENT_AWARD_LABELS[aw as TournamentIndividualAward] || aw}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -255,7 +254,7 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
                           <span>· {m.stage}</span>
                           <span className="inline-flex items-center gap-0.5">
                             <MapPin className="w-2.5 h-2.5" />
-                            {m.courtName}
+                            {normalizeTournamentCourtName(m.courtName)}
                           </span>
                           {m.scheduledTime && <span>· {m.scheduledTime}</span>}
                         </div>

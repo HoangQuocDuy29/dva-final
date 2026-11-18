@@ -27,10 +27,13 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
     return () => clearInterval(timer);
   }, [booking]);
 
-  // Real-time polling: automatically detect when Bank Webhook (SePay/Casso) marks the booking as PAID
+  const isExpired = timeLeft <= 0;
+
+  // Real-time polling: detect when Bank Webhook (SePay/Casso) marks the booking as PAID (visibility-aware)
   useEffect(() => {
-    if (!booking || isSubmitted) return;
+    if (!booking || isSubmitted || isExpired) return;
     const poll = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       try {
         const list = await bookingService.getBookings({
           date: booking.bookingDate,
@@ -49,9 +52,9 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
       } catch {
         // ignore transient network errors during background polling
       }
-    }, 3000);
+    }, 5000);
     return () => clearInterval(poll);
-  }, [booking, isSubmitted]);
+  }, [booking, isSubmitted, isExpired]);
 
   if (!booking) return null;
 

@@ -1,12 +1,158 @@
 import type {
+  DreamTeamSlotKey,
   Tournament,
+  TournamentDreamTeamSelection,
+  TournamentIndividualAward,
   TournamentMatch,
   TournamentMatchStage,
+  TournamentPrizeMode,
+  TournamentPrizeTier,
   TournamentSetFormat,
   TournamentSetScore,
   TournamentStandingRow,
   TournamentTeam,
+  VolleyballPosition,
 } from '../types';
+
+export interface DreamTeamSlotMeta {
+  slotKey: DreamTeamSlotKey;
+  awardCode: TournamentIndividualAward;
+  label: string;
+  shortLabel: string;
+  suggestedPosition: VolleyballPosition | 'ALL';
+  pairedSlot?: DreamTeamSlotKey;
+  isMvp?: boolean;
+}
+
+export const DREAM_TEAM_SLOTS: readonly DreamTeamSlotMeta[] = [
+  {
+    slotKey: 'MVP',
+    awardCode: 'MVP',
+    label: 'Most Valuable Player (MVP)',
+    shortLabel: 'MVP',
+    suggestedPosition: 'ALL',
+    isMvp: true,
+  },
+  {
+    slotKey: 'BEST_OH_1',
+    awardCode: 'BEST_OUTSIDE_HITTER',
+    label: 'Best Outside Hitter #1',
+    shortLabel: 'Best OH #1',
+    suggestedPosition: 'OH',
+    pairedSlot: 'BEST_OH_2',
+  },
+  {
+    slotKey: 'BEST_OH_2',
+    awardCode: 'BEST_OUTSIDE_HITTER',
+    label: 'Best Outside Hitter #2',
+    shortLabel: 'Best OH #2',
+    suggestedPosition: 'OH',
+    pairedSlot: 'BEST_OH_1',
+  },
+  {
+    slotKey: 'BEST_MB_1',
+    awardCode: 'BEST_MIDDLE_BLOCKER',
+    label: 'Best Middle Blocker #1',
+    shortLabel: 'Best MB #1',
+    suggestedPosition: 'MB',
+    pairedSlot: 'BEST_MB_2',
+  },
+  {
+    slotKey: 'BEST_MB_2',
+    awardCode: 'BEST_MIDDLE_BLOCKER',
+    label: 'Best Middle Blocker #2',
+    shortLabel: 'Best MB #2',
+    suggestedPosition: 'MB',
+    pairedSlot: 'BEST_MB_1',
+  },
+  {
+    slotKey: 'BEST_OP',
+    awardCode: 'BEST_OPPOSITE',
+    label: 'Best Opposite Spiker',
+    shortLabel: 'Best Opposite',
+    suggestedPosition: 'OP',
+  },
+  {
+    slotKey: 'BEST_SETTER',
+    awardCode: 'BEST_SETTER',
+    label: 'Best Setter',
+    shortLabel: 'Best Setter',
+    suggestedPosition: 'S',
+  },
+  {
+    slotKey: 'BEST_LIBERO',
+    awardCode: 'BEST_LIBERO',
+    label: 'Best Libero',
+    shortLabel: 'Best Libero',
+    suggestedPosition: 'L',
+  },
+] as const;
+
+export const DREAM_TEAM_AWARD_CODES = new Set<string>(
+  DREAM_TEAM_SLOTS.map((s) => s.awardCode)
+);
+
+/** Derive initial 8-slot Dream Team selection from podiumOverride.dreamTeam, falling back to player.awards. */
+export function resolveDreamTeamSelection(
+  dreamTeam?: TournamentDreamTeamSelection | null,
+  players: Array<{ id: string; awards: string[] }> = []
+): TournamentDreamTeamSelection {
+  const base: TournamentDreamTeamSelection = {
+    MVP: dreamTeam?.MVP ?? null,
+    BEST_OH_1: dreamTeam?.BEST_OH_1 ?? null,
+    BEST_OH_2: dreamTeam?.BEST_OH_2 ?? null,
+    BEST_MB_1: dreamTeam?.BEST_MB_1 ?? null,
+    BEST_MB_2: dreamTeam?.BEST_MB_2 ?? null,
+    BEST_OP: dreamTeam?.BEST_OP ?? null,
+    BEST_SETTER: dreamTeam?.BEST_SETTER ?? null,
+    BEST_LIBERO: dreamTeam?.BEST_LIBERO ?? null,
+  };
+
+  if (Object.values(base).some(Boolean)) {
+    return base;
+  }
+
+  const pickByAward = (code: string, excludeId?: string | null): string | null =>
+    players.find((p) => p.id !== excludeId && Array.isArray(p.awards) && p.awards.includes(code))?.id ?? null;
+
+  base.MVP = pickByAward('MVP');
+  base.BEST_OH_1 = pickByAward('BEST_OUTSIDE_HITTER');
+  base.BEST_OH_2 = pickByAward('BEST_OUTSIDE_HITTER', base.BEST_OH_1);
+  base.BEST_MB_1 = pickByAward('BEST_MIDDLE_BLOCKER');
+  base.BEST_MB_2 = pickByAward('BEST_MIDDLE_BLOCKER', base.BEST_MB_1);
+  base.BEST_OP = pickByAward('BEST_OPPOSITE');
+  base.BEST_SETTER = pickByAward('BEST_SETTER');
+  base.BEST_LIBERO = pickByAward('BEST_LIBERO');
+  return base;
+}
+
+/**
+ * Determine whether a tournament's prize configuration uses Cash + Trophies or Honors Only.
+ * Defaults to HONOR_ONLY when empty or when all cash amounts are 0 without explicit cash opt-in.
+ */
+export function resolveTournamentPrizeMode(
+  prizeConfig?: TournamentPrizeTier[] | null
+): TournamentPrizeMode {
+  if (!Array.isArray(prizeConfig) || prizeConfig.length === 0) {
+    return 'HONOR_ONLY';
+  }
+  if (prizeConfig.some((p) => (Number(p?.cashAmount) || 0) > 0)) {
+    return 'CASH_AND_TROPHIES';
+  }
+  if (prizeConfig.some((p) => p?.prizeMode === 'CASH_AND_TROPHIES')) {
+    return 'CASH_AND_TROPHIES';
+  }
+  return 'HONOR_ONLY';
+}
+
+/** Sum cash payouts across prize tiers (strictly display-only; never included in club revenue). */
+export function computeTotalCashPrize(prizeConfig?: TournamentPrizeTier[] | null): number {
+  if (!Array.isArray(prizeConfig)) return 0;
+  return prizeConfig.reduce((sum, p) => {
+    if (p?.prizeMode === 'HONOR_ONLY') return sum;
+    return sum + Math.max(0, Number(p?.cashAmount) || 0);
+  }, 0);
+}
 
 /** Convert tournament title into clean URL slug. */
 export function slugifyTournamentName(name: string): string {
@@ -29,6 +175,44 @@ export function getTodayLocalYmd(now: Date = new Date()): string {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+/** Convert YYYY-MM-DD to DD/MM/YYYY cleanly without UTC timezone shifts. */
+export function formatYmdToDdMmYyyy(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim());
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return dateStr.trim();
+}
+
+/**
+ * Format Tournament Date & Time Range:
+ * - Single-day (`startDate === endDate` or omitted): `DD/MM/YYYY · 07:30 – 19:00` (or `DD/MM/YYYY · 07:30`)
+ * - Multi-day (`startDate !== endDate`): `DD/MM/YYYY (07:30) – DD/MM/YYYY (19:00)`
+ */
+export function formatTournamentScheduleDisplay(params: {
+  startDate: string;
+  endDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+}): string {
+  const start = formatYmdToDdMmYyyy(params.startDate);
+  const cleanEnd = params.endDate?.trim() || '';
+  const isSingleDay = !cleanEnd || cleanEnd === params.startDate.trim();
+  const sTime = params.startTime?.trim() || '';
+  const eTime = params.endTime?.trim() || '';
+
+  if (isSingleDay) {
+    if (sTime && eTime) return `${start} · ${sTime} – ${eTime}`;
+    if (sTime) return `${start} · ${sTime}`;
+    if (eTime) return `${start} · – ${eTime}`;
+    return start;
+  }
+
+  const end = formatYmdToDdMmYyyy(cleanEnd);
+  const left = sTime ? `${start} (${sTime})` : start;
+  const right = eTime ? `${end} (${eTime})` : end;
+  return `${left} – ${right}`;
 }
 
 /**
@@ -212,7 +396,7 @@ export function computePoolStandings(
       teamId: t.id,
       teamName: t.name,
       shortName: t.shortName,
-      logoUrl: t.logoUrl,
+      logoUrl: t.logoUrl || undefined,
       isDvaTeam: t.isDvaTeam,
       pool,
       played: 0,
@@ -405,7 +589,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PA-1',
       stage: 'POOL_A',
       bracketSide: null,
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '08:00',
       matchOrder: 1,
       setFormat: groupSetFormat,
@@ -418,7 +602,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PA-2',
       stage: 'POOL_A',
       bracketSide: null,
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '08:00',
       matchOrder: 2,
       setFormat: groupSetFormat,
@@ -432,7 +616,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PB-1',
       stage: 'POOL_B',
       bracketSide: null,
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '08:50',
       matchOrder: 3,
       setFormat: groupSetFormat,
@@ -445,7 +629,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PB-2',
       stage: 'POOL_B',
       bracketSide: null,
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '08:50',
       matchOrder: 4,
       setFormat: groupSetFormat,
@@ -459,7 +643,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PA-3',
       stage: 'POOL_A',
       bracketSide: null,
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '09:40',
       matchOrder: 5,
       setFormat: groupSetFormat,
@@ -472,7 +656,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PA-4',
       stage: 'POOL_A',
       bracketSide: null,
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '09:40',
       matchOrder: 6,
       setFormat: groupSetFormat,
@@ -486,7 +670,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PB-3',
       stage: 'POOL_B',
       bracketSide: null,
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '10:30',
       matchOrder: 7,
       setFormat: groupSetFormat,
@@ -499,7 +683,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PB-4',
       stage: 'POOL_B',
       bracketSide: null,
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '10:30',
       matchOrder: 8,
       setFormat: groupSetFormat,
@@ -513,7 +697,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PA-5',
       stage: 'POOL_A',
       bracketSide: null,
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '11:20',
       matchOrder: 9,
       setFormat: groupSetFormat,
@@ -526,7 +710,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PA-6',
       stage: 'POOL_A',
       bracketSide: null,
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '11:20',
       matchOrder: 10,
       setFormat: groupSetFormat,
@@ -540,7 +724,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PB-5',
       stage: 'POOL_B',
       bracketSide: null,
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '12:10',
       matchOrder: 11,
       setFormat: groupSetFormat,
@@ -553,7 +737,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'PB-6',
       stage: 'POOL_B',
       bracketSide: null,
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '12:10',
       matchOrder: 12,
       setFormat: groupSetFormat,
@@ -567,7 +751,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'QF1',
       stage: 'QUARTERFINAL',
       bracketSide: 'LEFT',
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '14:00',
       matchOrder: 13,
       setFormat: knockoutSetFormat,
@@ -580,7 +764,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'QF3',
       stage: 'QUARTERFINAL',
       bracketSide: 'LEFT',
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '14:00',
       matchOrder: 14,
       setFormat: knockoutSetFormat,
@@ -593,7 +777,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'QF2',
       stage: 'QUARTERFINAL',
       bracketSide: 'RIGHT',
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '15:00',
       matchOrder: 15,
       setFormat: knockoutSetFormat,
@@ -606,7 +790,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'QF4',
       stage: 'QUARTERFINAL',
       bracketSide: 'RIGHT',
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '15:00',
       matchOrder: 16,
       setFormat: knockoutSetFormat,
@@ -620,7 +804,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'SF1',
       stage: 'SEMIFINAL',
       bracketSide: 'LEFT',
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '16:15',
       matchOrder: 17,
       setFormat: knockoutSetFormat,
@@ -633,7 +817,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'SF2',
       stage: 'SEMIFINAL',
       bracketSide: 'RIGHT',
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '16:15',
       matchOrder: 18,
       setFormat: knockoutSetFormat,
@@ -647,7 +831,7 @@ export function buildStandard20MatchPlan(
       matchCode: '3RD',
       stage: 'THIRD_PLACE',
       bracketSide: 'CENTER',
-      courtName: 'Court 2',
+      courtName: 'Court B',
       scheduledTime: '17:30',
       matchOrder: 19,
       setFormat: knockoutSetFormat,
@@ -660,7 +844,7 @@ export function buildStandard20MatchPlan(
       matchCode: 'FINAL',
       stage: 'FINAL',
       bracketSide: 'CENTER',
-      courtName: 'Court 1',
+      courtName: 'Court A',
       scheduledTime: '18:30',
       matchOrder: 20,
       setFormat: knockoutSetFormat,
@@ -672,4 +856,200 @@ export function buildStandard20MatchPlan(
   ];
 
   return matches;
+}
+
+/** Return the lowest unused integer jersey number in [1..99] (falling back to 0 if all 1..99 are taken). */
+export function getNextAvailableJerseyNumber(used: Array<number | string>): number {
+  const taken = new Set(
+    used
+      .map((u) => {
+        if (typeof u === 'number') return u;
+        const trimmed = String(u ?? '').trim();
+        return trimmed === '' ? NaN : Number(trimmed);
+      })
+      .filter((n) => Number.isInteger(n) && n >= 0 && n <= 99)
+  );
+  for (let n = 1; n <= 99; n++) {
+    if (!taken.has(n)) return n;
+  }
+  return taken.has(0) ? 1 : 0;
+}
+
+/** Return the set of jersey numbers (0..99) appearing more than once within the same team roster. */
+export function findDuplicateJerseyNumbers(jerseys: Array<number | string>): Set<number> {
+  const counts = new Map<number, number>();
+  for (const raw of jerseys) {
+    const trimmed = typeof raw === 'string' ? raw.trim() : String(raw ?? '');
+    if (trimmed === '') continue;
+    const n = Number(trimmed);
+    if (!Number.isInteger(n) || n < 0 || n > 99) continue;
+    counts.set(n, (counts.get(n) || 0) + 1);
+  }
+  const dups = new Set<number>();
+  for (const [n, count] of counts.entries()) {
+    if (count > 1) dups.add(n);
+  }
+  return dups;
+}
+
+/**
+ * Suggest a 3–4 character uppercase team short code (monogram) from a team name.
+ * - Multi-word names use word initials (e.g. "Hanoi Spikers Club" -> "HSC").
+ * - Single-word names use the first 3 letters (e.g. "Phoenix" -> "PHO").
+ * Vietnamese diacritics are stripped (e.g. "Đà Nẵng Volley" -> "DNV").
+ */
+export function suggestTeamShortName(name: string): string {
+  const normalized = (name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'D')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, ' ')
+    .trim();
+  if (!normalized) return '';
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return words
+      .map((w) => w[0])
+      .join('')
+      .slice(0, 4);
+  }
+  return words[0].slice(0, 3);
+}
+
+export type MatchStageFilterKey = 'ALL' | 'POOL' | 'QUARTERFINAL' | 'SEMIFINAL' | 'FINALS';
+
+export function isPoolStage(stage: string): boolean {
+  return stage === 'POOL_A' || stage === 'POOL_B' || stage === 'GROUP';
+}
+
+export function isKnockoutStage(stage: string): boolean {
+  return (
+    stage === 'QUARTERFINAL' ||
+    stage === 'SEMIFINAL' ||
+    stage === 'THIRD_PLACE' ||
+    stage === 'FINAL'
+  );
+}
+
+export function matchesStageFilter(
+  stage: TournamentMatchStage | string,
+  filter: MatchStageFilterKey
+): boolean {
+  if (filter === 'ALL') return true;
+  if (filter === 'POOL') return isPoolStage(stage);
+  if (filter === 'QUARTERFINAL') return stage === 'QUARTERFINAL';
+  if (filter === 'SEMIFINAL') return stage === 'SEMIFINAL';
+  if (filter === 'FINALS') return stage === 'THIRD_PLACE' || stage === 'FINAL';
+  return true;
+}
+
+export interface QuarterfinalSeedingPair {
+  matchCode: 'QF1' | 'QF2' | 'QF3' | 'QF4';
+  home: TournamentStandingRow;
+  away: TournamentStandingRow;
+}
+
+/**
+ * Compute standard 8-team cross-pool Quarterfinal pairings from live Pool A & B standings:
+ * QF1: 1A vs 4B | QF3: 3A vs 2B (Left Wing -> SF1)
+ * QF2: 2A vs 3B | QF4: 4A vs 1B (Right Wing -> SF2)
+ */
+export function computeCrossPoolQuarterfinalPairings(
+  teams: TournamentTeam[],
+  matches: TournamentMatch[]
+): {
+  standingsA: TournamentStandingRow[];
+  standingsB: TournamentStandingRow[];
+  pairings: QuarterfinalSeedingPair[];
+} | null {
+  const standingsA = computePoolStandings(teams, matches, 'A');
+  const standingsB = computePoolStandings(teams, matches, 'B');
+  if (standingsA.length < 4 || standingsB.length < 4) return null;
+
+  return {
+    standingsA,
+    standingsB,
+    pairings: [
+      { matchCode: 'QF1', home: standingsA[0], away: standingsB[3] },
+      { matchCode: 'QF3', home: standingsA[2], away: standingsB[1] },
+      { matchCode: 'QF2', home: standingsA[1], away: standingsB[2] },
+      { matchCode: 'QF4', home: standingsA[3], away: standingsB[0] },
+    ],
+  };
+}
+
+/**
+ * Resolve tournament Podium teams (1st, 2nd, 3rd, 4th) using stored `finalRank`
+ * with automatic fallback to completed `FINAL` and `3RD` matches.
+ */
+export function resolveTournamentPodiumTeams(
+  teams: TournamentTeam[],
+  matches: TournamentMatch[]
+): {
+  first: TournamentTeam | null;
+  second: TournamentTeam | null;
+  third: TournamentTeam | null;
+  fourth: TournamentTeam | null;
+} {
+  const teamMap = new Map(teams.map((tm) => [tm.id, tm]));
+  let first = teams.find((tm) => tm.finalRank === 1) || null;
+  let second = teams.find((tm) => tm.finalRank === 2) || null;
+  let third = teams.find((tm) => tm.finalRank === 3) || null;
+  let fourth = teams.find((tm) => tm.finalRank === 4) || null;
+
+  const finalMatch = matches.find(
+    (m) => (m.matchCode === 'FINAL' || m.stage === 'FINAL') && m.status === 'COMPLETED' && m.winnerTeamId
+  );
+  if (finalMatch?.winnerTeamId) {
+    if (!first) first = teamMap.get(finalMatch.winnerTeamId) || null;
+    if (!second && finalMatch.homeTeamId && finalMatch.awayTeamId) {
+      const loserId =
+        finalMatch.winnerTeamId === finalMatch.homeTeamId
+          ? finalMatch.awayTeamId
+          : finalMatch.homeTeamId;
+      second = teamMap.get(loserId) || null;
+    }
+  }
+
+  const thirdMatch = matches.find(
+    (m) =>
+      (m.matchCode === '3RD' || m.stage === 'THIRD_PLACE') &&
+      m.status === 'COMPLETED' &&
+      m.winnerTeamId
+  );
+  if (thirdMatch?.winnerTeamId) {
+    if (!third) third = teamMap.get(thirdMatch.winnerTeamId) || null;
+    if (!fourth && thirdMatch.homeTeamId && thirdMatch.awayTeamId) {
+      const loserId =
+        thirdMatch.winnerTeamId === thirdMatch.homeTeamId
+          ? thirdMatch.awayTeamId
+          : thirdMatch.homeTeamId;
+      fourth = teamMap.get(loserId) || null;
+    }
+  }
+
+  return { first, second, third, fourth };
+}
+
+/**
+ * Normalize legacy `"Court 1"` / `"Court 2"` court labels to `"Court A"` / `"Court B"`.
+ */
+export function normalizeTournamentCourtName(
+  raw?: string | null
+): 'Court A' | 'Court B' | string {
+  const trimmed = (raw || '').trim();
+  if (!trimmed || trimmed === 'Court 1') return 'Court A';
+  if (trimmed === 'Court 2') return 'Court B';
+  return trimmed;
+}
+
+export type TournamentCourtFilter = 'ALL' | 'Court A' | 'Court B';
+
+export function matchesTournamentCourtFilter(
+  courtName: string | null | undefined,
+  filter: TournamentCourtFilter
+): boolean {
+  if (filter === 'ALL') return true;
+  return normalizeTournamentCourtName(courtName) === filter;
 }

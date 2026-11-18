@@ -615,11 +615,14 @@ model Tournament {
   status               TournamentStatus       @default(UPCOMING)
   isActive             Boolean                @default(true)
   isRegistrationOpen   Boolean                @default(true)
+  isRosterLocked       Boolean                @default(false) // Khóa danh sách VĐV toàn giải trước giờ thi đấu
+  requireBirthYear     Boolean                @default(false) // Yêu cầu nhập năm sinh từng VĐV khi đăng ký
   maxTeams             Int                    @default(8)
   registrationDeadline String?                // YYYY-MM-DD
   startDate            String                 // YYYY-MM-DD
   endDate              String?                // YYYY-MM-DD
   startTime            String?                // HH:mm (VD: "07:30")
+  endTime              String?                // HH:mm (VD: "19:00")
   location             String                 @default("155 Truong Chinh, Thanh Xuan, Hanoi (DVA Court - BTL Thong Tin)")
   mapsUrl              String?
   bannerUrl            String?
@@ -628,7 +631,7 @@ model Tournament {
   entryFeePerTeam      Int                    @default(0) // VNĐ (ép 0 nếu PARTICIPATING)
   internalExpenseNote  String?                @db.Text // Ghi chú quỹ/chi phí nội bộ (chỉ Admin xem)
   rulesContent         String?                @db.Text // Điều lệ giải (Markdown/Text)
-  prizeConfig          Json?                  // [{ rank, label, cashAmount?, nonCashReward? }]
+  prizeConfig          Json?                  // [{ rank, label, cashAmount?, nonCashReward?, prizeMode? }]
   dvaResultSummary     String?                // VD: "3rd Place — FCB Open Cup 2025"
   podiumOverride       Json?                  // Podium & giải cá nhân tùy chỉnh cho DVA_FOCUS
 
@@ -698,9 +701,12 @@ model TournamentPlayer {
   jerseyNumber   Int                @default(0)
   position       VolleyballPosition @default(OH)
   height         Float?
-  spikeTouch     Float?
-  avatarUrl      String?
-  isCaptain      Boolean            @default(false)
+  spikeTouch        Float?
+  avatarUrl         String?
+  birthYear         Int?               // Năm sinh VĐV (strip khỏi mọi API Public)
+  eligibilityStatus String             @default("VERIFIED") // PENDING_CHECK | VERIFIED | FLAGGED | REJECTED
+  rejectionReason   String?            // Lý do từ chối / gắn cờ nội bộ Admin (strip khỏi API Public)
+  isCaptain         Boolean            @default(false)
   awards         String[]           @default([])
 
   createdAt      DateTime           @default(now())

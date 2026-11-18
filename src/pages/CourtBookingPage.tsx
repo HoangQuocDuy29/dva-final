@@ -256,29 +256,31 @@ const CourtBookingContent: React.FC = () => {
     }
   };
 
-// Load real-time bookings & closed slots (có thêm cờ silent để quét nền không giật nút refresh)
+// Load real-time bookings & closed slots (silent tick skips static courts list to cut DB queries)
   const fetchRealtimeStatus = async (silent: boolean = false) => {
     if (!silent) setIsRefreshing(true);
     try {
       const [fetchedCourts, fetchedBookings, fetchedClosed] = await Promise.all([
-        courtService.getCourts(),
+        silent ? Promise.resolve(null) : courtService.getCourts(),
         bookingService.getBookings({ date: bookingDate, courtId: selectedCourtId }),
         courtService.getClosedSlots(selectedCourtId, bookingDate)
       ]);
 
-      if (Array.isArray(fetchedCourts) && fetchedCourts.length > 0) {
-        const activeCourts = fetchedCourts.filter((fc) => fc.isActive !== false);
-        setCourts(activeCourts);
-        if (activeCourts.length > 0) {
-          setSelectedCourtId((prev) => {
-            if (prev && activeCourts.some((c) => c.id === prev)) {
-              return prev;
-            }
-            return activeCourts[0].id;
-          });
+      if (fetchedCourts !== null) {
+        if (Array.isArray(fetchedCourts) && fetchedCourts.length > 0) {
+          const activeCourts = fetchedCourts.filter((fc) => fc.isActive !== false);
+          setCourts(activeCourts);
+          if (activeCourts.length > 0) {
+            setSelectedCourtId((prev) => {
+              if (prev && activeCourts.some((c) => c.id === prev)) {
+                return prev;
+              }
+              return activeCourts[0].id;
+            });
+          }
+        } else {
+          setCourts([]);
         }
-      } else {
-        setCourts([]);
       }
       if (Array.isArray(fetchedBookings)) {
         setExistingBookings(fetchedBookings);
@@ -302,12 +304,23 @@ const CourtBookingContent: React.FC = () => {
     // 1. Tải ngay khi vào trang hoặc đổi sân/ngày
     fetchRealtimeStatus(false);
 
-    // 2. Tự động đồng bộ mỗi 3 giây để bắt kịp lệnh Admin Lock hoặc đơn đặt mới
+    // 2. Tự động đồng bộ mỗi 10 giây CHỈ khi tab trình duyệt đang mở hiển thị (tránh đánh thức DB khi tab ẩn)
     const syncInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       fetchRealtimeStatus(true);
-    }, 3000);
+    }, 10_000);
 
-    return () => clearInterval(syncInterval);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchRealtimeStatus(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(syncInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [selectedCourtId, bookingDate]);
 
   // Pricing calculation

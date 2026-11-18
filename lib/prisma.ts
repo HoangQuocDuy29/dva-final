@@ -66,7 +66,7 @@ import {
   countryCodeToFlagEmoji,
   isJerseyCategory,
 } from '../src/types';
-import { normalizeSetScores } from '../src/shared/tournaments';
+import { normalizeSetScores, normalizeTournamentCourtName } from '../src/shared/tournaments';
 import { StoredUser, hashPassword, isBcryptHash, verifyPassword } from './security';
 import { getDefaultWeeklyScheduleForCourt, normalizeWeeklySchedule, normalizeCourtWeeklySchedule } from '../src/shared/schedule';
 import {
@@ -90,18 +90,25 @@ dotenv.config({ path: path.join(ROOT_DIR, '.env') });
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 const databaseUrl = process.env.DATABASE_URL || '';
+const sslDisabled = databaseUrl.includes('sslmode=disable');
+const isLocalDb =
+  databaseUrl.includes('localhost') ||
+  databaseUrl.includes('127.0.0.1') ||
+  databaseUrl.includes('::1');
 const isCloudDb =
-  databaseUrl.includes('neon.tech') ||
-  databaseUrl.includes('sslmode=require') ||
-  databaseUrl.includes('supabase.co') ||
-  process.env.NODE_ENV === 'production';
+  !sslDisabled &&
+  (databaseUrl.includes('neon.tech') ||
+    databaseUrl.includes('render.com') ||
+    databaseUrl.includes('supabase.co') ||
+    databaseUrl.includes('sslmode=require') ||
+    (!isLocalDb && process.env.NODE_ENV === 'production'));
 
-// Tối ưu connection pool cho Neon Serverless PostgreSQL
+// Tối ưu connection pool cho Neon / Render / PostgreSQL Serverless
 const pool = new Pool({
   connectionString: databaseUrl,
   connectionTimeoutMillis: 5000, // 5 giây timeout kết nối
-  idleTimeoutMillis: 30000, // 30 giây giải phóng kết nối nhàn rỗi trước khi Neon ngắt socket
-  max: 10, // Giới hạn 10 kết nối phù hợp với Neon serverless
+  idleTimeoutMillis: 30000, // 30 giây giải phóng kết nối nhàn rỗi trước khi Neon/Postgres ngắt socket
+  max: 10, // Giới hạn 10 kết nối
   keepAlive: true, // Bật TCP keep-alive
   keepAliveInitialDelayMillis: 10000, // Gửi probe keep-alive đầu tiên sau 10 giây
   ...(isCloudDb ? { ssl: { rejectUnauthorized: false } } : {}),
@@ -560,7 +567,10 @@ export function toOrderDto(o: (DbOrder & { items?: DbOrderItem[] }) | any): Stor
 // TOURNAMENTS MODULE DTO MAPPERS (SPEC 008)
 // ============================================================================
 
-export function toTournamentPlayerDto(p: DbTournamentPlayer | any): TournamentPlayer {
+export function toTournamentPlayerDto(
+  p: DbTournamentPlayer | any,
+  includePrivate: boolean = false
+): TournamentPlayer {
   return {
     id: p.id,
     teamId: p.teamId,
@@ -572,6 +582,13 @@ export function toTournamentPlayerDto(p: DbTournamentPlayer | any): TournamentPl
     height: p.height !== null && p.height !== undefined ? Number(p.height) : undefined,
     spikeTouch: p.spikeTouch !== null && p.spikeTouch !== undefined ? Number(p.spikeTouch) : undefined,
     avatarUrl: p.avatarUrl ?? undefined,
+    ...(includePrivate
+      ? {
+          birthYear: p.birthYear !== null && p.birthYear !== undefined ? Number(p.birthYear) : undefined,
+          rejectionReason: p.rejectionReason ?? undefined,
+        }
+      : {}),
+    eligibilityStatus: (p.eligibilityStatus || 'VERIFIED') as TournamentPlayer['eligibilityStatus'],
     isCaptain: Boolean(p.isCaptain),
     awards: Array.isArray(p.awards) ? p.awards.map(String) : [],
     createdAt: p.createdAt ? safeIsoString(p.createdAt) : undefined,
@@ -613,7 +630,14 @@ export function toTournamentTeamDto(
           entryFeeAmount: 0,
         }),
     paymentStatus: (t.paymentStatus || 'PENDING') as TournamentTeam['paymentStatus'],
-    ...(Array.isArray(t.players) ? { players: t.players.map(toTournamentPlayerDto) } : {}),
+    ...(Array.isArray(t.players)
+      ? {
+          players: (includePrivate
+            ? t.players
+            : t.players.filter((pl: any) => pl.eligibilityStatus !== 'REJECTED')
+          ).map((pl: any) => toTournamentPlayerDto(pl, includePrivate)),
+        }
+      : {}),
     createdAt: t.createdAt ? safeIsoString(t.createdAt) : undefined,
     updatedAt: t.updatedAt ? safeIsoString(t.updatedAt) : undefined,
   };
@@ -646,7 +670,7 @@ export function toTournamentMatchDto(
     matchCode: m.matchCode,
     stage: (m.stage || 'POOL_A') as TournamentMatchStage,
     bracketSide: m.bracketSide ?? null,
-    courtName: m.courtName || 'Court 1',
+    courtName: normalizeTournamentCourtName(m.courtName || 'Court A'),
     scheduledTime: m.scheduledTime ?? undefined,
     matchOrder: Number(m.matchOrder) || 0,
     status: (m.status || 'SCHEDULED') as TournamentMatchStatus,
@@ -696,18 +720,28 @@ export function toTournamentDto(
   const rawPlayers: any[] = Array.isArray(t.players) ? t.players : [];
   const visiblePlayersRaw = includePrivate
     ? rawPlayers
-    : rawPlayers.filter((pl) => visibleTeamIds.has(pl.teamId));
+    : rawPlayers.filter(
+        (pl) => visibleTeamIds.has(pl.teamId) && pl.eligibilityStatus !== 'REJECTED'
+      );
 
   const rawMatches: any[] = Array.isArray(t.matches) ? t.matches : [];
   const rawOfficials: any[] = Array.isArray(t.officials) ? t.officials : [];
 
   const prizeConfig: TournamentPrizeTier[] = Array.isArray(t.prizeConfig)
-    ? t.prizeConfig.map((p: any) => ({
-        rank: String(p?.rank || '1ST'),
-        label: String(p?.label || ''),
-        cashAmount: p?.cashAmount !== undefined ? Number(p.cashAmount) || 0 : 0,
-        nonCashReward: p?.nonCashReward ? String(p.nonCashReward) : '',
-      }))
+    ? t.prizeConfig.map((p: any) => {
+        const prizeMode =
+          p?.prizeMode === 'HONOR_ONLY' || p?.prizeMode === 'CASH_AND_TROPHIES'
+            ? p.prizeMode
+            : undefined;
+        return {
+          rank: String(p?.rank || '1ST'),
+          label: String(p?.label || ''),
+          cashAmount:
+            prizeMode === 'HONOR_ONLY' ? 0 : p?.cashAmount !== undefined ? Number(p.cashAmount) || 0 : 0,
+          nonCashReward: p?.nonCashReward ? String(p.nonCashReward) : '',
+          ...(prizeMode ? { prizeMode } : {}),
+        };
+      })
     : [];
 
   const podiumOverride: TournamentPodiumOverride | null =
@@ -725,11 +759,14 @@ export function toTournamentDto(
     status: (t.status || 'UPCOMING') as TournamentStatus,
     isActive: t.isActive !== false,
     isRegistrationOpen: Boolean(t.isRegistrationOpen),
+    isRosterLocked: Boolean(t.isRosterLocked),
+    requireBirthYear: Boolean(t.requireBirthYear),
     maxTeams: Number(t.maxTeams) || 8,
     registrationDeadline: t.registrationDeadline ?? undefined,
     startDate: t.startDate,
     endDate: t.endDate ?? undefined,
     startTime: t.startTime ?? undefined,
+    endTime: t.endTime ?? undefined,
     location: t.location || '155 Truong Chinh, Thanh Xuan, Hanoi (DVA Court - BTL Thong Tin)',
     mapsUrl: t.mapsUrl ?? undefined,
     bannerUrl: t.bannerUrl ?? undefined,
@@ -742,7 +779,7 @@ export function toTournamentDto(
     dvaResultSummary: t.dvaResultSummary ?? undefined,
     podiumOverride,
     teams: visibleTeamsRaw.map((tm) => toTournamentTeamDto(tm, includePrivate)),
-    players: visiblePlayersRaw.map(toTournamentPlayerDto),
+    players: visiblePlayersRaw.map((pl) => toTournamentPlayerDto(pl, includePrivate)),
     matches: rawMatches.map((m) => toTournamentMatchDto(m, includePrivate)),
     officials: rawOfficials.map((o) => toTournamentOfficialDto(o, includePrivate)),
     paidTeamsCount,

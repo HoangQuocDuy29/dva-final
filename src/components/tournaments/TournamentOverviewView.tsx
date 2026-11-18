@@ -9,6 +9,7 @@ import {
   FileText,
   MapPin,
   Medal,
+  Sparkles,
   Trophy,
   UserPlus,
   Users,
@@ -19,9 +20,18 @@ import {
   TournamentIndividualAward,
   TournamentTeam,
 } from '../../types';
-import { formatEnglishDate } from '../../utils/date';
 import { buildCloudinarySrcSet, optimizeCloudinaryUrl } from '../../utils/cloudinary';
-import { TeamLogoBadge } from './TeamLogoBadge';
+import {
+  DREAM_TEAM_AWARD_CODES,
+  DREAM_TEAM_SLOTS,
+  computeTotalCashPrize,
+  formatTournamentScheduleDisplay,
+  formatYmdToDdMmYyyy,
+  resolveDreamTeamSelection,
+  resolveTournamentPodiumTeams,
+  resolveTournamentPrizeMode,
+} from '../../shared/tournaments';
+import { TeamLogo, TeamLogoBadge } from './TeamLogoBadge';
 
 interface TournamentOverviewViewProps {
   tournament: Tournament;
@@ -74,14 +84,15 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
     isHosted &&
     tournament.status === 'UPCOMING' &&
     tournament.isRegistrationOpen &&
+    !tournament.isRosterLocked &&
     paidCount < maxTeams;
 
   // Resolve Podium (1st, 2nd, 3rd) from finalRank / FINAL+3RD matches / podiumOverride
   const podium = useMemo(() => {
-    const byRank = (rank: number) => tournament.teams.find((tm) => tm.finalRank === rank) || null;
-    const first = byRank(1);
-    const second = byRank(2);
-    const third = byRank(3);
+    const { first, second, third } = resolveTournamentPodiumTeams(
+      tournament.teams,
+      tournament.matches
+    );
 
     const ov = tournament.podiumOverride;
     const hasData = Boolean(
@@ -125,45 +136,97 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
     };
   }, [tournament, t]);
 
-  // Collect Individual Awards from TournamentPlayer.awards + podiumOverride.awards
-  const individualAwardWinners = useMemo(() => {
+  // Collect FIVB Dream Team + Custom Individual Awards
+  const dreamTeamDisplay = useMemo(() => {
     const teamMap = new Map(tournament.teams.map((tm) => [tm.id, tm]));
-    const list: Array<{
+    const visiblePlayers = tournament.players.filter((pl) => pl.eligibilityStatus !== 'REJECTED');
+    const playerMap = new Map(visiblePlayers.map((pl) => [pl.id, pl]));
+    const selection = resolveDreamTeamSelection(tournament.podiumOverride?.dreamTeam, visiblePlayers);
+
+    interface ResolvedAwardEntry {
       id: string;
-      award: string;
+      awardLabel: string;
+      shortBadge: string;
       playerName: string;
+      position?: string;
+      avatarUrl?: string | null;
       team?: TournamentTeam;
       teamName: string;
       jerseyNumber?: number;
-    }> = [];
+      isMvp?: boolean;
+    }
 
-    for (const pl of tournament.players) {
+    const resolvedSlots: ResolvedAwardEntry[] = [];
+    const coveredPairs = new Set<string>();
+
+    for (const slot of DREAM_TEAM_SLOTS) {
+      const pid = selection[slot.slotKey];
+      if (!pid) continue;
+      const pl = playerMap.get(pid);
+      if (!pl) continue;
+      const tm = teamMap.get(pl.teamId);
+      coveredPairs.add(`${pl.id}:${slot.awardCode}`);
+      resolvedSlots.push({
+        id: `${slot.slotKey}-${pl.id}`,
+        awardLabel: TOURNAMENT_AWARD_LABELS[slot.awardCode] || slot.label,
+        shortBadge: slot.shortLabel,
+        playerName: pl.fullName,
+        position: pl.position,
+        avatarUrl: pl.avatarUrl,
+        team: tm,
+        teamName: tm?.name || '',
+        jerseyNumber: pl.jerseyNumber,
+        isMvp: Boolean(slot.isMvp),
+      });
+    }
+
+    const mvpWinner = resolvedSlots.find((s) => s.isMvp) || null;
+    const positionalWinners = resolvedSlots.filter((s) => !s.isMvp);
+
+    // Preserve any extra non-Dream-Team awards (e.g. BEST_SPIKER) or manual DVA_FOCUS podiumOverride.awards
+    const extraAwards: ResolvedAwardEntry[] = [];
+    for (const pl of visiblePlayers) {
       for (const aw of pl.awards) {
+        if (coveredPairs.has(`${pl.id}:${aw}`)) continue;
+        if (DREAM_TEAM_AWARD_CODES.has(aw) && resolvedSlots.length > 0) continue;
         const tm = teamMap.get(pl.teamId);
-        list.push({
-          id: `${pl.id}-${aw}`,
-          award: TOURNAMENT_AWARD_LABELS[aw as TournamentIndividualAward] || aw,
+        extraAwards.push({
+          id: `extra-${pl.id}-${aw}`,
+          awardLabel: TOURNAMENT_AWARD_LABELS[aw as TournamentIndividualAward] || aw,
+          shortBadge: TOURNAMENT_AWARD_LABELS[aw as TournamentIndividualAward] || aw,
           playerName: pl.fullName,
+          position: pl.position,
+          avatarUrl: pl.avatarUrl,
           team: tm,
           teamName: tm?.name || '',
           jerseyNumber: pl.jerseyNumber,
+          isMvp: aw === 'MVP',
         });
       }
     }
 
-    if (list.length === 0 && tournament.podiumOverride?.awards?.length) {
+    if (
+      resolvedSlots.length === 0 &&
+      extraAwards.length === 0 &&
+      tournament.podiumOverride?.awards?.length
+    ) {
       tournament.podiumOverride.awards.forEach((a, idx) => {
-        list.push({
+        extraAwards.push({
           id: `ov-${idx}`,
-          award: TOURNAMENT_AWARD_LABELS[a.award as TournamentIndividualAward] || a.award,
+          awardLabel: TOURNAMENT_AWARD_LABELS[a.award as TournamentIndividualAward] || a.award,
+          shortBadge: TOURNAMENT_AWARD_LABELS[a.award as TournamentIndividualAward] || a.award,
           playerName: a.playerName,
           teamName: a.teamName || '',
           jerseyNumber: a.jerseyNumber,
+          isMvp: a.award === 'MVP',
         });
       });
     }
 
-    return list;
+    const totalCount =
+      (mvpWinner ? 1 : 0) + positionalWinners.length + extraAwards.length;
+
+    return { mvpWinner, positionalWinners, extraAwards, totalCount };
   }, [tournament]);
 
   const bannerSrc = tournament.bannerUrl
@@ -258,8 +321,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
           <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-[#1E293B] text-xs text-slate-300">
             <span className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-[#F97316]" />
-              <strong>{formatEnglishDate(tournament.startDate)}</strong>
-              {tournament.startTime && <span className="text-slate-400">· {tournament.startTime}</span>}
+              <strong>{formatTournamentScheduleDisplay(tournament)}</strong>
             </span>
             <span className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-[#38BDF8]" />
@@ -335,6 +397,8 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
                     ? t('registration.ctaFull')
                     : !tournament.isRegistrationOpen
                     ? t('registration.ctaClosed')
+                    : tournament.isRosterLocked
+                    ? t('registration.ctaLocked')
                     : t('registration.ctaOpen')}
                 </span>
               </button>
@@ -371,7 +435,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
               </span>
               {tournament.registrationDeadline && (
                 <span className="text-[10px] text-slate-500 mt-1">
-                  {t('registration.deadline')}: {formatEnglishDate(tournament.registrationDeadline)}
+                  {t('registration.deadline')}: {formatYmdToDdMmYyyy(tournament.registrationDeadline)}
                 </span>
               )}
             </div>
@@ -379,8 +443,8 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
         </section>
       )}
 
-      {/* 3. PODIUM & INDIVIDUAL AWARDS (When Completed or Podium Data Exists) */}
-      {(tournament.status === 'COMPLETED' || podium.slots.length > 0 || individualAwardWinners.length > 0) && (
+      {/* 3. PODIUM & FIVB DREAM TEAM INDIVIDUAL AWARDS */}
+      {(tournament.status === 'COMPLETED' || podium.slots.length > 0 || dreamTeamDisplay.totalCount > 0) && (
         <section className="space-y-5">
           {podium.slots.length > 0 && (
             <div className="space-y-3">
@@ -425,71 +489,269 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
             </div>
           )}
 
-          {individualAwardWinners.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="font-heading font-black text-base text-white flex items-center gap-2">
-                <Award className="w-4 h-4 text-[#FACC15]" />
-                <span>{t('podium.individualTitle')}</span>
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {individualAwardWinners.map((w) => (
+          {dreamTeamDisplay.totalCount > 0 && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h4 className="font-heading font-black text-lg text-white flex items-center gap-2">
+                  <Award className="w-5 h-5 text-[#FACC15]" />
+                  <span>{t('podium.individualTitle')}</span>
+                </h4>
+                {dreamTeamDisplay.positionalWinners.length > 0 && (
+                  <span className="px-3 py-1 rounded-full bg-[#FACC15]/10 border border-[#FACC15]/30 text-[11px] font-bold text-[#FACC15] inline-flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{t('podium.dreamTeamPositions')}</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Featured Tournament MVP Showcase Card */}
+              {dreamTeamDisplay.mvpWinner && (() => {
+                const mvp = dreamTeamDisplay.mvpWinner;
+                return (
                   <button
-                    key={w.id}
                     type="button"
-                    disabled={!w.team}
-                    onClick={() => w.team && onSelectTeam(w.team)}
-                    className={`text-left p-4 rounded-2xl bg-[#111827] border border-[#FACC15]/30 space-y-1 ${
-                      w.team ? 'hover:border-[#FACC15] cursor-pointer' : 'cursor-default'
+                    disabled={!mvp.team}
+                    onClick={() => mvp.team && onSelectTeam(mvp.team)}
+                    className={`w-full text-left p-5 rounded-3xl bg-gradient-to-br from-[#FACC15]/18 via-[#111827] to-[#8B0000]/20 border border-[#FACC15]/55 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg transition-all ${
+                      mvp.team ? 'hover:border-[#FACC15] hover:-translate-y-0.5 cursor-pointer group' : 'cursor-default'
                     }`}
                   >
-                    <span className="text-[10px] font-black uppercase tracking-wider text-[#FACC15]">
-                      {w.award}
-                    </span>
-                    <div className="font-bold text-sm text-white truncate">
-                      {w.playerName}
-                      {w.jerseyNumber ? ` #${w.jerseyNumber}` : ''}
+                    <div className="flex items-center gap-4 min-w-0">
+                      {mvp.avatarUrl ? (
+                        <img
+                          src={optimizeCloudinaryUrl(mvp.avatarUrl, 'thumb')}
+                          alt={mvp.playerName}
+                          className="w-16 h-16 rounded-2xl object-cover border-2 border-[#FACC15]/70 shrink-0 shadow"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-2xl bg-[#0B0F19] border-2 border-[#FACC15]/70 flex items-center justify-center font-athletic font-black text-xl text-[#FACC15] shrink-0">
+                          {mvp.jerseyNumber !== undefined ? `#${mvp.jerseyNumber}` : 'MVP'}
+                        </div>
+                      )}
+                      <div className="min-w-0 space-y-1">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FACC15] text-slate-950 text-[10px] font-black uppercase tracking-wider">
+                          🏆 {t('podium.mvpBadge')}
+                        </span>
+                        <div className="font-heading font-black text-xl sm:text-2xl text-white group-hover:text-[#FACC15] transition-colors truncate">
+                          {mvp.playerName}
+                          {mvp.jerseyNumber !== undefined && (
+                            <span className="font-mono text-[#F97316] ml-2 text-lg">#{mvp.jerseyNumber}</span>
+                          )}
+                          {mvp.position && (
+                            <span className="ml-2 px-2 py-0.5 rounded bg-[#0B0F19] border border-[#1E293B] font-mono text-[11px] text-[#38BDF8] align-middle">
+                              {mvp.position}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    {w.teamName && <div className="text-[11px] text-slate-400 truncate">{w.teamName}</div>}
+
+                    {mvp.teamName && (
+                      <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-[#0B0F19]/80 border border-[#1E293B] shrink-0">
+                        <TeamLogo
+                          logoUrl={mvp.team?.logoUrl}
+                          name={mvp.teamName}
+                          shortName={mvp.team?.shortName}
+                          sizeClass="w-9 h-9"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-white truncate max-w-[180px]">
+                            {mvp.teamName}
+                          </div>
+                          {mvp.team && (
+                            <span className="text-[10px] text-amber-300 underline decoration-dotted">
+                              View Team Roster →
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </button>
-                ))}
-              </div>
+                );
+              })()}
+
+              {/* 7 Best Positional Winners (+ any extra awards) */}
+              {(dreamTeamDisplay.positionalWinners.length > 0 || dreamTeamDisplay.extraAwards.length > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+                  {[...dreamTeamDisplay.positionalWinners, ...dreamTeamDisplay.extraAwards].map((w) => (
+                    <button
+                      key={w.id}
+                      type="button"
+                      disabled={!w.team}
+                      onClick={() => w.team && onSelectTeam(w.team)}
+                      className={`text-left p-4 rounded-2xl bg-[#111827] border border-[#1E293B] hover:border-[#FACC15]/60 space-y-3 transition-all ${
+                        w.team ? 'hover:-translate-y-0.5 cursor-pointer group' : 'cursor-default'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-[10px] font-black uppercase tracking-wider text-[#FACC15]">
+                          <span>{w.isMvp ? '🏆' : '⭐'}</span>
+                          <span>{w.awardLabel}</span>
+                        </span>
+                        {w.position && (
+                          <span className="font-mono text-[10px] font-bold text-[#38BDF8]">
+                            {w.position}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 min-w-0">
+                        {w.avatarUrl ? (
+                          <img
+                            src={optimizeCloudinaryUrl(w.avatarUrl, 'thumb')}
+                            alt={w.playerName}
+                            className="w-11 h-11 rounded-xl object-cover border border-slate-700 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-11 h-11 rounded-xl bg-[#0B0F19] border border-[#1E293B] flex items-center justify-center font-athletic font-black text-sm text-[#F97316] shrink-0">
+                            {w.jerseyNumber !== undefined ? `#${w.jerseyNumber}` : '★'}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-sm text-white group-hover:text-orange-400 transition-colors truncate">
+                            {w.playerName}
+                          </div>
+                          <div className="text-[11px] text-slate-400 font-mono">
+                            {w.jerseyNumber !== undefined ? `#${w.jerseyNumber}` : ''}
+                          </div>
+                        </div>
+                      </div>
+
+                      {w.teamName && (
+                        <div className="pt-2 border-t border-[#1E293B] flex items-center gap-2 min-w-0">
+                          <TeamLogo
+                            logoUrl={w.team?.logoUrl}
+                            name={w.teamName}
+                            shortName={w.team?.shortName}
+                            sizeClass="w-6 h-6"
+                          />
+                          <span className="text-[11px] text-slate-300 font-medium truncate">
+                            {w.teamName}
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </section>
       )}
 
       {/* 4. FLEXIBLE PRIZE STRUCTURE */}
-      {tournament.prizeConfig?.length > 0 && (
-        <section className="space-y-3">
-          <h3 className="font-heading font-black text-lg text-white flex items-center gap-2">
-            <Medal className="w-5 h-5 text-[#F97316]" />
-            <span>{t('podium.prizesTitle')}</span>
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            {tournament.prizeConfig.map((p, idx) => (
-              <div
-                key={`${p.rank}-${idx}`}
-                className="rounded-2xl bg-[#111827] border border-[#1E293B] p-4 space-y-1.5"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded bg-[#0B0F19] border border-[#1E293B] font-mono text-[10px] font-black text-[#F97316]">
-                    {p.rank}
-                  </span>
-                </div>
-                <div className="font-bold text-sm text-white">{p.label}</div>
-                {p.cashAmount && p.cashAmount > 0 ? (
-                  <div className="font-mono font-black text-base text-[#FACC15] whitespace-nowrap">
-                    {p.cashAmount.toLocaleString('vi-VN')} đ
-                  </div>
-                ) : null}
-                {p.nonCashReward && (
-                  <p className="text-[11px] text-slate-400 leading-snug">{p.nonCashReward}</p>
+      {tournament.prizeConfig?.length > 0 && (() => {
+        const prizeMode = resolveTournamentPrizeMode(tournament.prizeConfig);
+        const totalCashPool = computeTotalCashPrize(tournament.prizeConfig);
+        const hasCashPool = prizeMode === 'CASH_AND_TROPHIES' && totalCashPool > 0;
+
+        const getRankStyle = (rankRaw: string) => {
+          const rank = rankRaw.toUpperCase();
+          if (rank.includes('1') || rank.includes('CHAMP')) {
+            return {
+              border: 'border-[#FACC15]/40 bg-gradient-to-br from-[#FACC15]/10 via-[#111827] to-[#111827]',
+              badge: 'bg-[#FACC15]/15 border-[#FACC15]/40 text-[#FACC15]',
+              icon: <Trophy className="w-4 h-4 text-[#FACC15]" />,
+            };
+          }
+          if (rank.includes('2') || rank.includes('RUN')) {
+            return {
+              border: 'border-slate-400/35 bg-gradient-to-br from-slate-400/10 via-[#111827] to-[#111827]',
+              badge: 'bg-slate-400/15 border-slate-400/35 text-slate-200',
+              icon: <Medal className="w-4 h-4 text-slate-200" />,
+            };
+          }
+          if (rank.includes('3') || rank.includes('BRONZE')) {
+            return {
+              border: 'border-amber-600/40 bg-gradient-to-br from-amber-600/10 via-[#111827] to-[#111827]',
+              badge: 'bg-amber-600/15 border-amber-500/40 text-amber-300',
+              icon: <Medal className="w-4 h-4 text-amber-400" />,
+            };
+          }
+          return {
+            border: 'border-[#38BDF8]/30 bg-gradient-to-br from-[#38BDF8]/8 via-[#111827] to-[#111827]',
+            badge: 'bg-[#38BDF8]/15 border-[#38BDF8]/35 text-[#38BDF8]',
+            icon: <Award className="w-4 h-4 text-[#38BDF8]" />,
+          };
+        };
+
+        return (
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-heading font-black text-lg text-white flex items-center gap-2">
+                {hasCashPool ? (
+                  <Medal className="w-5 h-5 text-[#F97316]" />
+                ) : (
+                  <Trophy className="w-5 h-5 text-[#FACC15]" />
                 )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+                <span>{hasCashPool ? t('podium.prizesTitle') : t('podium.honorPrizesTitle')}</span>
+              </h3>
+
+              {hasCashPool ? (
+                <span className="px-3 py-1 rounded-full bg-[#FACC15]/10 border border-[#FACC15]/30 text-[11px] font-bold text-[#FACC15] inline-flex items-center gap-1.5">
+                  <span>{t('podium.cashPoolBadge')}:</span>
+                  <span className="font-mono font-black">{totalCashPool.toLocaleString('vi-VN')} đ</span>
+                </span>
+              ) : (
+                <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-bold text-amber-200 inline-flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5 text-[#FACC15]" />
+                  <span>{t('podium.honorOnlyBadge')}</span>
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {tournament.prizeConfig.map((p, idx) => {
+                const style = getRankStyle(p.rank || '');
+                const cashVal = Number(p.cashAmount) || 0;
+                return (
+                  <div
+                    key={`${p.rank}-${idx}`}
+                    className={`rounded-2xl border p-4 flex flex-col justify-between gap-2.5 ${style.border}`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`px-2 py-0.5 rounded border font-mono text-[10px] font-black ${style.badge}`}
+                        >
+                          {p.rank}
+                        </span>
+                        {style.icon}
+                      </div>
+                      <div className="font-heading font-bold text-sm text-white">{p.label}</div>
+                    </div>
+
+                    {hasCashPool ? (
+                      <div className="space-y-1">
+                        {cashVal > 0 ? (
+                          <div className="font-mono font-black text-base text-[#FACC15] whitespace-nowrap">
+                            {cashVal.toLocaleString('vi-VN')} đ
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#0B0F19] border border-[#1E293B] text-[10px] font-semibold text-amber-200">
+                            <Award className="w-3 h-3 text-[#FACC15]" />
+                            {t('podium.trophyAwardTag')}
+                          </span>
+                        )}
+                        {p.nonCashReward && (
+                          <p className="text-[11px] text-slate-300 leading-snug">{p.nonCashReward}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="pt-1 border-t border-white/10">
+                        <p className="text-xs font-medium text-amber-100/90 leading-relaxed flex items-start gap-1.5">
+                          <Medal className="w-3.5 h-3.5 text-[#FACC15] shrink-0 mt-0.5" />
+                          <span>{p.nonCashReward || t('podium.trophyAwardTag')}</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* 5. CONFIRMED PARTICIPATING TEAMS GRID (Clickable -> Roster Drawer) */}
       <section className="space-y-3">
@@ -508,7 +770,9 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {tournament.teams.map((tm) => {
-              const count = tournament.players.filter((p) => p.teamId === tm.id).length;
+              const count = tournament.players.filter(
+                (p) => p.teamId === tm.id && p.eligibilityStatus !== 'REJECTED'
+              ).length;
               return (
                 <button
                   key={tm.id}
@@ -521,7 +785,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
                     name={tm.name}
                     shortName={tm.shortName}
                     sizeClass="w-11 h-11"
-                    imgWidth={96}
+                    imgWidth={160}
                   />
                   <div className="min-w-0">
                     <div className="font-bold text-xs sm:text-sm text-white group-hover:text-orange-400 transition-colors truncate">

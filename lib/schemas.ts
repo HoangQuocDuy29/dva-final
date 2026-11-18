@@ -205,6 +205,12 @@ export const OPTIONAL_DATE: Rule = (v, k) => {
   return D(ymd, k);
 };
 
+export const OPTIONAL_TIME: Rule = (v, k) => {
+  if (v === undefined || v === null) return undefined;
+  if (typeof v === 'string' && v.trim() === '') return undefined;
+  return T(v, k);
+};
+
 export const NEWS_SCHEMA: Schema = {
   title: S(200, 3),
   slug: S(200),
@@ -362,20 +368,63 @@ export const MATCH_STAGES = ['GROUP', 'POOL_A', 'POOL_B', 'QUARTERFINAL', 'SEMIF
 export const MATCH_STATUSES = ['SCHEDULED', 'LIVE', 'COMPLETED', 'CANCELLED'] as const;
 export const OFFICIAL_ROLES = ['MAIN_REFEREE', 'LINE_JUDGE', 'SCORER', 'SUPERVISOR'] as const;
 
+export const TOURNAMENT_PRIZE_MODES = ['HONOR_ONLY', 'CASH_AND_TROPHIES'] as const;
+export const PLAYER_ELIGIBILITY_STATUSES = ['PENDING_CHECK', 'VERIFIED', 'FLAGGED', 'REJECTED'] as const;
+
 const OPTIONAL_PRIZE_JSON: Rule = (v, k) => {
   if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array`);
   return v.slice(0, 12).map((item) => {
     if (!item || typeof item !== 'object') throw new HttpError(400, `${k} item must be an object`);
     const obj = item as Record<string, unknown>;
+    const prizeMode =
+      obj.prizeMode !== undefined && obj.prizeMode !== null && obj.prizeMode !== ''
+        ? (E(TOURNAMENT_PRIZE_MODES)(String(obj.prizeMode).toUpperCase(), `${k}.prizeMode`) as
+            | 'HONOR_ONLY'
+            | 'CASH_AND_TROPHIES')
+        : undefined;
+    const rawCash =
+      obj.cashAmount !== undefined && obj.cashAmount !== null && obj.cashAmount !== ''
+        ? N(0, 1_000_000_000)(obj.cashAmount, `${k}.cashAmount`)
+        : 0;
     return {
       rank: S(30, 1)(obj.rank ?? '1ST', `${k}.rank`),
       label: S(100, 1)(obj.label ?? 'Prize', `${k}.label`),
-      cashAmount: obj.cashAmount !== undefined && obj.cashAmount !== null && obj.cashAmount !== ''
-        ? N(0, 1_000_000_000)(obj.cashAmount, `${k}.cashAmount`)
-        : 0,
+      cashAmount: prizeMode === 'HONOR_ONLY' ? 0 : rawCash,
       nonCashReward: obj.nonCashReward ? S(200)(obj.nonCashReward, `${k}.nonCashReward`) : '',
+      ...(prizeMode ? { prizeMode } : {}),
     };
   });
+};
+
+const DREAM_TEAM_KEYS = [
+  'MVP',
+  'BEST_OH_1',
+  'BEST_OH_2',
+  'BEST_MB_1',
+  'BEST_MB_2',
+  'BEST_OP',
+  'BEST_SETTER',
+  'BEST_LIBERO',
+] as const;
+
+const OPTIONAL_DREAM_TEAM_JSON: Rule = (v, k) => {
+  if (v === null) return null;
+  if (typeof v !== 'object' || Array.isArray(v)) throw new HttpError(400, `${k} must be an object`);
+  const obj = v as Record<string, unknown>;
+  const out: Record<string, string | null> = {};
+  for (const key of DREAM_TEAM_KEYS) {
+    const raw = obj[key];
+    if (raw === undefined || raw === null || raw === '') {
+      out[key] = null;
+    } else {
+      out[key] = S(80, 1)(raw, `${k}.${key}`);
+    }
+  }
+  return out;
+};
+
+export const TOURNAMENT_DREAM_TEAM_SCHEMA: Schema = {
+  dreamTeam: OPTIONAL_DREAM_TEAM_JSON,
 };
 
 const OPTIONAL_PODIUM_JSON: Rule = (v, k) => {
@@ -389,6 +438,7 @@ const OPTIONAL_PODIUM_JSON: Rule = (v, k) => {
   if (obj.secondLogo !== undefined) out.secondLogo = U(obj.secondLogo, `${k}.secondLogo`);
   if (obj.thirdName !== undefined) out.thirdName = S(120)(obj.thirdName, `${k}.thirdName`);
   if (obj.thirdLogo !== undefined) out.thirdLogo = U(obj.thirdLogo, `${k}.thirdLogo`);
+  if (obj.dreamTeam !== undefined) out.dreamTeam = OPTIONAL_DREAM_TEAM_JSON(obj.dreamTeam, `${k}.dreamTeam`);
   if (Array.isArray(obj.awards)) {
     out.awards = obj.awards.slice(0, 12).map((a: any) => ({
       award: S(60, 1)(a?.award ?? 'MVP', `${k}.awards.award`),
@@ -409,11 +459,14 @@ export const TOURNAMENT_SCHEMA: Schema = {
   status: E(TOURNAMENT_STATUSES),
   isActive: B,
   isRegistrationOpen: B,
+  isRosterLocked: B,
+  requireBirthYear: B,
   maxTeams: I(2, 32),
   registrationDeadline: OPTIONAL_DATE,
   startDate: D,
   endDate: OPTIONAL_DATE,
-  startTime: S(20),
+  startTime: OPTIONAL_TIME,
+  endTime: OPTIONAL_TIME,
   location: S(300),
   mapsUrl: S(500),
   bannerUrl: U,
@@ -450,15 +503,28 @@ const REGISTRATION_PLAYERS_RULE: Rule = (v, k) => {
   if (v.length < 6 || v.length > 14) {
     throw new HttpError(400, 'Roster must contain between 6 and 14 players.');
   }
+  const seenJerseys = new Set<number>();
   return v.map((item, idx) => {
     if (!item || typeof item !== 'object') throw new HttpError(400, `${k}[${idx}] must be an object`);
     const p = item as Record<string, unknown>;
+    const jerseyNumber = I(0, 99)(p.jerseyNumber, `${k}[${idx}].jerseyNumber`);
+    if (seenJerseys.has(jerseyNumber)) {
+      throw new HttpError(
+        400,
+        `Duplicate jersey number #${jerseyNumber}. Athletes on the same team must have unique jersey numbers.`
+      );
+    }
+    seenJerseys.add(jerseyNumber);
     return {
       fullName: S(100, 2)(p.fullName, `${k}[${idx}].fullName`),
-      jerseyNumber: I(0, 99)(p.jerseyNumber, `${k}[${idx}].jerseyNumber`),
+      jerseyNumber,
       position: E(POSITIONS)(String(p.position || 'OH').toUpperCase(), `${k}[${idx}].position`),
       height: p.height !== undefined && p.height !== null && p.height !== '' ? N(120, 240)(p.height, `${k}[${idx}].height`) : null,
       spikeTouch: p.spikeTouch !== undefined && p.spikeTouch !== null && p.spikeTouch !== '' ? N(150, 400)(p.spikeTouch, `${k}[${idx}].spikeTouch`) : null,
+      birthYear:
+        p.birthYear !== undefined && p.birthYear !== null && p.birthYear !== ''
+          ? I(1960, 2015)(p.birthYear, `${k}[${idx}].birthYear`)
+          : null,
       isCaptain: p.isCaptain !== undefined ? Boolean(p.isCaptain) : false,
     };
   });
@@ -467,12 +533,24 @@ const REGISTRATION_PLAYERS_RULE: Rule = (v, k) => {
 export const TOURNAMENT_PUBLIC_REGISTER_SCHEMA: Schema = {
   name: S(120, 2),
   shortName: S(12),
-  logoUrl: U,
+  // NOTE: `logoUrl` is intentionally NOT accepted from public captain registrations.
+  // Team logos are standardized & uploaded exclusively by Admins in the Dashboard.
   captainName: S(100, 2),
   captainPhone: PH,
   captainEmail: OPTIONAL_EMAIL,
+  regulationsAccepted: B,
   notes: S(1000),
   players: REGISTRATION_PLAYERS_RULE,
+};
+
+const OPTIONAL_STAT = (min: number, max: number): Rule => (v, k) => {
+  if (v === undefined || v === null || v === '') return undefined;
+  return N(min, max)(v, k);
+};
+
+const OPTIONAL_BIRTH_YEAR: Rule = (v, k) => {
+  if (v === undefined || v === null || v === '') return undefined;
+  return I(1960, 2015)(v, k);
 };
 
 export const TOURNAMENT_PLAYER_SCHEMA: Schema = {
@@ -481,9 +559,12 @@ export const TOURNAMENT_PLAYER_SCHEMA: Schema = {
   fullName: S(100, 2),
   jerseyNumber: I(0, 99),
   position: E(POSITIONS),
-  height: N(100, 250),
-  spikeTouch: N(150, 400),
+  height: OPTIONAL_STAT(100, 250),
+  spikeTouch: OPTIONAL_STAT(150, 400),
   avatarUrl: U,
+  birthYear: OPTIONAL_BIRTH_YEAR,
+  eligibilityStatus: E(PLAYER_ELIGIBILITY_STATUSES),
+  rejectionReason: S(300),
   isCaptain: B,
   awards: SA(10, 40),
 };

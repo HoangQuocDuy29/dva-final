@@ -18,6 +18,8 @@ export type PlayerLevel = 'SENIOR' | 'JUNIOR' | 'YOUTH';
 
 export type VolleyballPosition = 'OH' | 'OP' | 'MB' | 'S' | 'L';
 
+export type PlayerEligibilityStatus = 'PENDING_CHECK' | 'VERIFIED' | 'FLAGGED' | 'REJECTED';
+
 export const POSITION_LABELS: Record<VolleyballPosition, { code: VolleyballPosition; nameVi: string; nameEn: string }> = {
   OH: { code: 'OH', nameVi: 'Outside Hitter', nameEn: 'Outside Hitter' },
   OP: { code: 'OP', nameVi: 'Opposite Spiker', nameEn: 'Opposite Spiker' },
@@ -575,14 +577,45 @@ export type TournamentMatchStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'CANCEL
 
 export type TournamentOfficialRole = 'MAIN_REFEREE' | 'LINE_JUDGE' | 'SCORER' | 'SUPERVISOR';
 
-export type TournamentIndividualAward = 'MVP' | 'BEST_SETTER' | 'BEST_SPIKER' | 'BEST_LIBERO';
+export type DreamTeamSlotKey =
+  | 'MVP'
+  | 'BEST_OH_1'
+  | 'BEST_OH_2'
+  | 'BEST_MB_1'
+  | 'BEST_MB_2'
+  | 'BEST_OP'
+  | 'BEST_SETTER'
+  | 'BEST_LIBERO';
+
+export type TournamentIndividualAward =
+  | 'MVP'
+  | 'BEST_OUTSIDE_HITTER'
+  | 'BEST_MIDDLE_BLOCKER'
+  | 'BEST_OPPOSITE'
+  | 'BEST_SETTER'
+  | 'BEST_LIBERO'
+  | 'BEST_SPIKER';
 
 export const TOURNAMENT_AWARD_LABELS: Record<TournamentIndividualAward, string> = {
-  MVP: 'Tournament MVP',
+  MVP: 'MVP',
+  BEST_OUTSIDE_HITTER: 'Best Outside Hitter',
+  BEST_MIDDLE_BLOCKER: 'Best Middle Blocker',
+  BEST_OPPOSITE: 'Best Opposite Spiker',
   BEST_SETTER: 'Best Setter',
-  BEST_SPIKER: 'Best Spiker',
   BEST_LIBERO: 'Best Libero',
+  BEST_SPIKER: 'Best Spiker',
 };
+
+export interface TournamentDreamTeamSelection {
+  MVP?: string | null;
+  BEST_OH_1?: string | null;
+  BEST_OH_2?: string | null;
+  BEST_MB_1?: string | null;
+  BEST_MB_2?: string | null;
+  BEST_OP?: string | null;
+  BEST_SETTER?: string | null;
+  BEST_LIBERO?: string | null;
+}
 
 export const OFFICIAL_ROLE_LABELS: Record<TournamentOfficialRole, string> = {
   MAIN_REFEREE: '1st Referee',
@@ -591,11 +624,14 @@ export const OFFICIAL_ROLE_LABELS: Record<TournamentOfficialRole, string> = {
   SUPERVISOR: 'Tournament Supervisor',
 };
 
+export type TournamentPrizeMode = 'HONOR_ONLY' | 'CASH_AND_TROPHIES';
+
 export interface TournamentPrizeTier {
   rank: string; // '1ST' | '2ND' | '3RD' | 'MVP' | etc.
   label: string;
   cashAmount?: number;
   nonCashReward?: string;
+  prizeMode?: TournamentPrizeMode;
 }
 
 export interface TournamentPodiumAwardEntry {
@@ -612,6 +648,7 @@ export interface TournamentPodiumOverride {
   secondLogo?: string;
   thirdName?: string;
   thirdLogo?: string;
+  dreamTeam?: TournamentDreamTeamSelection | null;
   awards?: TournamentPodiumAwardEntry[];
 }
 
@@ -630,9 +667,12 @@ export interface TournamentPlayer {
   fullName: string;
   jerseyNumber: number;
   position: VolleyballPosition;
-  height?: number;
-  spikeTouch?: number;
-  avatarUrl?: string;
+  height?: number | null;
+  spikeTouch?: number | null;
+  avatarUrl?: string | null;
+  birthYear?: number | null;
+  eligibilityStatus: PlayerEligibilityStatus;
+  rejectionReason?: string | null;
   isCaptain: boolean;
   awards: string[];
   createdAt?: string;
@@ -643,7 +683,7 @@ export interface TournamentTeam {
   tournamentId: string;
   name: string;
   shortName?: string;
-  logoUrl?: string;
+  logoUrl?: string | null;
   isDvaTeam: boolean;
   dvaSquadLevel?: PlayerLevel;
   pool?: 'A' | 'B' | string | null;
@@ -669,12 +709,14 @@ export interface TournamentOfficial {
   tournamentId: string;
   fullName: string;
   role: TournamentOfficialRole;
-  certification?: string;
-  avatarUrl?: string;
-  phone?: string;
+  certification?: string | null;
+  avatarUrl?: string | null;
+  phone?: string | null;
   sortOrder: number;
   createdAt?: string;
 }
+
+export type TournamentOfficialPayload = Omit<TournamentOfficial, 'id' | 'tournamentId' | 'createdAt'>;
 
 export interface TournamentMatch {
   id: string;
@@ -737,11 +779,14 @@ export interface Tournament {
   status: TournamentStatus;
   isActive: boolean;
   isRegistrationOpen: boolean;
+  isRosterLocked: boolean;
+  requireBirthYear: boolean;
   maxTeams: number;
   registrationDeadline?: string;
   startDate: string;
   endDate?: string;
   startTime?: string;
+  endTime?: string;
   location: string;
   mapsUrl?: string;
   bannerUrl?: string;
@@ -785,10 +830,10 @@ export interface TournamentFinanceSummary {
 export interface TournamentPublicRegistrationPayload {
   name: string;
   shortName?: string;
-  logoUrl?: string;
   captainName: string;
   captainPhone: string;
   captainEmail?: string;
+  regulationsAccepted: boolean;
   notes?: string;
   players: Array<{
     fullName: string;
@@ -796,6 +841,7 @@ export interface TournamentPublicRegistrationPayload {
     position: VolleyballPosition;
     height?: number;
     spikeTouch?: number;
+    birthYear?: number;
     isCaptain?: boolean;
   }>;
 }

@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Loader2, Plus, Trash2, Trophy } from 'lucide-react';
+import { X, Upload, Loader2, Plus, Trash2, Trophy, Award, Banknote, Medal, Clock, AlertTriangle } from 'lucide-react';
 import {
   Tournament,
   TournamentMode,
+  TournamentPrizeMode,
   TournamentPrizeTier,
   TournamentSetFormat,
   TournamentStatus,
   TournamentTrackingMode,
 } from '../../../../types';
 import { buildCloudinaryFolder, uploadToCloudinary } from '../../../../utils/cloudinary';
+import {
+  computeTotalCashPrize,
+  getTodayLocalYmd,
+  resolveTournamentPrizeMode,
+} from '../../../../shared/tournaments';
 
 export interface TournamentFormModalProps {
   isOpen: boolean;
@@ -40,11 +46,14 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
   const [status, setStatus] = useState<TournamentStatus>('UPCOMING');
   const [isActive, setIsActive] = useState(true);
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(true);
+  const [isRosterLocked, setIsRosterLocked] = useState(false);
+  const [requireBirthYear, setRequireBirthYear] = useState(false);
   const [maxTeams, setMaxTeams] = useState(8);
   const [registrationDeadline, setRegistrationDeadline] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [startTime, setStartTime] = useState('07:30');
+  const [endTime, setEndTime] = useState('18:30');
   const [location, setLocation] = useState('155 Truong Chinh, Thanh Xuan, Hanoi (DVA Court - BTL Thong Tin)');
   const [mapsUrl, setMapsUrl] = useState('https://maps.app.goo.gl/hkqofjzojcUoE39M7');
   const [bannerUrl, setBannerUrl] = useState('');
@@ -54,6 +63,7 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
   const [internalExpenseNote, setInternalExpenseNote] = useState('');
   const [dvaResultSummary, setDvaResultSummary] = useState('');
   const [rulesContent, setRulesContent] = useState('');
+  const [prizeMode, setPrizeMode] = useState<TournamentPrizeMode>('CASH_AND_TROPHIES');
   const [prizeConfig, setPrizeConfig] = useState<TournamentPrizeTier[]>(DEFAULT_PRIZES);
 
   // DVA_FOCUS optional podium overrides
@@ -75,11 +85,14 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
       setStatus(editing.status);
       setIsActive(editing.isActive !== false);
       setIsRegistrationOpen(Boolean(editing.isRegistrationOpen));
+      setIsRosterLocked(Boolean(editing.isRosterLocked));
+      setRequireBirthYear(Boolean(editing.requireBirthYear));
       setMaxTeams(editing.maxTeams || 8);
       setRegistrationDeadline(editing.registrationDeadline || '');
       setStartDate(editing.startDate || '');
       setEndDate(editing.endDate || editing.startDate || '');
       setStartTime(editing.startTime || '07:30');
+      setEndTime(editing.endTime || '');
       setLocation(editing.location || '155 Truong Chinh, Thanh Xuan, Hanoi (DVA Court - BTL Thong Tin)');
       setMapsUrl(editing.mapsUrl || '');
       setBannerUrl(editing.bannerUrl || '');
@@ -89,12 +102,14 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
       setInternalExpenseNote(editing.internalExpenseNote || '');
       setDvaResultSummary(editing.dvaResultSummary || '');
       setRulesContent(editing.rulesContent || '');
-      setPrizeConfig(editing.prizeConfig?.length ? editing.prizeConfig : DEFAULT_PRIZES);
+      const loadedPrizes = editing.prizeConfig?.length ? editing.prizeConfig : DEFAULT_PRIZES;
+      setPrizeConfig(loadedPrizes);
+      setPrizeMode(editing.prizeConfig?.length ? resolveTournamentPrizeMode(editing.prizeConfig) : 'HONOR_ONLY');
       setFirstName(editing.podiumOverride?.firstName || '');
       setSecondName(editing.podiumOverride?.secondName || '');
       setThirdName(editing.podiumOverride?.thirdName || '');
     } else {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getTodayLocalYmd();
       setName('');
       setSubtitle('1-Day 8-Team Championship · 2 Parallel Courts');
       setSlug('');
@@ -103,11 +118,14 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
       setStatus('UPCOMING');
       setIsActive(true);
       setIsRegistrationOpen(true);
+      setIsRosterLocked(false);
+      setRequireBirthYear(false);
       setMaxTeams(8);
       setRegistrationDeadline('');
       setStartDate(today);
       setEndDate(today);
       setStartTime('07:30');
+      setEndTime('18:30');
       setLocation('155 Truong Chinh, Thanh Xuan, Hanoi (DVA Court - BTL Thong Tin)');
       setMapsUrl('https://maps.app.goo.gl/hkqofjzojcUoE39M7');
       setBannerUrl('');
@@ -119,6 +137,7 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
       setRulesContent(
         `1. COMPETITION FORMAT\n- 8 teams divided into 2 pools (Pool A & Pool B).\n- Group Stage: Single round-robin, BO3 (Sets 1-2 to 25 pts, Deciding Set 3 to 15 pts).\n- All 8 teams advance to Quarterfinals (1A vs 4B, 3A vs 2B, 2A vs 3B, 4A vs 1B).\n\n2. STANDINGS & TIE-BREAKERS\n- FIVB Points: 2-0 = 3 pts | 2-1 = 2 pts | 1-2 = 1 pt | 0-2 = 0 pts.\n- Order: Wins -> FIVB Points -> Set Ratio -> Point Ratio -> Head-to-Head.\n\n3. CHECK-IN & UNIFORM\n- Captains must check in 30 minutes before kick-off with matching numbered jerseys.`
       );
+      setPrizeMode('CASH_AND_TROPHIES');
       setPrizeConfig(DEFAULT_PRIZES);
       setFirstName('');
       setSecondName('');
@@ -152,6 +171,25 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
     try {
       const hasPodiumOverride =
         trackingMode === 'DVA_FOCUS' && (firstName.trim() || secondName.trim() || thirdName.trim());
+      const existingOverride = editing?.podiumOverride || null;
+      const preservedDreamTeam = existingOverride?.dreamTeam ?? undefined;
+      const preservedAwards = existingOverride?.awards ?? undefined;
+
+      const nextPodiumOverride = hasPodiumOverride
+        ? {
+            ...(existingOverride || {}),
+            firstName: firstName.trim() || undefined,
+            secondName: secondName.trim() || undefined,
+            thirdName: thirdName.trim() || undefined,
+          }
+        : preservedDreamTeam || preservedAwards?.length
+        ? {
+            ...(existingOverride || {}),
+            firstName: undefined,
+            secondName: undefined,
+            thirdName: undefined,
+          }
+        : null;
 
       await onSave(
         {
@@ -163,11 +201,14 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
           status,
           isActive,
           isRegistrationOpen: mode === 'HOSTED' ? isRegistrationOpen : false,
+          isRosterLocked,
+          requireBirthYear,
           maxTeams: Math.max(2, Math.min(32, Number(maxTeams) || 8)),
           registrationDeadline: registrationDeadline || undefined,
           startDate,
           endDate: endDate || startDate,
           startTime: startTime.trim() || '07:30',
+          endTime: endTime.trim() || '',
           location: location.trim(),
           mapsUrl: mapsUrl.trim() || undefined,
           bannerUrl: bannerUrl.trim() || undefined,
@@ -177,14 +218,16 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
           internalExpenseNote: mode === 'PARTICIPATING' ? internalExpenseNote.trim() : undefined,
           dvaResultSummary: dvaResultSummary.trim() || undefined,
           rulesContent: rulesContent.trim() || undefined,
-          prizeConfig: prizeConfig.filter((p) => p.label.trim()),
-          podiumOverride: hasPodiumOverride
-            ? {
-                firstName: firstName.trim() || undefined,
-                secondName: secondName.trim() || undefined,
-                thirdName: thirdName.trim() || undefined,
-              }
-            : null,
+          prizeConfig: prizeConfig
+            .filter((p) => p.label.trim())
+            .map((p) => ({
+              rank: p.rank.trim() || 'BONUS',
+              label: p.label.trim(),
+              cashAmount: prizeMode === 'HONOR_ONLY' ? 0 : Math.max(0, Number(p.cashAmount) || 0),
+              nonCashReward: (p.nonCashReward || '').trim(),
+              prizeMode,
+            })),
+          podiumOverride: nextPodiumOverride,
         },
         editing?.id
       );
@@ -324,33 +367,102 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
             />
           </div>
 
-          {/* Dates, Time & Format */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">Start Date *</label>
-              <input
-                type="date"
-                required
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
-              />
+          {/* Schedule & Timing */}
+          <div className="p-4 rounded-2xl bg-[#0B0F19] border border-[#1E293B] space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-slate-200 font-bold flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-[#F97316]" />
+                <span>Schedule &amp; Timing</span>
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Single-day syncs End Date automatically; change End Date for multi-day events.
+              </span>
             </div>
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">Start Time</label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
-              />
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Start Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={startDate}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (!endDate || endDate === startDate || (next && endDate < next)) {
+                      setEndDate(next);
+                    }
+                    setStartDate(next);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-[#111827] border border-[#1E293B] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">End Date</label>
+                <input
+                  type="date"
+                  min={startDate || undefined}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#111827] border border-[#1E293B] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Start Time</label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#111827] border border-[#1E293B] text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">End Time</label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-xl bg-[#111827] border text-white ${
+                    startDate &&
+                    (endDate || startDate) === startDate &&
+                    startTime &&
+                    endTime &&
+                    endTime < startTime
+                      ? 'border-amber-500'
+                      : 'border-[#1E293B]'
+                  }`}
+                />
+              </div>
             </div>
+
+            {startDate && endDate && endDate < startDate && (
+              <p className="text-[11px] text-amber-300 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>End Date ({endDate}) is earlier than Start Date ({startDate}). Please double-check.</span>
+              </p>
+            )}
+
+            {startDate &&
+              (endDate || startDate) === startDate &&
+              startTime &&
+              endTime &&
+              endTime < startTime && (
+                <p className="text-[11px] text-amber-300 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    End Time ({endTime}) is earlier than Start Time ({startTime}) on the same day. Please check closing time.
+                  </span>
+                </p>
+              )}
+          </div>
+
+          {/* Match Format & Max Teams */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-slate-300 font-semibold mb-1">Group Format</label>
               <select
                 value={groupSetFormat}
                 onChange={(e) => setGroupSetFormat(e.target.value as TournamentSetFormat)}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
+                className="w-full px-3 py-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
               >
                 <option value="BO3">BO3 (Best of 3)</option>
                 <option value="BO2">BO2 (2 Sets)</option>
@@ -361,25 +473,11 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
               <select
                 value={knockoutSetFormat}
                 onChange={(e) => setKnockoutSetFormat(e.target.value as TournamentSetFormat)}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
+                className="w-full px-3 py-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
               >
                 <option value="BO3">BO3 (Best of 3)</option>
                 <option value="BO2">BO2 (2 Sets)</option>
               </select>
-            </div>
-          </div>
-
-          {/* Location & Registration Controls */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label className="block text-slate-300 font-semibold mb-1">Venue Location *</label>
-              <input
-                type="text"
-                required
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
-              />
             </div>
             <div>
               <label className="block text-slate-300 font-semibold mb-1">Max Teams</label>
@@ -394,39 +492,76 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
             </div>
           </div>
 
-          {/* Visibility & Registration Toggles */}
-          <div className="flex flex-wrap items-center gap-4 p-3.5 rounded-2xl bg-[#0B0F19] border border-[#1E293B]">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={(e) => setIsActive(e.target.checked)}
-                className="accent-[#F97316] w-4 h-4"
-              />
-              <span className="font-bold text-white">Published on Public /tournaments</span>
-            </label>
-            {mode === 'HOSTED' && (
-              <>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isRegistrationOpen}
-                    onChange={(e) => setIsRegistrationOpen(e.target.checked)}
-                    className="accent-emerald-500 w-4 h-4"
-                  />
-                  <span className="font-bold text-emerald-300">Open Public Captain Registration</span>
-                </label>
-                <div className="flex items-center gap-2 ml-auto">
-                  <span className="text-slate-400">Reg. Deadline:</span>
-                  <input
-                    type="date"
-                    value={registrationDeadline}
-                    onChange={(e) => setRegistrationDeadline(e.target.value)}
-                    className="px-2.5 py-1 rounded-lg bg-[#111827] border border-[#1E293B] text-white"
-                  />
-                </div>
-              </>
-            )}
+          {/* Venue Location */}
+          <div>
+            <label className="block text-slate-300 font-semibold mb-1">Venue Location *</label>
+            <input
+              type="text"
+              required
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white"
+            />
+          </div>
+
+          {/* Visibility, Registration & Eligibility Toggles */}
+          <div className="space-y-3 p-3.5 rounded-2xl bg-[#0B0F19] border border-[#1E293B]">
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="accent-[#F97316] w-4 h-4"
+                />
+                <span className="font-bold text-white">Published on Public /tournaments</span>
+              </label>
+              {mode === 'HOSTED' && (
+                <>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isRegistrationOpen}
+                      onChange={(e) => setIsRegistrationOpen(e.target.checked)}
+                      className="accent-emerald-500 w-4 h-4"
+                    />
+                    <span className="font-bold text-emerald-300">Open Public Captain Registration</span>
+                  </label>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-slate-400">Reg. Deadline:</span>
+                    <input
+                      type="date"
+                      value={registrationDeadline}
+                      onChange={(e) => setRegistrationDeadline(e.target.value)}
+                      className="px-2.5 py-1 rounded-lg bg-[#111827] border border-[#1E293B] text-white"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 pt-2.5 border-t border-[#1E293B]">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={requireBirthYear}
+                  onChange={(e) => setRequireBirthYear(e.target.checked)}
+                  className="accent-[#38BDF8] w-4 h-4"
+                />
+                <span className="font-bold text-sky-300">
+                  Require Athlete Birth Year on Registration (Private Admin Audit Only)
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer ml-auto">
+                <input
+                  type="checkbox"
+                  checked={isRosterLocked}
+                  onChange={(e) => setIsRosterLocked(e.target.checked)}
+                  className="accent-red-500 w-4 h-4"
+                />
+                <span className="font-bold text-amber-300">Lock Official Rosters</span>
+              </label>
+            </div>
           </div>
 
           {/* Banner Upload */}
@@ -510,22 +645,111 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
           )}
 
           {/* Flexible Prize Structure */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-slate-300 font-semibold">Flexible Prize Structure (Cash + Trophies/Medals)</label>
+          <div className="p-4 rounded-2xl bg-[#0B0F19] border border-[#1E293B] space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <label className="text-slate-200 font-bold flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-[#FACC15]" />
+                  <span>Flexible Prize Structure ({mode === 'HOSTED' ? 'Hosted' : 'Participating'})</span>
+                </label>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Configure awards for both HOSTED &amp; PARTICIPATING modes (display only — never affects Club Verified Cashflow).
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() =>
                   setPrizeConfig((prev) => [
                     ...prev,
-                    { rank: 'BONUS', label: 'Special Award', cashAmount: 0, nonCashReward: 'Commemorative Flag' },
+                    {
+                      rank: 'BONUS',
+                      label: 'Special Award',
+                      cashAmount: 0,
+                      nonCashReward: 'Commemorative Banner & Medal',
+                      prizeMode,
+                    },
                   ])
                 }
-                className="px-2.5 py-1 rounded-lg bg-[#1E293B] hover:bg-slate-700 text-white font-bold inline-flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1.5 rounded-lg bg-[#1E293B] hover:bg-slate-700 text-white font-bold inline-flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3 h-3" /> Add Tier
               </button>
             </div>
+
+            {/* Prize Format Toggle: HONOR_ONLY vs CASH_AND_TROPHIES */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setPrizeMode('HONOR_ONLY')}
+                className={`text-left p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-2.5 ${
+                  prizeMode === 'HONOR_ONLY'
+                    ? 'bg-amber-500/10 border-amber-400 text-white shadow'
+                    : 'bg-[#111827] border-[#1E293B] text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Medal
+                  className={`w-4 h-4 mt-0.5 shrink-0 ${
+                    prizeMode === 'HONOR_ONLY' ? 'text-[#FACC15]' : 'text-slate-500'
+                  }`}
+                />
+                <div className="min-w-0">
+                  <div className="font-bold text-xs flex items-center gap-1.5">
+                    <span>Trophies, Medals &amp; Banners Only</span>
+                    <span className="px-1.5 py-0.5 rounded bg-black/30 font-mono text-[9px] uppercase text-amber-300">
+                      HONOR_ONLY
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    No cash payouts. Hide VND inputs &amp; highlight trophies, medals &amp; banners on public cards.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPrizeMode('CASH_AND_TROPHIES')}
+                className={`text-left p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-2.5 ${
+                  prizeMode === 'CASH_AND_TROPHIES'
+                    ? 'bg-emerald-500/10 border-emerald-500 text-white shadow'
+                    : 'bg-[#111827] border-[#1E293B] text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Banknote
+                  className={`w-4 h-4 mt-0.5 shrink-0 ${
+                    prizeMode === 'CASH_AND_TROPHIES' ? 'text-emerald-400' : 'text-slate-500'
+                  }`}
+                />
+                <div className="min-w-0">
+                  <div className="font-bold text-xs flex items-center gap-1.5">
+                    <span>Cash Prize + Trophies/Medals</span>
+                    <span className="px-1.5 py-0.5 rounded bg-black/30 font-mono text-[9px] uppercase text-emerald-300">
+                      CASH_AND_TROPHIES
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {prizeMode === 'CASH_AND_TROPHIES'
+                      ? `Pool preview: ${computeTotalCashPrize(prizeConfig).toLocaleString('vi-VN')} đ + honors.`
+                      : 'Enable VND cash inputs per tier alongside trophies & medals.'}
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* Column Headers */}
+            {prizeConfig.length > 0 && (
+              <div className="grid grid-cols-12 gap-2 px-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <span className="col-span-2">Rank</span>
+                <span className="col-span-3">Title / Tier</span>
+                {prizeMode === 'CASH_AND_TROPHIES' && (
+                  <span className="col-span-3 text-emerald-400">Cash Prize (VND)</span>
+                )}
+                <span className={prizeMode === 'CASH_AND_TROPHIES' ? 'col-span-3' : 'col-span-6'}>
+                  Trophies, Medals &amp; Banners
+                </span>
+                <span className="col-span-1 text-center">Del</span>
+              </div>
+            )}
+
             <div className="space-y-2">
               {prizeConfig.map((tier, idx) => (
                 <div key={idx} className="grid grid-cols-12 gap-2 items-center">
@@ -538,7 +762,7 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
                       )
                     }
                     placeholder="1ST"
-                    className="col-span-2 px-2.5 py-2 rounded-lg bg-[#0B0F19] border border-[#1E293B] font-mono text-amber-300"
+                    className="col-span-2 px-2.5 py-2 rounded-lg bg-[#111827] border border-[#1E293B] font-mono text-amber-300"
                   />
                   <input
                     type="text"
@@ -549,21 +773,23 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
                       )
                     }
                     placeholder="Champion"
-                    className="col-span-3 px-2.5 py-2 rounded-lg bg-[#0B0F19] border border-[#1E293B]"
+                    className="col-span-3 px-2.5 py-2 rounded-lg bg-[#111827] border border-[#1E293B]"
                   />
-                  <input
-                    type="number"
-                    min={0}
-                    step={100000}
-                    value={tier.cashAmount ?? 0}
-                    onChange={(e) =>
-                      setPrizeConfig((prev) =>
-                        prev.map((p, i) => (i === idx ? { ...p, cashAmount: Number(e.target.value) || 0 } : p))
-                      )
-                    }
-                    placeholder="Cash VND (0 = none)"
-                    className="col-span-3 px-2.5 py-2 rounded-lg bg-[#0B0F19] border border-[#1E293B] font-mono text-emerald-400"
-                  />
+                  {prizeMode === 'CASH_AND_TROPHIES' && (
+                    <input
+                      type="number"
+                      min={0}
+                      step={100000}
+                      value={tier.cashAmount ?? 0}
+                      onChange={(e) =>
+                        setPrizeConfig((prev) =>
+                          prev.map((p, i) => (i === idx ? { ...p, cashAmount: Number(e.target.value) || 0 } : p))
+                        )
+                      }
+                      placeholder="Cash VND (0 = none)"
+                      className="col-span-3 px-2.5 py-2 rounded-lg bg-[#111827] border border-[#1E293B] font-mono text-emerald-400"
+                    />
+                  )}
                   <input
                     type="text"
                     value={tier.nonCashReward || ''}
@@ -572,8 +798,10 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
                         prev.map((p, i) => (i === idx ? { ...p, nonCashReward: e.target.value } : p))
                       )
                     }
-                    placeholder="Trophy / Medals / Banner"
-                    className="col-span-3 px-2.5 py-2 rounded-lg bg-[#0B0F19] border border-[#1E293B]"
+                    placeholder="e.g. Championship Trophy + Gold Medals + Banner"
+                    className={`${
+                      prizeMode === 'CASH_AND_TROPHIES' ? 'col-span-3' : 'col-span-6'
+                    } px-2.5 py-2 rounded-lg bg-[#111827] border border-[#1E293B]`}
                   />
                   <button
                     type="button"

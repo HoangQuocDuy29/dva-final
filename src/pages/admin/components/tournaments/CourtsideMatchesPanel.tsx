@@ -8,7 +8,9 @@ import {
   Minus,
   Play,
   Plus,
+  ShieldCheck,
   Trash2,
+  Users,
   X,
 } from 'lucide-react';
 import {
@@ -19,7 +21,15 @@ import {
   TournamentSetFormat,
   TournamentSetScore,
 } from '../../../../types';
-import { computePoolStandings } from '../../../../shared/tournaments';
+import {
+  MatchStageFilterKey,
+  TournamentCourtFilter,
+  computePoolStandings,
+  matchesStageFilter,
+  matchesTournamentCourtFilter,
+  normalizeTournamentCourtName,
+} from '../../../../shared/tournaments';
+import { MatchScoreboardRow } from '../../../../components/tournaments/MatchScoreboardRow';
 import { tournamentService } from '../../../../services/api';
 
 interface CourtsideMatchesPanelProps {
@@ -33,13 +43,14 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
   onRefresh,
   notify,
 }) => {
-  const [filterCourt, setFilterCourt] = useState<'ALL' | 'Court 1' | 'Court 2' | 'POOL' | 'KNOCKOUT'>('ALL');
+  const [stageFilter, setStageFilter] = useState<MatchStageFilterKey>('ALL');
+  const [courtFilter, setCourtFilter] = useState<TournamentCourtFilter>('ALL');
   const [busyAction, setBusyAction] = useState(false);
 
   // Live Scorer Modal state
   const [scoringMatch, setScoringMatch] = useState<TournamentMatch | null>(null);
   const [editStatus, setEditStatus] = useState<TournamentMatchStatus>('SCHEDULED');
-  const [editCourt, setEditCourt] = useState('Court 1');
+  const [editCourt, setEditCourt] = useState('Court A');
   const [editTime, setEditTime] = useState('');
   const [editFormat, setEditFormat] = useState<TournamentSetFormat>('BO3');
   const [editHomeId, setEditHomeId] = useState<string>('');
@@ -50,12 +61,13 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
   const [editSets, setEditSets] = useState<TournamentSetScore[]>([
     { set: 1, home: 0, away: 0, isCompleted: false },
   ]);
+  const [showCheckinRoster, setShowCheckinRoster] = useState(true);
 
   // Quick Add Match (DVA_FOCUS / custom)
   const [addMatchOpen, setAddMatchOpen] = useState(false);
   const [newCode, setNewCode] = useState('M-1');
   const [newStage, setNewStage] = useState<TournamentMatchStage>('GROUP');
-  const [newCourt, setNewCourt] = useState('Court 1');
+  const [newCourt, setNewCourt] = useState('Court A');
   const [newTime, setNewTime] = useState('09:00');
   const [newHomeId, setNewHomeId] = useState('');
   const [newAwayId, setNewAwayId] = useState('');
@@ -76,16 +88,24 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
     [tournament.teams, tournament.matches]
   );
 
+  const stageCounts = useMemo(
+    () => ({
+      ALL: tournament.matches.length,
+      POOL: tournament.matches.filter((m) => matchesStageFilter(m.stage, 'POOL')).length,
+      QUARTERFINAL: tournament.matches.filter((m) => matchesStageFilter(m.stage, 'QUARTERFINAL')).length,
+      SEMIFINAL: tournament.matches.filter((m) => matchesStageFilter(m.stage, 'SEMIFINAL')).length,
+      FINALS: tournament.matches.filter((m) => matchesStageFilter(m.stage, 'FINALS')).length,
+    }),
+    [tournament.matches]
+  );
+
   const filteredMatches = useMemo(() => {
     return tournament.matches.filter((m) => {
-      if (filterCourt === 'Court 1' || filterCourt === 'Court 2') return m.courtName === filterCourt;
-      if (filterCourt === 'POOL') return m.stage === 'POOL_A' || m.stage === 'POOL_B' || m.stage === 'GROUP';
-      if (filterCourt === 'KNOCKOUT') {
-        return ['QUARTERFINAL', 'SEMIFINAL', 'THIRD_PLACE', 'FINAL'].includes(m.stage);
-      }
+      if (!matchesStageFilter(m.stage, stageFilter)) return false;
+      if (!matchesTournamentCourtFilter(m.courtName, courtFilter)) return false;
       return true;
     });
-  }, [tournament.matches, filterCourt]);
+  }, [tournament.matches, stageFilter, courtFilter]);
 
   const handleGenerateSchedule = async () => {
     const hasMatches = tournament.matches.length > 0;
@@ -126,7 +146,8 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
   };
 
   const handleSwapCourt = async (match: TournamentMatch) => {
-    const nextCourt = match.courtName === 'Court 1' ? 'Court 2' : 'Court 1';
+    const nextCourt =
+      normalizeTournamentCourtName(match.courtName) === 'Court A' ? 'Court B' : 'Court A';
     try {
       await tournamentService.updateMatchScore(tournament.id, match.id, { courtName: nextCourt });
       await onRefresh();
@@ -160,7 +181,7 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
   const openScorer = (match: TournamentMatch) => {
     setScoringMatch(match);
     setEditStatus(match.status);
-    setEditCourt(match.courtName || 'Court 1');
+    setEditCourt(normalizeTournamentCourtName(match.courtName || 'Court A'));
     setEditTime(match.scheduledTime || '');
     setEditFormat((match.setFormat as TournamentSetFormat) || 'BO3');
     setEditHomeId(match.homeTeamId || '');
@@ -206,7 +227,17 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
       });
       await onRefresh();
       setScoringMatch(null);
-      if (res.warnings?.length > 0) {
+      if (res.autoSeededQuarterfinals && res.warnings?.length) {
+        notify(
+          `${scoringMatch.matchCode} completed · Quarterfinals seeded (note: ${res.warnings.join(' ')})`,
+          6000
+        );
+      } else if (res.autoSeededQuarterfinals) {
+        notify(
+          `All Pool Stage matches completed! Quarterfinals (QF1–QF4) auto-seeded from standings.`,
+          5000
+        );
+      } else if (res.warnings?.length > 0) {
         notify(`Saved ${scoringMatch.matchCode} — Notice: ${res.warnings.join(' ')}`, 6000);
       } else {
         notify(
@@ -330,172 +361,307 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
       )}
 
       {/* Action Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-[#111827] border border-[#1E293B]">
-        <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          {(['ALL', 'Court 1', 'Court 2', 'POOL', 'KNOCKOUT'] as const).map((tab) => (
+      <div className="p-4 rounded-2xl bg-[#111827] border border-[#1E293B] space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Stage Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {(
+              [
+                { key: 'ALL', label: `All (${stageCounts.ALL})` },
+                { key: 'POOL', label: `Pool Stage (${stageCounts.POOL})` },
+                { key: 'QUARTERFINAL', label: `Quarter-Finals (${stageCounts.QUARTERFINAL})` },
+                { key: 'SEMIFINAL', label: `Semi-Finals (${stageCounts.SEMIFINAL})` },
+                { key: 'FINALS', label: `3rd Place & Final (${stageCounts.FINALS})` },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStageFilter(tab.key)}
+                className={`px-3 py-1.5 rounded-xl font-bold transition-colors cursor-pointer ${
+                  stageFilter === tab.key
+                    ? 'bg-[#F97316] text-white shadow-sm'
+                    : 'bg-[#0B0F19] text-slate-400 hover:text-white border border-[#1E293B]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Schedule Generators & Custom Match CTA */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {tournament.trackingMode === 'FULL_BRACKET' && (
+              <>
+                <button
+                  type="button"
+                  disabled={busyAction}
+                  onClick={handleGenerateSchedule}
+                  className="px-3.5 py-2 rounded-xl bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-[#38BDF8] font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <CalendarPlus className="w-3.5 h-3.5" />
+                  <span>Generate 20-Match 2-Court Schedule</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={busyAction}
+                  onClick={handleSeedKnockout}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <GitBranch className="w-3.5 h-3.5" />
+                  <span>Seed Quarterfinals (QF1–QF4)</span>
+                </button>
+              </>
+            )}
             <button
-              key={tab}
               type="button"
-              onClick={() => setFilterCourt(tab)}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-colors cursor-pointer ${
-                filterCourt === tab
-                  ? 'bg-[#F97316] text-white'
-                  : 'bg-[#0B0F19] text-slate-400 hover:text-white border border-[#1E293B]'
-              }`}
+              onClick={() => setAddMatchOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B0000] to-[#F97316] text-white font-bold flex items-center gap-1.5 cursor-pointer"
             >
-              {tab === 'ALL' ? `All (${tournament.matches.length})` : tab}
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Match</span>
             </button>
-          ))}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {tournament.trackingMode === 'FULL_BRACKET' && (
-            <>
+        {/* Combinable Court Filter Row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-[#1E293B]/80 text-xs">
+          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-[#0B0F19] border border-[#1E293B]">
+            {(['ALL', 'Court A', 'Court B'] as const).map((court) => (
               <button
+                key={court}
                 type="button"
-                disabled={busyAction}
-                onClick={handleGenerateSchedule}
-                className="px-3.5 py-2 rounded-xl bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-[#38BDF8] font-bold flex items-center gap-1.5 cursor-pointer"
+                onClick={() => setCourtFilter(court)}
+                className={`px-3 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                  courtFilter === court
+                    ? 'bg-[#38BDF8] text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                <CalendarPlus className="w-3.5 h-3.5" />
-                <span>Generate 20-Match 2-Court Schedule</span>
+                {court === 'ALL' ? 'All Courts' : court}
               </button>
-              <button
-                type="button"
-                disabled={busyAction}
-                onClick={handleSeedKnockout}
-                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                <GitBranch className="w-3.5 h-3.5" />
-                <span>Seed Quarterfinals (QF1–QF4)</span>
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => setAddMatchOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B0000] to-[#F97316] text-white font-bold flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Match</span>
-          </button>
+            ))}
+          </div>
+          <span className="text-[11px] font-mono text-slate-400">
+            Showing <strong className="text-white">{filteredMatches.length}</strong> of {tournament.matches.length} matches
+          </span>
         </div>
       </div>
 
-      {/* Matches Grid */}
-      {filteredMatches.length === 0 ? (
+      {/* Matches Sections */}
+      {tournament.matches.length === 0 ? (
         <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-10 text-center text-xs text-slate-500">
           No matches yet. Assign 4 teams to Pool A and 4 teams to Pool B, then click{' '}
           <strong className="text-[#38BDF8]">Generate 20-Match 2-Court Schedule</strong> (or click{' '}
           <strong className="text-white">+ Add Match</strong> for DVA Focus mode).
         </div>
+      ) : filteredMatches.length === 0 ? (
+        <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-10 text-center text-xs text-slate-400">
+          No matches found for the selected stage and court filter.
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {filteredMatches.map((m) => {
-            const homeName = (m.homeTeamId && teamById.get(m.homeTeamId)?.name) || m.homeLabel || 'TBD';
-            const awayName = (m.awayTeamId && teamById.get(m.awayTeamId)?.name) || m.awayLabel || 'TBD';
-            return (
-              <div
-                key={m.id}
-                className={`rounded-2xl bg-[#111827] border p-4 space-y-3 text-xs ${
-                  m.status === 'LIVE'
-                    ? 'border-red-500/70 shadow-lg shadow-red-950/20'
-                    : 'border-[#1E293B]'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-[#0B0F19] border border-[#1E293B] font-mono font-bold text-white">
-                      {m.matchCode}
+        <div className="space-y-6">
+          {(
+            [
+              {
+                key: 'GROUP',
+                title: 'GROUP STAGE',
+                subtitle: 'Pool A & Pool B Round-Robin (12 Matches)',
+                badgeClass: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+                matches: filteredMatches.filter(
+                  (m) => m.stage === 'POOL_A' || m.stage === 'POOL_B' || m.stage === 'GROUP'
+                ),
+              },
+              {
+                key: 'QF',
+                title: 'QUARTER-FINALS',
+                subtitle: 'Single Elimination (QF1–QF4 · 4 winners advance to Semi-Finals, 4 losers eliminated)',
+                badgeClass: 'bg-orange-500/15 text-orange-300 border-orange-500/30',
+                matches: filteredMatches.filter((m) => m.stage === 'QUARTERFINAL'),
+              },
+              {
+                key: 'SF',
+                title: 'SEMI-FINALS',
+                subtitle: 'SF1 (Win QF1 vs Win QF3) & SF2 (Win QF2 vs Win QF4) · Winners → Final, Losers → 3rd Place',
+                badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+                matches: filteredMatches.filter((m) => m.stage === 'SEMIFINAL'),
+              },
+              {
+                key: '3RD',
+                title: 'THIRD PLACE MATCH',
+                subtitle: 'Bronze Medal Decider · Loser SF1 vs Loser SF2',
+                badgeClass: 'bg-amber-700/20 text-amber-300 border-amber-600/40',
+                matches: filteredMatches.filter((m) => m.stage === 'THIRD_PLACE'),
+              },
+              {
+                key: 'FINAL',
+                title: 'GRAND FINAL',
+                subtitle: 'Championship Match · Winner SF1 vs Winner SF2',
+                badgeClass: 'bg-[#FACC15]/15 text-[#FACC15] border-[#FACC15]/40',
+                matches: filteredMatches.filter((m) => m.stage === 'FINAL'),
+              },
+            ] as const
+          )
+            .filter((sec) => sec.matches.length > 0)
+            .map((sec) => (
+              <section key={sec.key} className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className={`px-2.5 py-1 rounded-lg border text-[11px] font-black uppercase tracking-wider ${sec.badgeClass}`}>
+                      {sec.title}
                     </span>
-                    <span className="text-[10px] font-bold uppercase text-slate-400">{m.stage}</span>
-                    {m.scheduledTime && (
-                      <span className="font-mono text-[11px] text-slate-300">· {m.scheduledTime}</span>
-                    )}
+                    <span className="text-[11px] text-slate-400">{sec.subtitle}</span>
                   </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleSwapCourt(m)}
-                      className="px-2 py-0.5 rounded-lg bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-sky-300 font-bold inline-flex items-center gap-1 cursor-pointer"
-                      title="Swap between Court 1 & Court 2"
-                    >
-                      <ArrowLeftRight className="w-3 h-3" />
-                      <span>{m.courtName}</span>
-                    </button>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                        m.status === 'LIVE'
-                          ? 'bg-red-600 text-white animate-pulse'
-                          : m.status === 'COMPLETED'
-                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      {m.status}
-                    </span>
-                  </div>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    {sec.matches.length} {sec.matches.length === 1 ? 'match' : 'matches'}
+                  </span>
                 </div>
 
-                {/* Teams & Set Scoreline */}
-                <div className="flex items-center justify-between gap-3 py-1">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className={`font-bold truncate ${m.winnerTeamId && m.winnerTeamId === m.homeTeamId ? 'text-emerald-400' : 'text-white'}`}>
-                      {homeName}
-                    </div>
-                    <div className={`font-bold truncate ${m.winnerTeamId && m.winnerTeamId === m.awayTeamId ? 'text-emerald-400' : 'text-white'}`}>
-                      {awayName}
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {sec.matches.map((m) => {
+                    const homeTeam = m.homeTeamId ? teamById.get(m.homeTeamId) || null : null;
+                    const awayTeam = m.awayTeamId ? teamById.get(m.awayTeamId) || null : null;
+                    const isDone = m.status === 'COMPLETED';
+                    const homeWon = Boolean(isDone && m.winnerTeamId && m.winnerTeamId === m.homeTeamId);
+                    const awayWon = Boolean(isDone && m.winnerTeamId && m.winnerTeamId === m.awayTeamId);
+                    const getOutcomeBadge = (won: boolean, lost: boolean) => {
+                      if (!isDone || (!won && !lost)) return null;
+                      if (m.stage === 'QUARTERFINAL') {
+                        return won ? (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/60 text-[9px] font-bold">
+                            → SF
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded bg-red-950/70 text-red-300 border border-red-800/60 text-[9px] font-semibold">
+                            Eliminated
+                          </span>
+                        );
+                      }
+                      if (m.stage === 'SEMIFINAL') {
+                        return won ? (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-600/60 text-[9px] font-bold">
+                            → Final
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[9px] font-semibold">
+                            → 3rd Place
+                          </span>
+                        );
+                      }
+                      if (m.stage === 'THIRD_PLACE') {
+                        return won ? (
+                          <span className="px-1.5 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-600/60 text-[9px] font-bold">
+                            3rd Bronze
+                          </span>
+                        ) : null;
+                      }
+                      if (m.stage === 'FINAL') {
+                        return won ? (
+                          <span className="px-1.5 py-0.5 rounded bg-[#FACC15]/20 text-[#FACC15] border border-[#FACC15]/50 text-[9px] font-black">
+                            Champion
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-600 text-[9px] font-bold">
+                            2nd Silver
+                          </span>
+                        );
+                      }
+                      return null;
+                    };
 
-                  <div className="text-right font-mono space-y-1 shrink-0">
-                    <div className="text-base font-black text-[#FACC15]">
-                      {m.homeSetsWon} - {m.awaySetsWon}
-                    </div>
-                    {m.setScores?.length > 0 && (
-                      <div className="text-[10px] text-slate-400">
-                        {m.setScores.map((s) => `${s.home}-${s.away}`).join(' · ')}
+                    return (
+                      <div
+                        key={m.id}
+                        className={`rounded-2xl bg-[#111827] border p-4 space-y-3 text-xs ${
+                          m.status === 'LIVE'
+                            ? 'border-red-500/70 shadow-lg shadow-red-950/20'
+                            : m.stage === 'FINAL'
+                            ? 'border-[#FACC15]/35'
+                            : 'border-[#1E293B]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-[#0B0F19] border border-[#1E293B] font-mono font-bold text-white">
+                              {m.matchCode}
+                            </span>
+                            <span className="text-[10px] font-bold uppercase text-slate-400">{m.stage}</span>
+                            {m.scheduledTime && (
+                              <span className="font-mono text-[11px] text-slate-300">· {m.scheduledTime}</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleSwapCourt(m)}
+                              className="px-2 py-0.5 rounded-lg bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-sky-300 font-bold inline-flex items-center gap-1 cursor-pointer"
+                              title="Swap between Court A & Court B"
+                            >
+                              <ArrowLeftRight className="w-3 h-3" />
+                              <span>{normalizeTournamentCourtName(m.courtName)}</span>
+                            </button>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                m.status === 'LIVE'
+                                  ? 'bg-red-600 text-white animate-pulse'
+                                  : isDone
+                                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                  : 'bg-slate-800 text-slate-300'
+                              }`}
+                            >
+                              {m.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Symmetrical 3-Column Teams & VS / Score */}
+                        <MatchScoreboardRow
+                          match={m}
+                          homeTeam={homeTeam}
+                          awayTeam={awayTeam}
+                          homeBadge={getOutcomeBadge(homeWon, awayWon)}
+                          awayBadge={getOutcomeBadge(awayWon, homeWon)}
+                        />
+
+                        <div className="pt-2 border-t border-[#1E293B] flex flex-wrap items-center justify-between gap-2">
+                          <select
+                            value={m.officialId || ''}
+                            onChange={(e) => handleQuickOfficial(m, e.target.value)}
+                            className="px-2 py-1 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-[11px] text-slate-300 max-w-[170px]"
+                          >
+                            <option value="">Assign 1st Referee...</option>
+                            {tournament.officials.map((off) => (
+                              <option key={off.id} value={off.id}>
+                                {off.fullName}
+                              </option>
+                            ))}
+                          </select>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openScorer(m)}
+                              className="px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-500 text-white font-bold inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Play className="w-3 h-3" />
+                              <span>Live Score / Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMatch(m)}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
-
-                <div className="pt-2 border-t border-[#1E293B] flex flex-wrap items-center justify-between gap-2">
-                  <select
-                    value={m.officialId || ''}
-                    onChange={(e) => handleQuickOfficial(m, e.target.value)}
-                    className="px-2 py-1 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-[11px] text-slate-300 max-w-[170px]"
-                  >
-                    <option value="">Assign 1st Referee...</option>
-                    {tournament.officials.map((off) => (
-                      <option key={off.id} value={off.id}>
-                        {off.fullName}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => openScorer(m)}
-                      className="px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-500 text-white font-bold inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <Play className="w-3 h-3" />
-                      <span>Live Score / Edit</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteMatch(m)}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              </section>
+            ))}
         </div>
       )}
 
@@ -543,8 +709,8 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
                   onChange={(e) => setEditCourt(e.target.value)}
                   className="w-full px-2.5 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B]"
                 >
-                  <option value="Court 1">Court 1</option>
-                  <option value="Court 2">Court 2</option>
+                  <option value="Court A">Court A</option>
+                  <option value="Court B">Court B</option>
                 </select>
               </div>
               <div>
@@ -743,6 +909,93 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
               ))}
             </div>
 
+            {/* Courtside Matchday Check-in Roster (Verified Eligible Athletes Only) */}
+            {(editHomeId || editAwayId) && (
+              <div className="rounded-2xl bg-[#0B0F19] border border-[#1E293B] p-3.5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCheckinRoster((v) => !v)}
+                    className="flex items-center gap-2 text-left font-bold text-white cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Courtside Check-in Roster (VERIFIED Eligible Athletes Only)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCheckinRoster((v) => !v)}
+                    className="text-[11px] font-bold text-sky-300 hover:underline cursor-pointer"
+                  >
+                    {showCheckinRoster ? 'Hide Check-in List' : 'Show Check-in List'}
+                  </button>
+                </div>
+
+                {showCheckinRoster && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[
+                      { side: 'Home', teamId: editHomeId, fallback: editHomeLabel || 'Home Team', accent: 'text-[#F97316]' },
+                      { side: 'Away', teamId: editAwayId, fallback: editAwayLabel || 'Away Team', accent: 'text-[#38BDF8]' },
+                    ].map(({ side, teamId, fallback, accent }) => {
+                      const tm = teamId ? teamById.get(teamId) : null;
+                      const teamAthletes = teamId
+                        ? tournament.players.filter((p) => p.teamId === teamId)
+                        : [];
+                      const verified = teamAthletes
+                        .filter((p) => (p.eligibilityStatus || 'VERIFIED') === 'VERIFIED')
+                        .sort((a, b) => Number(b.isCaptain) - Number(a.isCaptain) || a.jerseyNumber - b.jerseyNumber);
+                      const unverifiedCount = teamAthletes.filter(
+                        (p) => (p.eligibilityStatus || 'VERIFIED') !== 'VERIFIED'
+                      ).length;
+
+                      return (
+                        <div key={side} className="rounded-xl bg-[#111827] border border-[#1E293B] p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2 border-b border-[#1E293B] pb-1.5">
+                            <span className={`font-bold text-xs truncate ${accent}`}>
+                              {tm?.name || fallback}
+                            </span>
+                            <span className="text-[10px] font-mono text-emerald-300 shrink-0">
+                              {verified.length} VERIFIED
+                            </span>
+                          </div>
+                          {!teamId ? (
+                            <p className="text-[11px] text-slate-500">Select a team above to view roster check-in.</p>
+                          ) : verified.length === 0 ? (
+                            <p className="text-[11px] text-amber-300 flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5 shrink-0" />
+                              <span>No VERIFIED athletes found yet. Review roster in Teams tab.</span>
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                              {verified.map((pl) => (
+                                <span
+                                  key={pl.id}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-[11px]"
+                                >
+                                  <span className={`font-mono font-black ${accent}`}>#{pl.jerseyNumber}</span>
+                                  <span className="text-slate-100 font-semibold">{pl.fullName}</span>
+                                  <span className="text-[9px] font-mono text-slate-400">{pl.position}</span>
+                                  {pl.isCaptain && (
+                                    <span className="px-1 rounded bg-amber-500 text-slate-950 text-[8px] font-black">
+                                      C
+                                    </span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {unverifiedCount > 0 && (
+                            <p className="text-[10px] text-amber-300/90">
+                              + {unverifiedCount} pending/flagged/rejected athletes excluded from court eligibility.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="p-2.5 rounded-xl bg-amber-950/20 border border-amber-800/30 flex items-center gap-2 text-[11px] text-amber-200">
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
@@ -827,8 +1080,8 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
                   onChange={(e) => setNewCourt(e.target.value)}
                   className="px-3 py-2 rounded-xl bg-[#0B0F19] border border-[#1E293B]"
                 >
-                  <option value="Court 1">Court 1</option>
-                  <option value="Court 2">Court 2</option>
+                  <option value="Court A">Court A</option>
+                  <option value="Court B">Court B</option>
                 </select>
                 <input
                   type="time"

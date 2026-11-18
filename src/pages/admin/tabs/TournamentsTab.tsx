@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Award,
   Check,
   Copy,
   Edit3,
@@ -18,14 +19,20 @@ import {
 } from 'lucide-react';
 import { Tournament, TournamentFinanceSummary } from '../../../types';
 import { tournamentService } from '../../../services/api';
+import {
+  computeTotalCashPrize,
+  formatTournamentScheduleDisplay,
+  resolveTournamentPrizeMode,
+} from '../../../shared/tournaments';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { useAdminMetrics } from '../hooks/useAdminMetrics';
 import { TournamentFormModal } from '../components/tournaments/TournamentFormModal';
 import { TeamsFeesPanel } from '../components/tournaments/TeamsFeesPanel';
 import { CourtsideMatchesPanel } from '../components/tournaments/CourtsideMatchesPanel';
 import { OfficialsPanel } from '../components/tournaments/OfficialsPanel';
+import { DreamTeamAwardsPanel } from '../components/tournaments/DreamTeamAwardsPanel';
 
-type AdminTourSubTab = 'TEAMS' | 'MATCHES' | 'OFFICIALS';
+type AdminTourSubTab = 'TEAMS' | 'MATCHES' | 'OFFICIALS' | 'AWARDS';
 
 function toFinanceSummary(t: Tournament): TournamentFinanceSummary {
   return {
@@ -111,6 +118,20 @@ export const TournamentsTab: React.FC = () => {
       notify(`Registration for "${t.name}" is now ${updated.isRegistrationOpen ? 'OPEN' : 'CLOSED'}.`);
     } catch (err: any) {
       notify(err?.message || 'Unable to toggle registration.');
+    }
+  };
+
+  const handleToggleRosterLock = async (t: Tournament) => {
+    try {
+      const updated = await tournamentService.toggleRosterLock(t.id, !t.isRosterLocked);
+      setTournamentsList((prev) => prev.map((item) => (item.id === t.id ? updated : item)));
+      notify(
+        updated.isRosterLocked
+          ? `Locked official rosters for "${t.name}". External roster changes blocked.`
+          : `Unlocked official rosters for "${t.name}".`
+      );
+    } catch (err: any) {
+      notify(err?.message || 'Unable to toggle roster lock.');
     }
   };
 
@@ -282,15 +303,34 @@ export const TournamentsTab: React.FC = () => {
                     <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-800 text-slate-200">
                       {selectedTournament.status}
                     </span>
+                    {selectedTournament.isRosterLocked && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-950/70 text-red-300 border border-red-700/60 inline-flex items-center gap-1">
+                        <Lock className="w-3 h-3" />
+                        <span>ROSTERS LOCKED</span>
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span>{selectedTournament.startDate}{selectedTournament.startTime ? ` · ${selectedTournament.startTime}` : ''}</span>
+                    <span>{formatTournamentScheduleDisplay(selectedTournament)}</span>
                     <span>· {selectedTournament.location}</span>
                     {selectedTournament.mode === 'HOSTED' && (
                       <span className="font-mono text-[#FACC15] font-bold">
                         · Fee: {selectedTournament.entryFeePerTeam.toLocaleString('vi-VN')} đ/team
                       </span>
                     )}
+                    {selectedTournament.prizeConfig?.length > 0 && (() => {
+                      const pMode = resolveTournamentPrizeMode(selectedTournament.prizeConfig);
+                      const cashPool = computeTotalCashPrize(selectedTournament.prizeConfig);
+                      return pMode === 'CASH_AND_TROPHIES' && cashPool > 0 ? (
+                        <span className="text-amber-300 font-semibold">
+                          · Prizes: {cashPool.toLocaleString('vi-VN')} đ + Trophies
+                        </span>
+                      ) : (
+                        <span className="text-emerald-300 font-semibold">
+                          · Prizes: Trophies &amp; Medals Only
+                        </span>
+                      );
+                    })()}
                     {selectedTournament.internalExpenseNote && (
                       <span className="text-sky-300">· Note: {selectedTournament.internalExpenseNote}</span>
                     )}
@@ -322,6 +362,20 @@ export const TournamentsTab: React.FC = () => {
                       <span>{selectedTournament.isRegistrationOpen ? 'Reg Open' : 'Reg Closed'}</span>
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleRosterLock(selectedTournament)}
+                    className={`px-3 py-2 rounded-xl border font-bold inline-flex items-center gap-1.5 cursor-pointer ${
+                      selectedTournament.isRosterLocked
+                        ? 'bg-red-950/70 border-red-600 text-red-200'
+                        : 'bg-[#0B0F19] hover:bg-[#1E293B] border-[#1E293B] text-amber-300'
+                    }`}
+                    title="Lock official rosters before kickoff to block external roster edits"
+                  >
+                    {selectedTournament.isRosterLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>{selectedTournament.isRosterLocked ? 'Unlock Rosters' : 'Lock Official Rosters'}</span>
+                  </button>
 
                   <button
                     type="button"
@@ -364,6 +418,7 @@ export const TournamentsTab: React.FC = () => {
                 {[
                   { id: 'TEAMS' as const, label: 'Teams, Fees & Rosters', icon: Users },
                   { id: 'MATCHES' as const, label: 'Matches, Standings & Live Scorer', icon: CalendarClock },
+                  { id: 'AWARDS' as const, label: 'Podium & Dream Team', icon: Award },
                   { id: 'OFFICIALS' as const, label: 'Referees & Officials', icon: ShieldCheck },
                 ].map(({ id, label, icon: Icon }) => (
                   <button
@@ -391,6 +446,13 @@ export const TournamentsTab: React.FC = () => {
               )}
               {subTab === 'MATCHES' && (
                 <CourtsideMatchesPanel
+                  tournament={selectedTournament}
+                  onRefresh={refreshTournaments}
+                  notify={notify}
+                />
+              )}
+              {subTab === 'AWARDS' && (
+                <DreamTeamAwardsPanel
                   tournament={selectedTournament}
                   onRefresh={refreshTournaments}
                   notify={notify}

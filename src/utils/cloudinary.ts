@@ -8,13 +8,14 @@
 
 export type CloudinaryModule = 'players' | 'courts' | 'news' | 'coaches' | 'training' | 'shop' | 'tournaments' | 'general';
 
-export type CloudinaryImagePreset = 'card' | 'thumb' | 'detail' | 'zoom';
+export type CloudinaryImagePreset = 'card' | 'thumb' | 'detail' | 'zoom' | 'logo';
 
 const CLOUDINARY_PRESETS: Record<CloudinaryImagePreset, string> = {
   card: 'f_auto,q_auto:good,w_600,c_limit',
   thumb: 'f_auto,q_auto,w_160,c_limit',
   detail: 'f_auto,q_auto:good,w_1000,c_limit',
   zoom: 'f_auto,q_auto:good,w_1600,c_limit',
+  logo: 'c_pad,b_white,w_160,h_160,f_auto,q_auto',
 };
 
 const CLOUDINARY_UPLOAD_MARKER = '/image/upload/';
@@ -70,6 +71,25 @@ export function optimizeCloudinaryUrl(
       ? `f_auto,q_auto:good,w_${Math.max(1, Math.round(presetOrWidth))},c_limit`
       : CLOUDINARY_PRESETS[presetOrWidth];
 
+  return `${parsed.prefix}${transform}/${parsed.suffix}`;
+}
+
+/**
+ * Normalize team/club logos into square white-padded 1:1 Cloudinary images (`c_pad,b_white`)
+ * so landscape, portrait, and transparent logos frame identically inside circular badges.
+ */
+export function optimizeCloudinaryLogoUrl(
+  url?: string | null,
+  size: number = 160
+): string {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  const parsed = parseCloudinaryUploadUrl(trimmed);
+  if (!parsed || parsed.hasTransform) return trimmed;
+
+  const s = Math.max(32, Math.round(size));
+  const transform =
+    s === 160 ? CLOUDINARY_PRESETS.logo : `c_pad,b_white,w_${s},h_${s},f_auto,q_auto`;
   return `${parsed.prefix}${transform}/${parsed.suffix}`;
 }
 

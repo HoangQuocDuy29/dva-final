@@ -19,6 +19,12 @@ import {
   signToken,
   verifyPassword,
 } from './lib/security';
+import {
+  createDatabaseCircuitBreaker,
+  createHoldReleaseManager,
+  extractConciseErrorMessage,
+  isDatabaseUnavailableError,
+} from './lib/bookingHolds';
 import { EM, HttpError, E, I, S, N, D, sanitize } from './lib/validation';
 import {
   APPLICATION_ENTRY_FEE_SCHEMA,
@@ -42,6 +48,7 @@ import {
   PRODUCT_SCHEMA,
   REGISTRATION_STATUSES,
   TOURNAMENT_MATCH_SCHEMA,
+  TOURNAMENT_DREAM_TEAM_SCHEMA,
   TOURNAMENT_MATCH_SCORE_SCHEMA,
   TOURNAMENT_OFFICIAL_SCHEMA,
   TOURNAMENT_PLAYER_SCHEMA,
@@ -61,9 +68,13 @@ import {
   toMinutes,
 } from './src/shared/schedule';
 import {
+  DREAM_TEAM_AWARD_CODES,
+  DREAM_TEAM_SLOTS,
   buildStandard20MatchPlan,
+  computeCrossPoolQuarterfinalPairings,
   computePoolStandings,
   computeSetTotals,
+  normalizeTournamentCourtName,
   slugifyTournamentName,
 } from './src/shared/tournaments';
 import {
@@ -195,10 +206,16 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
-// Health Check Endpoint (Render / Cloud hosting uptime & auto-recovery monitor)
+const dbCircuitBreaker = createDatabaseCircuitBreaker({
+  transientOpenMs: 20_000,
+  quotaOpenMs: 60_000,
+});
+
+// Health Check Endpoint (Render / Cloud hosting uptime & auto-recovery monitor — intentionally DB-free)
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
+    database: dbCircuitBreaker.isOpen() ? 'degraded' : 'ok',
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
@@ -246,6 +263,9 @@ setUserLookup(async (id) => {
     const dbUser = await prisma.user.findUnique({ where: { id } });
     if (dbUser) return toStoredUser(dbUser);
   } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      throw error;
+    }
     console.error("[API ERROR] setUserLookup:", error);
   }
   return undefined;
@@ -255,11 +275,16 @@ const isAllowedScriptUrl = (url: string) => /^https:\/\/script\.google(userconte
 
 async function getGoogleScriptUrl(): Promise<string> {
   const envUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL || process.env.GOOGLE_SCRIPT_URL || '';
+  if (!dbCircuitBreaker.canAttempt().allowed) return envUrl;
   try {
     const cfg = await prisma.appConfig.findUnique({ where: { id: 'default' } });
     return cfg?.googleScriptUrl || envUrl;
   } catch (error) {
-    console.error("[API ERROR] getGoogleScriptUrl:", error);
+    if (isDatabaseUnavailableError(error)) {
+      dbCircuitBreaker.trip(error);
+    } else {
+      console.error("[API ERROR] getGoogleScriptUrl:", error);
+    }
     return envUrl;
   }
 }
@@ -488,6 +513,25 @@ function buildShopOrderSheetPayload(
 // ==========================================
 // API ROUTES (100% PostgreSQL via Prisma)
 // ==========================================
+
+// Short-circuit DB-backed API traffic while the circuit breaker is OPEN (quota/connection outage)
+app.use('/api', (_req, res, next) => {
+  const attempt = dbCircuitBreaker.canAttempt();
+  if (!attempt.allowed) {
+    res.setHeader('Retry-After', String(attempt.retryAfterSec));
+    return void res.status(503).json({
+      error: 'Database is temporarily unavailable. Please try again shortly.',
+    });
+  }
+  if (attempt.wasHalfOpen) {
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 400) {
+        dbCircuitBreaker.markSuccess();
+      }
+    });
+  }
+  next();
+});
 
 // Authentication, then default-deny authorization for every /api route (see lib/security.ts)
 app.use('/api', attachAuth, apiAccessPolicy);
@@ -1106,26 +1150,40 @@ const nowMinutesVN = () => {
   return h * 60 + m;
 };
 
-/** Cancels unpaid online bookings whose 15-minute hold ran out, freeing the slot in PostgreSQL. */
-async function releaseExpiredHolds(): Promise<void> {
-  try {
-    await prisma.booking.updateMany({
+/**
+ * On-demand cleanup for unpaid online bookings whose 15-minute hold has expired.
+ * Runs exclusively on booking/calendar/payment requests (15s cooldown + exponential error backoff),
+ * avoiding 24/7 background polling so Neon serverless Postgres can auto-suspend during idle hours.
+ */
+const holdReleaseManager = createHoldReleaseManager({
+  cooldownMs: 15_000,
+  runCleanup: async (now) => {
+    const result = await prisma.booking.updateMany({
       where: {
         paymentStatus: 'PENDING',
-        holdExpiresAt: { lte: new Date() },
+        holdExpiresAt: { lte: now },
       },
       data: {
         paymentStatus: 'CANCELLED',
         holdExpiresAt: null,
       },
     });
-  } catch (err) {
-    console.warn('[Bookings] Failed to release expired holds:', err);
-  }
+    dbCircuitBreaker.markSuccess();
+    return result.count;
+  },
+  onError: (err, delayMs) => {
+    dbCircuitBreaker.trip(err);
+    const secs = Math.round(delayMs / 1000);
+    console.warn(
+      `[Bookings] Skipped expired-hold cleanup (backing off ${secs}s): ${extractConciseErrorMessage(err)}`
+    );
+  },
+});
+
+async function releaseExpiredHolds(): Promise<void> {
+  if (!dbCircuitBreaker.canAttempt().allowed) return;
+  await holdReleaseManager.releaseExpiredHolds();
 }
-setInterval(() => {
-  void releaseExpiredHolds();
-}, 60_000).unref();
 
 async function hasBookingConflict(
   courtId: string,
@@ -1194,11 +1252,7 @@ async function hasClosedSlotConflict(
 }
 
 app.get('/api/bookings', ah(async (req, res) => {
-  try {
-    await releaseExpiredHolds();
-  } catch (error) {
-    console.error('[API ERROR] releaseExpiredHolds in GET /api/bookings:', error);
-  }
+  await releaseExpiredHolds();
   const date = typeof req.query.date === 'string' ? req.query.date : undefined;
   const courtId = typeof req.query.courtId === 'string' ? req.query.courtId : undefined;
 
@@ -2897,6 +2951,7 @@ app.post('/api/webhooks/payment', ah(async (req, res) => {
   }
 
   // Tra cứu bản ghi trong bảng Booking qua Prisma
+  await releaseExpiredHolds();
   let booking = extractedBookingCode
     ? await prisma.booking.findFirst({
         where: {
@@ -3853,8 +3908,11 @@ app.get('/api/tournaments/:slugOrId', ah(async (req, res) => {
 app.post('/api/tournaments/:slugOrId/register', ah(async (req, res) => {
   const { slugOrId } = req.params;
   const data = sanitize(req.body, TOURNAMENT_PUBLIC_REGISTER_SCHEMA, {
-    required: ['name', 'captainName', 'captainPhone', 'players'],
+    required: ['name', 'captainName', 'captainPhone', 'regulationsAccepted', 'players'],
   });
+  if (data.regulationsAccepted !== true) {
+    throw new HttpError(400, 'Captain must accept the athlete eligibility & tournament regulations pledge.');
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     const tournament = await tx.tournament.findFirst({
@@ -3869,8 +3927,22 @@ app.post('/api/tournaments/:slugOrId/register', ah(async (req, res) => {
     if (tournament.mode !== 'HOSTED') {
       throw new HttpError(400, 'Public registration is only enabled for DVA Hosted tournaments.');
     }
+    if (tournament.isRosterLocked) {
+      throw new HttpError(403, 'Official rosters are locked for this tournament. Contact the Organizing Committee.');
+    }
     if (tournament.status !== 'UPCOMING' || !tournament.isRegistrationOpen) {
       throw new HttpError(400, 'Registration for this tournament is currently closed.');
+    }
+    if (tournament.requireBirthYear) {
+      const missingBirthYear = (data.players as any[]).find(
+        (pl) => pl.birthYear === undefined || pl.birthYear === null
+      );
+      if (missingBirthYear) {
+        throw new HttpError(
+          400,
+          `Birth year (1960–2015) is required for athlete "${missingBirthYear.fullName}".`
+        );
+      }
     }
 
     const paidCount = await tx.tournamentTeam.count({
@@ -3917,7 +3989,8 @@ app.post('/api/tournaments/:slugOrId/register', ah(async (req, res) => {
         tournamentId: tournament.id,
         name: data.name,
         shortName,
-        logoUrl: data.logoUrl || null,
+        // Public captains cannot set logos; Admin uploads standardized logos in Dashboard.
+        logoUrl: null,
         isDvaTeam: false,
         seedOrder: existingTeamsCount + 1,
         captainName: data.captainName,
@@ -3939,10 +4012,12 @@ app.post('/api/tournaments/:slugOrId/register', ah(async (req, res) => {
             teamId: createdTeam.id,
             tournamentId: tournament.id,
             fullName: pl.fullName,
-            jerseyNumber: Number(pl.jerseyNumber) || 0,
+            jerseyNumber: Number(pl.jerseyNumber),
             position: pl.position || 'OH',
             height: pl.height ?? null,
             spikeTouch: pl.spikeTouch ?? null,
+            birthYear: pl.birthYear ?? null,
+            eligibilityStatus: 'PENDING_CHECK',
             isCaptain: Boolean(pl.isCaptain),
             awards: [],
           },
@@ -3961,7 +4036,9 @@ app.post('/api/tournaments/:slugOrId/register', ah(async (req, res) => {
       tournamentName: tournament.name,
       tournamentSlug: tournament.slug,
       startDate: tournament.startDate,
+      endDate: tournament.endDate ?? undefined,
       startTime: tournament.startTime ?? undefined,
+      endTime: tournament.endTime ?? undefined,
       location: tournament.location,
       teamName: createdTeam.name,
       captainName: createdTeam.captainName || data.captainName,
@@ -4067,11 +4144,14 @@ app.post('/api/tournaments', ah(async (req, res) => {
             ? Boolean(data.isRegistrationOpen)
             : true
           : false,
+      isRosterLocked: Boolean(data.isRosterLocked),
+      requireBirthYear: Boolean(data.requireBirthYear),
       maxTeams: data.maxTeams ?? 8,
       registrationDeadline: data.registrationDeadline ?? null,
       startDate: data.startDate,
       endDate: data.endDate ?? data.startDate,
       startTime: data.startTime ?? '07:30',
+      endTime: data.endTime ?? null,
       location: data.location || '155 Truong Chinh, Thanh Xuan, Hanoi (DVA Court - BTL Thong Tin)',
       mapsUrl: data.mapsUrl ?? null,
       bannerUrl: data.bannerUrl ?? null,
@@ -4133,6 +4213,8 @@ app.put('/api/tournaments/:id', ah(async (req, res) => {
       ...(req.body?.registrationDeadline === null || req.body?.registrationDeadline === ''
         ? { registrationDeadline: null }
         : {}),
+      ...(req.body?.startTime === null || req.body?.startTime === '' ? { startTime: null } : {}),
+      ...(req.body?.endTime === null || req.body?.endTime === '' ? { endTime: null } : {}),
       ...(req.body?.podiumOverride === null ? { podiumOverride: null as any } : {}),
     },
     include: TOURNAMENT_FULL_INCLUDE,
@@ -4166,6 +4248,23 @@ app.patch('/api/tournaments/:id/registration', ah(async (req, res) => {
   const updated = await prisma.tournament.update({
     where: { id },
     data: { isRegistrationOpen: nextOpen },
+    include: TOURNAMENT_FULL_INCLUDE,
+  });
+  res.json(toTournamentDto(updated, true));
+}));
+
+// Admin: Lock / Unlock Official Tournament Rosters
+app.patch('/api/tournaments/:id/roster-lock', ah(async (req, res) => {
+  const { id } = req.params;
+  const existing = await prisma.tournament.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Tournament not found.' });
+  const nextLocked =
+    typeof req.body?.isRosterLocked === 'boolean'
+      ? req.body.isRosterLocked
+      : !existing.isRosterLocked;
+  const updated = await prisma.tournament.update({
+    where: { id },
+    data: { isRosterLocked: nextLocked },
     include: TOURNAMENT_FULL_INCLUDE,
   });
   res.json(toTournamentDto(updated, true));
@@ -4260,6 +4359,8 @@ app.post('/api/tournaments/:id/teams', ah(async (req, res) => {
             height: cp.height,
             spikeTouch: cp.spikeTouch,
             avatarUrl: cp.avatarUrl || null,
+            birthYear: cp.bornYear && cp.bornYear >= 1960 && cp.bornYear <= 2015 ? cp.bornYear : null,
+            eligibilityStatus: 'VERIFIED',
             isCaptain: cp.isCaptain,
             awards: [],
           },
@@ -4307,6 +4408,7 @@ app.put('/api/tournaments/:id/teams/:teamId', ah(async (req, res) => {
       ...(req.body?.manualRankOverride === null || req.body?.manualRankOverride === '' ? { manualRankOverride: null } : {}),
       ...(req.body?.finalRank === null || req.body?.finalRank === '' ? { finalRank: null } : {}),
       ...(req.body?.dvaSquadLevel === null || req.body?.dvaSquadLevel === '' ? { dvaSquadLevel: null } : {}),
+      ...(req.body?.logoUrl === null || req.body?.logoUrl === '' ? { logoUrl: null } : {}),
       ...(existing.tournament.mode === 'PARTICIPATING' ? { entryFeeAmount: 0 } : {}),
       paymentStatus: nextStatus,
       paidAt: nextPaidAt,
@@ -4356,11 +4458,13 @@ app.post('/api/tournaments/:id/teams/:teamId/import-dva-squad', ah(async (req, r
         height: cp.height,
         spikeTouch: cp.spikeTouch,
         avatarUrl: cp.avatarUrl || null,
+        birthYear: cp.bornYear && cp.bornYear >= 1960 && cp.bornYear <= 2015 ? cp.bornYear : null,
+        eligibilityStatus: 'VERIFIED',
         isCaptain: cp.isCaptain,
         awards: [],
       },
     });
-    createdRows.push(toTournamentPlayerDto(row));
+    createdRows.push(toTournamentPlayerDto(row, true));
   }
 
   await prisma.tournamentTeam.update({
@@ -4369,6 +4473,27 @@ app.post('/api/tournaments/:id/teams/:teamId/import-dva-squad', ah(async (req, r
   });
 
   res.json({ importedCount: createdRows.length, players: createdRows });
+}));
+
+// Admin: Batch Approve all non-REJECTED athletes in a team's roster
+app.post('/api/tournaments/:id/teams/:teamId/verify-roster', ah(async (req, res) => {
+  const { id, teamId } = req.params;
+  const team = await prisma.tournamentTeam.findFirst({ where: { id: teamId, tournamentId: id } });
+  if (!team) return res.status(404).json({ error: 'Team not found.' });
+
+  const result = await prisma.tournamentPlayer.updateMany({
+    where: {
+      teamId: team.id,
+      tournamentId: id,
+      eligibilityStatus: { not: 'REJECTED' },
+    },
+    data: {
+      eligibilityStatus: 'VERIFIED',
+      rejectionReason: null,
+    },
+  });
+
+  res.json({ verifiedCount: result.count });
 }));
 
 // Admin: Delete Team (blocked if HOSTED and PAID with fee > 0)
@@ -4397,10 +4522,20 @@ app.delete('/api/tournaments/:id/teams/:teamId', ah(async (req, res) => {
 // Admin: Tournament Player CRUD & Awards
 app.post('/api/tournaments/:id/players', ah(async (req, res) => {
   const { id } = req.params;
-  const data = sanitize(req.body, TOURNAMENT_PLAYER_SCHEMA, { required: ['teamId', 'fullName'] });
+  const data = sanitize(req.body, TOURNAMENT_PLAYER_SCHEMA, { required: ['teamId', 'fullName', 'jerseyNumber'] });
   const team = await prisma.tournamentTeam.findFirst({ where: { id: data.teamId, tournamentId: id } });
   if (!team) return res.status(404).json({ error: 'Team not found in tournament.' });
 
+  const duplicateJersey = await prisma.tournamentPlayer.findFirst({
+    where: { teamId: team.id, jerseyNumber: data.jerseyNumber },
+  });
+  if (duplicateJersey) {
+    return res.status(400).json({
+      error: `Jersey number #${data.jerseyNumber} is already assigned to ${duplicateJersey.fullName} on this team.`,
+    });
+  }
+
+  const nextStatus = data.eligibilityStatus || 'VERIFIED';
   const created = await prisma.tournamentPlayer.create({
     data: {
       id: `tp-${crypto.randomUUID()}`,
@@ -4408,16 +4543,19 @@ app.post('/api/tournaments/:id/players', ah(async (req, res) => {
       tournamentId: id,
       linkedPlayerId: data.linkedPlayerId || null,
       fullName: data.fullName,
-      jerseyNumber: data.jerseyNumber ?? 0,
+      jerseyNumber: Number(data.jerseyNumber),
       position: data.position || 'OH',
       height: data.height ?? null,
       spikeTouch: data.spikeTouch ?? null,
       avatarUrl: data.avatarUrl || null,
+      birthYear: data.birthYear ?? null,
+      eligibilityStatus: nextStatus,
+      rejectionReason: nextStatus === 'VERIFIED' ? null : (data.rejectionReason || null),
       isCaptain: Boolean(data.isCaptain),
       awards: Array.isArray(data.awards) ? data.awards : [],
     },
   });
-  res.status(201).json(toTournamentPlayerDto(created));
+  res.status(201).json(toTournamentPlayerDto(created, true));
 }));
 
 app.put('/api/tournaments/:id/players/:playerId', ah(async (req, res) => {
@@ -4425,6 +4563,20 @@ app.put('/api/tournaments/:id/players/:playerId', ah(async (req, res) => {
   const existing = await prisma.tournamentPlayer.findFirst({ where: { id: playerId, tournamentId: id } });
   if (!existing) return res.status(404).json({ error: 'Player not found.' });
   const data = sanitize(req.body, TOURNAMENT_PLAYER_SCHEMA, { partial: true });
+  if (data.jerseyNumber !== undefined) {
+    const duplicateJersey = await prisma.tournamentPlayer.findFirst({
+      where: {
+        teamId: existing.teamId,
+        jerseyNumber: data.jerseyNumber,
+        id: { not: playerId },
+      },
+    });
+    if (duplicateJersey) {
+      return res.status(400).json({
+        error: `Jersey number #${data.jerseyNumber} is already assigned to ${duplicateJersey.fullName} on this team.`,
+      });
+    }
+  }
   const { teamId: _ignore, ...rest } = data;
   const updated = await prisma.tournamentPlayer.update({
     where: { id: playerId },
@@ -4432,21 +4584,147 @@ app.put('/api/tournaments/:id/players/:playerId', ah(async (req, res) => {
       ...rest,
       ...(req.body?.height === null || req.body?.height === '' ? { height: null } : {}),
       ...(req.body?.spikeTouch === null || req.body?.spikeTouch === '' ? { spikeTouch: null } : {}),
+      ...(req.body?.avatarUrl === null || req.body?.avatarUrl === '' ? { avatarUrl: null } : {}),
+      ...(req.body?.birthYear === null || req.body?.birthYear === '' ? { birthYear: null } : {}),
+      ...(data.eligibilityStatus === 'VERIFIED' ||
+      req.body?.rejectionReason === null ||
+      req.body?.rejectionReason === ''
+        ? { rejectionReason: null }
+        : {}),
     },
   });
-  res.json(toTournamentPlayerDto(updated));
+  res.json(toTournamentPlayerDto(updated, true));
 }));
 
 app.delete('/api/tournaments/:id/players/:playerId', ah(async (req, res) => {
   const { id, playerId } = req.params;
   const existing = await prisma.tournamentPlayer.findFirst({ where: { id: playerId, tournamentId: id } });
   if (!existing) return res.status(404).json({ error: 'Player not found.' });
-  await prisma.tournamentPlayer.delete({ where: { id: playerId } });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tournamentPlayer.delete({ where: { id: playerId } });
+    const tournament = await tx.tournament.findUnique({ where: { id } });
+    const ov =
+      tournament?.podiumOverride && typeof tournament.podiumOverride === 'object' && !Array.isArray(tournament.podiumOverride)
+        ? (tournament.podiumOverride as Record<string, any>)
+        : null;
+    if (ov?.dreamTeam && typeof ov.dreamTeam === 'object') {
+      let changed = false;
+      const nextDream = { ...ov.dreamTeam };
+      for (const slot of DREAM_TEAM_SLOTS) {
+        if (nextDream[slot.slotKey] === playerId) {
+          nextDream[slot.slotKey] = null;
+          changed = true;
+        }
+      }
+      if (changed) {
+        await tx.tournament.update({
+          where: { id },
+          data: { podiumOverride: { ...ov, dreamTeam: nextDream } as any },
+        });
+      }
+    }
+  });
+
   res.json({ success: true });
 }));
 
+// Admin: Save 8-Award FIVB Dream Team & Bidirectionally Sync TournamentPlayer.awards
+app.put('/api/tournaments/:id/dream-team', ah(async (req, res) => {
+  const { id } = req.params;
+  const { dreamTeam } = sanitize(req.body, TOURNAMENT_DREAM_TEAM_SCHEMA, { required: ['dreamTeam'] });
+  const normalizedDream = (dreamTeam || {}) as Record<string, string | null>;
+
+  if (normalizedDream.BEST_OH_1 && normalizedDream.BEST_OH_2 && normalizedDream.BEST_OH_1 === normalizedDream.BEST_OH_2) {
+    throw new HttpError(400, 'Cannot select the same athlete for both Best Outside Hitter slots.');
+  }
+  if (normalizedDream.BEST_MB_1 && normalizedDream.BEST_MB_2 && normalizedDream.BEST_MB_1 === normalizedDream.BEST_MB_2) {
+    throw new HttpError(400, 'Cannot select the same athlete for both Best Middle Blocker slots.');
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const tournament = await tx.tournament.findUnique({
+      where: { id },
+      include: { teams: true, players: true },
+    });
+    if (!tournament) throw new HttpError(404, 'Tournament not found.');
+
+    const teamMap = new Map(tournament.teams.map((tm) => [tm.id, tm]));
+    const playerMap = new Map(tournament.players.map((pl) => [pl.id, pl]));
+    const awardsByPlayerId = new Map<string, Set<string>>();
+    const derivedAwards: Array<{ award: string; playerName: string; teamName?: string; jerseyNumber?: number }> = [];
+
+    for (const slot of DREAM_TEAM_SLOTS) {
+      const pid = normalizedDream[slot.slotKey];
+      if (!pid) continue;
+      const player = playerMap.get(pid);
+      if (!player) {
+        throw new HttpError(400, `Selected athlete for ${slot.label} does not belong to this tournament.`);
+      }
+      if ((player.eligibilityStatus || 'VERIFIED') !== 'VERIFIED') {
+        throw new HttpError(
+          400,
+          `Athlete "${player.fullName}" must be VERIFIED before receiving "${slot.label}".`
+        );
+      }
+      const existingSet = awardsByPlayerId.get(pid) ?? new Set<string>();
+      existingSet.add(slot.awardCode);
+      awardsByPlayerId.set(pid, existingSet);
+
+      const tm = teamMap.get(player.teamId);
+      derivedAwards.push({
+        award: slot.awardCode,
+        playerName: player.fullName,
+        teamName: tm?.name || '',
+        jerseyNumber: player.jerseyNumber,
+      });
+    }
+
+    // Sync awards array on every athlete cleanly: strip old Dream Team award codes, apply new ones
+    for (const pl of tournament.players) {
+      const currentAwards = Array.isArray(pl.awards) ? pl.awards : [];
+      const customAwards = currentAwards.filter((code) => !DREAM_TEAM_AWARD_CODES.has(code));
+      const newDreamCodes = Array.from(awardsByPlayerId.get(pl.id) ?? []);
+      const nextAwards = Array.from(new Set([...newDreamCodes, ...customAwards]));
+
+      const isEqual =
+        currentAwards.length === nextAwards.length &&
+        currentAwards.every((val, idx) => val === nextAwards[idx]);
+      if (!isEqual) {
+        await tx.tournamentPlayer.update({
+          where: { id: pl.id },
+          data: { awards: nextAwards },
+        });
+      }
+    }
+
+    const existingOverride =
+      tournament.podiumOverride && typeof tournament.podiumOverride === 'object' && !Array.isArray(tournament.podiumOverride)
+        ? (tournament.podiumOverride as Record<string, any>)
+        : {};
+
+    await tx.tournament.update({
+      where: { id },
+      data: {
+        podiumOverride: {
+          ...existingOverride,
+          dreamTeam: normalizedDream,
+          awards: derivedAwards,
+        } as any,
+      },
+    });
+
+    return tx.tournament.findUnique({
+      where: { id },
+      include: TOURNAMENT_FULL_INCLUDE,
+    });
+  });
+
+  res.json(toTournamentDto(updated, true));
+}));
+
 // Admin: Tournament Officials CRUD
-app.post('/api/tournaments/:id/officials', ah(async (req, res) => {
+async function handleCreateTournamentOfficial(req: express.Request, res: express.Response) {
   const { id } = req.params;
   const tournament = await prisma.tournament.findUnique({ where: { id } });
   if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
@@ -4457,25 +4735,61 @@ app.post('/api/tournaments/:id/officials', ah(async (req, res) => {
       tournamentId: id,
       fullName: data.fullName,
       role: data.role || 'MAIN_REFEREE',
-      certification: data.certification ?? null,
+      certification: data.certification || null,
       avatarUrl: data.avatarUrl || null,
-      phone: data.phone ?? null,
+      phone: data.phone || null,
       sortOrder: data.sortOrder ?? 0,
     },
   });
-  res.status(201).json(toTournamentOfficialDto(created, true));
-}));
+  return res.status(201).json(toTournamentOfficialDto(created, true));
+}
 
-app.put('/api/tournaments/:id/officials/:officialId', ah(async (req, res) => {
-  const { id, officialId } = req.params;
-  const existing = await prisma.tournamentOfficial.findFirst({ where: { id: officialId, tournamentId: id } });
+async function handleUpdateTournamentOfficial(
+  req: express.Request,
+  res: express.Response,
+  tournamentId?: string
+) {
+  const { officialId } = req.params;
+  const existing = await prisma.tournamentOfficial.findFirst({
+    where: tournamentId ? { id: officialId, tournamentId } : { id: officialId },
+  });
   if (!existing) return res.status(404).json({ error: 'Official not found.' });
+
+  if (Object.prototype.hasOwnProperty.call(req.body || {}, 'fullName') && req.body.fullName === null) {
+    return res.status(400).json({ error: 'fullName cannot be empty.' });
+  }
+
   const data = sanitize(req.body, TOURNAMENT_OFFICIAL_SCHEMA, { partial: true });
   const updated = await prisma.tournamentOfficial.update({
     where: { id: officialId },
-    data,
+    data: {
+      ...data,
+      ...(req.body?.certification === null || req.body?.certification === '' ? { certification: null } : {}),
+      ...(req.body?.avatarUrl === null || req.body?.avatarUrl === '' ? { avatarUrl: null } : {}),
+      ...(req.body?.phone === null || req.body?.phone === '' ? { phone: null } : {}),
+    },
   });
-  res.json(toTournamentOfficialDto(updated, true));
+  return res.json(toTournamentOfficialDto(updated, true));
+}
+
+app.post('/api/tournaments/:id/officials', ah(async (req, res) => {
+  await handleCreateTournamentOfficial(req, res);
+}));
+
+app.post('/api/admin/tournaments/:id/officials', ah(async (req, res) => {
+  await handleCreateTournamentOfficial(req, res);
+}));
+
+app.patch('/api/admin/tournaments/officials/:officialId', ah(async (req, res) => {
+  await handleUpdateTournamentOfficial(req, res);
+}));
+
+app.put('/api/tournaments/:id/officials/:officialId', ah(async (req, res) => {
+  await handleUpdateTournamentOfficial(req, res, req.params.id);
+}));
+
+app.patch('/api/tournaments/:id/officials/:officialId', ah(async (req, res) => {
+  await handleUpdateTournamentOfficial(req, res, req.params.id);
 }));
 
 app.delete('/api/tournaments/:id/officials/:officialId', ah(async (req, res) => {
@@ -4529,6 +4843,10 @@ app.post('/api/tournaments/:id/generate-schedule', ah(async (req, res) => {
   );
 
   await prisma.$transaction(async (tx) => {
+    await tx.tournamentTeam.updateMany({
+      where: { tournamentId: id },
+      data: { finalRank: null },
+    });
     await tx.tournamentMatch.deleteMany({ where: { tournamentId: id } });
     for (const tpl of templates) {
       await tx.tournamentMatch.create({
@@ -4560,58 +4878,68 @@ app.post('/api/tournaments/:id/generate-schedule', ah(async (req, res) => {
   res.json(toTournamentDto(refreshed, true));
 }));
 
+/**
+ * Shared transaction helper that seeds Quarterfinals (QF1–QF4) from Pool A & B standings:
+ * QF1: 1A vs 4B | QF3: 3A vs 2B | QF2: 2A vs 3B | QF4: 4A vs 1B
+ */
+async function seedQuarterfinalsFromStandingsTx(
+  tx: any,
+  tournamentId: string,
+  forceOverride: boolean
+): Promise<{ seededCodes: string[]; skipped: string[]; insufficientPools: boolean }> {
+  const [rawTeams, rawMatches] = await Promise.all([
+    tx.tournamentTeam.findMany({ where: { tournamentId } }),
+    tx.tournamentMatch.findMany({ where: { tournamentId } }),
+  ]);
+  const teamsDto = rawTeams.map((t: any) => toTournamentTeamDto(t, true));
+  const matchesDto = rawMatches.map((m: any) => toTournamentMatchDto(m, true));
+  const plan = computeCrossPoolQuarterfinalPairings(teamsDto, matchesDto);
+  if (!plan) {
+    return { seededCodes: [], skipped: [], insufficientPools: true };
+  }
+
+  const seededCodes: string[] = [];
+  const skipped: string[] = [];
+
+  for (const target of plan.pairings) {
+    const existingMatch = rawMatches.find((m: any) => m.matchCode === target.matchCode);
+    if (!existingMatch) continue;
+    if (existingMatch.status !== 'SCHEDULED' && !forceOverride) {
+      skipped.push(`${target.matchCode} (${existingMatch.status})`);
+      continue;
+    }
+    await tx.tournamentMatch.update({
+      where: { id: existingMatch.id },
+      data: {
+        homeTeamId: target.home.teamId,
+        awayTeamId: target.away.teamId,
+        homeLabel: target.home.teamName,
+        awayLabel: target.away.teamName,
+      },
+    });
+    seededCodes.push(target.matchCode);
+  }
+
+  return { seededCodes, skipped, insufficientPools: false };
+}
+
 // Admin: Lock Pool Standings & Seed Quarterfinals (QF1..QF4) safely
 app.post('/api/tournaments/:id/seed-knockout', ah(async (req, res) => {
   const { id } = req.params;
   const forceOverride = Boolean(req.body?.forceOverride);
 
-  const tournament = await prisma.tournament.findUnique({
-    where: { id },
-    include: TOURNAMENT_FULL_INCLUDE,
-  });
+  const tournament = await prisma.tournament.findUnique({ where: { id } });
   if (!tournament) return res.status(404).json({ error: 'Tournament not found.' });
 
-  const dto = toTournamentDto(tournament, true);
-  const standingsA = computePoolStandings(dto.teams, dto.matches, 'A');
-  const standingsB = computePoolStandings(dto.teams, dto.matches, 'B');
+  const { skipped, insufficientPools } = await prisma.$transaction((tx) =>
+    seedQuarterfinalsFromStandingsTx(tx, id, forceOverride)
+  );
 
-  if (standingsA.length < 4 || standingsB.length < 4) {
+  if (insufficientPools) {
     return res.status(400).json({
       error: 'Both Pool A and Pool B need 4 teams to seed the 8-team Quarterfinals.',
     });
   }
-
-  const qfTargets: Array<{
-    code: string;
-    home: typeof standingsA[number];
-    away: typeof standingsB[number];
-  }> = [
-    { code: 'QF1', home: standingsA[0], away: standingsB[3] }, // 1A vs 4B
-    { code: 'QF3', home: standingsA[2], away: standingsB[1] }, // 3A vs 2B
-    { code: 'QF2', home: standingsA[1], away: standingsB[2] }, // 2A vs 3B
-    { code: 'QF4', home: standingsA[3], away: standingsB[0] }, // 4A vs 1B
-  ];
-
-  const skipped: string[] = [];
-  await prisma.$transaction(async (tx) => {
-    for (const target of qfTargets) {
-      const existingMatch = tournament.matches.find((m) => m.matchCode === target.code);
-      if (!existingMatch) continue;
-      if (existingMatch.status !== 'SCHEDULED' && !forceOverride) {
-        skipped.push(`${target.code} (${existingMatch.status})`);
-        continue;
-      }
-      await tx.tournamentMatch.update({
-        where: { id: existingMatch.id },
-        data: {
-          homeTeamId: target.home.teamId,
-          awayTeamId: target.away.teamId,
-          homeLabel: target.home.teamName,
-          awayLabel: target.away.teamName,
-        },
-      });
-    }
-  });
 
   const refreshed = await prisma.tournament.findUnique({
     where: { id },
@@ -4643,7 +4971,7 @@ app.post('/api/tournaments/:id/matches', ah(async (req, res) => {
       matchCode: data.matchCode,
       stage: data.stage || 'GROUP',
       bracketSide: data.bracketSide || null,
-      courtName: data.courtName || 'Court 1',
+      courtName: normalizeTournamentCourtName(data.courtName || 'Court A'),
       scheduledTime: data.scheduledTime || null,
       matchOrder: data.matchOrder ?? count + 1,
       status: data.status || 'SCHEDULED',
@@ -4698,6 +5026,7 @@ app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => 
   const computed = computeSetTotals(rawScores, nextFormat, nextHomeId, nextAwayId, nextStatus);
 
   const warnings: string[] = [];
+  let autoSeededQuarterfinals = false;
 
   await prisma.$transaction(async (tx) => {
     const updatedMatch = await tx.tournamentMatch.update({
@@ -4705,7 +5034,9 @@ app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => 
       data: {
         status: nextStatus,
         setFormat: nextFormat,
-        ...(data.courtName !== undefined ? { courtName: data.courtName } : {}),
+        ...(data.courtName !== undefined
+          ? { courtName: normalizeTournamentCourtName(data.courtName) }
+          : {}),
         ...(data.scheduledTime !== undefined ? { scheduledTime: data.scheduledTime } : {}),
         homeTeamId: nextHomeId,
         awayTeamId: nextAwayId,
@@ -4724,6 +5055,22 @@ app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => 
         winnerTeamId: nextStatus === 'COMPLETED' ? computed.winnerTeamId : null,
       },
     });
+
+    // Clear stale podium finalRank if FINAL or 3RD match was reopened away from COMPLETED
+    if (updatedMatch.status !== 'COMPLETED') {
+      if (updatedMatch.matchCode === 'FINAL' || updatedMatch.stage === 'FINAL') {
+        await tx.tournamentTeam.updateMany({
+          where: { tournamentId: id, finalRank: { in: [1, 2] } },
+          data: { finalRank: null },
+        });
+      }
+      if (updatedMatch.matchCode === '3RD' || updatedMatch.stage === 'THIRD_PLACE') {
+        await tx.tournamentTeam.updateMany({
+          where: { tournamentId: id, finalRank: { in: [3, 4] } },
+          data: { finalRank: null },
+        });
+      }
+    }
 
     // Guarded Downstream Propagation & Podium Rank Assignment
     if (updatedMatch.status === 'COMPLETED' && updatedMatch.winnerTeamId) {
@@ -4804,22 +5151,38 @@ app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => 
       }
     }
 
-    // Warn if a Pool match was edited while Knockout matches are already LIVE/COMPLETED
-    if (
-      (updatedMatch.stage === 'POOL_A' || updatedMatch.stage === 'POOL_B') &&
-      updatedMatch.status === 'COMPLETED'
-    ) {
-      const liveOrDoneKnockout = await tx.tournamentMatch.count({
-        where: {
-          tournamentId: id,
-          stage: { in: ['QUARTERFINAL', 'SEMIFINAL', 'THIRD_PLACE', 'FINAL'] },
-          status: { in: ['LIVE', 'COMPLETED'] },
-        },
+    // Auto-seed Quarterfinals (QF1–QF4) when all Pool A & Pool B matches complete
+    if (updatedMatch.stage === 'POOL_A' || updatedMatch.stage === 'POOL_B') {
+      const poolMatches = await tx.tournamentMatch.findMany({
+        where: { tournamentId: id, stage: { in: ['POOL_A', 'POOL_B'] } },
+        select: { status: true },
       });
-      if (liveOrDoneKnockout > 0) {
-        warnings.push(
-          'Pool score updated while Knockout matches are already LIVE/COMPLETED. Review Quarterfinal pairings manually if rankings changed.'
-        );
+      const allPoolCompleted =
+        poolMatches.length > 0 && poolMatches.every((pm) => pm.status === 'COMPLETED');
+
+      if (allPoolCompleted) {
+        const autoRes = await seedQuarterfinalsFromStandingsTx(tx, id, forceOverride);
+        if (autoRes.seededCodes.length > 0) {
+          autoSeededQuarterfinals = true;
+        }
+        if (autoRes.skipped.length > 0) {
+          warnings.push(
+            `Pool score updated while Knockout matches (${autoRes.skipped.join(', ')}) are already LIVE/COMPLETED. Review Quarterfinal pairings manually if rankings changed.`
+          );
+        }
+      } else if (updatedMatch.status === 'COMPLETED') {
+        const liveOrDoneKnockout = await tx.tournamentMatch.count({
+          where: {
+            tournamentId: id,
+            stage: { in: ['QUARTERFINAL', 'SEMIFINAL', 'THIRD_PLACE', 'FINAL'] },
+            status: { in: ['LIVE', 'COMPLETED'] },
+          },
+        });
+        if (liveOrDoneKnockout > 0) {
+          warnings.push(
+            'Pool score updated while Knockout matches are already LIVE/COMPLETED. Review Quarterfinal pairings manually if rankings changed.'
+          );
+        }
       }
     }
   });
@@ -4832,6 +5195,7 @@ app.patch('/api/tournaments/:id/matches/:matchId/score', ah(async (req, res) => 
   res.json({
     tournament: toTournamentDto(refreshed, true),
     warnings,
+    autoSeededQuarterfinals,
   });
 }));
 
@@ -4848,6 +5212,15 @@ app.use((err: any, _req: express.Request, res: express.Response, next: express.N
   if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'Request body too large' });
   if (typeof err?.message === 'string' && err.message.startsWith('[CORS Blocked]')) {
     return res.status(403).json({ error: err.message });
+  }
+  if (dbCircuitBreaker.trip(err)) {
+    const attempt = dbCircuitBreaker.canAttempt();
+    if (!attempt.allowed) {
+      res.setHeader('Retry-After', String(attempt.retryAfterSec));
+    }
+    return res.status(503).json({
+      error: 'Database is temporarily unavailable due to quota or connection limit. Please try again shortly.',
+    });
   }
   console.error('[Server Error]', err);
   res.status(500).json({ error: 'Internal server error' });
@@ -4882,7 +5255,8 @@ async function setupViteOrStatic() {
 prisma
   .$connect()
   .catch((err) => {
-    console.warn('[Database] Initial PostgreSQL connection warning:', err?.message || err);
+    dbCircuitBreaker.trip(err);
+    console.warn('[Database] Initial PostgreSQL connection warning:', extractConciseErrorMessage(err));
   })
   .then(() => setupViteOrStatic())
   .then(() => {
@@ -4898,7 +5272,8 @@ prisma
 
       // Run idempotent seed checks in background so port binding & Render cold starts stay fast
       void ensurePostgreSQLSeeded().catch((err) => {
-        console.warn('[Database] Background PostgreSQL seed warning:', err?.message || err);
+        dbCircuitBreaker.trip(err);
+        console.warn('[Database] Background PostgreSQL seed warning:', extractConciseErrorMessage(err));
       });
     });
 

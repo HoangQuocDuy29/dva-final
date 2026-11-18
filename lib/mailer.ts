@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { Resend } from 'resend';
 import dotenv from 'dotenv';
+import { formatTournamentScheduleDisplay } from '../src/shared/tournaments';
 
 dotenv.config();
 
@@ -3054,7 +3055,9 @@ export interface TournamentRegistrationEmailPayload {
   tournamentName: string;
   tournamentSlug: string;
   startDate: string;
+  endDate?: string;
   startTime?: string;
+  endTime?: string;
   location: string;
   teamName: string;
   captainName: string;
@@ -3086,6 +3089,13 @@ export async function sendTournamentRegistrationEmail(
       payload.entryFeeAmount > 0
         ? `${Number(payload.entryFeeAmount).toLocaleString('vi-VN')} đ`
         : '0 đ (Free / Waived)';
+
+    const scheduleText = formatTournamentScheduleDisplay({
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+    });
 
     const html = `
 <!DOCTYPE html>
@@ -3120,7 +3130,7 @@ export async function sendTournamentRegistrationEmail(
               </p>
 
               <div style="background:#0b0f19;border:1px solid #1e293b;border-radius:14px;padding:16px;margin-bottom:18px;font-size:13px;line-height:1.7;">
-                <div><span style="color:#94a3b8;">Tournament Date / Ngày thi đấu:</span> <strong style="color:#ffffff;">${escapeHtml(payload.startDate)}${payload.startTime ? ` · ${escapeHtml(payload.startTime)}` : ''}</strong></div>
+                <div><span style="color:#94a3b8;">Tournament Date / Ngày thi đấu:</span> <strong style="color:#ffffff;">${escapeHtml(scheduleText)}</strong></div>
                 <div><span style="color:#94a3b8;">Venue / Địa điểm:</span> <strong style="color:#ffffff;">${escapeHtml(payload.location)}</strong></div>
                 <div><span style="color:#94a3b8;">Entry Fee / Lệ phí giải:</span> <strong style="color:#facc15;">${feeText}</strong></div>
                 <div><span style="color:#94a3b8;">Transfer Memo / Nội dung CK:</span> <strong style="color:#fb923c;font-family:monospace;">${escapeHtml(payload.transferContent)}</strong></div>

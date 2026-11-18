@@ -4,7 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { CalendarDays, ChevronDown, FileText, GitBranch, ShieldCheck, Trophy } from 'lucide-react';
 import { Tournament, TournamentTeam } from '../types';
 import { tournamentService } from '../services/api';
-import { resolveDefaultTournament } from '../shared/tournaments';
+import {
+  formatTournamentScheduleDisplay,
+  formatYmdToDdMmYyyy,
+  resolveDefaultTournament,
+} from '../shared/tournaments';
 import { ShareButton } from '../components/common/ShareButton';
 import { TournamentOverviewView } from '../components/tournaments/TournamentOverviewView';
 import { TournamentBracketView } from '../components/tournaments/TournamentBracketView';
@@ -161,6 +165,12 @@ export const TournamentsPage: React.FC = () => {
               <h1 className="font-heading font-black text-2xl sm:text-3xl text-white">
                 {t('header.title')}
               </h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300 pt-0.5">
+                <span className="font-bold text-white">{activeTournament.name}</span>
+                <span className="font-mono text-[#FACC15]">
+                  · {formatTournamentScheduleDisplay(activeTournament)}
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -179,7 +189,7 @@ export const TournamentsPage: React.FC = () => {
                         : item.status === 'UPCOMING'
                         ? '🗓 UPCOMING · '
                         : '🏆 COMPLETED · '}
-                      {item.name} ({item.startDate})
+                      {item.name} ({formatYmdToDdMmYyyy(item.startDate)})
                     </option>
                   ))}
                 </select>
@@ -251,7 +261,13 @@ export const TournamentsPage: React.FC = () => {
           />
         )}
 
-        {activeSubView === 'rules' && <TournamentRulesView tournament={activeTournament} />}
+        {activeSubView === 'rules' && (
+          <TournamentRulesView
+            tournament={activeTournament}
+            onSelectTeam={setSelectedTeamForDrawer}
+            onOpenRegister={() => setRegisterModalOpen(true)}
+          />
+        )}
 
         {activeSubView === 'officials' && (
           <TournamentOfficialsView tournament={activeTournament} />

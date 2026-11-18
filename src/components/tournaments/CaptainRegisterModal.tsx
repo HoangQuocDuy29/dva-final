@@ -1,21 +1,28 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   Check,
   CheckCircle2,
   Copy,
   Loader2,
+  Lock,
   Phone,
   Plus,
   QrCode,
+  ShieldCheck,
   Trash2,
-  Upload,
   Users,
   X,
 } from 'lucide-react';
 import { Tournament, VolleyballPosition } from '../../types';
 import { tournamentService } from '../../services/api';
-import { buildCloudinaryFolder, uploadToCloudinary } from '../../utils/cloudinary';
+import { TeamLogo } from './TeamLogoBadge';
+import {
+  findDuplicateJerseyNumbers,
+  getNextAvailableJerseyNumber,
+  suggestTeamShortName,
+} from '../../shared/tournaments';
 
 interface CaptainRegisterModalProps {
   isOpen: boolean;
@@ -25,23 +32,32 @@ interface CaptainRegisterModalProps {
 }
 
 interface DraftPlayerRow {
-  jerseyNumber: number;
+  jerseyNumber: string;
   fullName: string;
   position: VolleyballPosition;
   height: string;
   spikeTouch: string;
+  birthYear: string;
   isCaptain: boolean;
 }
 
 const POSITIONS: VolleyballPosition[] = ['OH', 'OP', 'MB', 'S', 'L'];
 
+const parseJerseyInt = (raw: string): number | null => {
+  const trimmed = raw.trim();
+  if (trimmed === '') return null;
+  const n = Number(trimmed);
+  return Number.isInteger(n) && n >= 0 && n <= 99 ? n : null;
+};
+
 const createInitialRoster = (): DraftPlayerRow[] =>
   Array.from({ length: 7 }, (_, i) => ({
-    jerseyNumber: i + 1,
+    jerseyNumber: String(i + 1),
     fullName: '',
     position: (['S', 'OH', 'OH', 'MB', 'MB', 'OP', 'L'][i] || 'OH') as VolleyballPosition,
     height: '',
     spikeTouch: '',
+    birthYear: '',
     isCaptain: i === 0,
   }));
 
@@ -51,16 +67,17 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t } = useTranslation('tournaments');
   const [step, setStep] = useState<'FORM' | 'VIETQR' | 'CONFIRMED'>('FORM');
   const [teamName, setTeamName] = useState('');
   const [shortName, setShortName] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
+  const [shortNameTouched, setShortNameTouched] = useState(false);
   const [captainName, setCaptainName] = useState('');
   const [captainPhone, setCaptainPhone] = useState('');
   const [captainEmail, setCaptainEmail] = useState('');
+  const [regulationsAccepted, setRegulationsAccepted] = useState(false);
   const [notes, setNotes] = useState('');
   const [players, setPlayers] = useState<DraftPlayerRow[]>(createInitialRoster);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -83,20 +100,22 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
     setErrorMsg(null);
     setTeamName('');
     setShortName('');
-    setLogoUrl('');
+    setShortNameTouched(false);
     setCaptainName('');
     setCaptainPhone('');
     setCaptainEmail('');
+    setRegulationsAccepted(false);
     setNotes('');
     setPlayers(createInitialRoster());
     setPaymentInfo(null);
     setRegisteredTeamId('');
   }, [isOpen]);
 
-  // Poll every 5s while VietQR modal is open so webhook PAID updates transition automatically
+  // Poll every 8s (visibility-aware) while VietQR modal is open so webhook PAID updates transition automatically
   useEffect(() => {
     if (!isOpen || step !== 'VIETQR' || !registeredTeamId) return undefined;
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       try {
         const fresh = await tournamentService.getTournament(tournament.slug, { noCache: true });
         const paidMatch = fresh.teams.find((t) => t.id === registeredTeamId && t.paymentStatus === 'PAID');
@@ -107,24 +126,11 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
       } catch {
         // ignore polling transient errors
       }
-    }, 5000);
+    }, 8_000);
     return () => clearInterval(interval);
   }, [isOpen, step, registeredTeamId, tournament.slug, onSuccess]);
 
   if (!isOpen) return null;
-
-  const handleLogoUpload = async (file?: File) => {
-    if (!file) return;
-    setUploadingLogo(true);
-    try {
-      const res = await uploadToCloudinary(file, buildCloudinaryFolder('tournaments', 'logos'));
-      setLogoUrl(res.secure_url || res.url);
-    } catch {
-      setErrorMsg('Logo upload failed. You can leave the logo blank or retry.');
-    } finally {
-      setUploadingLogo(false);
-    }
-  };
 
   const handleCopy = (key: string, val: string) => {
     navigator.clipboard.writeText(val);
@@ -132,9 +138,37 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  // Evaluate jersey integrity across mandatory first 6 rows + any extra row with a typed name.
+  const activeRows = players
+    .map((row, idx) => ({ row, idx }))
+    .filter(({ row, idx }) => idx < 6 || row.fullName.trim().length > 0);
+  const duplicateJerseys = findDuplicateJerseyNumbers(activeRows.map(({ row }) => row.jerseyNumber));
+  const invalidJerseyIndices = new Set(
+    activeRows.filter(({ row }) => parseJerseyInt(row.jerseyNumber) === null).map(({ idx }) => idx)
+  );
+  const duplicateJerseyIndices = new Set(
+    activeRows
+      .filter(({ row }) => {
+        const parsed = parseJerseyInt(row.jerseyNumber);
+        return parsed !== null && duplicateJerseys.has(parsed);
+      })
+      .map(({ idx }) => idx)
+  );
+  const hasJerseyErrors = invalidJerseyIndices.size > 0 || duplicateJerseys.size > 0;
+
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    if (tournament.isRosterLocked) {
+      setErrorMsg(t('registration.rosterLockedNotice'));
+      return;
+    }
+
+    if (!regulationsAccepted) {
+      setErrorMsg(t('registration.pledgeError'));
+      return;
+    }
 
     const validPlayers = players.filter((p) => p.fullName.trim().length >= 2);
     if (validPlayers.length < 6) {
@@ -142,22 +176,51 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
       return;
     }
 
+    if (validPlayers.some((p) => parseJerseyInt(p.jerseyNumber) === null)) {
+      setErrorMsg(t('registration.invalidJerseyError'));
+      return;
+    }
+
+    const submittedDuplicates = findDuplicateJerseyNumbers(validPlayers.map((p) => p.jerseyNumber));
+    if (submittedDuplicates.size > 0) {
+      const numbersText = Array.from(submittedDuplicates)
+        .sort((a, b) => a - b)
+        .map((n) => `#${n}`)
+        .join(', ');
+      setErrorMsg(t('registration.duplicateJerseyError', { numbers: numbersText }));
+      return;
+    }
+
+    if (tournament.requireBirthYear) {
+      const badYear = validPlayers.find((p) => {
+        const y = Number(p.birthYear);
+        return !Number.isInteger(y) || y < 1960 || y > 2015;
+      });
+      if (badYear) {
+        setErrorMsg(t('registration.birthYearError'));
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const res = await tournamentService.registerTeam(tournament.slug, {
         name: teamName.trim(),
-        shortName: shortName.trim().toUpperCase() || undefined,
-        logoUrl: logoUrl.trim() || undefined,
+        shortName: shortName.trim().toUpperCase() || suggestTeamShortName(teamName) || undefined,
         captainName: captainName.trim(),
         captainPhone: captainPhone.trim(),
         captainEmail: captainEmail.trim() || undefined,
+        regulationsAccepted: true,
         notes: notes.trim() || undefined,
         players: validPlayers.map((p) => ({
           fullName: p.fullName.trim(),
-          jerseyNumber: Number(p.jerseyNumber) || 0,
+          jerseyNumber: Number(p.jerseyNumber.trim()),
           position: p.position,
           height: p.height ? Number(p.height) : undefined,
           spikeTouch: p.spikeTouch ? Number(p.spikeTouch) : undefined,
+          ...(tournament.requireBirthYear && p.birthYear
+            ? { birthYear: Number(p.birthYear) }
+            : {}),
           isCaptain: p.isCaptain,
         })),
       });
@@ -236,7 +299,28 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
             </div>
           )}
 
-          {step === 'FORM' && (
+          {step === 'FORM' && tournament.isRosterLocked && (
+            <div className="rounded-2xl bg-amber-950/30 border border-amber-600/50 p-6 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center mx-auto text-amber-300">
+                <Lock className="w-6 h-6" />
+              </div>
+              <h4 className="font-heading font-black text-base text-white">
+                {t('registration.ctaLocked')}
+              </h4>
+              <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+                {t('registration.rosterLockedNotice')}
+              </p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          )}
+
+          {step === 'FORM' && !tournament.isRosterLocked && (
             <form onSubmit={handleSubmitForm} className="space-y-5">
               {/* Section 1: Team & Captain Info */}
               <div className="p-4 rounded-2xl bg-[#0B0F19] border border-[#1E293B] space-y-3.5">
@@ -249,23 +333,42 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
                       type="text"
                       required
                       value={teamName}
-                      onChange={(e) => setTeamName(e.target.value)}
+                      onChange={(e) => {
+                        const nextName = e.target.value;
+                        setTeamName(nextName);
+                        if (!shortNameTouched) setShortName(suggestTeamShortName(nextName));
+                      }}
                       placeholder="e.g. Hanoi Spikers Club"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#111827] border border-[#1E293B] text-white"
                     />
                   </div>
                   <div>
                     <label className="block text-slate-300 font-semibold mb-1">Short Code (Bracket)</label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={shortName}
-                      onChange={(e) => setShortName(e.target.value)}
-                      placeholder="HSC"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#111827] border border-[#1E293B] text-white font-mono uppercase"
-                    />
+                    <div className="flex items-center gap-2">
+                      <TeamLogo
+                        logoUrl={null}
+                        name={teamName || 'Team'}
+                        shortName={shortName || suggestTeamShortName(teamName)}
+                        sizeClass="w-10 h-10"
+                      />
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={shortName}
+                        onChange={(e) => {
+                          setShortNameTouched(true);
+                          setShortName(e.target.value.toUpperCase());
+                        }}
+                        placeholder="HSC"
+                        className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-[#111827] border border-[#1E293B] text-white font-mono uppercase"
+                      />
+                    </div>
                   </div>
                 </div>
+                <p className="flex items-start gap-1.5 text-[11px] text-slate-400 leading-relaxed">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#38BDF8] shrink-0 mt-0.5" />
+                  <span>{t('registration.logoAdminNote')}</span>
+                </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
@@ -301,33 +404,18 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
                     />
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                  <div className="sm:col-span-2">
-                    <label className="block text-slate-300 font-semibold mb-1">Team Logo (Optional)</label>
-                    <input
-                      type="text"
-                      value={logoUrl}
-                      onChange={(e) => setLogoUrl(e.target.value)}
-                      placeholder="Paste logo URL or upload image ->"
-                      className="w-full px-3 py-2 rounded-xl bg-[#111827] border border-[#1E293B] text-slate-300"
-                    />
-                  </div>
-                  <label className="sm:mt-5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 font-bold flex items-center justify-center gap-1.5 cursor-pointer">
-                    {uploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5 text-[#38BDF8]" />}
-                    <span>{uploadingLogo ? 'Uploading...' : 'Upload Logo'}</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleLogoUpload(e.target.files?.[0])} />
-                  </label>
-                </div>
               </div>
 
-              {/* Section 2: Roster 7-10 Players */}
+              {/* Section 2: Roster 6-14 Players */}
               <div className="p-4 rounded-2xl bg-[#0B0F19] border border-[#1E293B] space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h4 className="font-bold text-sm text-white">2. Team Roster (6–14 Athletes)</h4>
                     <p className="text-[11px] text-slate-400">
-                      Enter jersey number, full name, and position. Height &amp; spike reach are optional during registration.
+                      Enter jersey number, full name, and position.
+                      {tournament.requireBirthYear
+                        ? ' Birth year (1960–2015) is required for Organizing Committee eligibility review only (kept private).'
+                        : ' Height & spike reach are optional during registration.'}
                     </p>
                   </div>
                   {players.length < 14 && (
@@ -337,11 +425,14 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
                         setPlayers((prev) => [
                           ...prev,
                           {
-                            jerseyNumber: prev.length + 1,
+                            jerseyNumber: String(
+                              getNextAvailableJerseyNumber(prev.map((x) => x.jerseyNumber))
+                            ),
                             fullName: '',
                             position: 'OH',
                             height: '',
                             spikeTouch: '',
+                            birthYear: '',
                             isCaptain: false,
                           },
                         ])
@@ -354,24 +445,51 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
                   )}
                 </div>
 
+                {/* Column labels */}
+                <div className="hidden sm:grid grid-cols-12 gap-2 px-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <span className="col-span-1 text-center">#</span>
+                  <span className="col-span-4">Full Name *</span>
+                  <span className="col-span-2">Pos</span>
+                  {tournament.requireBirthYear ? (
+                    <>
+                      <span className="col-span-2 text-amber-300">{t('registration.birthYearLabel')}</span>
+                      <span className="col-span-1">Ht</span>
+                    </>
+                  ) : (
+                    <span className="col-span-2">Ht (cm)</span>
+                  )}
+                  <span className={tournament.requireBirthYear ? 'col-span-1 text-center' : 'col-span-2 text-center'}>
+                    Capt.
+                  </span>
+                  <span className="col-span-1 text-right">Del</span>
+                </div>
+
                 <div className="space-y-2">
-                  {players.map((pl, idx) => (
+                  {players.map((pl, idx) => {
+                    const hasRowJerseyError =
+                      invalidJerseyIndices.has(idx) || duplicateJerseyIndices.has(idx);
+                    return (
                     <div key={idx} className="grid grid-cols-12 gap-2 items-center">
                       <input
                         type="number"
                         min={0}
                         max={99}
+                        required={idx < 6 || pl.fullName.trim().length > 0}
                         value={pl.jerseyNumber}
                         onChange={(e) =>
                           setPlayers((prev) =>
                             prev.map((item, i) =>
-                              i === idx ? { ...item, jerseyNumber: Number(e.target.value) || 0 } : item
+                              i === idx ? { ...item, jerseyNumber: e.target.value } : item
                             )
                           )
                         }
                         placeholder="#"
                         title="Jersey #"
-                        className="col-span-2 sm:col-span-1 px-2 py-2 rounded-lg bg-[#111827] border border-[#1E293B] font-mono text-center"
+                        className={`col-span-2 sm:col-span-1 px-2 py-2 rounded-lg border font-mono text-center ${
+                          hasRowJerseyError
+                            ? 'bg-red-950/40 border-red-500 text-red-200 focus:outline-none focus:ring-1 focus:ring-red-400'
+                            : 'bg-[#111827] border-[#1E293B]'
+                        }`}
                       />
                       <input
                         type="text"
@@ -402,6 +520,25 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
                           </option>
                         ))}
                       </select>
+
+                      {tournament.requireBirthYear && (
+                        <input
+                          type="number"
+                          min={1960}
+                          max={2015}
+                          required={idx < 6 || pl.fullName.trim().length > 0}
+                          value={pl.birthYear}
+                          onChange={(e) =>
+                            setPlayers((prev) =>
+                              prev.map((item, i) => (i === idx ? { ...item, birthYear: e.target.value } : item))
+                            )
+                          }
+                          placeholder="2003"
+                          title="Birth Year (1960–2015)"
+                          className="col-span-4 sm:col-span-2 px-2 py-2 rounded-lg bg-[#111827] border border-amber-500/40 font-mono text-amber-200"
+                        />
+                      )}
+
                       <input
                         type="number"
                         value={pl.height}
@@ -410,10 +547,16 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
                             prev.map((item, i) => (i === idx ? { ...item, height: e.target.value } : item))
                           )
                         }
-                        placeholder="Ht(cm)"
-                        className="col-span-4 sm:col-span-2 px-2 py-2 rounded-lg bg-[#111827] border border-[#1E293B]"
+                        placeholder="Ht"
+                        className={`${
+                          tournament.requireBirthYear ? 'col-span-3 sm:col-span-1' : 'col-span-4 sm:col-span-2'
+                        } px-2 py-2 rounded-lg bg-[#111827] border border-[#1E293B]`}
                       />
-                      <label className="col-span-5 sm:col-span-2 flex items-center justify-center gap-1 text-[11px] cursor-pointer">
+                      <label
+                        className={`${
+                          tournament.requireBirthYear ? 'col-span-3 sm:col-span-1' : 'col-span-5 sm:col-span-2'
+                        } flex items-center justify-center gap-1 text-[11px] cursor-pointer`}
+                      >
                         <input
                           type="radio"
                           name="captain-select"
@@ -427,7 +570,7 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
                         />
                         <span>Capt.</span>
                       </label>
-                      <div className="col-span-3 sm:col-span-1 flex justify-end">
+                      <div className="col-span-2 sm:col-span-1 flex justify-end">
                         {players.length > 6 && (
                           <button
                             type="button"
@@ -439,9 +582,50 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
+                {hasJerseyErrors && (
+                  <div className="flex items-start gap-2 p-2.5 rounded-xl bg-red-950/60 border border-red-700/70 text-red-200 text-[11px] font-semibold">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+                    <div className="space-y-0.5">
+                      {duplicateJerseys.size > 0 && (
+                        <p>
+                          {t('registration.duplicateJerseyError', {
+                            numbers: Array.from(duplicateJerseys)
+                              .sort((a, b) => a - b)
+                              .map((n) => `#${n}`)
+                              .join(', '),
+                          })}
+                        </p>
+                      )}
+                      {invalidJerseyIndices.size > 0 && (
+                        <p>{t('registration.invalidJerseyError')}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Section 3: Mandatory Captain Eligibility Pledge */}
+              <label className="flex items-start gap-3 p-4 rounded-2xl bg-amber-950/20 border border-amber-500/40 cursor-pointer hover:border-amber-400 transition-colors">
+                <input
+                  type="checkbox"
+                  required
+                  checked={regulationsAccepted}
+                  onChange={(e) => setRegulationsAccepted(e.target.checked)}
+                  className="accent-[#F97316] w-4 h-4 mt-0.5 shrink-0"
+                />
+                <div className="space-y-0.5">
+                  <span className="font-bold text-amber-200 flex items-center gap-1.5 text-xs">
+                    <ShieldCheck className="w-4 h-4 text-[#FACC15] shrink-0" />
+                    <span>Eligibility &amp; Tournament Rules Compliance *</span>
+                  </span>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    {t('registration.pledgeLabel')}
+                  </p>
+                </div>
+              </label>
 
               {/* Footer CTA */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-[#1E293B]">
@@ -455,7 +639,7 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
                 </div>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !regulationsAccepted || hasJerseyErrors}
                   className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#8B0000] to-[#F97316] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:opacity-50"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

@@ -20,9 +20,11 @@ import {
   StoreOrder,
   StoreOrderCreatePayload,
   Tournament,
+  TournamentDreamTeamSelection,
   TournamentFinanceSummary,
   TournamentMatch,
   TournamentOfficial,
+  TournamentOfficialPayload,
   TournamentPlayer,
   TournamentPublicRegistrationPayload,
   TournamentTeam,
@@ -1566,6 +1568,24 @@ export const tournamentService = {
     return updated;
   },
 
+  async toggleRosterLock(id: string, isRosterLocked: boolean): Promise<Tournament> {
+    const updated = await request<Tournament>(`/tournaments/${encodeURIComponent(id)}/roster-lock`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isRosterLocked }),
+    });
+    invalidateTournamentsCache();
+    return updated;
+  },
+
+  async verifyTeamRoster(tournamentId: string, teamId: string): Promise<{ verifiedCount: number }> {
+    const res = await request<{ verifiedCount: number }>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}/verify-roster`,
+      { method: 'POST' }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
   async deleteTournament(id: string): Promise<{ success: boolean }> {
     const res = await request<{ success: boolean }>(`/tournaments/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -1662,13 +1682,12 @@ export const tournamentService = {
   },
 
   async updateOfficial(
-    tournamentId: string,
     officialId: string,
-    payload: Partial<TournamentOfficial>
+    payload: Partial<TournamentOfficialPayload>
   ): Promise<TournamentOfficial> {
     const updated = await request<TournamentOfficial>(
-      `/tournaments/${encodeURIComponent(tournamentId)}/officials/${encodeURIComponent(officialId)}`,
-      { method: 'PUT', body: JSON.stringify(payload) }
+      `/admin/tournaments/officials/${encodeURIComponent(officialId)}`,
+      { method: 'PATCH', body: JSON.stringify(payload) }
     );
     invalidateTournamentsCache();
     return updated;
@@ -1726,10 +1745,26 @@ export const tournamentService = {
     tournamentId: string,
     matchId: string,
     payload: Partial<TournamentMatch> & { forceOverride?: boolean }
-  ): Promise<{ tournament: Tournament; warnings: string[] }> {
-    const res = await request<{ tournament: Tournament; warnings: string[] }>(
+  ): Promise<{ tournament: Tournament; warnings: string[]; autoSeededQuarterfinals?: boolean }> {
+    const res = await request<{
+      tournament: Tournament;
+      warnings: string[];
+      autoSeededQuarterfinals?: boolean;
+    }>(
       `/tournaments/${encodeURIComponent(tournamentId)}/matches/${encodeURIComponent(matchId)}/score`,
       { method: 'PATCH', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async saveDreamTeam(
+    tournamentId: string,
+    dreamTeam: TournamentDreamTeamSelection
+  ): Promise<Tournament> {
+    const res = await request<Tournament>(
+      `/tournaments/${encodeURIComponent(tournamentId)}/dream-team`,
+      { method: 'PUT', body: JSON.stringify({ dreamTeam }) }
     );
     invalidateTournamentsCache();
     return res;
