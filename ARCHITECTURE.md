@@ -9,31 +9,32 @@
 Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) phục vụ câu lạc bộ bóng chuyền DVA:
 
 ```
-[ React 19 + Vite 8 SPA Client ]
+[ React 19 + Vite 8 SPA Client (Vercel) ]
                │
                ▼ (HTTP /api Bearer dva_token)
-    [ Express API Backend ] ─── (Prisma ORM 7) ───► [ PostgreSQL (Render) ]
+[ Express v4 API Backend (Render: dva-backend) ] ─── (Prisma ORM 7 + pg Pool) ───► [ Supabase PostgreSQL (Singapore, Session Pooler IPv4:5432) ]
                │
                ├─► [ Resend API ] ───────────────► Gửi Email song ngữ (Vi - En)
                ├─► [ Google Apps Script Webhook ] ► Đồng bộ Google Sheets tự động
                ├─► [ Cloudinary CDN ] ────────────► Quản lý & lưu trữ hình ảnh
-               └─► [ VietQR Quicklink ] ──────────► Sinh mã QR chuyển khoản MBBank
+               ├─► [ VietQR Quicklink ] ──────────► Sinh mã QR chuyển khoản MBBank
+               └─► [ SePay / Casso Webhook ] ─────► Đối soát chuyển khoản tự động (/api/webhooks/payment)
 ```
 
-- **Frontend:**
-  - Core: React 19, TypeScript, Vite 8.
-  - UI & Styling: Tailwind CSS v4, Motion (Framer Motion v12), Lucide React.
-  - Router: React Router v7 (`react-router-dom`).
-  - Internationalization (i18n): `i18next`, `react-i18next`, `i18next-browser-languagedetector` (English-first `'en'` mặc định, hỗ trợ chuyển đổi song ngữ `'en' | 'vi'`, lưu cache `localStorage` qua key `'dva_lang'`).
-- **Backend:**
-  - Runtime & Framework: Node.js, Express v4 (`server.ts`).
-  - Database & ORM: PostgreSQL (Deploy trên Render), Prisma ORM v7 (`@prisma/client`, `@prisma/adapter-pg`).
-  - Security & Crypto: `bcrypt` (10 rounds), HS256 HMAC JWT token.
+- **Frontend (Deploy trên Vercel — `vercel.json`):**
+  - Core: React `19.0.1`, TypeScript (`~7.0`, target ES2022), Vite `8.3.0`.
+  - UI & Styling: Tailwind CSS `v4.3.3` (`@tailwindcss/vite`), Motion (Framer Motion `12.23.24`), Lucide React (`0.546.0`).
+  - Router: React Router v7 (`react-router-dom` `7.18.4`).
+  - Internationalization (i18n): `i18next` (`26.5.12`), `react-i18next` (`17.1.9`), `i18next-browser-languagedetector` (`8.2.4`) — English-first `'en'` mặc định, hỗ trợ chuyển đổi song ngữ `'en' | 'vi'`, lưu cache `localStorage` qua key `'dva_lang'`, gồm 3 namespaces: `common`, `news`, `tournaments`.
+- **Backend (Deploy trên Render `dva-backend`, Port `10000`):**
+  - Runtime & Build: Node.js, Express v4 (`4.21.2`, entry `server.ts`), `tsx` `4.21.0` (dev), `esbuild` `0.28.2` (bundle ESM production ra `dist/server.js`).
+  - Database & ORM: **Supabase PostgreSQL** (Region: Southeast Asia Singapore `ap-southeast-1`, kết nối qua **Session Pooler IPv4 cổng `5432`** kèm `?uselibpqcompat=true&sslmode=require`), Prisma ORM v7 (`7.10.1`: `prisma`, `@prisma/client`, `@prisma/adapter-pg`, `pg` `8.23.1`, cấu hình CLI tại `prisma.config.ts`).
+  - Security & Crypto: `bcrypt` (`5.1.1`, 10 rounds + fallback legacy `scrypt`), HS256 HMAC JWT token (`crypto`), Default-Deny RBAC + in-memory rate limiter (`lib/security.ts`).
 - **Tích hợp Dịch vụ ngoài (Third-party Integrations):**
-  - **Resend:** Dịch vụ gửi email thông báo đặt sân, đăng ký khoá học, xét tuyển hội viên, và email 2 chặng cho đơn hàng DVA Shop (Bilingual template).
-  - **Google Apps Script Webhook:** Đồng bộ dữ liệu real-time từ API về đúng 1 file Google Spreadsheet duy nhất của CLB (tabs: `DatSan`, `Training_Registrations`, `DangKyKhoaHoc`, `TuyenThanhVien`, `DonHang_Shop` với cơ chế Idempotent Upsert chống ghi đúp dòng).
-  - **Cloudinary:** Lưu trữ và phân phối hình ảnh sơ đồ sân, cổng vào, tin tức, và ảnh mặt trước/mặt sau sản phẩm DVA Shop.
-  - **VietQR Quicklink:** Sinh ảnh mã QR động theo chuẩn ngân hàng Việt Nam (MBBank `0002090671521` - `HOANG QUOC DUY`).
+  - **Resend (`resend` `6.35.0`):** Dịch vụ gửi email thông báo đặt sân, đăng ký khoá học, xét tuyển hội viên, Guest Session, đơn hàng DVA Shop 2 chặng, và đăng ký đội giải đấu (Bilingual template).
+  - **Google Apps Script Webhook:** Đồng bộ dữ liệu real-time bất đồng bộ từ API về đúng 1 file Google Spreadsheet duy nhất của CLB (tabs: `DatSan`, `DangKyKhoaHoc`, `TuyenThanhVien`, `DonHang_Shop` với cơ chế Idempotent Upsert chống ghi đúp dòng).
+  - **Cloudinary:** Lưu trữ và phân phối hình ảnh sân bãi, cổng vào, VĐV, HLV, tin tức, sản phẩm DVA Shop và logo/banner giải đấu (`optimizeCloudinaryUrl()`).
+  - **VietQR Quicklink & Payment Webhook:** Sinh ảnh mã QR động theo chuẩn ngân hàng Việt Nam (MBBank `0002090671521` - `HOANG QUOC DUY`) và đối soát tự động qua `POST /api/webhooks/payment` (SePay / Casso).
 
 ---
 
@@ -41,20 +42,20 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
 
 | Đường dẫn Thư mục | Trách nhiệm Cốt lõi & Thành phần Chính |
 | :--- | :--- |
-| `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung, `Pagination.tsx` (component phân trang dùng chung cho bảng/grid dữ liệu), `ShareButton.tsx` (nút chia sẻ link thông minh), `LanguageSwitcher.tsx` (nút chuyển đổi ngôn ngữ dạng Micro Segmented Pill `EN | VI` kèm cờ SVG).<br>• `training/`: `CourseDetailModal.tsx` (modal chi tiết khoá học & học viện hỗ trợ deep-linking).<br>• `layout/`: Navbar (Floating Capsule tích hợp `LanguageSwitcher` trên Desktop & chân Mobile Drawer; tự động ẩn dropdown profile khi ở trong route `/admin/*`), Footer, Menu Drawer di động. |
+| `src/components/` | Thành phần UI phân tách theo phạm vi: <br>• `auth/`: Modal đăng nhập, form cấp lại mật khẩu, OTP.<br>• `common/`: Toast, Modal xác nhận, Dialog thông báo dùng chung, `Pagination.tsx` (component phân trang dùng chung cho bảng/grid dữ liệu), `ShareButton.tsx` (nút chia sẻ link thông minh), `LanguageSwitcher.tsx` (nút chuyển đổi ngôn ngữ dạng Micro Segmented Pill `EN | VI` kèm cờ SVG).<br>• `training/`: `CourseDetailModal.tsx` (modal chi tiết khoá học & học viện hỗ trợ deep-linking).<br>• `tournaments/`: `CaptainRegisterModal.tsx`, `MatchScoreboardRow.tsx`, `OfficialAvatar.tsx`, `PoolStandingsTable.tsx`, `TeamLogoBadge.tsx`, `TeamRosterDrawer.tsx`, `TournamentBracketView.tsx`, `TournamentOverviewView.tsx`, `TournamentRulesAndOfficialsView.tsx`, `TournamentScheduleView.tsx`.<br>• `layout/`: Navbar (Floating Capsule tích hợp `LanguageSwitcher` trên Desktop & chân Mobile Drawer; tự động ẩn dropdown profile khi ở trong route `/admin/*`), Footer, Menu Drawer di động. |
 | `src/lib/` | Khởi tạo thư viện dùng chung phía Client: <br>• `i18n.ts`: Cấu hình `i18next` + `react-i18next` + `LanguageDetector` (hỗ trợ `'en'` & `'vi'`, `fallbackLng: 'en'`, lưu `localStorage` với key `'dva_lang'`). |
-| `src/locales/` | Từ điển bản dịch tĩnh đa ngôn ngữ (`src/locales/{en,vi}/`): <br>• `common.json`: Nhãn điều hướng Navbar, Footer, các nút bấm dùng chung.<br>• `news.json`: Nhãn 7 danh mục tin tức (`NEWS_CATEGORIES`), ô tìm kiếm, phân trang, trạng thái chia sẻ bài viết. |
-| `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: File re-export 1 dòng trỏ tới `src/pages/admin/AdminDashboardPage.tsx` (hỗ trợ `React.lazy` code-splitting).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `ShopPage.tsx`: Cửa hàng DVA Shop (`/shop`, `/services/shop`) với thẻ sản phẩm đổi ảnh mặt trước/mặt sau khi hover, popup Size Guide, Guest Buy-Now Dynamic Order Form (Áo đấu in tên/số vs Phụ kiện, Nhận tại sân BTL Thông Tin miễn phí vs Ship COD), và thanh toán VietQR động (`DVA [CAT_CODE] [ORDER_CODE_SUFFIX]`).<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV, hỗ trợ deep-linking mở `CourseDetailModal` qua `?courseId=`.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và bài viết chuyên sâu (Editorial layout, chia sẻ bài viết, hiển thị ngày đăng tiếng Anh chuẩn US).<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
-| `src/pages/admin/` | Kiến trúc Quản trị phân tách theo Tab (Tab-based Modular Architecture): <br>• `AdminDashboardPage.tsx`: Shell điều phối mỏng (114 dòng).<br>• `context/`, `layout/`, `tabs/`, `hooks/`, `components/`, `utils/`. |
-| `src/services/` | Lớp giao tiếp API máy khách (`api.ts`): Bao bọc hàm `request<T>()`, quản lý xác thực `authService`, điều phối đặt sân `bookingService`, huấn luyện `trainingService`, cửa hàng `storeService`, đồng bộ sheets `sheetsService` & `googleScriptSyncService`. |
-| `src/data/` | Dữ liệu tĩnh và mock fallback: `mockData.ts`, danh mục tỉnh thành `vietnamLocations.ts`. |
-| `src/types/` | Toàn bộ định nghĩa TypeScript (`index.ts`): User, Role, Player, Court, Booking, ClosedSlot, TrainingCourse, StoreProduct, StoreOrder, StoreOrderItem, v.v. |
-| `src/utils/` | Tiện ích dùng chung phía Client: `cloudinary.ts` (upload ảnh CDN), `date.ts` (`formatEnglishDate` / `formatPublishDate` chuẩn Anh - Mỹ `Month DD, YYYY`). |
-| `src/shared/` | Logic dùng chung giữa FE và BE: Chuẩn hóa lịch tuần sân bóng (`schedule.ts`). |
-| `src/config/` | Cấu hình frontend: Đường dẫn API gốc (`api.ts`). |
-| `lib/` | Thư viện dịch vụ cốt lõi Backend: <br>• `mailer.ts`: Khởi tạo Resend, template email song ngữ (Booking, Training, Member, Shop Stage 1 & Stage 2), VietQR URL builder.<br>• `prisma.ts`: Singleton kết nối Prisma Client qua PostgreSQL pool adapter.<br>• `security.ts`: RBAC Default-Deny, JWT sign/verify, mã hoá bcrypt, rate limiter, security headers.<br>• `schemas.ts` & `validation.ts`: Xác thực và làm sạch dữ liệu đầu vào. |
-| `prisma/` | Định nghĩa cơ sở dữ liệu: <br>• `schema.prisma`: Khai báo 15 models (`User`, `Player`, `Court`, `ClosedSlot`, `Booking`, `CoachProfile`, `TrainingCourse`, `TrainingRegistration`, `MemberApplication`, `NewsPost`, `AppConfig`, `GoogleSheetsSyncLog`, `Product`, `Order`, `OrderItem`).<br>• `seed-admin.ts`: Script khởi tạo tài khoản SUPERADMIN/ADMIN mặc định. |
-| `scripts/` | Mã nguồn script tiện ích và tích hợp: <br>• `google-apps-script-dva-shop.js`: Toàn bộ mã Google Apps Script kế thừa 100% logic cũ và tự động khởi tạo tab `DonHang_Shop` (19 cột chuẩn + Idempotent Upsert theo `Mã đơn hàng`) ngay trong file Google Spreadsheet hiện tại của CLB. |
+| `src/locales/` | Từ điển bản dịch tĩnh đa ngôn ngữ (`src/locales/{en,vi}/`): <br>• `common.json`: Nhãn điều hướng Navbar, Footer, các nút bấm dùng chung.<br>• `news.json`: Nhãn 7 danh mục tin tức (`NEWS_CATEGORIES`), ô tìm kiếm, phân trang, trạng thái chia sẻ bài viết.<br>• `tournaments.json`: Toàn bộ nhãn giao diện module Giải đấu & Leagues (vòng bảng, bracket, lịch thi đấu, trọng tài, đăng ký đội trưởng). |
+| `src/pages/` | Các trang màn hình chính của ứng dụng: <br>• `AdminDashboardPage.tsx`: File re-export 1 dòng trỏ tới `src/pages/admin/AdminDashboardPage.tsx` (hỗ trợ `React.lazy` code-splitting).<br>• `CourtBookingPage.tsx`: Wizard đặt sân bóng, chọn khung giờ, thanh toán VietQR.<br>• `ShopPage.tsx`: Cửa hàng DVA Shop (`/shop`, `/services/shop`, `/shop/:categorySlug/:productSlug`) với thẻ sản phẩm đổi ảnh mặt trước/mặt sau khi hover, popup Size Guide, Guest Buy-Now Dynamic Order Form (Áo đấu in tên vs Phụ kiện/Bóng, Nhận tại sân BTL Thông Tin miễn phí vs Ship COD), và thanh toán VietQR động (`DVA [CAT_CODE] [ORDER_CODE_SUFFIX]`).<br>• `TournamentsPage.tsx`: Cổng thông tin giải đấu (`/tournaments`, `/tournaments/:slug`, `/tournaments/:slug/:subView`) gồm bảng xếp hạng, nhánh đấu knockout, lịch 2 sân song song, tổ trọng tài, điều lệ và modal đăng ký đội + VietQR.<br>• `HomePage.tsx`: Trang chủ giới thiệu CLB, tiện ích, lời kêu gọi hành động (CTA).<br>• `TrainingPage.tsx`: Đăng ký khoá huấn luyện bóng chuyền, danh sách HLV, hỗ trợ deep-linking mở `CourseDetailModal` qua `?courseId=`.<br>• `MemberRegisterPage.tsx`: Biểu mẫu nộp hồ sơ gia nhập CLB.<br>• `PlayersPage.tsx`: Danh sách vận động viên, thông số kỹ thuật (vị trí, chiều cao, tầm bật).<br>• `NewsPage.tsx` & `NewsDetailPage.tsx`: Tin tức và bài viết chuyên sâu (Editorial layout, chia sẻ bài viết, hiển thị ngày đăng tiếng Anh chuẩn US).<br>• `InformationPage.tsx`: Nội quy CLB, bảng giá, bản đồ chỉ dẫn. |
+| `src/pages/admin/` | Kiến trúc Quản trị phân tách theo Tab (Tab-based Modular Architecture - 12 modules / 4 nhóm): <br>• `AdminDashboardPage.tsx`: Shell điều phối mỏng (bọc Provider, kiểm tra quyền `!isAdmin`, Collapsible Sidebar, Topbar, Banner, ActiveTab).<br>• `context/`, `layout/`, `tabs/` (12 tabs), `hooks/`, `components/`, `utils/`. |
+| `src/services/` | Lớp giao tiếp API máy khách (`api.ts`): Bao bọc hàm `request<T>()`, quản lý xác thực `authService`, đặt sân `bookingService`, huấn luyện `trainingService`, cửa hàng `storeService`, giải đấu `tournamentService`, đồng bộ sheets `sheetsService` & `googleScriptSyncService`, và SWR cache tối ưu cho Shop. |
+| `src/data/` | Dữ liệu tĩnh và mock fallback: `mockData.ts`, danh mục tỉnh thành `vietnamAddressData.ts`, danh sách quốc gia `countries.ts`. |
+| `src/types/` | Toàn bộ định nghĩa TypeScript (`index.ts`): User, Role, Player, Court, Booking, ClosedSlot, TrainingCourse, StoreProduct, StoreOrder, StoreOrderItem, GuestSessionRecord, Tournament, TournamentTeam, TournamentPlayer, TournamentMatch, TournamentOfficial, v.v. |
+| `src/utils/` | Tiện ích dùng chung phía Client: `cloudinary.ts` (upload ảnh CDN & `optimizeCloudinaryUrl`), `date.ts` (`formatEnglishDate` / `formatPublishDate` chuẩn Anh - Mỹ `Month DD, YYYY`). |
+| `src/shared/` | Logic dùng chung giữa FE và BE: Chuẩn hóa lịch tuần sân bóng (`schedule.ts`) và Engine tính BXH/lịch 20 trận/cặp đấu giải đấu (`tournaments.ts`). |
+| `src/config/` | Cấu hình frontend: Đường dẫn API gốc `VITE_API_URL` (`api.ts`). |
+| `lib/` | Thư viện dịch vụ cốt lõi Backend: <br>• `prisma.ts`: Singleton kết nối Prisma Client (`@prisma/adapter-pg` + `pg.Pool` tinh chỉnh cho Supabase/Cloud PostgreSQL), DTO mappers, và `ensurePostgreSQLSeeded()`.<br>• `bookingHolds.ts`: Cơ chế FinOps & chống sập DB — `createHoldReleaseManager()` (on-demand single-flight dọn hold quá hạn với 15s cooldown & exponential backoff) và `createDatabaseCircuitBreaker()` (ngắt mạch HTTP `503` khi DB quota/mất kết nối).<br>• `mailer.ts`: Khởi tạo Resend, template email song ngữ (Booking, Training, Member, Guest Session, Shop Stage 1 & Stage 2, Tournament), VietQR URL builder.<br>• `security.ts`: RBAC Default-Deny, JWT sign/verify, mã hoá bcrypt, rate limiter, security headers.<br>• `schemas.ts` & `validation.ts`: Xác thực và làm sạch dữ liệu đầu vào. |
+| `prisma/` & `prisma.config.ts` | Định nghĩa cơ sở dữ liệu: <br>• `schema.prisma`: Khai báo **21 models & 15 enums** (`User`, `Player`, `Court`, `ClosedSlot`, `Booking`, `CoachProfile`, `TrainingCourse`, `TrainingRegistration`, `MemberApplication`, `NewsPost`, `AppConfig`, `GoogleSheetsSyncLog`, `Product`, `Order`, `OrderItem`, `GuestSession`, `Tournament`, `TournamentTeam`, `TournamentPlayer`, `TournamentMatch`, `TournamentOfficial`).<br>• `seed-admin.ts`: Script khởi tạo/cập nhật tài khoản `SUPERADMIN`/`ADMIN` mặc định.<br>• `prisma.config.ts`: Cấu hình datasource CLI cho Prisma 7. |
+| `scripts/` | Mã nguồn script tiện ích và tích hợp: <br>• `google-apps-script-dva-shop.js`: Toàn bộ mã Google Apps Script kế thừa 100% logic cũ và tự động khởi tạo tab `DonHang_Shop` (19 cột chuẩn + Idempotent Upsert theo `Mã đơn hàng`) ngay trong file Google Spreadsheet hiện tại của CLB.<br>• `db-backup.ts`: Công cụ chụp snapshot JSON toàn bộ các bảng Supabase vào `backups/` (gitignored) qua `npm run db:backup`, và tự tạo DB / đẩy đủ schema 21 bảng / mirror 1:1 sang PostgreSQL local (`LOCAL_DATABASE_URL`) cho pgAdmin 4 qua `npm run db:sync-local`. |
 | `server.ts` | Máy chủ Express API: Định tuyến RESTful, middleware bảo mật, webhook dispatchers, tích hợp Cloudinary và VietQR. |
 
 ---
@@ -123,17 +124,32 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   3. `TuyenThanhVien`: Tiếp nhận đơn xin gia nhập câu lạc bộ, vị trí thi đấu, thông tin cá nhân (Upsert theo `Mã đăng ký`).
   4. `DonHang_Shop`: Tiếp nhận đơn hàng DVA Shop với 19 cột chuẩn (`Thời Gian Nhận`, `Mã đơn hàng`, `Phân loại danh mục`, `Tên sản phẩm`, `Size`, `Số lượng`, `Họ tên khách`, `SĐT`, `Email`, `Instagram/Facebook`, `Hình thức nhận`, `Địa chỉ nhận`, `Chiều cao/Cân nặng`, `Tên in áo`, `Số áo in`, `Tổng tiền (VNĐ)`, `Nội dung CK`, `Trạng thái đơn`, `Ghi chú`). Tự động ghi đè đúng dòng cũ theo `Mã đơn hàng` khi khách báo đã chuyển khoản hoặc khi Admin cập nhật trạng thái đơn sang `PAID`, `SHIPPED`, `COMPLETED`, `CANCELLED`.
 
-### 3.5. Chiến lược Database Index, Soft Visibility & Quản trị Database Neon (Database Strategy & Operations)
-- **Cơ chế Quản trị Database Neon PostgreSQL (Database Invariant):**
-  - Cơ sở dữ liệu chính của dự án chạy trên **Neon Serverless PostgreSQL** (kết nối qua Connection Pooler: `ep-late-resonance-azej7c0f-pooler...`).
-  - **Đặc thù Kiến trúc:** Dự án được khởi tạo schema ban đầu không qua Prisma Migrations (chưa có baseline migration history), và Neon pooler không hỗ trợ Shadow Database tự động cho `prisma migrate dev`.
-  - **Quy chuẩn Cập nhật Schema Bắt buộc:**
-    - Khi thêm trường hoặc bảng mới: Bắt buộc sử dụng giá trị mặc định (`@default(...)`) hoặc trường tùy chọn (`?`) để đảm bảo 100% tính tương thích ngược (backward compatibility) với dữ liệu trực tiếp đang chạy.
-    - Quy trình đồng bộ: Sử dụng **`npx prisma db push`** kết hợp **`npx prisma generate`** thay vì `prisma migrate dev` để triệt tiêu hoàn toàn lỗi `P3006 / 42P01` (relation does not exist on shadow database).
-    - **Nghiêm cấm Tuyệt đối:** Không chạy bất kỳ lệnh hoặc cờ nào có khả năng drop table/column hoặc reset database (như `--force-reset`, `--accept-data-loss`).
+### 3.5. Chiến lược Database, Di chuyển Supabase PostgreSQL & Cơ chế Bảo vệ DB (FinOps & Reliability)
+- **Kiến trúc Database Production Hiện tại (Supabase PostgreSQL - Cập nhật 18/11/2026):**
+  - **Lịch sử chuyển đổi:** Ngày `18/11/2026`, toàn bộ dữ liệu Production (**21 bảng, 491 dòng dữ liệu thật**) đã được migrate 1:1 từ Neon Serverless PostgreSQL sang **Supabase PostgreSQL**, đồng thời sao lưu snapshot JSON cục bộ (`dva_neon_backup_20261118.json`) và xóa hẳn project Neon cũ (hạ Billing về Free `$0.00`).
+  - **Thông số Hạ tầng Supabase:**
+    - Organization / Project: `DVA Volleyball` / `dva-backend` (Project Ref: `hciiwqmhzlsqgtmodoot`).
+    - Region & Compute: **Southeast Asia (Singapore, `ap-southeast-1`)** — Compute Nano.
+    - Endpoint kết nối Production & Local: **Session Pooler (IPv4, cổng `5432`)** tại `aws-1-ap-southeast-1.pooler.supabase.com:5432` kèm query string **`?uselibpqcompat=true&sslmode=require`**.
+    - *Lý do bắt buộc dùng Session Pooler IPv4 + `uselibpqcompat=true`:* (1) Container backend trên Render chỉ hỗ trợ outbound IPv4 nên không kết nối được Direct DB endpoint IPv6 của Supabase (`db.<ref>.supabase.co`); (2) Tham số `uselibpqcompat=true` giúp thư viện `pg` v8+ hiểu đúng `sslmode=require`, triệt tiêu cảnh báo SSL alias trong log Production.
+  - **Bảo mật Truy cập Database:** Public Data API (PostgREST) trên Supabase đã được **TẮT hoàn toàn** cho schema `public`. Toàn bộ đọc/ghi dữ liệu chỉ đi qua Express API (`server.ts`) với Default-Deny RBAC (`lib/security.ts`) và Prisma Client (`lib/prisma.ts`).
+  - **Đặc thù & Quy chuẩn Cập nhật Schema Bắt buộc:**
+    - Dự án không lưu lịch sử Prisma Migrations ban đầu (zero baseline migration history) và kết nối qua Pooler (không dùng Shadow DB cho `prisma migrate dev`).
+    - Khi thêm trường hoặc bảng mới: Bắt buộc dùng giá trị mặc định (`@default(...)`) hoặc trường tùy chọn (`?`) để tương thích ngược 100% với dữ liệu trực tiếp.
+    - Quy trình đồng bộ chuẩn: **`npx prisma db push`** (hoặc `npm run prisma:push`) kết hợp **`npx prisma generate`** (`npm run prisma:generate`).
+    - **Nghiêm cấm Tuyệt đối:** Không chạy `prisma migrate dev` hoặc truyền các cờ phá hủy dữ liệu (`--force-reset`, `--accept-data-loss`).
+- **Tối ưu Connection Pool & Chống Lãng phí / Sập DB (FinOps & Circuit Breaker - `lib/prisma.ts`, `lib/bookingHolds.ts`, `server.ts`):**
+  - **Tinh chỉnh `pg.Pool` (`lib/prisma.ts`):** Giới hạn `max: 10`, `connectionTimeoutMillis: 5000`, `idleTimeoutMillis: 30000`, bật TCP `keepAlive: true` (`keepAliveInitialDelayMillis: 10000`), cấu hình `ssl: { rejectUnauthorized: false }` cho Cloud DB (`neon.tech`, `render.com`, `supabase.co`, `sslmode=require`). Listener `pool.on('error')` chủ động bỏ qua lỗi thu hồi socket nhàn rỗi (`ECONNRESET`, `EPIPE`, `Connection terminated unexpectedly`) để không làm crash Node.js process.
+  - **Dọn Hold Đặt Sân Theo Yêu Cầu — Không Polling Nền (`createHoldReleaseManager` trong `lib/bookingHolds.ts`):**
+    - Hủy bỏ hoàn toàn vòng lặp `setInterval` quét DB 24/7; hàm `releaseExpiredHolds()` trong `server.ts` chỉ chạy **on-demand** khi có request đặt sân/lịch/webhook (`GET /api/bookings`, `POST /api/bookings`, `POST /api/bookings/:id/confirm-payment`, `POST /api/webhooks/payment`).
+    - Trang bị single-flight guard (`inFlight`), `15s` cooldown sau mỗi lần chạy thành công, và exponential error backoff (`[30s, 60s, 300s, 900s]`, hoặc `900s` khi gặp lỗi quota `53000` / `P2039`) giúp triệt tiêu spam query & log khi traffic cao hoặc DB gặp sự cố.
+  - **Global Database Circuit Breaker (`createDatabaseCircuitBreaker` trong `lib/bookingHolds.ts` & middleware `/api` tại `server.ts`):**
+    - Khi DB báo lỗi quá tải/quota (`53000` / `P2039`) hoặc mất kết nối (`P1001`, `P1002`, `P1017`, `ECONNREFUSED`, `ENOTFOUND`, `ETIMEDOUT`), mạch tự ngắt (`OPEN`) trong `20s` (lỗi kết nối) hoặc `60s` (quota) và fast-fail các request `/api/*` bằng HTTP `503` kèm header `Retry-After` thay vì dồn ứ connection pool. Khi hết thời gian cooldown, cho phép request kế tiếp thử kết nối lại (half-open) và đóng mạch (`markSuccess()`) khi DB phục hồi.
+  - **Health Check Không Query DB (`GET /health`):** Trả HTTP `200` với `{ status: 'ok', database: dbCircuitBreaker.isOpen() ? 'degraded' : 'ok', uptime, timestamp }` hoàn toàn từ bộ nhớ trong RAM, đảm bảo Render / UptimeRobot ping kiểm tra sống server không bao giờ tạo truy vấn ngầm lên Supabase.
+  - **Khởi động & Seed Chạy Nền Không Ghi Đè (`server.ts` & `lib/prisma.ts`):** `app.listen(PORT, '0.0.0.0')` mở cổng trước rồi mới gọi `ensurePostgreSQLSeeded()` bất đồng bộ chạy nền, đảm bảo Render cold start nhanh; mọi block seed trong `ensurePostgreSQLSeeded()` đều kiểm tra `count() === 0` (hoặc dùng `update: {}`) để tuyệt đối không ghi đè dữ liệu Admin đã chỉnh sửa.
 - **Cơ chế Fallback Dữ liệu & Xử lý Lỗi API (Data Integrity Invariant):**
-  - Trong backend (`server.ts` và các route handlers), cơ chế fallback trả về mock data (`data/*.json`, `src/data/mockData.ts`) **CHỈ NHẰM MỤC ĐÍCH PHÒNG VỆ CHỐNG SẬP UI KHI MẤT KẾT NỐI MẠNG CỤC BỘ**.
-  - Khi kiểm thử tính năng mới, nếu UI xuất hiện mock data giả lập, lập trình viên/Agent **BẮT BUỘC** phải kiểm tra log terminal backend trước để truy vết lỗi Prisma/PostgreSQL (`P2022 ColumnNotFound`, mismatch schema) thay vì ngộ nhận đó là luồng hoạt động bình thường.
+  - Trong backend (`server.ts`) và một số endpoint public, cơ chế fallback trả về JSON (`data/*.json`, `src/data/mockData.ts`) **CHỈ NHẰM MỤC ĐÍCH PHÒNG VỆ CHỐNG SẬP UI KHI MẤT KẾT NỐI**. (Riêng `ShopPage.tsx` đã bỏ hoàn toàn fallback mock để tránh hiển thị sản phẩm đã tắt `isActive`/`isPaused`).
+  - Khi kiểm thử tính năng mới, nếu UI xuất hiện mock data giả lập hoặc HTTP `503`, lập trình viên/Agent **BẮT BUỘC** phải kiểm tra log terminal backend trước để truy vết lỗi Prisma/PostgreSQL (`P2022 ColumnNotFound`, mismatch schema, circuit breaker) thay vì ngộ nhận đó là luồng hoạt động bình thường.
 - **Cơ chế Soft Visibility (Ẩn/Hiện Nội dung Không Mất Dữ Liệu):**
   - Cả 2 model `Player` và `TrainingCourse` (đại diện cho cả khóa học lẫn các ca giao lưu Scrimmage) đều được bổ sung trường `isActive Boolean @default(true)` kèm chỉ mục `@@index([isActive])`.
   - **Tách biệt Truy vấn Public vs Admin:**
@@ -173,12 +189,12 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
     - `AdminHeader.tsx`: Topbar chứa nút toggle sidebar, Hybrid Quick Search bar, vị trí hiển thị duy nhất thông tin Admin kết nối (Avatar initials, Name, Email, Role badge — dropdown trùng lặp trên `Navbar` chính tự động ẩn khi ở route `/admin/*`), nút `Guest Session Email`, nút Refresh dữ liệu và nút thoát ra trang Public.
     - `FeedbackBanner.tsx`: Thông báo trạng thái và kết quả thao tác thời gian thực.
   - `tabs/`: Các component tab độc lập (tích hợp phân trang `Pagination.tsx`):
-    - `OverviewTab.tsx`: Trung tâm số liệu phân tích (Analytics & KPI Hub) gồm 3 tầng: (1) Hàng 6 thẻ Metric KPI (`RevenueKpiCards.tsx`: Total Revenue, Est. Training Tuition, Booking Revenue, Shop Revenue [tổng hợp trực tiếp từ các đơn hàng `PAID`, `SHIPPED`, `COMPLETED`], Active Athletes, Pending Approvals); (2) Khu vực giữa gồm Biểu đồ cột chồng SVG 6 tháng (`RevenueTrendChart.tsx` tích hợp doanh thu Training + Court Booking + DVA Shop) và thẻ Tỷ trọng doanh thu/đăng ký giữa các dịch vụ (`Service Revenue Share`); (3) Khu vực dưới "Recent Activity" tóm tắt 5 đơn đặt sân và 5 lượt đăng ký học gần nhất kèm nút `"View All"`.
-    - `PlayersTab.tsx` (phân trang 12 thẻ/trang), `TrainingTab.tsx` (6 thẻ khóa học/trang, 10 dòng học viên/trang), `BookingsTab.tsx` (10 dòng/trang), `ApplicationsTab.tsx` (10 dòng/trang), `UsersTab.tsx` (10 dòng/trang), `NewsTab.tsx` (6 bài viết/trang), `CourtsTab.tsx`, `CoachesTab.tsx`, `SheetsTab.tsx`.
-    - `StoreTab.tsx`: Phân hệ quản trị thương mại thể thao DVA Store Phase 2 hoàn chỉnh gồm: (1) **Orders Management** với bộ lọc trạng thái (`All`, `Pending`, `Paid`, `Shipped`, `Completed`, `Cancelled`), duyệt thanh toán, cập nhật vận chuyển (tự động đồng bộ đè dòng `DonHang_Shop` trên Google Sheets) và nút **"Send Shipping Update"** kích hoạt Resend API gửi email Chặng 2 khi đơn ở trạng thái `SHIPPED`; (2) **Products Catalog** với modal Thêm/Sửa sản phẩm, tải ảnh mặt trước (`frontImage`) & mặt sau (`backImage`) lên Cloudinary, quản lý kho/size và nút toggle `isActive`.
-    - `TournamentsTab.tsx`: Trạng thái Coming Soon của giải đấu kèm thông điệp chuẩn hóa: *"Feature Under Development - Hệ thống quản lý giải đấu đang được phát triển và dịch vụ sẽ sớm được triển khai."*
+    - `OverviewTab.tsx`: Trung tâm số liệu phân tích **5-Stream Verified Cashflow** (`Overview & KPI Hub`) gồm 3 tầng: (1) Lưới **8 thẻ Metric KPI** (2×4 trong `RevenueKpiCards.tsx`: Total Revenue từ 4 luồng thực thu đã xác nhận, Booking Revenue, Shop Revenue, Guest Session Revenue, Tournament Fees [`HOSTED` & `PAID`], Est. Training Tuition, Active Athletes, Pending Approvals); (2) Biểu đồ cột chồng SVG 6 tháng (`RevenueTrendChart.tsx`) và thẻ Tỷ trọng doanh thu 6 thành phần (`Service Revenue Share`), kèm bảng điều phối `GuestSessionsPanel.tsx`; (3) Khu vực dưới "Recent Activity" tóm tắt đơn đặt sân và lượt đăng ký học gần nhất kèm nút `"View All"`.
+    - `PlayersTab.tsx` (phân trang 12 thẻ/trang), `TrainingTab.tsx` (6 thẻ khóa học/trang, 10 dòng học viên/trang), `BookingsTab.tsx` (10 dòng/trang), `ApplicationsTab.tsx` (10 dòng/trang + cấu hình lệ phí gia nhập `entryFee`), `UsersTab.tsx` (10 dòng/trang), `NewsTab.tsx` (6 bài viết/trang), `CourtsTab.tsx`, `CoachesTab.tsx`, `SheetsTab.tsx`.
+    - `StoreTab.tsx`: Phân hệ quản trị thương mại thể thao DVA Store Phase 2 hoàn chỉnh gồm: (1) **Orders Management** với bộ lọc trạng thái (`All`, `Pending`, `Paid`, `Shipped`, `Completed`, `Cancelled`), duyệt thanh toán, cập nhật vận chuyển, xóa đơn an toàn có audit sync `DonHang_Shop` (đánh dấu `DELETED`) và nút **"Send Shipping Update"** kích hoạt Resend API gửi email Chặng 2 khi đơn ở trạng thái `SHIPPED`; (2) **Products Catalog** với modal Thêm/Sửa sản phẩm, tải ảnh mặt trước (`frontImage`) & mặt sau (`backImage`) lên Cloudinary, quản lý kho/size, toggle `isPaused` / `isActive`.
+    - `TournamentsTab.tsx`: Quản trị toàn diện module Giải đấu & Leagues (Spec 008), điều phối qua 5 panel chuyên biệt trong `src/pages/admin/components/tournaments/`: `TournamentFormModal.tsx` (cấu hình giải `HOSTED`/`PARTICIPATING`, thể thức `BO3`/`BO2`, giải thưởng, khóa đăng ký/khóa roster), `TeamsFeesPanel.tsx` (duyệt đội & lệ phí VietQR, import đội hình DVA, verify hồ sơ VĐV), `CourtsideMatchesPanel.tsx` (sinh lịch 20 trận 2 sân, seed Tứ kết từ BXH, chấm tỉ số trực tiếp từng set & tự động đẩy đội thắng vào nhánh tiếp theo), `OfficialsPanel.tsx` (quản lý tổ trọng tài) và `DreamTeamAwardsPanel.tsx` (chấm đội hình tiêu biểu & danh hiệu cá nhân).
   - `hooks/`: Các custom hook tách biệt logic khỏi UI (`useAdminData`, `useFeedback`, `useAdminMetrics`, `useApplicationActions`, `useCourtCrud`, `useCourtSlotLock`, `useUsersTab`).
-  - `components/`: Sub-components chuyên biệt theo từng miền (bao gồm `overview/RevenueKpiCards.tsx`, `overview/RevenueTrendChart.tsx`, `courts/*`, `bookings/*`, `players/*`, `training/*`, `coaches/*`, `news/*`, `users/*`, `sheets/*`).
+  - `components/`: Sub-components chuyên biệt theo từng miền (bao gồm `overview/*`, `tournaments/*`, `courts/*`, `bookings/*`, `players/*`, `training/*`, `coaches/*`, `news/*`, `users/*`, `sheets/*`, `GuestSessionEmailModal.tsx`).
   - `utils/`: `scheduleEditor.ts` xử lý logic lịch tuần sân bóng.
 - **Mô hình Quản lý State & Bảo toàn Invariant Logic:**
   - **`AdminDashboardContext`:** Quản lý state xuyên suốt bao gồm phiên đăng nhập, tab đang mở (`activeModule`), trạng thái thu gọn sidebar (`isSidebarCollapsed`, `isMobileNavOpen`), dữ liệu từ `useAdminData`, và trạng thái modal.
@@ -338,10 +354,11 @@ Mọi lập trình viên và AI Agent khi làm việc với codebase này bắt 
    - Phải bọc toàn bộ trong khối `try/catch` độc lập.
    - **TUYỆT ĐỐI KHÔNG** để lỗi kết nối mạng hoặc phản hồi chậm của dịch vụ bên thứ ba làm nghẽn tiến trình hoặc làm sập HTTP response `200` trả về cho máy khách.
 
-2. **Bảo toàn Cơ sở Dữ liệu & Quy chuẩn Đồng bộ Neon PostgreSQL:**
+2. **Bảo toàn Cơ sở Dữ liệu & Quy chuẩn Đồng bộ Supabase PostgreSQL:**
    - **TUYỆT ĐỐI KHÔNG** tự ý xóa bảng, xóa cột hoặc thực hiện các thay đổi phá hủy dữ liệu (destructive breaking changes) trên Prisma schema.
    - Thêm trường/bảng mới bắt buộc sử dụng các mẫu tương thích ngược (giá trị mặc định an toàn `@default(...)` hoặc trường tùy chọn `?`).
-   - Do Neon pooler không hỗ trợ shadow DB cho `prisma migrate dev`, quy trình đồng bộ schema chuẩn của dự án là **`npx prisma db push`** kết hợp **`npx prisma generate`**. Tuyệt đối không dùng các cờ nguy hiểm (`--force-reset`, `--accept-data-loss`).
+   - Kết nối Production chạy qua **Supabase Session Pooler IPv4 (cổng `5432`, kèm `?uselibpqcompat=true&sslmode=require`)** và không sử dụng Shadow DB cho `prisma migrate dev`; quy trình đồng bộ schema chuẩn của dự án là **`npx prisma db push`** kết hợp **`npx prisma generate`**. Tuyệt đối không dùng các cờ nguy hiểm (`--force-reset`, `--accept-data-loss`).
+   - **FinOps & Chống Quá tải DB:** Không thêm vòng lặp `setInterval` polling DB nền hay query DB trong `GET /health`; giữ mọi tác vụ dọn dẹp (`releaseExpiredHolds`) ở chế độ on-demand có cooldown + circuit breaker (`lib/bookingHolds.ts`).
 
 3. **Chống Ghi Đè & Xung Đột Dữ Liệu (Idempotency & Race Conditions):**
    - Đặt sân bóng và đóng slot phải luôn kiểm tra xung đột thời gian (`ClosedSlot` và `Booking` trùng lặp) trước khi ghi nhận.

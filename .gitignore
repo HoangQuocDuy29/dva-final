@@ -50,3 +50,6 @@ pnpm-debug.log*
 # Coverage / Testing
 coverage/
 .gemini/
+
+# Local Database Snapshots & Backups (CRITICAL: contains real production PII, never commit!)
+backups/
