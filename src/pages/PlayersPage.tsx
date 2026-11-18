@@ -28,8 +28,11 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     return 'JUNIOR'; // Default level
   }, [levelParam]);
 
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialCache] = useState(() => playerService.getCachedPlayers());
+  const [players, setPlayers] = useState<Player[]>(() =>
+    initialCache ? initialCache.data.filter((p) => p.isActive !== false) : []
+  );
+  const [loading, setLoading] = useState<boolean>(() => !initialCache);
   const [search, setSearch] = useState('');
   const [selectedPosition, setSelectedPosition] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'SINGLE_TAB' | '3_COLUMNS'>('SINGLE_TAB');
@@ -38,23 +41,23 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
 
   const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
 
-  // Load players
-  const fetchPlayers = async () => {
-    setLoading(true);
+  // Load players with SWR cache hydration + background revalidation when stale
+  const fetchPlayers = async (forceRefresh = false) => {
+    if (!initialCache) setLoading(true);
     try {
-      const data = await playerService.getPlayers();
+      const data = await playerService.getPlayers({ forceRefresh });
       const activeOnly = Array.isArray(data) ? data.filter((p) => p.isActive !== false) : [];
       setPlayers(activeOnly);
     } catch (err) {
       console.error('[PlayersPage] Error fetching players:', err);
-      setPlayers([]);
+      if (!initialCache) setPlayers([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPlayers();
+    void fetchPlayers(Boolean(initialCache?.isStale));
   }, []);
 
   // Reset pagination when level, search, or position changes

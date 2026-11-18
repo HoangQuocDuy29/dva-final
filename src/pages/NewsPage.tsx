@@ -38,7 +38,8 @@ function getArticleTimestamp(post: NewsPost): number {
 
 export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser }) => {
   const { t } = useTranslation('news');
-  const [newsList, setNewsList] = useState<NewsPost[]>([]);
+  const [initialCache] = useState(() => newsService.getCachedNews());
+  const [newsList, setNewsList] = useState<NewsPost[]>(() => initialCache?.data ?? []);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -57,8 +58,15 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
 
   const fetchNews = async () => {
     try {
+      const category = selectedCategory === 'ALL' ? undefined : selectedCategory;
+      const cached = newsService.getCachedNews({ category });
+      if (cached) {
+        setNewsList(cached.data);
+        if (!cached.isStale) return;
+      }
       const data = await newsService.getNews({
-        category: selectedCategory === 'ALL' ? undefined : selectedCategory,
+        category,
+        forceRefresh: Boolean(cached?.isStale),
       });
       setNewsList(data);
     } catch (e) {
@@ -67,7 +75,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
   };
 
   useEffect(() => {
-    fetchNews();
+    void fetchNews();
   }, [selectedCategory]);
 
   // Reset về trang 1 khi đổi danh mục hoặc từ khóa tìm kiếm

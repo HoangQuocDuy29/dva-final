@@ -42,8 +42,82 @@ import {
 } from '../data/mockData';
 import { getDefaultWeeklyScheduleForCourt, normalizeCourtWeeklySchedule } from '../shared/schedule';
 import { API_BASE_URL, getApiUrl } from '../config/api';
+import { createSwrCache, invalidateAllSwrCaches } from '../utils/swrCache';
 
 export { API_BASE_URL, getApiUrl };
+
+export interface HomeSummaryPayload {
+  courts: Court[];
+  players: Player[];
+  news: NewsPost[];
+}
+
+const homeSummaryCache = createSwrCache<HomeSummaryPayload>({
+  storagePrefix: 'dva_home_summary_v1:',
+  freshMs: 60_000,
+  staleMs: 300_000,
+});
+
+const playersCache = createSwrCache<Player[]>({
+  storagePrefix: 'dva_players_public_v1:',
+  freshMs: 60_000,
+  staleMs: 300_000,
+  validate: Array.isArray,
+});
+
+const courtsCache = createSwrCache<Court[]>({
+  storagePrefix: 'dva_courts_public_v1:',
+  freshMs: 120_000,
+  staleMs: 600_000,
+  validate: Array.isArray,
+});
+
+const coachesCache = createSwrCache<CoachProfile[]>({
+  storagePrefix: 'dva_coaches_public_v1:',
+  freshMs: 120_000,
+  staleMs: 600_000,
+  validate: Array.isArray,
+});
+
+const coursesCache = createSwrCache<TrainingCourse[]>({
+  storagePrefix: 'dva_courses_public_v1:',
+  freshMs: 60_000,
+  staleMs: 300_000,
+  validate: Array.isArray,
+});
+
+const newsCache = createSwrCache<NewsPost[]>({
+  storagePrefix: 'dva_news_public_v1:',
+  freshMs: 60_000,
+  staleMs: 300_000,
+  validate: Array.isArray,
+});
+
+const newsDetailCache = createSwrCache<NewsPost>({
+  storagePrefix: 'dva_news_detail_v1:',
+  freshMs: 60_000,
+  staleMs: 300_000,
+});
+
+const storeProductsCache = createSwrCache<StoreProduct[]>({
+  storagePrefix: 'dva_store_products_v1:',
+  freshMs: 60_000,
+  staleMs: 300_000,
+  validate: Array.isArray,
+});
+
+const tournamentsCache = createSwrCache<Tournament[]>({
+  storagePrefix: 'dva_tournaments_public_v1:',
+  freshMs: 30_000,
+  staleMs: 180_000,
+  validate: Array.isArray,
+});
+
+const tournamentDetailCache = createSwrCache<Tournament>({
+  storagePrefix: 'dva_tournament_detail_v1:',
+  freshMs: 15_000,
+  staleMs: 120_000,
+});
 
 const TOKEN_KEY = 'dva_token';
 const CURRENT_USER_KEY = 'dva_current_user';
@@ -84,6 +158,7 @@ export class ApiError extends Error {
 function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(CURRENT_USER_KEY);
+  invalidateAllSwrCaches();
 }
 
 /**
@@ -176,6 +251,7 @@ export const authService = {
       method: 'POST',
       body: JSON.stringify({ email: normalizedEmail, password }),
     });
+    invalidateAllSwrCaches();
     localStorage.setItem(TOKEN_KEY, res.token);
     this.setCurrentUser(res.user);
     return res;
@@ -220,14 +296,93 @@ export const userService = {
   },
 };
 
+function normalizeCourtRecord(c: Court): Court {
+  const subs = c.subCourts?.length
+    ? c.subCourts
+    : c.id === 'court-btl' || c.code === 'BTL_TT'
+      ? ['Sân A', 'Sân B']
+      : [];
+  return {
+    ...c,
+    subCourts: subs.length > 0 ? subs : undefined,
+    weeklySchedule: normalizeCourtWeeklySchedule(c.weeklySchedule, c.id, subs),
+  };
+}
+
+function buildPlayersCacheKey(params?: { level?: string; position?: string; search?: string }): string {
+  return `${params?.level || 'ALL'}:${params?.position || 'ALL'}:${params?.search || ''}`;
+}
+
+export const homeService = {
+  getCachedSummary() {
+    return homeSummaryCache.get('default');
+  },
+
+  async getSummary(opts?: { forceRefresh?: boolean }): Promise<HomeSummaryPayload> {
+    return homeSummaryCache.fetch({
+      key: 'default',
+      forceRefresh: opts?.forceRefresh,
+      fetcher: async () => {
+        const res = await request<HomeSummaryPayload>('/home/summary', undefined, {
+          courts: [],
+          players: [],
+          news: [],
+        });
+        const cleanedCourts = Array.isArray(res?.courts) ? res.courts.map(normalizeCourtRecord) : [];
+        const players = Array.isArray(res?.players) ? res.players : [];
+        const news = Array.isArray(res?.news) ? res.news.map(normalizeNewsPost) : [];
+        const payload: HomeSummaryPayload = {
+          courts: cleanedCourts,
+          players,
+          news,
+        };
+        if (cleanedCourts.length > 0) {
+          courtsCache.set('default', cleanedCourts);
+        }
+        if (players.length > 0) {
+          playersCache.set('ALL:ALL:', players);
+        }
+        return payload;
+      },
+    });
+  },
+};
+
 export const playerService = {
-  async getPlayers(params?: { level?: string; position?: string; search?: string }): Promise<Player[]> {
-    const query = new URLSearchParams(params as any).toString();
-    return request<Player[]>(`/players${query ? `?${query}` : ''}`, {}, []);
+  getCachedPlayers(params?: { level?: string; position?: string; search?: string }) {
+    return playersCache.get(buildPlayersCacheKey(params));
+  },
+
+  async getPlayers(params?: {
+    level?: string;
+    position?: string;
+    search?: string;
+    adminMode?: boolean;
+    forceRefresh?: boolean;
+  }): Promise<Player[]> {
+    const cleanParams: Record<string, string> = {};
+    if (params?.level) cleanParams.level = params.level;
+    if (params?.position) cleanParams.position = params.position;
+    if (params?.search) cleanParams.search = params.search;
+    const query = new URLSearchParams(cleanParams).toString();
+    const endpoint = `/players${query ? `?${query}` : ''}`;
+
+    if (params?.adminMode) {
+      return request<Player[]>(endpoint, { cache: 'no-store' }, []);
+    }
+
+    return playersCache.fetch({
+      key: buildPlayersCacheKey(params),
+      forceRefresh: params?.forceRefresh,
+      fetcher: async () => {
+        const rows = await request<Player[]>(endpoint, {}, []);
+        return Array.isArray(rows) ? rows : [];
+      },
+    });
   },
 
   async addPlayer(playerData: Partial<Player>): Promise<Player> {
-    return request<Player>('/players', {
+    const res = await request<Player>('/players', {
       method: 'POST',
       body: JSON.stringify(playerData),
     }, {
@@ -235,79 +390,98 @@ export const playerService = {
       id: `p-${Date.now()}`,
       avatarUrl: playerData.avatarUrl || '',
     } as Player);
+    playersCache.invalidate();
+    homeSummaryCache.invalidate();
+    return res;
   },
 
   async updatePlayer(id: string, playerData: Partial<Player>): Promise<Player> {
-    return request<Player>(`/players/${id}`, {
+    const res = await request<Player>(`/players/${id}`, {
       method: 'PUT',
       body: JSON.stringify(playerData),
     }, {
       ...playerData,
       id,
     } as Player);
+    playersCache.invalidate();
+    homeSummaryCache.invalidate();
+    return res;
   },
 
   async updateLevel(id: string, level: PlayerLevel): Promise<Player> {
-    return request<Player>(`/players/${id}/level`, {
+    const res = await request<Player>(`/players/${id}/level`, {
       method: 'PATCH',
       body: JSON.stringify({ level }),
     }, {
       id,
       level,
     } as Player);
+    playersCache.invalidate();
+    homeSummaryCache.invalidate();
+    return res;
   },
 
   async toggleVisibility(id: string, isActive: boolean): Promise<Player> {
-    return request<Player>(`/players/${id}/visibility`, {
+    const res = await request<Player>(`/players/${id}/visibility`, {
       method: 'PATCH',
       body: JSON.stringify({ isActive }),
     }, {
       id,
       isActive,
     } as Player);
+    playersCache.invalidate();
+    homeSummaryCache.invalidate();
+    return res;
   },
 
   async deletePlayer(id: string): Promise<{ success: boolean }> {
-    return request<{ success: boolean }>(`/players/${id}`, {
+    const res = await request<{ success: boolean }>(`/players/${id}`, {
       method: 'DELETE',
     }, { success: true });
+    playersCache.invalidate();
+    homeSummaryCache.invalidate();
+    return res;
   }
 };
 
 export const courtService = {
-  async getCourts(): Promise<Court[]> {
-    const saved = localStorage.getItem('dva_courts');
-    let fallback: Court[] = [];
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          fallback = parsed;
+  getCachedCourts() {
+    return courtsCache.get('default');
+  },
+
+  async getCourts(opts?: { adminMode?: boolean; forceRefresh?: boolean }): Promise<Court[]> {
+    const fetchAndNormalize = async (): Promise<Court[]> => {
+      const saved = localStorage.getItem('dva_courts');
+      let fallback: Court[] = [];
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) fallback = parsed;
+        } catch {
+          fallback = [];
         }
-      } catch {
-        fallback = [];
       }
+      const res = await request<Court[]>(
+        '/courts',
+        opts?.adminMode ? { cache: 'no-store' } : undefined,
+        fallback
+      );
+      const rawList = Array.isArray(res) ? res : fallback;
+      const cleaned = rawList.map(normalizeCourtRecord);
+      if (cleaned.length > 0) {
+        localStorage.setItem('dva_courts', JSON.stringify(cleaned));
+      }
+      return cleaned;
+    };
+
+    if (opts?.adminMode) {
+      return fetchAndNormalize();
     }
-    const res = await request<Court[]>('/courts', {}, fallback);
-    const rawList = Array.isArray(res) ? res : fallback;
-    const cleaned = rawList.map((c) => {
-      const subs = c.subCourts?.length
-        ? c.subCourts
-        : (c.id === 'court-btl' || c.code === 'BTL_TT' ? ['Sân A', 'Sân B'] : []);
-      return {
-        ...c,
-        subCourts: subs.length > 0 ? subs : undefined,
-        weeklySchedule: normalizeCourtWeeklySchedule(
-          c.weeklySchedule,
-          c.id,
-          subs
-        ),
-      };
+    return courtsCache.fetch({
+      key: 'default',
+      forceRefresh: opts?.forceRefresh,
+      fetcher: fetchAndNormalize,
     });
-    if (cleaned.length > 0) {
-      localStorage.setItem('dva_courts', JSON.stringify(cleaned));
-    }
-    return cleaned;
   },
 
   async createCourt(courtData: Partial<Court>): Promise<Court> {
@@ -346,6 +520,8 @@ export const courtService = {
     const saved = localStorage.getItem('dva_courts');
     const list: Court[] = saved ? JSON.parse(saved) : [];
     localStorage.setItem('dva_courts', JSON.stringify([...list, res]));
+    courtsCache.invalidate();
+    homeSummaryCache.invalidate();
     return res;
   },
 
@@ -367,6 +543,8 @@ export const courtService = {
         JSON.stringify(list.map((c) => (c.id === id ? { ...c, ...res } : c)))
       );
     }
+    courtsCache.invalidate();
+    homeSummaryCache.invalidate();
     return res;
   },
 
@@ -404,6 +582,8 @@ export const courtService = {
       'dva_courts',
       JSON.stringify(list.map((c) => (c.id === id ? { ...c, ...updatedCourt } : c)))
     );
+    courtsCache.invalidate();
+    homeSummaryCache.invalidate();
     return updatedCourt;
   },
 
@@ -421,6 +601,8 @@ export const courtService = {
       const list: Court[] = JSON.parse(saved);
       localStorage.setItem('dva_courts', JSON.stringify(list.filter((c) => c.id !== id)));
     }
+    courtsCache.invalidate();
+    homeSummaryCache.invalidate();
     return res;
   },
 
@@ -520,19 +702,38 @@ export const bookingService = {
 };
 
 export const trainingService = {
-  async getCourses(): Promise<TrainingCourse[]> {
-    const saved = localStorage.getItem('dva_courses');
-    let fallback: TrainingCourse[] = [];
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) fallback = parsed;
-      } catch {
-        fallback = [];
+  getCachedCourses() {
+    return coursesCache.get('default');
+  },
+
+  async getCourses(opts?: { adminMode?: boolean; forceRefresh?: boolean }): Promise<TrainingCourse[]> {
+    const fetchCourses = async (): Promise<TrainingCourse[]> => {
+      const saved = localStorage.getItem('dva_courses');
+      let fallback: TrainingCourse[] = [];
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) fallback = parsed;
+        } catch {
+          fallback = [];
+        }
       }
+      const res = await request<TrainingCourse[]>(
+        '/training/courses',
+        opts?.adminMode ? { cache: 'no-store' } : undefined,
+        fallback
+      );
+      return Array.isArray(res) ? res : [];
+    };
+
+    if (opts?.adminMode) {
+      return fetchCourses();
     }
-    const res = await request<TrainingCourse[]>('/training/courses', {}, fallback);
-    return Array.isArray(res) ? res : [];
+    return coursesCache.fetch({
+      key: 'default',
+      forceRefresh: opts?.forceRefresh,
+      fetcher: fetchCourses,
+    });
   },
 
   async createCourse(courseData: Partial<TrainingCourse>): Promise<TrainingCourse> {
@@ -553,6 +754,7 @@ export const trainingService = {
     const saved = localStorage.getItem('dva_courses');
     const list: TrainingCourse[] = saved ? JSON.parse(saved) : [];
     localStorage.setItem('dva_courses', JSON.stringify([res, ...list]));
+    coursesCache.invalidate();
     return res;
   },
 
@@ -567,6 +769,7 @@ export const trainingService = {
       const list: TrainingCourse[] = JSON.parse(saved);
       localStorage.setItem('dva_courses', JSON.stringify(list.map(c => c.id === id ? { ...c, ...res } : c)));
     }
+    coursesCache.invalidate();
     return res;
   },
 
@@ -580,6 +783,7 @@ export const trainingService = {
       const list: TrainingCourse[] = JSON.parse(saved);
       localStorage.setItem('dva_courses', JSON.stringify(list.filter(c => c.id !== id)));
     }
+    coursesCache.invalidate();
     return res;
   },
 
@@ -594,11 +798,12 @@ export const trainingService = {
       const list: TrainingCourse[] = JSON.parse(saved);
       localStorage.setItem('dva_courses', JSON.stringify(list.map(c => c.id === id ? { ...c, ...res } : c)));
     }
+    coursesCache.invalidate();
     return res;
   },
 
   async getRegistrations(): Promise<TrainingRegistration[]> {
-    return request<TrainingRegistration[]>('/training/registrations', {}, []);
+    return request<TrainingRegistration[]>('/training/registrations', { cache: 'no-store' }, []);
   },
 
   async register(data: Partial<TrainingRegistration>): Promise<TrainingRegistration> {
@@ -628,19 +833,38 @@ export const trainingService = {
 };
 
 export const coachService = {
-  async getCoaches(): Promise<CoachProfile[]> {
-    const saved = localStorage.getItem('dva_coaches');
-    let fallback: CoachProfile[] = [];
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) fallback = parsed;
-      } catch {
-        fallback = [];
+  getCachedCoaches() {
+    return coachesCache.get('default');
+  },
+
+  async getCoaches(opts?: { adminMode?: boolean; forceRefresh?: boolean }): Promise<CoachProfile[]> {
+    const fetchCoaches = async (): Promise<CoachProfile[]> => {
+      const saved = localStorage.getItem('dva_coaches');
+      let fallback: CoachProfile[] = [];
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) fallback = parsed;
+        } catch {
+          fallback = [];
+        }
       }
+      const res = await request<CoachProfile[]>(
+        '/coaches',
+        opts?.adminMode ? { cache: 'no-store' } : undefined,
+        fallback
+      );
+      return Array.isArray(res) ? res : [];
+    };
+
+    if (opts?.adminMode) {
+      return fetchCoaches();
     }
-    const res = await request<CoachProfile[]>('/coaches', {}, fallback);
-    return Array.isArray(res) ? res : [];
+    return coachesCache.fetch({
+      key: 'default',
+      forceRefresh: opts?.forceRefresh,
+      fetcher: fetchCoaches,
+    });
   },
 
   async addCoach(coachData: Partial<CoachProfile>): Promise<CoachProfile> {
@@ -659,6 +883,7 @@ export const coachService = {
     const saved = localStorage.getItem('dva_coaches');
     const list: CoachProfile[] = saved ? JSON.parse(saved) : [];
     localStorage.setItem('dva_coaches', JSON.stringify([res, ...list]));
+    coachesCache.invalidate();
     return res;
   },
 
@@ -673,6 +898,7 @@ export const coachService = {
       const list: CoachProfile[] = JSON.parse(saved);
       localStorage.setItem('dva_coaches', JSON.stringify(list.map(c => c.id === id ? { ...c, ...res } : c)));
     }
+    coachesCache.invalidate();
     return res;
   },
 
@@ -686,6 +912,7 @@ export const coachService = {
       const list: CoachProfile[] = JSON.parse(saved);
       localStorage.setItem('dva_coaches', JSON.stringify(list.filter(c => c.id !== id)));
     }
+    coachesCache.invalidate();
     return res;
   }
 };
@@ -713,7 +940,7 @@ export const memberService = {
     reviewNotes?: string,
     entryFee?: number
   ): Promise<{ application: MemberApplication; promotedPlayer: boolean }> {
-    return request<{ application: MemberApplication; promotedPlayer: boolean }>(`/members/applications/${id}/status`, {
+    const res = await request<{ application: MemberApplication; promotedPlayer: boolean }>(`/members/applications/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status, reviewNotes, ...(entryFee !== undefined ? { entryFee } : {}) }),
     }, {
@@ -725,6 +952,11 @@ export const memberService = {
       } as MemberApplication,
       promotedPlayer: status === 'APPROVED',
     });
+    if (res.promotedPlayer || status === 'APPROVED') {
+      playersCache.invalidate();
+      homeSummaryCache.invalidate();
+    }
+    return res;
   },
 
   async updateEntryFee(id: string, entryFee: number): Promise<MemberApplication> {
@@ -815,47 +1047,99 @@ function normalizeNewsPost(post: NewsPost): NewsPost {
   };
 }
 
+function buildNewsCacheKey(params?: { category?: string; search?: string }): string {
+  const cat =
+    params?.category && params.category.trim() !== '' && params.category.trim().toUpperCase() !== 'ALL'
+      ? params.category.trim().toUpperCase()
+      : 'ALL';
+  const search = params?.search ? params.search.trim().toLowerCase() : '';
+  return `${cat}:${search}`;
+}
+
 export const newsService = {
-  async getNews(params?: { category?: string; search?: string }): Promise<NewsPost[]> {
-    const saved = localStorage.getItem('dva_news');
-    let fullFallback: NewsPost[] = [];
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) fullFallback = parsed.map(normalizeNewsPost);
-      } catch {
-        fullFallback = [];
-      }
+  getCachedNews(params?: { category?: string; search?: string }) {
+    return newsCache.get(buildNewsCacheKey(params));
+  },
+
+  getCachedNewsById(id: string) {
+    const direct = newsDetailCache.get(id);
+    if (direct) return direct;
+    const listCached = newsCache.get('ALL:');
+    if (listCached) {
+      const hit = listCached.data.find((n) => n.id === id || n.slug === id);
+      if (hit) return { data: hit, isStale: listCached.isStale };
     }
+    return null;
+  },
+
+  async getNews(params?: {
+    category?: string;
+    search?: string;
+    adminMode?: boolean;
+    forceRefresh?: boolean;
+  }): Promise<NewsPost[]> {
     const categoryParam =
       params?.category && params.category.trim() !== '' && params.category.trim().toUpperCase() !== 'ALL'
         ? params.category.trim()
         : undefined;
     const searchParam = params?.search && params.search.trim() !== '' ? params.search.trim() : undefined;
 
-    const filteredFallback = fullFallback.filter((item) => {
-      if (categoryParam && item.category !== categoryParam) return false;
-      if (searchParam) {
-        const q = searchParam.toLowerCase();
-        if (!item.title.toLowerCase().includes(q) && !item.excerpt.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
     const cleanParams: Record<string, string> = {};
     if (categoryParam) cleanParams.category = categoryParam;
     if (searchParam) cleanParams.search = searchParam;
     const query = new URLSearchParams(cleanParams).toString();
-    const res = await request<NewsPost[]>(`/news${query ? `?${query}` : ''}`, {}, filteredFallback);
-    const normalizedRes = Array.isArray(res) ? res.map(normalizeNewsPost) : [];
-    return normalizedRes;
+    const endpoint = `/news${query ? `?${query}` : ''}`;
+
+    const fetchFromApi = async (): Promise<NewsPost[]> => {
+      const saved = localStorage.getItem('dva_news');
+      let fullFallback: NewsPost[] = [];
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) fullFallback = parsed.map(normalizeNewsPost);
+        } catch {
+          fullFallback = [];
+        }
+      }
+      const filteredFallback = fullFallback.filter((item) => {
+        if (categoryParam && item.category !== categoryParam) return false;
+        if (searchParam) {
+          const q = searchParam.toLowerCase();
+          if (!item.title.toLowerCase().includes(q) && !item.excerpt.toLowerCase().includes(q)) return false;
+        }
+        return true;
+      });
+      const res = await request<NewsPost[]>(
+        endpoint,
+        params?.adminMode ? { cache: 'no-store' } : undefined,
+        filteredFallback
+      );
+      return Array.isArray(res) ? res.map(normalizeNewsPost) : [];
+    };
+
+    if (params?.adminMode) {
+      return fetchFromApi();
+    }
+
+    return newsCache.fetch({
+      key: buildNewsCacheKey(params),
+      forceRefresh: params?.forceRefresh,
+      fetcher: fetchFromApi,
+    });
   },
 
-  async getNewsById(id: string): Promise<NewsPost> {
-    const saved = localStorage.getItem('dva_news');
-    const list: NewsPost[] = saved ? JSON.parse(saved).map(normalizeNewsPost) : [];
-    const fallbackPost = list.find((n) => n.id === id || n.slug === id) || ({ id, slug: id, title: '', excerpt: '', content: '', author: '', authorName: '', authorRole: '', thumbnail: '', publishedAt: '', readTimeMinutes: 1, category: 'GENERAL' } as unknown as NewsPost);
-    const res = await request<NewsPost>(`/news/${id}`, {}, fallbackPost);
-    return normalizeNewsPost(res);
+  async getNewsById(id: string, opts?: { forceRefresh?: boolean }): Promise<NewsPost> {
+    return newsDetailCache.fetch({
+      key: id,
+      forceRefresh: opts?.forceRefresh,
+      fetcher: async () => {
+        const saved = localStorage.getItem('dva_news');
+        const list: NewsPost[] = saved ? JSON.parse(saved).map(normalizeNewsPost) : [];
+        const fallbackPost = list.find((n) => n.id === id || n.slug === id) || ({ id, slug: id, title: '', excerpt: '', content: '', author: '', authorName: '', authorRole: '', thumbnail: '', publishedAt: '', readTimeMinutes: 1, category: 'GENERAL' } as unknown as NewsPost);
+        const res = await request<NewsPost>(`/news/${id}`, {}, fallbackPost);
+        return normalizeNewsPost(res);
+      },
+    });
   },
 
   async createNews(postData: Partial<NewsPost>): Promise<NewsPost> {
@@ -892,6 +1176,9 @@ export const newsService = {
     const saved = localStorage.getItem('dva_news');
     const list: NewsPost[] = saved ? JSON.parse(saved).map(normalizeNewsPost) : [];
     localStorage.setItem('dva_news', JSON.stringify([res, ...list.filter((n) => n.id !== res.id)]));
+    newsCache.invalidate();
+    newsDetailCache.invalidate();
+    homeSummaryCache.invalidate();
     return res;
   },
 
@@ -924,6 +1211,9 @@ export const newsService = {
       'dva_news',
       JSON.stringify(list.map((n) => (n.id === id ? normalizeNewsPost({ ...n, ...res }) : n)))
     );
+    newsCache.invalidate();
+    newsDetailCache.invalidate();
+    homeSummaryCache.invalidate();
     return res;
   },
 
@@ -937,6 +1227,9 @@ export const newsService = {
       const list: NewsPost[] = JSON.parse(saved);
       localStorage.setItem('dva_news', JSON.stringify(list.filter(n => n.id !== id)));
     }
+    newsCache.invalidate();
+    newsDetailCache.invalidate();
+    homeSummaryCache.invalidate();
     return res;
   }
 };
@@ -1115,7 +1408,7 @@ export const cloudinaryService = {
 
 export const adminService = {
   getOverviewSummary: () =>
-    request<AdminOverviewSummary | null>('/admin/overview-summary', undefined, null),
+    request<AdminOverviewSummary | null>('/admin/overview-summary', { cache: 'no-store' }, null),
 
   sendGuestSessionEmail: (payload: GuestSessionPayload) =>
     request<{ success: boolean; message: string; guestSession?: GuestSessionRecord }>(
@@ -1143,105 +1436,23 @@ export const adminService = {
     }),
 };
 
-const STORE_PRODUCTS_CACHE_PREFIX = 'dva_store_products_v1:';
-const STORE_PRODUCTS_FRESH_MS = 60_000;
-const STORE_PRODUCTS_STALE_MS = 300_000;
-
-interface StoreProductsCacheEntry {
-  data: StoreProduct[];
-  cachedAt: number;
-}
-
-const storeProductsMemoryCache = new Map<string, StoreProductsCacheEntry>();
-const inflightStoreProductsRequests = new Map<string, Promise<StoreProduct[]>>();
-
 function buildStoreProductsCacheKey(params?: { category?: string; activeOnly?: boolean }): string {
   const category = params?.category && params.category !== 'ALL' ? params.category : 'ALL';
   return `${params?.activeOnly ? 'active' : 'all'}:${category}`;
 }
 
-function readStoreProductsCache(key: string): { data: StoreProduct[]; isStale: boolean } | null {
-  const now = Date.now();
-  let entry = storeProductsMemoryCache.get(key);
-
-  if (!entry && typeof window !== 'undefined') {
-    try {
-      const raw = window.sessionStorage.getItem(`${STORE_PRODUCTS_CACHE_PREFIX}${key}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as StoreProductsCacheEntry;
-        if (parsed && Array.isArray(parsed.data) && typeof parsed.cachedAt === 'number') {
-          entry = parsed;
-          storeProductsMemoryCache.set(key, entry);
-        }
-      }
-    } catch {
-      // Ignore storage access or JSON parse failures
-    }
-  }
-
-  if (!entry) return null;
-
-  const age = now - entry.cachedAt;
-  if (age > STORE_PRODUCTS_STALE_MS) {
-    storeProductsMemoryCache.delete(key);
-    if (typeof window !== 'undefined') {
-      try {
-        window.sessionStorage.removeItem(`${STORE_PRODUCTS_CACHE_PREFIX}${key}`);
-      } catch {
-        // Ignore storage errors
-      }
-    }
-    return null;
-  }
-
-  return {
-    data: entry.data,
-    isStale: age > STORE_PRODUCTS_FRESH_MS,
-  };
-}
-
-function writeStoreProductsCache(key: string, data: StoreProduct[]): void {
-  const entry: StoreProductsCacheEntry = { data, cachedAt: Date.now() };
-  storeProductsMemoryCache.set(key, entry);
-  if (typeof window !== 'undefined') {
-    try {
-      window.sessionStorage.setItem(`${STORE_PRODUCTS_CACHE_PREFIX}${key}`, JSON.stringify(entry));
-    } catch {
-      // Ignore storage quota or private-mode failures
-    }
-  }
-}
-
-function invalidateStoreProductsCache(): void {
-  storeProductsMemoryCache.clear();
-  if (typeof window !== 'undefined') {
-    try {
-      const keysToDelete: string[] = [];
-      for (let i = 0; i < window.sessionStorage.length; i += 1) {
-        const k = window.sessionStorage.key(i);
-        if (k && k.startsWith(STORE_PRODUCTS_CACHE_PREFIX)) {
-          keysToDelete.push(k);
-        }
-      }
-      keysToDelete.forEach((k) => window.sessionStorage.removeItem(k));
-    } catch {
-      // Ignore storage errors
-    }
-  }
-}
-
 /**
- * DVA Store API Client (Phase 2 Full Implementation).
- * Connects directly to Neon PostgreSQL `/api/store/products` & `/api/store/orders`.
+ * DVA Store API Client.
+ * Connects directly to PostgreSQL `/api/store/products` & `/api/store/orders`.
  */
 export const storeService = {
   getCachedProducts(params?: { category?: string; activeOnly?: boolean }): { data: StoreProduct[]; isStale: boolean } | null {
     if (!params?.activeOnly) return null;
-    return readStoreProductsCache(buildStoreProductsCacheKey(params));
+    return storeProductsCache.get(buildStoreProductsCacheKey(params));
   },
 
   invalidateProductsCache(): void {
-    invalidateStoreProductsCache();
+    storeProductsCache.invalidate();
   },
 
   async getProducts(params?: { category?: string; activeOnly?: boolean; forceRefresh?: boolean }): Promise<StoreProduct[]> {
@@ -1256,38 +1467,19 @@ export const storeService = {
     }
 
     const cacheKey = buildStoreProductsCacheKey(params);
-    if (!params.forceRefresh) {
-      const cached = readStoreProductsCache(cacheKey);
-      if (cached && !cached.isStale) {
-        return cached.data;
-      }
+    try {
+      return await storeProductsCache.fetch({
+        key: cacheKey,
+        forceRefresh: params.forceRefresh,
+        fetcher: async () => {
+          const data = await request<StoreProduct[]>(endpoint);
+          return Array.isArray(data) ? data : [];
+        },
+      });
+    } catch (err) {
+      console.warn('[API] Failed fetching store products, showing empty fallback.', err);
+      return [];
     }
-
-    const existingInflight = inflightStoreProductsRequests.get(endpoint);
-    if (existingInflight) {
-      return existingInflight;
-    }
-
-    const fetchPromise = (async () => {
-      try {
-        const data = await request<StoreProduct[]>(endpoint);
-        const list = Array.isArray(data) ? data : [];
-        writeStoreProductsCache(cacheKey, list);
-        return list;
-      } catch (err) {
-        const staleFallback = readStoreProductsCache(cacheKey);
-        if (staleFallback) {
-          return staleFallback.data;
-        }
-        console.warn('[API] Failed fetching store products, showing empty fallback.', err);
-        return [];
-      } finally {
-        inflightStoreProductsRequests.delete(endpoint);
-      }
-    })();
-
-    inflightStoreProductsRequests.set(endpoint, fetchPromise);
-    return fetchPromise;
   },
 
   async getProduct(idOrSlug: string): Promise<StoreProduct> {
@@ -1299,7 +1491,7 @@ export const storeService = {
       method: 'POST',
       body: JSON.stringify(productData),
     });
-    invalidateStoreProductsCache();
+    storeProductsCache.invalidate();
     return created;
   },
 
@@ -1308,7 +1500,7 @@ export const storeService = {
       method: 'PUT',
       body: JSON.stringify(productData),
     });
-    invalidateStoreProductsCache();
+    storeProductsCache.invalidate();
     return updated;
   },
 
@@ -1317,7 +1509,7 @@ export const storeService = {
       `/store/products/${productId}`,
       { method: 'DELETE' }
     );
-    invalidateStoreProductsCache();
+    storeProductsCache.invalidate();
     return res;
   },
 
@@ -1332,7 +1524,7 @@ export const storeService = {
         body: JSON.stringify({ isActive }),
       }
     );
-    invalidateStoreProductsCache();
+    storeProductsCache.invalidate();
     return updated;
   },
 
@@ -1347,7 +1539,7 @@ export const storeService = {
         body: JSON.stringify({ isPaused }),
       }
     );
-    invalidateStoreProductsCache();
+    storeProductsCache.invalidate();
     return updated;
   },
 
@@ -1480,63 +1672,18 @@ export const storeService = {
 // TOURNAMENTS & LEAGUES API CLIENT (SPEC 008)
 // ============================================================================
 
-const TOURNAMENTS_CACHE_KEY = 'dva_tournaments_public_v1';
-const TOURNAMENTS_FRESH_MS = 30_000;
-const TOURNAMENTS_STALE_MS = 180_000;
-let tournamentsMemCache: { data: Tournament[]; cachedAt: number } | null = null;
-
-function readTournamentsCache(): { data: Tournament[]; isStale: boolean } | null {
-  const now = Date.now();
-  let entry = tournamentsMemCache;
-  if (!entry && typeof window !== 'undefined') {
-    try {
-      const raw = window.sessionStorage.getItem(TOURNAMENTS_CACHE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.data) && typeof parsed.cachedAt === 'number') {
-          entry = parsed;
-          tournamentsMemCache = entry;
-        }
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }
-  if (!entry) return null;
-  const age = now - entry.cachedAt;
-  if (age > TOURNAMENTS_STALE_MS) {
-    tournamentsMemCache = null;
-    return null;
-  }
-  return { data: entry.data, isStale: age > TOURNAMENTS_FRESH_MS };
-}
-
-function writeTournamentsCache(data: Tournament[]): void {
-  const entry = { data, cachedAt: Date.now() };
-  tournamentsMemCache = entry;
-  if (typeof window !== 'undefined') {
-    try {
-      window.sessionStorage.setItem(TOURNAMENTS_CACHE_KEY, JSON.stringify(entry));
-    } catch {
-      // ignore storage quota
-    }
-  }
-}
-
 function invalidateTournamentsCache(): void {
-  tournamentsMemCache = null;
-  if (typeof window !== 'undefined') {
-    try {
-      window.sessionStorage.removeItem(TOURNAMENTS_CACHE_KEY);
-    } catch {
-      // ignore
-    }
-  }
+  tournamentsCache.invalidate();
+  tournamentDetailCache.invalidate();
 }
 
 export const tournamentService = {
   getCachedTournaments(): { data: Tournament[]; isStale: boolean } | null {
-    return readTournamentsCache();
+    return tournamentsCache.get('default');
+  },
+
+  getCachedTournament(slugOrId: string): { data: Tournament; isStale: boolean } | null {
+    return tournamentDetailCache.get(slugOrId);
   },
 
   invalidateCache(): void {
@@ -1548,25 +1695,28 @@ export const tournamentService = {
       const rows = await request<Tournament[]>('/tournaments', { cache: 'no-store' }, []);
       return Array.isArray(rows) ? rows : [];
     }
-    if (!opts?.forceRefresh) {
-      const cached = readTournamentsCache();
-      if (cached && !cached.isStale) return cached.data;
-    }
-    const rows = await request<Tournament[]>(
-      '/tournaments',
-      opts?.forceRefresh ? { cache: 'no-store' } : {},
-      []
-    );
-    const list = Array.isArray(rows) ? rows : [];
-    writeTournamentsCache(list);
-    return list;
+    return tournamentsCache.fetch({
+      key: 'default',
+      forceRefresh: opts?.forceRefresh,
+      fetcher: async () => {
+        const rows = await request<Tournament[]>(
+          '/tournaments',
+          opts?.forceRefresh ? { cache: 'no-store' } : {},
+          []
+        );
+        return Array.isArray(rows) ? rows : [];
+      },
+    });
   },
 
   async getTournament(slugOrId: string, opts?: { noCache?: boolean }): Promise<Tournament> {
-    return request<Tournament>(
-      `/tournaments/${encodeURIComponent(slugOrId)}`,
-      opts?.noCache ? { cache: 'no-store' } : undefined
-    );
+    if (opts?.noCache) {
+      return request<Tournament>(`/tournaments/${encodeURIComponent(slugOrId)}`, { cache: 'no-store' });
+    }
+    return tournamentDetailCache.fetch({
+      key: slugOrId,
+      fetcher: () => request<Tournament>(`/tournaments/${encodeURIComponent(slugOrId)}`),
+    });
   },
 
   async getFinanceSummary(): Promise<TournamentFinanceSummary[]> {

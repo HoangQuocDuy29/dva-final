@@ -15,19 +15,29 @@ const NEWS_FALLBACK_IMAGE =
 export const NewsDetailPage: React.FC = () => {
   const { t } = useTranslation('news');
   const { id } = useParams<{ id: string }>();
-  const [article, setArticle] = useState<NewsPost | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialCached = id ? newsService.getCachedNewsById(id) : null;
+  const [article, setArticle] = useState<NewsPost | null>(() =>
+    initialCached?.data && initialCached.data.title ? initialCached.data : null
+  );
+  const [loading, setLoading] = useState<boolean>(() => !initialCached);
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
+    const cached = newsService.getCachedNewsById(id);
+    if (cached?.data && cached.data.title) {
+      setArticle(cached.data);
+      setLoading(false);
+      if (!cached.isStale) return;
+    } else {
+      setLoading(true);
+    }
     newsService
-      .getNewsById(id)
+      .getNewsById(id, { forceRefresh: Boolean(cached?.isStale) })
       .then((data) => {
         setArticle(data && data.title ? data : null);
       })
       .catch(() => {
-        setArticle(null);
+        if (!cached) setArticle(null);
       })
       .finally(() => {
         setLoading(false);

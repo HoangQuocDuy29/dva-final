@@ -51,11 +51,13 @@ function normalizeActiveCourts(fetchedCourts: unknown): Court[] {
     });
 }
 
+const ADMIN_PERMITTED_DATA_TABS = new Set<AdminTabId>(['OVERVIEW', 'APPLICATIONS', 'NEWS', 'TOURNAMENTS']);
+
 /**
- * Modular Admin Data Hook with Tab-Scoped Lazy Loading:
- * - Core analytics & badge datasets load on mount.
- * - Module-specific datasets (`SHEETS`, `COURTS` closed-slots, `STORE` products & orders)
- *   lazy-load when their tab is first activated and refresh when `fetchData()` is called.
+ * Modular Admin Data Hook with Strict On-Demand / Lazy Tab Fetching:
+ * - On entering Admin Hub (`OVERVIEW`), ONLY calls lightweight `/api/admin/overview-summary`.
+ * - Each remaining tab fetches ONLY its own endpoint when `activeModule` becomes active.
+ * - `ADMIN` role never requests hidden module endpoints (`PLAYERS`, `COURTS`, `BOOKINGS`, `TRAINING`, `STORE`, `SHEETS`, etc.).
  */
 export function useAdminData(
   activeModule: AdminTabId = 'OVERVIEW',
@@ -79,137 +81,211 @@ export function useAdminData(
   const [overviewSummary, setOverviewSummary] = useState<AdminOverviewSummary | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const loadedLazyScopesRef = useRef<Set<'COURTS' | 'SHEETS' | 'STORE' | 'TOURNAMENTS'>>(new Set());
+  const [loadedScopes, setLoadedScopes] = useState<Set<AdminTabId>>(() => new Set());
+  const loadedScopesRef = useRef<Set<AdminTabId>>(new Set());
+  const inflightScopesRef = useRef<Set<AdminTabId>>(new Set());
 
-  const fetchLazyScope = useCallback(
-    async (scope: 'COURTS' | 'SHEETS' | 'STORE' | 'TOURNAMENTS') => {
-      if (!isSuperAdmin && scope !== 'TOURNAMENTS') return;
+  const markScopeLoaded = useCallback((scope: AdminTabId) => {
+    loadedScopesRef.current.add(scope);
+    setLoadedScopes(new Set(loadedScopesRef.current));
+  }, []);
+
+  const fetchScopeData = useCallback(
+    async (scope: AdminTabId, force: boolean = false) => {
+      if (scope === 'OVERVIEW' || scope === 'USERS') return;
+      if (!isSuperAdmin && !ADMIN_PERMITTED_DATA_TABS.has(scope)) return;
+      if (!force && (loadedScopesRef.current.has(scope) || inflightScopesRef.current.has(scope))) return;
+
+      inflightScopesRef.current.add(scope);
       try {
-        if (scope === 'COURTS') {
-          const cs = await courtService.getClosedSlots();
-          setClosedSlots(Array.isArray(cs) ? cs : []);
-        } else if (scope === 'SHEETS') {
-          const s = await sheetsService.getSheetsData();
-          setSheetsData(s || null);
-        } else if (scope === 'STORE') {
-          const [products, orders] = await Promise.all([
-            storeService.getProducts(),
-            storeService.getOrders(),
-          ]);
-          setStoreProducts(Array.isArray(products) ? products : []);
-          setStoreOrders(Array.isArray(orders) ? orders : []);
-        } else if (scope === 'TOURNAMENTS') {
-          const tours = await tournamentService.getTournaments({ adminMode: true });
-          setTournamentsList(Array.isArray(tours) ? tours : []);
+        switch (scope) {
+          case 'APPLICATIONS': {
+            const apps = await memberService.getApplications();
+            setApplications(Array.isArray(apps) ? apps : []);
+            break;
+          }
+          case 'NEWS': {
+            const posts = await newsService.getNews({ adminMode: true });
+            setNewsList(Array.isArray(posts) ? posts : []);
+            break;
+          }
+          case 'TOURNAMENTS': {
+            const tours = await tournamentService.getTournaments({ adminMode: true });
+            setTournamentsList(Array.isArray(tours) ? tours : []);
+            break;
+          }
+          case 'PLAYERS': {
+            const rows = await playerService.getPlayers({ adminMode: true });
+            setPlayers(Array.isArray(rows) ? rows : []);
+            break;
+          }
+          case 'COACHES': {
+            const rows = await coachService.getCoaches({ adminMode: true });
+            setCoachesList(Array.isArray(rows) ? rows : []);
+            break;
+          }
+          case 'TRAINING': {
+            const [courses, regs] = await Promise.all([
+              trainingService.getCourses({ adminMode: true }),
+              trainingService.getRegistrations(),
+            ]);
+            setCoursesList(Array.isArray(courses) ? courses : []);
+            setTrainingRegs(Array.isArray(regs) ? regs : []);
+            break;
+          }
+          case 'COURTS': {
+            const [courts, slots] = await Promise.all([
+              courtService.getCourts({ adminMode: true }),
+              courtService.getClosedSlots(),
+            ]);
+            setCourtsList(normalizeActiveCourts(courts));
+            setClosedSlots(Array.isArray(slots) ? slots : []);
+            break;
+          }
+          case 'BOOKINGS': {
+            const [bookingRows, courts, slots] = await Promise.all([
+              bookingService.getBookings(),
+              courtService.getCourts({ adminMode: true }),
+              courtService.getClosedSlots(),
+            ]);
+            setBookings(Array.isArray(bookingRows) ? bookingRows : []);
+            setCourtsList(normalizeActiveCourts(courts));
+            setClosedSlots(Array.isArray(slots) ? slots : []);
+            break;
+          }
+          case 'STORE': {
+            const [products, orders] = await Promise.all([
+              storeService.getProducts(),
+              storeService.getOrders(),
+            ]);
+            setStoreProducts(Array.isArray(products) ? products : []);
+            setStoreOrders(Array.isArray(orders) ? orders : []);
+            break;
+          }
+          case 'SHEETS': {
+            const data = await sheetsService.getSheetsData();
+            setSheetsData(data || null);
+            break;
+          }
         }
-        loadedLazyScopesRef.current.add(scope);
+        markScopeLoaded(scope);
       } catch (e) {
-        console.error(`[useAdminData] Failed lazy-loading scope ${scope}:`, e);
+        console.error(`[useAdminData] Failed loading scope ${scope}:`, e);
+      } finally {
+        inflightScopesRef.current.delete(scope);
       }
     },
-    [isSuperAdmin]
+    [isSuperAdmin, markScopeLoaded]
   );
 
+  const loadOverviewOnly = useCallback(async () => {
+    const summary = await adminService.getOverviewSummary();
+    setOverviewSummary(summary || null);
+    markScopeLoaded('OVERVIEW');
+
+    if (!isSuperAdmin || summary?.restrictedFinance) {
+      // Strict RBAC cleanup: ADMIN never retains financial or hidden-tab records
+      setBookings([]);
+      setTrainingRegs([]);
+      setCoursesList([]);
+      setCoachesList([]);
+      setPlayers([]);
+      setCourtsList([]);
+      setClosedSlots([]);
+      setStoreProducts([]);
+      setStoreOrders([]);
+      setGuestSessions([]);
+      setSheetsData(null);
+      setTournamentsSummary([]);
+      return;
+    }
+
+    if (summary) {
+      if (!loadedScopesRef.current.has('BOOKINGS') && Array.isArray(summary.recentBookings)) {
+        setBookings(summary.recentBookings);
+      }
+      if (!loadedScopesRef.current.has('TRAINING') && Array.isArray(summary.recentTrainingRegs)) {
+        setTrainingRegs(summary.recentTrainingRegs);
+      }
+      if (Array.isArray(summary.guestSessions)) {
+        setGuestSessions(summary.guestSessions);
+      }
+    }
+  }, [isSuperAdmin, markScopeLoaded]);
+
+  // Refresh overview + ONLY currently visited permitted scopes (never pre-loads unvisited tabs)
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      if (!isSuperAdmin) {
-        // Strict RBAC: ADMIN only loads PII-free summary, stripped applications, news, and tournament summary.
-        // Never fetches bookings, store orders, guest sessions, training registrations, or sheets data.
-        const [summary, a, n, fetchedTournamentSummary] = await Promise.all([
-          adminService.getOverviewSummary(),
-          memberService.getApplications(),
-          newsService.getNews(),
-          tournamentService.getFinanceSummary(),
-        ]);
-        setOverviewSummary(summary || null);
-        setApplications(Array.isArray(a) ? a : []);
-        setNewsList(Array.isArray(n) ? n : []);
-        setTournamentsSummary(Array.isArray(fetchedTournamentSummary) ? fetchedTournamentSummary : []);
-        setBookings([]);
-        setTrainingRegs([]);
-        setStoreOrders([]);
-        setGuestSessions([]);
-        setSheetsData(null);
+      await loadOverviewOnly();
 
-        if (loadedLazyScopesRef.current.has('TOURNAMENTS')) {
-          await fetchLazyScope('TOURNAMENTS');
+      const scopesToRefresh = new Set<AdminTabId>();
+      if (activeModule !== 'OVERVIEW' && (isSuperAdmin || ADMIN_PERMITTED_DATA_TABS.has(activeModule))) {
+        scopesToRefresh.add(activeModule);
+      }
+      for (const s of loadedScopesRef.current) {
+        if (s !== 'OVERVIEW' && (isSuperAdmin || ADMIN_PERMITTED_DATA_TABS.has(s))) {
+          scopesToRefresh.add(s);
         }
-        return;
       }
 
-      const [b, a, t, p, n, courses, coaches, fetchedCourts, fetchedProducts, fetchedOrders, fetchedGuestSessions, fetchedTournamentSummary] = await Promise.all([
-        bookingService.getBookings(),
-        memberService.getApplications(),
-        trainingService.getRegistrations(),
-        playerService.getPlayers(),
-        newsService.getNews(),
-        trainingService.getCourses(),
-        coachService.getCoaches(),
-        courtService.getCourts(),
-        storeService.getProducts(),
-        storeService.getOrders(),
-        adminService.getGuestSessions(),
-        tournamentService.getFinanceSummary(),
-      ]);
-      setOverviewSummary(null);
-      setBookings(Array.isArray(b) ? b : []);
-      setApplications(Array.isArray(a) ? a : []);
-      setTrainingRegs(Array.isArray(t) ? t : []);
-      setPlayers(Array.isArray(p) ? p : []);
-      setNewsList(Array.isArray(n) ? n : []);
-      setCoursesList(Array.isArray(courses) ? courses : []);
-      setCoachesList(Array.isArray(coaches) ? coaches : []);
-      setCourtsList(normalizeActiveCourts(fetchedCourts));
-      setStoreProducts(Array.isArray(fetchedProducts) ? fetchedProducts : []);
-      setStoreOrders(Array.isArray(fetchedOrders) ? fetchedOrders : []);
-      setGuestSessions(Array.isArray(fetchedGuestSessions) ? fetchedGuestSessions : []);
-      setTournamentsSummary(Array.isArray(fetchedTournamentSummary) ? fetchedTournamentSummary : []);
-      loadedLazyScopesRef.current.add('STORE');
-
-      // Also refresh any lazy scopes that have already been visited
-      const activeLazyScopes = Array.from(loadedLazyScopesRef.current).filter((s) => s !== 'STORE');
-      if (activeLazyScopes.length > 0) {
-        await Promise.all(activeLazyScopes.map((scope) => fetchLazyScope(scope)));
+      if (scopesToRefresh.size > 0) {
+        await Promise.all(Array.from(scopesToRefresh).map((s) => fetchScopeData(s, true)));
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [fetchLazyScope, isSuperAdmin]);
+  }, [activeModule, fetchScopeData, isSuperAdmin, loadOverviewOnly]);
 
+  // Initial Hub mount / role transition: load ONLY overview summary (+ active deep-linked tab if any)
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    loadedScopesRef.current.clear();
+    setLoadedScopes(new Set());
 
-  // Lazy-fetch tab-specific datasets only when the Admin visits that module
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        await loadOverviewOnly();
+        if (!cancelled && activeModule !== 'OVERVIEW') {
+          await fetchScopeData(activeModule, false);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally triggered only on role / mount; tab switches below trigger lazy loading
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuperAdmin]);
+
+  // Lazy-fetch exact dataset whenever the user switches to a new tab
   useEffect(() => {
-    if (
-      isSuperAdmin &&
-      (activeModule === 'COURTS' || activeModule === 'BOOKINGS') &&
-      !loadedLazyScopesRef.current.has('COURTS')
-    ) {
-      fetchLazyScope('COURTS');
-    } else if (
-      isSuperAdmin &&
-      activeModule === 'SHEETS' &&
-      !loadedLazyScopesRef.current.has('SHEETS')
-    ) {
-      fetchLazyScope('SHEETS');
-    } else if (
-      isSuperAdmin &&
-      activeModule === 'STORE' &&
-      !loadedLazyScopesRef.current.has('STORE')
-    ) {
-      fetchLazyScope('STORE');
-    } else if (
-      activeModule === 'TOURNAMENTS' &&
-      !loadedLazyScopesRef.current.has('TOURNAMENTS')
-    ) {
-      fetchLazyScope('TOURNAMENTS');
-    }
-  }, [activeModule, fetchLazyScope, isSuperAdmin]);
+    if (activeModule === 'OVERVIEW' || activeModule === 'USERS') return;
+    if (!isSuperAdmin && !ADMIN_PERMITTED_DATA_TABS.has(activeModule)) return;
+    if (loadedScopesRef.current.has(activeModule)) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        await fetchScopeData(activeModule, false);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeModule, fetchScopeData, isSuperAdmin]);
 
   return {
     loading,
@@ -231,6 +307,7 @@ export function useAdminData(
       tournamentsSummary,
       tournamentsList,
       overviewSummary,
+      loadedScopes,
     },
     setData: {
       setBookings,

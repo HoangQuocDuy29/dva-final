@@ -170,9 +170,19 @@ export const formatTrainingTransferContent = (
 
 export const TrainingPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [courses, setCourses] = useState<TrainingCourse[]>([]);
-  const [coaches, setCoaches] = useState<CoachProfile[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [initialCoursesCache] = useState(() => trainingService.getCachedCourses());
+  const [initialCoachesCache] = useState(() => coachService.getCachedCoaches());
+  const [courses, setCourses] = useState<TrainingCourse[]>(() =>
+    initialCoursesCache
+      ? initialCoursesCache.data.filter((c) => c.isActive !== false).map(normalizeCoursePublicData)
+      : []
+  );
+  const [coaches, setCoaches] = useState<CoachProfile[]>(() =>
+    initialCoachesCache ? initialCoachesCache.data : []
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(
+    () => !(initialCoursesCache && initialCoachesCache)
+  );
   const [detailCourse, setDetailCourse] = useState<TrainingCourse | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<TrainingCourse | null>(null);
   const [levelFilter, setLevelFilter] = useState<TrainingLevelFilter>('ALL');
@@ -237,10 +247,14 @@ export const TrainingPage: React.FC = () => {
   const [unavailableNotice, setUnavailableNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsLoading(true);
+    const coursesNeedsFetch = !initialCoursesCache || initialCoursesCache.isStale;
+    const coachesNeedsFetch = !initialCoachesCache || initialCoachesCache.isStale;
+    if (!coursesNeedsFetch && !coachesNeedsFetch) return;
+    if (!initialCoursesCache || !initialCoachesCache) setIsLoading(true);
+
     Promise.all([
-      trainingService.getCourses(),
-      coachService.getCoaches(),
+      trainingService.getCourses({ forceRefresh: Boolean(initialCoursesCache?.isStale) }),
+      coachService.getCoaches({ forceRefresh: Boolean(initialCoachesCache?.isStale) }),
     ])
       .then(([courseRes, coachRes]) => {
         const normalizedCourses = Array.isArray(courseRes)
@@ -251,8 +265,8 @@ export const TrainingPage: React.FC = () => {
       })
       .catch((err) => {
         console.error('[TrainingPage] Error loading training data:', err);
-        setCourses([]);
-        setCoaches([]);
+        if (!initialCoursesCache) setCourses([]);
+        if (!initialCoachesCache) setCoaches([]);
       })
       .finally(() => {
         setIsLoading(false);

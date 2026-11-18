@@ -78,6 +78,7 @@ export interface AdminDataState {
   tournamentsSummary: TournamentFinanceSummary[];
   tournamentsList: Tournament[];
   overviewSummary: AdminOverviewSummary | null;
+  loadedScopes: ReadonlySet<AdminTabId>;
 }
 
 export interface AdminDataSetters {

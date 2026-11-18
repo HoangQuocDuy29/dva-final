@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import { User as UserType } from '../../types';
@@ -9,19 +9,30 @@ import {
 import { AdminHeader } from './layout/AdminHeader';
 import { AdminSidebar } from './layout/AdminSidebar';
 import { FeedbackBanner } from './layout/FeedbackBanner';
-import { GuestSessionEmailModal } from './components/GuestSessionEmailModal';
 import { OverviewTab } from './tabs/OverviewTab';
-import { CourtsTab } from './tabs/CourtsTab';
-import { BookingsTab } from './tabs/BookingsTab';
-import { ApplicationsTab } from './tabs/ApplicationsTab';
-import { PlayersTab } from './tabs/PlayersTab';
-import { TrainingTab } from './tabs/TrainingTab';
-import { CoachesTab } from './tabs/CoachesTab';
-import { NewsTab } from './tabs/NewsTab';
-import { UsersTab } from './tabs/UsersTab';
-import { SheetsTab } from './tabs/SheetsTab';
-import { StoreTab } from './tabs/StoreTab';
-import { TournamentsTab } from './tabs/TournamentsTab';
+
+// Code-split heavy Admin Hub tabs & modals so initial Overview bundle stays lightweight
+const GuestSessionEmailModal = lazy(() =>
+  import('./components/GuestSessionEmailModal').then((m) => ({ default: m.GuestSessionEmailModal }))
+);
+const CourtsTab = lazy(() => import('./tabs/CourtsTab').then((m) => ({ default: m.CourtsTab })));
+const BookingsTab = lazy(() => import('./tabs/BookingsTab').then((m) => ({ default: m.BookingsTab })));
+const ApplicationsTab = lazy(() => import('./tabs/ApplicationsTab').then((m) => ({ default: m.ApplicationsTab })));
+const PlayersTab = lazy(() => import('./tabs/PlayersTab').then((m) => ({ default: m.PlayersTab })));
+const TrainingTab = lazy(() => import('./tabs/TrainingTab').then((m) => ({ default: m.TrainingTab })));
+const CoachesTab = lazy(() => import('./tabs/CoachesTab').then((m) => ({ default: m.CoachesTab })));
+const NewsTab = lazy(() => import('./tabs/NewsTab').then((m) => ({ default: m.NewsTab })));
+const UsersTab = lazy(() => import('./tabs/UsersTab').then((m) => ({ default: m.UsersTab })));
+const SheetsTab = lazy(() => import('./tabs/SheetsTab').then((m) => ({ default: m.SheetsTab })));
+const StoreTab = lazy(() => import('./tabs/StoreTab').then((m) => ({ default: m.StoreTab })));
+const TournamentsTab = lazy(() => import('./tabs/TournamentsTab').then((m) => ({ default: m.TournamentsTab })));
+
+const AdminTabLoadingFallback: React.FC = () => (
+  <div className="min-h-[320px] rounded-3xl bg-[#111827] border border-[#1E293B] flex flex-col items-center justify-center gap-3 text-slate-400">
+    <div className="w-8 h-8 rounded-full border-2 border-slate-700 border-t-orange-500 animate-spin" />
+    <span className="text-xs font-semibold tracking-wide">Loading workspace module...</span>
+  </div>
+);
 
 export interface AdminDashboardPageProps {
   currentUser: UserType;
@@ -79,43 +90,50 @@ const AdminDashboardShell: React.FC = () => {
           {/* MODULE 1: OVERVIEW & METRICS */}
           {activeModule === 'OVERVIEW' && <OverviewTab />}
 
-          {/* MODULE 2: COURTS CRUD, WEEKLY SCHEDULE & LIVE SLOT LOCK MANAGEMENT */}
-          {activeModule === 'COURTS' && isSuperAdmin && <CourtsTab />}
+          {/* SECONDARY MODULES (Lazy-Loaded & Suspense-Wrapped) */}
+          <Suspense fallback={<AdminTabLoadingFallback />}>
+            {/* MODULE 2: COURTS CRUD, WEEKLY SCHEDULE & LIVE SLOT LOCK MANAGEMENT */}
+            {activeModule === 'COURTS' && isSuperAdmin && <CourtsTab />}
 
-          {/* MODULE 3: COURT BOOKINGS & PAYMENT APPROVAL */}
-          {activeModule === 'BOOKINGS' && isSuperAdmin && <BookingsTab />}
+            {/* MODULE 3: COURT BOOKINGS & PAYMENT APPROVAL */}
+            {activeModule === 'BOOKINGS' && isSuperAdmin && <BookingsTab />}
 
-          {/* MODULE 4: MEMBER APPLICATIONS & AUTO-PLAYER PROMOTION */}
-          {activeModule === 'APPLICATIONS' && <ApplicationsTab />}
+            {/* MODULE 4: MEMBER APPLICATIONS & AUTO-PLAYER PROMOTION */}
+            {activeModule === 'APPLICATIONS' && <ApplicationsTab />}
 
-          {/* MODULE 5: SQUAD ROSTER CRUD WITH SEARCH */}
-          {activeModule === 'PLAYERS' && isSuperAdmin && <PlayersTab />}
+            {/* MODULE 5: SQUAD ROSTER CRUD WITH SEARCH */}
+            {activeModule === 'PLAYERS' && isSuperAdmin && <PlayersTab />}
 
-          {/* MODULE 6: ACADEMY COURSES & SCRIMMAGE TRAINEES */}
-          {activeModule === 'TRAINING' && isSuperAdmin && <TrainingTab />}
+            {/* MODULE 6: ACADEMY COURSES & SCRIMMAGE TRAINEES */}
+            {activeModule === 'TRAINING' && isSuperAdmin && <TrainingTab />}
 
-          {/* MODULE 7: COACHING STAFF MANAGEMENT */}
-          {activeModule === 'COACHES' && isSuperAdmin && <CoachesTab />}
+            {/* MODULE 7: COACHING STAFF MANAGEMENT */}
+            {activeModule === 'COACHES' && isSuperAdmin && <CoachesTab />}
 
-          {/* MODULE 8: NEWS & STORY PUBLISHING */}
-          {activeModule === 'NEWS' && <NewsTab />}
+            {/* MODULE 8: NEWS & STORY PUBLISHING */}
+            {activeModule === 'NEWS' && <NewsTab />}
 
-          {/* MODULE 9: USER ACCOUNT MANAGEMENT (SUPERADMIN only) */}
-          {activeModule === 'USERS' && isSuperAdmin && <UsersTab />}
+            {/* MODULE 9: USER ACCOUNT MANAGEMENT (SUPERADMIN only) */}
+            {activeModule === 'USERS' && isSuperAdmin && <UsersTab />}
 
-          {/* MODULE 10: GOOGLE SHEETS LIVE SYNC INSPECTOR */}
-          {activeModule === 'SHEETS' && isSuperAdmin && <SheetsTab onOpenSheets={onOpenSheets} />}
+            {/* MODULE 10: GOOGLE SHEETS LIVE SYNC INSPECTOR */}
+            {activeModule === 'SHEETS' && isSuperAdmin && <SheetsTab onOpenSheets={onOpenSheets} />}
 
-          {/* MODULE 11: DVA STORE (Phase 2 placeholder) */}
-          {activeModule === 'STORE' && isSuperAdmin && <StoreTab />}
+            {/* MODULE 11: DVA STORE */}
+            {activeModule === 'STORE' && isSuperAdmin && <StoreTab />}
 
-          {/* MODULE 12: TOURNAMENTS (Coming Soon) */}
-          {activeModule === 'TOURNAMENTS' && <TournamentsTab />}
+            {/* MODULE 12: TOURNAMENTS */}
+            {activeModule === 'TOURNAMENTS' && <TournamentsTab />}
+          </Suspense>
         </main>
       </div>
 
       {/* GUEST SESSION EMAIL MODAL */}
-      {isSuperAdmin && <GuestSessionEmailModal />}
+      {isSuperAdmin && (
+        <Suspense fallback={null}>
+          <GuestSessionEmailModal />
+        </Suspense>
+      )}
     </div>
   );
 };

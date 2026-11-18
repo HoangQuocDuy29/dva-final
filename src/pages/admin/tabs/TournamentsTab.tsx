@@ -156,26 +156,56 @@ export const TournamentsTab: React.FC = () => {
     notify(`Copied link: ${full}`);
   };
 
-  const kpis = [
-    {
-      icon: Wallet,
-      label: 'Verified Hosted Fees (PAID)',
-      value: `${metrics.tournamentRevenue.toLocaleString('vi-VN')} đ`,
-      tone: 'text-[#EC4899]',
-    },
-    {
-      icon: Users,
-      label: 'Pending Team Verifications',
-      value: `${metrics.pendingTournamentFeesCount} Teams`,
-      tone: 'text-amber-400',
-    },
-    {
-      icon: Trophy,
-      label: 'Total Tournaments',
-      value: `${tournamentsList.length} (${metrics.hostedTournamentsCount} Hosted)`,
-      tone: 'text-[#38BDF8]',
-    },
-  ];
+  const totalTeamsAcrossTournaments = useMemo(
+    () => tournamentsList.reduce((sum, t) => sum + (t.teams?.length || 0), 0),
+    [tournamentsList]
+  );
+  const totalMatchesAcrossTournaments = useMemo(
+    () => tournamentsList.reduce((sum, t) => sum + (t.matches?.length || 0), 0),
+    [tournamentsList]
+  );
+
+  const kpis = readOnly
+    ? [
+        {
+          icon: Trophy,
+          label: 'Total Tournaments',
+          value: `${tournamentsList.length} (${metrics.hostedTournamentsCount} Hosted)`,
+          tone: 'text-[#38BDF8]',
+        },
+        {
+          icon: Users,
+          label: 'Participating Teams',
+          value: `${totalTeamsAcrossTournaments} Teams`,
+          tone: 'text-[#EC4899]',
+        },
+        {
+          icon: Trophy,
+          label: 'Scheduled / Live Matches',
+          value: `${totalMatchesAcrossTournaments} Matches`,
+          tone: 'text-emerald-400',
+        },
+      ]
+    : [
+        {
+          icon: Wallet,
+          label: 'Verified Hosted Fees (PAID)',
+          value: `${metrics.tournamentRevenue.toLocaleString('vi-VN')} đ`,
+          tone: 'text-[#EC4899]',
+        },
+        {
+          icon: Users,
+          label: 'Pending Team Verifications',
+          value: `${metrics.pendingTournamentFeesCount} Teams`,
+          tone: 'text-amber-400',
+        },
+        {
+          icon: Trophy,
+          label: 'Total Tournaments',
+          value: `${tournamentsList.length} (${metrics.hostedTournamentsCount} Hosted)`,
+          tone: 'text-[#38BDF8]',
+        },
+      ];
 
   return (
     <div className="space-y-6">
@@ -324,7 +354,7 @@ export const TournamentsTab: React.FC = () => {
                   <div className="text-xs text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span>{formatTournamentScheduleDisplay(selectedTournament)}</span>
                     <span>· {selectedTournament.location}</span>
-                    {selectedTournament.mode === 'HOSTED' && (
+                    {!readOnly && selectedTournament.mode === 'HOSTED' && (
                       <span className="font-mono text-[#FACC15] font-bold">
                         · Fee: {selectedTournament.entryFeePerTeam.toLocaleString('vi-VN')} đ/team
                       </span>
@@ -342,7 +372,7 @@ export const TournamentsTab: React.FC = () => {
                         </span>
                       );
                     })()}
-                    {selectedTournament.internalExpenseNote && (
+                    {!readOnly && selectedTournament.internalExpenseNote && (
                       <span className="text-sky-300">· Note: {selectedTournament.internalExpenseNote}</span>
                     )}
                   </div>

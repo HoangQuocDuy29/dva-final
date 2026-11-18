@@ -348,29 +348,44 @@ export interface AdminOverviewMonthlyPoint {
 }
 
 export interface AdminOverviewSummary {
-  totalBookingsCount: number;
-  paidBookingsCount: number;
-  pendingBookingsCount: number;
-  totalStoreOrdersCount: number;
-  paidStoreOrdersCount: number;
-  pendingStoreOrdersCount: number;
-  totalGuestSessionsCount: number;
-  paidGuestSessionsCount: number;
-  pendingGuestSessionsCount: number;
-  totalTrainingRegsCount: number;
-  confirmedTrainingCount: number;
-  pendingTrainingCount: number;
+  restrictedFinance?: boolean;
+  totalBookingsCount?: number;
+  paidBookingsCount?: number;
+  pendingBookingsCount?: number;
+  totalStoreOrdersCount?: number;
+  paidStoreOrdersCount?: number;
+  pendingStoreOrdersCount?: number;
+  totalGuestSessionsCount?: number;
+  paidGuestSessionsCount?: number;
+  pendingGuestSessionsCount?: number;
+  totalTrainingRegsCount?: number;
+  confirmedTrainingCount?: number;
+  pendingTrainingCount?: number;
   playersCount: number;
   activePlayersCount: number;
   coursesCount: number;
   coachesCount: number;
   newsCount: number;
-  storeProductsCount: number;
-  courtRevenue: number;
-  trainingRevenue: number;
-  storeRevenue: number;
-  guestSessionRevenue: number;
-  monthlyRevenue: AdminOverviewMonthlyPoint[];
+  storeProductsCount?: number;
+  tournamentsCount?: number;
+  hostedTournamentsCount?: number;
+  paidTournamentTeamsCount?: number;
+  pendingTournamentFeesCount?: number;
+  applicationsCount?: number;
+  pendingApplicationsCount?: number;
+  scheduledApplicationsCount?: number;
+  approvedTryoutsCount?: number;
+  paidTryoutsCount?: number;
+  courtRevenue?: number;
+  trainingRevenue?: number;
+  storeRevenue?: number;
+  guestSessionRevenue?: number;
+  tryoutRevenue?: number;
+  tournamentRevenue?: number;
+  monthlyRevenue?: AdminOverviewMonthlyPoint[];
+  recentBookings?: Booking[];
+  recentTrainingRegs?: TrainingRegistration[];
+  guestSessions?: GuestSessionRecord[];
 }
 
 export type NewsCategoryId =

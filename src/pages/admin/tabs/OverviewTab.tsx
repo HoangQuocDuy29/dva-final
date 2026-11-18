@@ -8,6 +8,9 @@ import {
   Ticket,
   UserCheck,
   Trophy,
+  Newspaper,
+  Shield,
+  Users,
 } from 'lucide-react';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { useAdminMetrics } from '../hooks/useAdminMetrics';
@@ -19,7 +22,7 @@ export const OverviewTab: React.FC = () => {
   const {
     isSuperAdmin,
     setActiveModule,
-    data: { bookings, trainingRegs, applications },
+    data: { bookings, trainingRegs },
   } = useAdminDashboard();
   const {
     totalClubRevenue,
@@ -34,14 +37,107 @@ export const OverviewTab: React.FC = () => {
     paidGuestSessionsCount,
     approvedTryoutsCount,
     paidTryoutsCount,
+    pendingApplicationsCount,
+    scheduledApplicationsCount,
+    applicationsCount,
     paidTournamentTeamsCount,
+    tournamentsCount,
     hostedTournamentsCount,
+    playersCount,
+    activePlayersCount,
+    newsCount,
     confirmedTrainingCount,
     totalBookingsCount,
     storeOrdersCount,
     guestSessionsCount,
     totalTrainingRegsCount,
   } = useAdminMetrics();
+
+  if (!isSuperAdmin) {
+    const opsCards = [
+      {
+        title: 'Tryout Applications',
+        value: `${pendingApplicationsCount} Pending`,
+        subtitle: `${scheduledApplicationsCount} scheduled · ${approvedTryoutsCount} approved (${applicationsCount} total)`,
+        icon: UserCheck,
+        accent: 'text-emerald-400',
+        border: 'hover:border-emerald-500/40',
+        onClick: () => setActiveModule('APPLICATIONS'),
+      },
+      {
+        title: 'Tournaments & Leagues',
+        value: `${tournamentsCount} Cups`,
+        subtitle: `${hostedTournamentsCount} hosted by DVA · View standings, rosters & brackets`,
+        icon: Trophy,
+        accent: 'text-[#EC4899]',
+        border: 'hover:border-pink-500/40',
+        onClick: () => setActiveModule('TOURNAMENTS'),
+      },
+      {
+        title: 'News & Media Stories',
+        value: `${newsCount} Articles`,
+        subtitle: 'Publish club announcements, match reports & training recaps',
+        icon: Newspaper,
+        accent: 'text-[#38BDF8]',
+        border: 'hover:border-sky-500/40',
+        onClick: () => setActiveModule('NEWS'),
+      },
+      {
+        title: 'Active Squad Athletes',
+        value: `${activePlayersCount} Active`,
+        subtitle: `${playersCount} total roster members across Senior, Junior & Youth`,
+        icon: Users,
+        accent: 'text-[#F97316]',
+        border: 'border-[#1E293B]',
+        onClick: undefined,
+      },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-sky-950/60 border border-sky-800/60 flex items-center justify-center shrink-0">
+              <Shield className="w-5 h-5 text-sky-400" />
+            </div>
+            <div>
+              <h2 className="font-heading font-black text-lg text-white">Club Operations Overview</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Signed in as <strong className="text-sky-300">ADMIN</strong>. Access is scoped to Tryout Evaluations,
+                News &amp; Media publishing, and Read-Only Tournament brackets/rosters (financial &amp; PII fields hidden).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {opsCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <button
+                key={card.title}
+                type="button"
+                disabled={!card.onClick}
+                onClick={card.onClick}
+                className={`text-left rounded-3xl bg-[#111827] border border-[#1E293B] p-5 space-y-2 transition-all ${
+                  card.onClick ? `${card.border} hover:bg-[#161F30] cursor-pointer` : 'cursor-default opacity-90'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-400">{card.title}</span>
+                  <Icon className={`w-4 h-4 ${card.accent}`} />
+                </div>
+                <div className={`font-mono font-black text-2xl tabular-nums ${card.accent}`}>
+                  {card.value}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">{card.subtitle}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   const guestSessionsPanelRef = useRef<HTMLDivElement>(null);
   const jumpToGuestSessions = () => {
@@ -106,7 +202,7 @@ export const OverviewTab: React.FC = () => {
       label: 'Tryout Fees',
       revenue: tryoutRevenue,
       pct: tryoutSharePct,
-      volume: `${paidTryoutsCount} paid · ${approvedTryoutsCount} approved / ${applications.length} apps`,
+      volume: `${paidTryoutsCount} paid · ${approvedTryoutsCount} approved / ${applicationsCount} apps`,
       color: 'bg-[#10B981]',
       textColor: 'text-[#10B981]',
       onClick: () => setActiveModule('APPLICATIONS'),

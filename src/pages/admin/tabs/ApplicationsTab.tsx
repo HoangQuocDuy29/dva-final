@@ -504,19 +504,29 @@ export const ApplicationsTab: React.FC = () => {
                             </span>
                           )}
 
-                          <span
-                            className={`font-mono text-[11px] font-bold whitespace-nowrap tabular-nums ${
-                              payStatus === 'FREE'
-                                ? 'text-sky-300'
+                          {isSuperAdmin ? (
+                            <span
+                              className={`font-mono text-[11px] font-bold whitespace-nowrap tabular-nums ${
+                                payStatus === 'FREE'
+                                  ? 'text-sky-300'
+                                  : payStatus === 'PAID'
+                                    ? 'text-emerald-400'
+                                    : 'text-slate-400'
+                              }`}
+                            >
+                              {payStatus === 'FREE'
+                                ? '0 đ · FREE (Waived)'
+                                : `${fee.toLocaleString('vi-VN')} đ`}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-slate-500 whitespace-nowrap">
+                              {payStatus === 'FREE'
+                                ? 'Waived'
                                 : payStatus === 'PAID'
-                                  ? 'text-emerald-400'
-                                  : 'text-slate-400'
-                            }`}
-                          >
-                            {payStatus === 'FREE'
-                              ? '0 đ · FREE (Waived)'
-                              : `${fee.toLocaleString('vi-VN')} đ`}
-                          </span>
+                                  ? 'Fee Verified'
+                                  : 'Awaiting Verification'}
+                            </span>
+                          )}
                         </div>
                       </td>
 

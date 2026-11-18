@@ -3,8 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { AuthModal } from './components/auth/AuthModal';
-import { GoogleSheetsViewerModal } from './components/common/GoogleSheetsViewerModal';
 import { HomePage } from './pages/HomePage';
+
+const GoogleSheetsViewerModal = lazy(() =>
+  import('./components/common/GoogleSheetsViewerModal').then((m) => ({ default: m.GoogleSheetsViewerModal }))
+);
 import { authService } from './services/api';
 import { User } from './types';
 import { BackToTop } from './components/common/BackToTop';
@@ -163,11 +166,15 @@ export default function App() {
           onSuccess={handleUserChange}
         />
 
-        {/* Google Sheets Live Multi-Tab Viewer (Accessed via Admin Workspace) */}
-        <GoogleSheetsViewerModal
-          isOpen={sheetsModalOpen}
-          onClose={() => setSheetsModalOpen(false)}
-        />
+        {/* Google Sheets Live Multi-Tab Viewer (Lazy-loaded on demand) */}
+        {sheetsModalOpen && (
+          <Suspense fallback={null}>
+            <GoogleSheetsViewerModal
+              isOpen={sheetsModalOpen}
+              onClose={() => setSheetsModalOpen(false)}
+            />
+          </Suspense>
+        )}
 
         {/* Floating Back to Top Button */}
         <BackToTop />

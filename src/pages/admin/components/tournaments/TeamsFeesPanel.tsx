@@ -587,9 +587,9 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
               <tr className="bg-[#0B0F19] text-slate-400 font-bold border-b border-[#1E293B]">
                 <th className="py-3 px-4">Team</th>
                 <th className="py-3 px-3">Pool / Seed</th>
-                <th className="py-3 px-3">Captain Contact</th>
+                <th className="py-3 px-3">{readOnly ? 'Captain' : 'Captain Contact'}</th>
                 <th className="py-3 px-3">Roster</th>
-                {isHosted && <th className="py-3 px-3">Entry Fee &amp; VietQR</th>}
+                {isHosted && !readOnly && <th className="py-3 px-3">Entry Fee &amp; VietQR</th>}
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -745,7 +745,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                       )}
                     </td>
 
-                    {isHosted && (
+                    {isHosted && !readOnly && (
                       <td className="py-3 px-3 space-y-1">
                         <div className="flex items-center gap-2">
                           <span

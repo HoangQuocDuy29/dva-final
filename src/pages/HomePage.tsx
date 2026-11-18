@@ -15,7 +15,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Court, Player, NewsPost } from '../types';
-import { courtService, playerService, newsService } from '../services/api';
+import { homeService } from '../services/api';
 import { formatEnglishDate } from '../utils/date';
 
 interface LeadershipMember {
@@ -143,10 +143,11 @@ const LeadershipCard: React.FC<{ member: LeadershipMember }> = ({ member }) => (
 );
 
 export const HomePage: React.FC = () => {
-  const [courts, setCourts] = useState<Court[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [news, setNews] = useState<NewsPost[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [initialCache] = useState(() => homeService.getCachedSummary());
+  const [courts, setCourts] = useState<Court[]>(() => initialCache?.data.courts ?? []);
+  const [players, setPlayers] = useState<Player[]>(() => initialCache?.data.players ?? []);
+  const [news, setNews] = useState<NewsPost[]>(() => initialCache?.data.news ?? []);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !initialCache);
 
   // Leadership slider refs & state
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -328,16 +329,14 @@ export const HomePage: React.FC = () => {
   };
 
   useEffect(() => {
-    setIsLoading(true);
-    Promise.all([
-      courtService.getCourts(),
-      playerService.getPlayers(),
-      newsService.getNews(),
-    ])
-      .then(([courtsRes, playersRes, newsRes]) => {
-        setCourts(Array.isArray(courtsRes) ? courtsRes : []);
-        setPlayers(Array.isArray(playersRes) ? playersRes : []);
-        setNews(Array.isArray(newsRes) ? newsRes : []);
+    if (initialCache && !initialCache.isStale) return;
+    if (!initialCache) setIsLoading(true);
+    homeService
+      .getSummary({ forceRefresh: Boolean(initialCache?.isStale) })
+      .then((summary) => {
+        setCourts(summary.courts);
+        setPlayers(summary.players);
+        setNews(summary.news);
       })
       .catch((err) => {
         console.error('[HomePage] Error loading homepage data:', err);

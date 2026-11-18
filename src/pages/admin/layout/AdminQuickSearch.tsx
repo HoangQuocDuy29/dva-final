@@ -66,7 +66,7 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
   const {
     isSuperAdmin,
     setActiveModule,
-    data: { players, bookings, storeOrders, storeProducts, tournamentsSummary },
+    data: { players, bookings, storeOrders, storeProducts, tournamentsSummary, tournamentsList },
   } = useAdminDashboard();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -209,7 +209,8 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
           }))
       : [];
 
-    const matchedTournaments: QuickSearchResult[] = tournamentsSummary
+    const tourSource = tournamentsList.length > 0 ? tournamentsList : tournamentsSummary;
+    const matchedTournaments: QuickSearchResult[] = tourSource
       .filter(
         (t) =>
           (t.name || '').toLowerCase().includes(q) ||
@@ -232,7 +233,7 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
       ...matchedStoreOrders,
       ...matchedStoreProducts,
     ];
-  }, [query, isSuperAdmin, players, bookings, storeOrders, storeProducts, tournamentsSummary]);
+  }, [query, isSuperAdmin, players, bookings, storeOrders, storeProducts, tournamentsSummary, tournamentsList]);
 
   useEffect(() => setHighlight(0), [query]);
 
