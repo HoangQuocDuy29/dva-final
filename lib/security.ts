@@ -151,11 +151,12 @@ export const attachAuth: RequestHandler = async (req, _res, next) => {
 };
 
 export const isStaff = (user?: StoredUser) => !!user && (user.role === 'ADMIN' || user.role === 'SUPERADMIN');
+export const isSuperAdmin = (user?: StoredUser) => !!user && user.role === 'SUPERADMIN';
 
 type Rule = { method: string; path: RegExp };
 const rule = (method: string, path: RegExp): Rule => ({ method, path });
 
-// Anything not listed here requires ADMIN (default-deny).
+// Anything not listed here requires ADMIN or SUPERADMIN (default-deny).
 const PUBLIC_RULES: Rule[] = [
   rule('GET', /^\/players\/?$/),
   rule('GET', /^\/courts\/?$/),
@@ -163,7 +164,7 @@ const PUBLIC_RULES: Rule[] = [
   rule('GET', /^\/news(\/[^/]+)?\/?$/),
   rule('GET', /^\/coaches\/?$/),
   rule('GET', /^\/training\/courses\/?$/),
-  rule('GET', /^\/bookings\/?$/), // handler strips personal data for non-staff
+  rule('GET', /^\/bookings\/?$/), // handler strips personal data for non-SUPERADMIN
   rule('POST', /^\/auth\/login\/?$/),
   rule('POST', /^\/auth\/forgot-password\/?$/),
   rule('POST', /^\/auth\/verify-otp\/?$/),
@@ -184,13 +185,24 @@ const PUBLIC_RULES: Rule[] = [
   rule('POST', /^\/tournaments\/[^/]+\/teams\/[^/]+\/confirm-payment\/?$/),
 ];
 
-const SUPERADMIN_RULES: Rule[] = [
-  rule('GET', /^\/sheets\/config\/?$/),
-  rule('POST', /^\/sheets\/config\/?$/),
-  rule('GET', /^\/users\/?$/),
-  rule('POST', /^\/users\/?$/),
-  rule('PATCH', /^\/users\/[^/]+\/role\/?$/),
-  rule('DELETE', /^\/users\/[^/]+\/?$/),
+// Explicit allowlist for the restricted ADMIN role (default-deny for all other admin/delete routes).
+// SUPERADMIN has full access to all authenticated admin routes; ADMIN is strictly scoped to:
+//   1. Overview & Analytics (PII-free summary)
+//   2. Tournaments (Read-only GET)
+//   3. News & Media (Create/Update + Cloudinary sign; NO Delete)
+//   4. Tryout Applications (Contact-stripped GET, Scorecard Evaluation, Schedule/Result Email; NO Paid/Waive/Delete)
+const ADMIN_ALLOWED_RULES: Rule[] = [
+  rule('GET', /^\/admin\/overview-summary\/?$/),
+  rule('GET', /^\/admin\/tournaments\/finance-summary\/?$/),
+  rule('GET', /^\/members\/applications\/?$/),
+  rule('PATCH', /^\/members\/applications\/[^/]+\/status\/?$/),
+  rule('PATCH', /^\/members\/applications\/[^/]+\/evaluate\/?$/),
+  rule('PATCH', /^\/admin\/tryouts\/[^/]+\/evaluate\/?$/),
+  rule('POST', /^\/members\/applications\/[^/]+\/schedule-tryout\/?$/),
+  rule('POST', /^\/admin\/tryouts\/[^/]+\/send-email\/?$/),
+  rule('POST', /^\/news\/?$/),
+  rule('PUT', /^\/news\/[^/]+\/?$/),
+  rule('POST', /^\/cloudinary\/sign-upload\/?$/),
 ];
 
 const matches = (rules: Rule[], method: string, path: string) =>
@@ -205,11 +217,20 @@ export const apiAccessPolicy: RequestHandler = (req, res, next) => {
   if (!req.user) return void res.status(401).json({ error: 'Authentication required.' });
   if (req.path === '/auth/me') return next();
 
-  const required: UserRole = matches(SUPERADMIN_RULES, method, req.path) ? 'SUPERADMIN' : 'ADMIN';
   const role = req.user.role;
-  const allowed = required === 'SUPERADMIN' ? role === 'SUPERADMIN' : role === 'ADMIN' || role === 'SUPERADMIN';
-  if (!allowed) return void res.status(403).json({ error: 'You do not have permission to perform this action.' });
-  next();
+  if (role === 'SUPERADMIN') return next();
+
+  if (role === 'ADMIN') {
+    if (method === 'DELETE') {
+      return void res.status(403).json({ error: 'Delete operations are restricted to SUPERADMIN.' });
+    }
+    if (!matches(ADMIN_ALLOWED_RULES, method, req.path)) {
+      return void res.status(403).json({ error: 'You do not have permission to access this module.' });
+    }
+    return next();
+  }
+
+  return void res.status(403).json({ error: 'You do not have permission to perform this action.' });
 };
 
 // ----------------------------------------------------------- rate limiting

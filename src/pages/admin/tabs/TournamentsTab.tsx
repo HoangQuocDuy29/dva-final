@@ -57,10 +57,12 @@ function toFinanceSummary(t: Tournament): TournamentFinanceSummary {
 
 export const TournamentsTab: React.FC = () => {
   const {
+    isSuperAdmin,
     notify,
     data: { tournamentsList },
     setData: { setTournamentsList, setTournamentsSummary },
   } = useAdminDashboard();
+  const readOnly = !isSuperAdmin;
   const metrics = useAdminMetrics();
 
   const [selectedId, setSelectedId] = useState<string>('');
@@ -189,9 +191,16 @@ export const TournamentsTab: React.FC = () => {
               <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wide bg-emerald-950 text-emerald-400 border border-emerald-800">
                 Live &amp; VietQR
               </span>
+              {readOnly && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wide bg-amber-950/70 text-amber-300 border border-amber-700/60">
+                  Read-Only (ADMIN)
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-400">
-              Manage DVA Hosted cups, Away tournaments, VietQR entry fees, 2-court schedules &amp; courtside scoring.
+              {readOnly
+                ? 'View DVA Hosted cups, Away tournaments, standings, schedules & official rosters (edit actions restricted to SUPERADMIN).'
+                : 'Manage DVA Hosted cups, Away tournaments, VietQR entry fees, 2-court schedules & courtside scoring.'}
             </p>
           </div>
         </div>
@@ -205,17 +214,19 @@ export const TournamentsTab: React.FC = () => {
           >
             View Public /tournaments
           </a>
-          <button
-            type="button"
-            onClick={() => {
-              setEditingTournament(null);
-              setFormOpen(true);
-            }}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#8B0000] to-[#F97316] hover:brightness-110 text-white flex items-center gap-1.5 shadow cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Tournament</span>
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingTournament(null);
+                setFormOpen(true);
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#8B0000] to-[#F97316] hover:brightness-110 text-white flex items-center gap-1.5 shadow cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Tournament</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -348,7 +359,7 @@ export const TournamentsTab: React.FC = () => {
                     <span>Copy Rules Link</span>
                   </button>
 
-                  {selectedTournament.mode === 'HOSTED' && (
+                  {!readOnly && selectedTournament.mode === 'HOSTED' && (
                     <button
                       type="button"
                       onClick={() => handleToggleRegistration(selectedTournament)}
@@ -363,53 +374,61 @@ export const TournamentsTab: React.FC = () => {
                     </button>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => handleToggleRosterLock(selectedTournament)}
-                    className={`px-3 py-2 rounded-xl border font-bold inline-flex items-center gap-1.5 cursor-pointer ${
-                      selectedTournament.isRosterLocked
-                        ? 'bg-red-950/70 border-red-600 text-red-200'
-                        : 'bg-[#0B0F19] hover:bg-[#1E293B] border-[#1E293B] text-amber-300'
-                    }`}
-                    title="Lock official rosters before kickoff to block external roster edits"
-                  >
-                    {selectedTournament.isRosterLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                    <span>{selectedTournament.isRosterLocked ? 'Unlock Rosters' : 'Lock Official Rosters'}</span>
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleRosterLock(selectedTournament)}
+                      className={`px-3 py-2 rounded-xl border font-bold inline-flex items-center gap-1.5 cursor-pointer ${
+                        selectedTournament.isRosterLocked
+                          ? 'bg-red-950/70 border-red-600 text-red-200'
+                          : 'bg-[#0B0F19] hover:bg-[#1E293B] border-[#1E293B] text-amber-300'
+                      }`}
+                      title="Lock official rosters before kickoff to block external roster edits"
+                    >
+                      {selectedTournament.isRosterLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                      <span>{selectedTournament.isRosterLocked ? 'Unlock Rosters' : 'Lock Official Rosters'}</span>
+                    </button>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => handleToggleVisibility(selectedTournament)}
-                    className={`px-3 py-2 rounded-xl border font-bold inline-flex items-center gap-1.5 cursor-pointer ${
-                      selectedTournament.isActive
-                        ? 'bg-sky-950/60 border-sky-700 text-sky-300'
-                        : 'bg-amber-950/60 border-amber-700 text-amber-300'
-                    }`}
-                  >
-                    {selectedTournament.isActive ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                    <span>{selectedTournament.isActive ? 'Published' : 'Draft'}</span>
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleVisibility(selectedTournament)}
+                      className={`px-3 py-2 rounded-xl border font-bold inline-flex items-center gap-1.5 cursor-pointer ${
+                        selectedTournament.isActive
+                          ? 'bg-sky-950/60 border-sky-700 text-sky-300'
+                          : 'bg-amber-950/60 border-amber-700 text-amber-300'
+                      }`}
+                    >
+                      {selectedTournament.isActive ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      <span>{selectedTournament.isActive ? 'Published' : 'Draft'}</span>
+                    </button>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingTournament(selectedTournament);
-                      setFormOpen(true);
-                    }}
-                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold inline-flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>Edit</span>
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingTournament(selectedTournament);
+                        setFormOpen(true);
+                      }}
+                      className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteTournament(selectedTournament)}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
-                    title="Delete tournament"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTournament(selectedTournament)}
+                      className="p-2 rounded-xl bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
+                      title="Delete tournament"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -442,6 +461,7 @@ export const TournamentsTab: React.FC = () => {
                   tournament={selectedTournament}
                   onRefresh={refreshTournaments}
                   notify={notify}
+                  readOnly={readOnly}
                 />
               )}
               {subTab === 'MATCHES' && (
@@ -449,6 +469,7 @@ export const TournamentsTab: React.FC = () => {
                   tournament={selectedTournament}
                   onRefresh={refreshTournaments}
                   notify={notify}
+                  readOnly={readOnly}
                 />
               )}
               {subTab === 'AWARDS' && (
@@ -456,6 +477,7 @@ export const TournamentsTab: React.FC = () => {
                   tournament={selectedTournament}
                   onRefresh={refreshTournaments}
                   notify={notify}
+                  readOnly={readOnly}
                 />
               )}
               {subTab === 'OFFICIALS' && (
@@ -464,6 +486,7 @@ export const TournamentsTab: React.FC = () => {
                     tournament={selectedTournament}
                     onRefresh={refreshTournaments}
                     notify={notify}
+                    readOnly={readOnly}
                   />
                   {selectedTournament.rulesContent && (
                     <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-5 space-y-2">
@@ -472,16 +495,18 @@ export const TournamentsTab: React.FC = () => {
                           <FileText className="w-4 h-4 text-[#F97316]" />
                           Rules Preview
                         </h4>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingTournament(selectedTournament);
-                            setFormOpen(true);
-                          }}
-                          className="text-xs text-[#38BDF8] font-bold hover:underline cursor-pointer"
-                        >
-                          Edit Rules
-                        </button>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTournament(selectedTournament);
+                              setFormOpen(true);
+                            }}
+                            className="text-xs text-[#38BDF8] font-bold hover:underline cursor-pointer"
+                          >
+                            Edit Rules
+                          </button>
+                        )}
                       </div>
                       <pre className="text-xs text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">
                         {selectedTournament.rulesContent}
@@ -495,13 +520,15 @@ export const TournamentsTab: React.FC = () => {
         </>
       )}
 
-      <TournamentFormModal
-        isOpen={formOpen}
-        editing={editingTournament}
-        onClose={() => setFormOpen(false)}
-        onSave={handleSaveTournament}
-        notify={notify}
-      />
+      {!readOnly && (
+        <TournamentFormModal
+          isOpen={formOpen}
+          editing={editingTournament}
+          onClose={() => setFormOpen(false)}
+          onSave={handleSaveTournament}
+          notify={notify}
+        />
+      )}
     </div>
   );
 };

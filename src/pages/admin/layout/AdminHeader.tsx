@@ -23,6 +23,7 @@ import { AdminQuickSearch } from './AdminQuickSearch';
 export const AdminHeader: React.FC = () => {
   const {
     currentUser,
+    isSuperAdmin,
     loading,
     fetchData,
     openGuestModal,
@@ -114,15 +115,17 @@ export const AdminHeader: React.FC = () => {
               <Search className="w-5 h-5" />
             </button>
 
-            <button
-              type="button"
-              onClick={openGuestModal}
-              title="Guest Session Email"
-              className="px-3 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white flex items-center gap-1.5 transition-all shadow-md shadow-purple-950/40 cursor-pointer"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">Guest Session Email</span>
-            </button>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={openGuestModal}
+                title="Guest Session Email"
+                className="px-3 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white flex items-center gap-1.5 transition-all shadow-md shadow-purple-950/40 cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">Guest Session Email</span>
+              </button>
+            )}
 
             <button
               type="button"

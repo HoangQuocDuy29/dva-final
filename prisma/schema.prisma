@@ -53,6 +53,8 @@ enum RegistrationStatus {
 
 enum ApplicationStatus {
   PENDING
+  SCHEDULED
+  RETEST
   APPROVED
   REJECTED
 }
@@ -339,16 +341,32 @@ model MemberApplication {
   gmail               String
   instagram           String             @default("None")
   zalo                String
-  rotationKnowledge   RotationKnowledge  @default(ROTATION_5_1)
-  status              ApplicationStatus  @default(PENDING)
-  entryFee            Int                @default(100000) // Lệ phí gia nhập CLB (VNĐ) — mặc định 100.000đ, có thể chỉnh 0đ nếu đặc cách
-  approvedAt          DateTime?          // Thời điểm Admin duyệt hồ sơ (dùng để gom nhóm doanh thu theo tháng)
-  reviewNotes         String?            @db.Text
+  rotationKnowledge    RotationKnowledge  @default(ROTATION_5_1)
+  status               ApplicationStatus  @default(PENDING)
+  paymentStatus        String             @default("PENDING") // "PENDING" | "PAID" | "FREE"
+  paidAt               DateTime?          // Thời điểm Admin xác nhận đã đóng lệ phí try-out
+  entryFee             Int                @default(100000) // Lệ phí gia nhập / Try-Out CLB (VNĐ) — mặc định 100.000đ, 0đ nếu FREE
+  approvedAt           DateTime?          // Thời điểm Admin duyệt hồ sơ (dùng để gom nhóm doanh thu theo tháng)
+  reviewNotes          String?            @db.Text
+  experience           String?            // Kinh nghiệm chơi bóng (từ form Try-Out hoặc ghi chú)
+  preferredDays        String?            // Khung ngày/giờ Try-Out mong muốn
+  evaluationScores     Json?              // Phiếu chấm điểm 4 tiêu chí (1-5 mỗi tiêu chí, tổng / 20)
+  coachNotes           String?            @db.Text // Nhận xét chuyên môn của HLV trên phiếu chấm
+  scheduledAt          DateTime?          // Thời điểm lịch hẹn Try-Out
+  scheduledDate        String?            // Ngày hẹn Try-Out (YYYY-MM-DD)
+  scheduledDayLabel    String?            // Thứ trong tuần tương ứng (VD: "Thứ Hai (Monday)")
+  scheduledTime        String?            // Khung giờ hẹn Try-Out (VD: "18:00 - 19:00")
+  scheduledNotes       String?            @db.Text // Ghi chú riêng của HLV/Admin trong thư mời Try-Out
+  scheduledEmailSentAt DateTime?          // Thời điểm gửi email hẹn lịch gần nhất
+  scheduleHistory      Json?              // Lịch sử các lần gửi thư mời hẹn Try-Out
+  resultEmailSentAt    DateTime?          // Thời điểm gửi email thông báo kết quả (APPROVED / REJECTED)
+  resultEmailHistory   Json?              // Lịch sử gửi email thông báo kết quả
 
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   @@index([status, level])
+  @@index([paymentStatus])
   // Performance: lọc trạng thái (+ đội hình), sort ngày nộp DESC
   @@index([status, level, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])

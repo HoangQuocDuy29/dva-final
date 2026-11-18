@@ -65,11 +65,14 @@
 - **Thông tin Project Supabase:**
   - Organization / Project: `DVA Volleyball` / `dva-backend` (Project Ref: `hciiwqmhzlsqgtmodoot`)
   - Region / Compute: **Southeast Asia (Singapore, `ap-southeast-1`)** — Compute Nano
-- **Chuỗi kết nối chuẩn (Bắt buộc dùng Session Pooler IPv4):**
+- **Chuỗi kết nối chuẩn (Transaction Pooler IPv4 `:6543` cho Runtime + `DIRECT_URL` Session Pooler IPv4 `:5432` cho CLI):**
   ```text
-  postgresql://postgres.hciiwqmhzlsqgtmodoot:<DB_PASSWORD>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?uselibpqcompat=true&sslmode=require
+  # Runtime backend (Render / Server)
+  DATABASE_URL="postgresql://postgres.hciiwqmhzlsqgtmodoot:<DB_PASSWORD>@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?uselibpqcompat=true&sslmode=require"
+  # Prisma CLI (`npx prisma db push` qua prisma.config.ts) & backup
+  DIRECT_URL="postgresql://postgres.hciiwqmhzlsqgtmodoot:<DB_PASSWORD>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?uselibpqcompat=true&sslmode=require"
   ```
-  - **Vì sao dùng Session Pooler cổng `5432` (IPv4)?** Container backend trên Render chỉ hỗ trợ outbound **IPv4**, trong khi Direct DB endpoint mặc định của Supabase (`db.<ref>.supabase.co`) dùng **IPv6**. Session Pooler IPv4 đảm bảo Render kết nối ổn định mà không cần trả phí add-on IPv4.
+  - **Vì sao tách `:6543` (Runtime) và `:5432` (`DIRECT_URL`) qua Pooler IPv4?** Container backend trên Render chỉ hỗ trợ outbound **IPv4** (không gọi được `db.<ref>.supabase.co` IPv6). Dùng **Transaction Pooler `:6543`** ở runtime giúp trả lại backend Postgres ngay sau mỗi transaction để không phình RAM gói Free Nano (~381 MB), trong khi `DIRECT_URL` (`:5432` Session Pooler IPv4) đảm bảo `prisma db push` chạy ổn định.
   - **Vì sao cần `?uselibpqcompat=true&sslmode=require`?** Thư viện `pg` v8+ cảnh báo khi chỉ truyền `?sslmode=require`; thêm `uselibpqcompat=true` giúp driver hiểu đúng chuẩn libpq SSL và giữ log Render sạch 100%.
 - **Bảo mật Supabase:** **Public Data API (PostgREST)** trên Supabase đã được **TẮT** hoàn toàn cho schema `public`, đảm bảo bên ngoài không thể gọi REST trực tiếp vào bảng — mọi truy cập bắt buộc đi qua Express API + `lib/security.ts`.
 
@@ -83,8 +86,9 @@ Các cơ chế bảo vệ được tập trung tại [lib/bookingHolds.ts](lib/b
 3. **Health Check Không Chạm DB (`GET /health`):**
    - Endpoint `GET /health` chỉ đọc trạng thái từ RAM (`dbCircuitBreaker.isOpen()`), **tuyệt đối không query DB** để Render / UptimeRobot ping liên tục không làm tốn tài nguyên DB.
 4. **Tinh chỉnh `pg.Pool` ([lib/prisma.ts](lib/prisma.ts)) & Seed chạy nền:**
-   - Pool cấu hình `max: 10`, `connectionTimeoutMillis: 5000`, `idleTimeoutMillis: 30000`, `keepAlive: true` (`10s`), `ssl: { rejectUnauthorized: false }` cho Cloud DB, và `pool.on('error')` bỏ qua `ECONNRESET`/`EPIPE` khi cloud pooler thu hồi socket nhàn rỗi.
+   - Pool lưu singleton cùng `prisma` trên `globalForPrisma`, bật `disposeExternalPool: true` để `prisma.$disconnect()` đóng sạch pool (`pool.end()`), cấu hình mặc định `max: 5` (`PG_POOL_MAX`), `connectionTimeoutMillis: 5000`, `idleTimeoutMillis: 10000` (`PG_POOL_IDLE_TIMEOUT_MS`), `keepAlive: true` (`10s`), `ssl: { rejectUnauthorized: false }` cho Cloud DB (`supabase.co`, `supabase.com`, `neon.tech`, `render.com`, `sslmode=require`), và `pool.on('error')` bỏ qua `ECONNRESET`/`EPIPE` khi cloud pooler thu hồi socket nhàn rỗi.
    - `ensurePostgreSQLSeeded()` chạy bất đồng bộ **sau** `app.listen()` để Render bind port nhanh và **chỉ seed khi bảng trống** (không ghi đè chỉnh sửa của Admin).
+   - `setUserLookup` trong [server.ts](server.ts) dùng cache RAM ngắn `5s` + single-flight coalescing (tự xóa khi đổi role/xóa user) và `/api/admin/overview-summary` chia batch query nhỏ để tránh tạo spike kết nối.
 
 ### 3. Quy tắc Cập nhật Schema DB (Bắt buộc tuân thủ)
 - Khi thêm bảng/cột trong [prisma/schema.prisma](prisma/schema.prisma), luôn dùng giá trị mặc định (`@default(...)`) hoặc nullable (`?`) để tương thích ngược 100%.

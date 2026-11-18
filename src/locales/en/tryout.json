@@ -1,0 +1,127 @@
+{
+  "breadcrumb": {
+    "information": "Information",
+    "tryout": "Squad Try-Out Program"
+  },
+  "hero": {
+    "badge": "Official DVA Squad Selection",
+    "title": "DVA Volleyball Club Try-Out Program",
+    "subtitle": "Join Hanoi's premier indoor volleyball community. Register for an official on-court skill evaluation with DVA Coaching Staff across our Senior, Junior, and Youth squads.",
+    "groupRuleBadge": "Minimum Group Requirement",
+    "groupRuleTitle": "Evaluation sessions open when 5+ athletes register",
+    "groupRuleDesc": "Once a weekly time slot reaches 5 or more registered candidates, our Coaching Staff confirms the session and sends your official invitation email with venue access instructions.",
+    "applyCta": "Register for Try-Out",
+    "backToInfo": "View Fees & Guidelines",
+    "venueChip": "155 Truong Chinh Arena, Thanh Xuan, Hanoi"
+  },
+  "schedule": {
+    "sectionTitle": "1. Weekly Fixed Try-Out Schedule & Venue",
+    "sectionBadge": "Fixed Weekly Slots",
+    "eveningLabel": "Weekday & Saturday Evening",
+    "eveningDays": "Monday · Wednesday · Friday · Saturday",
+    "eveningTime": "18:00 – 19:00",
+    "eveningNote": "60-minute assessment on Taraflex court before regular squad play. Please arrive by 17:45 for warm-up.",
+    "sundayLabel": "Weekend Afternoon",
+    "sundayDays": "Sunday Afternoon",
+    "sundayTime": "13:30 – 14:30",
+    "sundayNote": "60-minute weekend evaluation session. Please arrive by 13:15 for check-in and dynamic stretching.",
+    "venueTitle": "Primary Training Arena",
+    "venueName": "BTL Thong Tin Indoor Sports Hall",
+    "venueAddress": "155 Truong Chinh, Thanh Xuan, Hanoi",
+    "venueStandards": "7.5mm Taraflex flooring · Clean non-marking indoor volleyball shoes required · Official Mikasa V200W balls provided.",
+    "openMaps": "Open Google Maps Directions"
+  },
+  "criteria": {
+    "sectionTitle": "2. Skill Tests & Evaluation Criteria",
+    "sectionSubtitle": "All candidates are evaluated holistically across four core performance pillars during the 60-minute session.",
+    "items": [
+      {
+        "number": "01",
+        "title": "Physical & Vertical Jump",
+        "subtitle": "Explosiveness & Agility",
+        "desc": "Measure standing vertical reach, approach spike jump & block touch, lateral court speed, and footwork explosiveness."
+      },
+      {
+        "number": "02",
+        "title": "Fundamental Ball Control",
+        "subtitle": "Passing, Setting & Serving",
+        "desc": "Evaluate first-pass stability & serve-receive accuracy, clean overhead setting precision, and consistent targeted serving over the net."
+      },
+      {
+        "number": "03",
+        "title": "Position-Specific & Game IQ",
+        "subtitle": "OH · MB · OP · S · L",
+        "desc": "Assess live-play execution by registered position (OH, MB, OP, S, L) — pass–set–attack timing, net blocking, and back-row defense/coverage."
+      },
+      {
+        "number": "04",
+        "title": "Discipline & Team Spirit",
+        "subtitle": "Attitude & Coachability",
+        "desc": "Punctuality, active listening to the Head Coach, positive communication on court, and supportive energy with teammates."
+      }
+    ]
+  },
+  "form": {
+    "sectionTitle": "3. Direct Try-Out Registration",
+    "sectionSubtitle": "Your profile is sent directly to the DVA Coaching Staff dashboard. We will email your official Try-Out schedule once confirmed.",
+    "fullName": "Full Name *",
+    "fullNamePlaceholder": "e.g., Nguyen Minh Quan",
+    "birthYear": "Birth Year *",
+    "birthYearPlaceholder": "e.g., 2004",
+    "phone": "Phone / Zalo Number *",
+    "phonePlaceholder": "e.g., 0912 345 678",
+    "email": "Email Address *",
+    "emailPlaceholder": "e.g., minhquan@gmail.com",
+    "height": "Height (cm) *",
+    "heightPlaceholder": "e.g., 178",
+    "position": "Primary Playing Position *",
+    "positions": {
+      "OH": "OH — Outside Hitter",
+      "MB": "MB — Middle Blocker",
+      "OP": "OP — Opposite Spiker",
+      "S": "S — Setter",
+      "L": "L — Libero"
+    },
+    "experience": "Volleyball Experience *",
+    "experienceOptions": [
+      "Under 6 months (Beginner / Fundamentals)",
+      "6 months – 1 year (Youth / Basic 4-2)",
+      "1 – 3 years (Intermediate / 5-1 & 6-2)",
+      "3+ years (Senior / Competitive League)"
+    ],
+    "experienceDetailPlaceholder": "Optional: previous club, school team, or tactical rotation experience (5-1 / 6-2 / 4-2)...",
+    "preferredDays": "Preferred Try-Out Schedule *",
+    "preferredDaysHint": "Select one or more weekly slots that fit your availability:",
+    "daySlots": [
+      { "id": "Mon (18:00 - 19:00)", "label": "Monday · 18:00 – 19:00" },
+      { "id": "Wed (18:00 - 19:00)", "label": "Wednesday · 18:00 – 19:00" },
+      { "id": "Fri (18:00 - 19:00)", "label": "Friday · 18:00 – 19:00" },
+      { "id": "Sat (18:00 - 19:00)", "label": "Saturday · 18:00 – 19:00" },
+      { "id": "Sun (13:30 - 14:30)", "label": "Sunday · 13:30 – 14:30" }
+    ],
+    "submit": "Submit Try-Out Registration",
+    "submitting": "Submitting Try-Out Profile...",
+    "errors": {
+      "fullName": "Please enter your full name (at least 2 characters).",
+      "birthYear": "Please enter a valid birth year (1960 – 2016).",
+      "phone": "Please enter a valid phone / Zalo number (8–15 digits).",
+      "email": "Please enter a valid email address.",
+      "height": "Please enter your height in cm (100 – 250).",
+      "preferredDays": "Please select at least one preferred Try-Out day/time slot."
+    }
+  },
+  "success": {
+    "badge": "TRY-OUT APPLICATION RECEIVED",
+    "title": "Registration Submitted Successfully!",
+    "subtitle": "Your profile has been sent directly to the DVA Coaching Staff Tryout Board.",
+    "passId": "Application ID",
+    "athlete": "Athlete",
+    "position": "Position",
+    "division": "Projected Division",
+    "preferred": "Preferred Slots",
+    "nextStepTitle": "What Happens Next?",
+    "nextStepDesc": "Sessions open once 5+ athletes register for a time slot. Our Head Coach will send an official Try-Out Invitation Email (with exact date, time, and entrance guide to 155 Truong Chinh) to your inbox.",
+    "registerAnother": "Submit Another Application",
+    "viewInfo": "Back to Club Information"
+  }
+}

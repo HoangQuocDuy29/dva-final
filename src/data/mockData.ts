@@ -692,6 +692,7 @@ export const INITIAL_MEMBER_APPLICATIONS: MemberApplication[] = [
     zalo: '0978112233',
     rotationKnowledge: '5-1',
     status: 'PENDING',
+    paymentStatus: 'PENDING',
     createdAt: '2026-10-18T16:40:00Z',
   },
   {
@@ -711,6 +712,7 @@ export const INITIAL_MEMBER_APPLICATIONS: MemberApplication[] = [
     zalo: '0912998877',
     rotationKnowledge: '4-2',
     status: 'PENDING',
+    paymentStatus: 'PENDING',
     createdAt: '2026-10-19T09:15:00Z',
   },
 ];

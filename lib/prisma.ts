@@ -87,7 +87,10 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 // Load .env from project root
 dotenv.config({ path: path.join(ROOT_DIR, '.env') });
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  pool?: Pool;
+};
 
 const databaseUrl = process.env.DATABASE_URL || '';
 const sslDisabled = databaseUrl.includes('sslmode=disable');
@@ -100,39 +103,53 @@ const isCloudDb =
   (databaseUrl.includes('neon.tech') ||
     databaseUrl.includes('render.com') ||
     databaseUrl.includes('supabase.co') ||
+    databaseUrl.includes('supabase.com') ||
     databaseUrl.includes('sslmode=require') ||
     (!isLocalDb && process.env.NODE_ENV === 'production'));
 
-// Tối ưu connection pool cho Neon / Render / PostgreSQL Serverless
-const pool = new Pool({
-  connectionString: databaseUrl,
-  connectionTimeoutMillis: 5000, // 5 giây timeout kết nối
-  idleTimeoutMillis: 30000, // 30 giây giải phóng kết nối nhàn rỗi trước khi Neon/Postgres ngắt socket
-  max: 10, // Giới hạn 10 kết nối
-  keepAlive: true, // Bật TCP keep-alive
-  keepAliveInitialDelayMillis: 10000, // Gửi probe keep-alive đầu tiên sau 10 giây
-  ...(isCloudDb ? { ssl: { rejectUnauthorized: false } } : {}),
-});
+const parsedPoolMax = Number(process.env.PG_POOL_MAX);
+const poolMax =
+  Number.isFinite(parsedPoolMax) && parsedPoolMax >= 1 ? Math.min(Math.floor(parsedPoolMax), 20) : 5;
+const parsedIdleMs = Number(process.env.PG_POOL_IDLE_TIMEOUT_MS);
+const poolIdleTimeoutMs =
+  Number.isFinite(parsedIdleMs) && parsedIdleMs >= 1000 ? Math.floor(parsedIdleMs) : 10000;
 
-// Bắt lỗi idle client để tránh unhandled error làm crash Node.js khi Neon ngắt socket rảnh rỗi
-pool.on('error', (err: any) => {
-  // Lọc bỏ lỗi ECONNRESET / EPIPE khi Neon Serverless thu hồi kết nối rảnh rỗi
-  const isIdleSocketReset =
-    err?.code === 'ECONNRESET' ||
-    err?.code === 'EPIPE' ||
-    err?.message?.includes('ECONNRESET') ||
-    err?.message?.includes('Connection terminated unexpectedly');
+function createPgPool(): Pool {
+  // Tối ưu connection pool cho Supabase Nano (Free) / Render / PostgreSQL Serverless
+  const newPool = new Pool({
+    connectionString: databaseUrl,
+    connectionTimeoutMillis: 5000, // 5 giây timeout kết nối
+    idleTimeoutMillis: poolIdleTimeoutMs, // Mặc định 10 giây giải phóng socket nhàn rỗi sớm để giảm memory commitment
+    max: poolMax, // Mặc định 5 kết nối thay vì 10 để tránh quá tải RAM Supabase Nano (~381 MB)
+    keepAlive: true, // Bật TCP keep-alive
+    keepAliveInitialDelayMillis: 10000, // Gửi probe keep-alive đầu tiên sau 10 giây
+    ...(isCloudDb ? { ssl: { rejectUnauthorized: false } } : {}),
+  });
 
-  if (isIdleSocketReset) {
-    // Socket nhàn rỗi đã được ngắt an toàn, pg-pool sẽ tự khởi tạo kết nối mới khi có query tiếp theo.
-    // Bỏ qua để tránh spam console log.
-    return;
-  }
+  // Bắt lỗi idle client để tránh unhandled error làm crash Node.js khi cloud pooler thu hồi socket rảnh rỗi
+  newPool.on('error', (err: any) => {
+    const isIdleSocketReset =
+      err?.code === 'ECONNRESET' ||
+      err?.code === 'EPIPE' ||
+      err?.message?.includes('ECONNRESET') ||
+      err?.message?.includes('Connection terminated unexpectedly');
 
-  console.warn('[Database Pool Warning] Idle connection warning:', err?.message || err);
-});
+    if (isIdleSocketReset) {
+      // Socket nhàn rỗi đã được ngắt an toàn, pg-pool sẽ tự khởi tạo kết nối mới khi có query tiếp theo.
+      // Bỏ qua để tránh spam console log.
+      return;
+    }
 
-const adapter = new PrismaPg(pool);
+    console.warn('[Database Pool Warning] Idle connection warning:', err?.message || err);
+  });
+
+  return newPool;
+}
+
+export const pool = globalForPrisma.pool ?? createPgPool();
+
+// disposeExternalPool: true đảm bảo prisma.$disconnect() gọi pool.end() giải phóng socket sạch sẽ khi tắt server/script
+const adapter = new PrismaPg(pool, { disposeExternalPool: true });
 
 export const prisma =
   globalForPrisma.prisma ??
@@ -142,6 +159,7 @@ export const prisma =
   });
 
 if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.pool = pool;
   globalForPrisma.prisma = prisma;
 }
 
@@ -393,31 +411,97 @@ export function fromRotationEnum(val: PrismaRotation): RotationKnowledge {
   }
 }
 
-export function toApplicationDto(a: DbMemberApplication | any): MemberApplication {
+export function toApplicationDto(
+  a: DbMemberApplication | any,
+  includeContact: boolean = true
+): MemberApplication {
   const rawSquad = (a as any).squad || (a as any).category || (a as any).team || a.level;
   const normalizedLevel = (normalizeSquad(rawSquad).toUpperCase() as PlayerLevel) || 'YOUTH';
+  const rawPay = String(a.paymentStatus || 'PENDING').toUpperCase();
+  const normalizedPaymentStatus: MemberApplication['paymentStatus'] =
+    rawPay === 'PAID' ? 'PAID' : rawPay === 'FREE' ? 'FREE' : 'PENDING';
+
+  const birthYearMatch = typeof a.dob === 'string' ? /^(\d{4})/.exec(a.dob.trim()) : null;
+  const birthYear = birthYearMatch ? Number(birthYearMatch[1]) : undefined;
+
+  const evalScores =
+    a.evaluationScores && typeof a.evaluationScores === 'object' && !Array.isArray(a.evaluationScores)
+      ? {
+          physical: Number(a.evaluationScores.physical) || 0,
+          technique: Number(a.evaluationScores.technique) || 0,
+          tactical: Number(a.evaluationScores.tactical) || 0,
+          attitude: Number(a.evaluationScores.attitude) || 0,
+          total: Number(a.evaluationScores.total) || 0,
+          ...(a.evaluationScores.evaluatedBy ? { evaluatedBy: String(a.evaluationScores.evaluatedBy) } : {}),
+          ...(a.evaluationScores.evaluatedAt ? { evaluatedAt: String(a.evaluationScores.evaluatedAt) } : {}),
+        }
+      : undefined;
+
+  const sanitizeScheduleHistory = Array.isArray(a.scheduleHistory)
+    ? a.scheduleHistory.map((item: any) => {
+        if (!item || typeof item !== 'object') return item;
+        if (includeContact) return item;
+        const { toEmail: _omit, ...rest } = item;
+        return rest;
+      })
+    : undefined;
+
+  const sanitizeResultHistory = Array.isArray(a.resultEmailHistory)
+    ? a.resultEmailHistory.map((item: any) => {
+        if (!item || typeof item !== 'object') return item;
+        if (includeContact) return item;
+        const { toEmail: _omit, ...rest } = item;
+        return rest;
+      })
+    : undefined;
 
   return {
     id: a.id,
     fullName: a.fullName,
     dob: a.dob,
+    ...(birthYear ? { birthYear } : {}),
     position: a.position,
-    hometownCountry: a.hometownCountry,
+    ...(includeContact ? { hometownCountry: a.hometownCountry } : {}),
     desiredJerseyNumber: a.desiredJerseyNumber,
     level: normalizedLevel,
     height: a.height,
     weight: a.weight,
     spikeReach: a.spikeReach,
     blockReach: a.blockReach,
-    gmail: a.gmail,
-    instagram: a.instagram,
-    zalo: a.zalo,
+    ...(includeContact
+      ? {
+          gmail: a.gmail,
+          instagram: a.instagram,
+          zalo: a.zalo,
+        }
+      : {}),
     rotationKnowledge: fromRotationEnum(a.rotationKnowledge),
     status: a.status,
+    paymentStatus: normalizedPaymentStatus,
+    paidAt: a.paidAt ? safeIsoString(a.paidAt) : undefined,
     entryFee:
-      a.entryFee !== null && a.entryFee !== undefined ? Number(a.entryFee) : 100000,
+      normalizedPaymentStatus === 'FREE'
+        ? 0
+        : a.entryFee !== null && a.entryFee !== undefined
+          ? Number(a.entryFee)
+          : 100000,
     approvedAt: a.approvedAt ? safeIsoString(a.approvedAt) : undefined,
     reviewNotes: a.reviewNotes ?? undefined,
+    experience: a.experience ?? undefined,
+    preferredDays: a.preferredDays ?? undefined,
+    preferredSchedule: a.preferredDays ?? undefined,
+    scores: evalScores,
+    evaluationScores: evalScores,
+    coachNotes: a.coachNotes ?? undefined,
+    scheduledAt: a.scheduledAt ? safeIsoString(a.scheduledAt) : undefined,
+    scheduledDate: a.scheduledDate ?? undefined,
+    scheduledDayLabel: a.scheduledDayLabel ?? undefined,
+    scheduledTime: a.scheduledTime ?? undefined,
+    scheduledNotes: a.scheduledNotes ?? undefined,
+    scheduledEmailSentAt: a.scheduledEmailSentAt ? safeIsoString(a.scheduledEmailSentAt) : undefined,
+    scheduleHistory: sanitizeScheduleHistory,
+    resultEmailSentAt: a.resultEmailSentAt ? safeIsoString(a.resultEmailSentAt) : undefined,
+    resultEmailHistory: sanitizeResultHistory,
     createdAt: safeIsoString(a.createdAt),
     updatedAt: a.updatedAt ? safeIsoString(a.updatedAt) : undefined,
   };
@@ -597,7 +681,8 @@ export function toTournamentPlayerDto(
 
 export function toTournamentTeamDto(
   t: (DbTournamentTeam & { players?: DbTournamentPlayer[] }) | any,
-  includePrivate: boolean = false
+  includePrivate: boolean = false,
+  includeContacts: boolean = includePrivate
 ): TournamentTeam {
   return {
     id: t.id,
@@ -618,8 +703,12 @@ export function toTournamentTeamDto(
     captainName: t.captainName ?? undefined,
     ...(includePrivate
       ? {
-          captainPhone: t.captainPhone ?? undefined,
-          captainEmail: t.captainEmail ?? undefined,
+          ...(includeContacts
+            ? {
+                captainPhone: t.captainPhone ?? undefined,
+                captainEmail: t.captainEmail ?? undefined,
+              }
+            : {}),
           transferContent: t.transferContent ?? undefined,
           entryFeeAmount: Number(t.entryFeeAmount) || 0,
           notes: t.notes ?? undefined,
@@ -645,7 +734,8 @@ export function toTournamentTeamDto(
 
 export function toTournamentOfficialDto(
   o: DbTournamentOfficial | any,
-  includePrivate: boolean = false
+  includePrivate: boolean = false,
+  includeContacts: boolean = includePrivate
 ): TournamentOfficial {
   return {
     id: o.id,
@@ -654,7 +744,7 @@ export function toTournamentOfficialDto(
     role: (o.role || 'MAIN_REFEREE') as TournamentOfficialRole,
     certification: o.certification ?? undefined,
     avatarUrl: o.avatarUrl ?? undefined,
-    ...(includePrivate && o.phone ? { phone: o.phone } : {}),
+    ...(includeContacts && o.phone ? { phone: o.phone } : {}),
     sortOrder: Number(o.sortOrder) || 0,
     createdAt: o.createdAt ? safeIsoString(o.createdAt) : undefined,
   };
@@ -700,7 +790,8 @@ export function toTournamentDto(
     matches?: DbTournamentMatch[];
     officials?: DbTournamentOfficial[];
   }) | any,
-  includePrivate: boolean = false
+  includePrivate: boolean = false,
+  includeContacts: boolean = includePrivate
 ): Tournament {
   const mode = (t.mode || 'HOSTED') as TournamentMode;
   const rawTeams: any[] = Array.isArray(t.teams) ? t.teams : [];
@@ -773,15 +864,15 @@ export function toTournamentDto(
     groupSetFormat: (t.groupSetFormat || 'BO3') as TournamentSetFormat,
     knockoutSetFormat: (t.knockoutSetFormat || 'BO3') as TournamentSetFormat,
     entryFeePerTeam: mode === 'HOSTED' ? Number(t.entryFeePerTeam) || 0 : 0,
-    ...(includePrivate && t.internalExpenseNote ? { internalExpenseNote: t.internalExpenseNote } : {}),
+    ...(includeContacts && t.internalExpenseNote ? { internalExpenseNote: t.internalExpenseNote } : {}),
     rulesContent: t.rulesContent ?? undefined,
     prizeConfig,
     dvaResultSummary: t.dvaResultSummary ?? undefined,
     podiumOverride,
-    teams: visibleTeamsRaw.map((tm) => toTournamentTeamDto(tm, includePrivate)),
+    teams: visibleTeamsRaw.map((tm) => toTournamentTeamDto(tm, includePrivate, includeContacts)),
     players: visiblePlayersRaw.map((pl) => toTournamentPlayerDto(pl, includePrivate)),
     matches: rawMatches.map((m) => toTournamentMatchDto(m, includePrivate)),
-    officials: rawOfficials.map((o) => toTournamentOfficialDto(o, includePrivate)),
+    officials: rawOfficials.map((o) => toTournamentOfficialDto(o, includePrivate, includeContacts)),
     paidTeamsCount,
     pendingTeamsCount,
     createdAt: safeIsoString(t.createdAt),
@@ -1051,7 +1142,9 @@ export async function bootstrapSuperAdminAndUsers(): Promise<void> {
   }
 
   // 3. Migrate any other existing users in PostgreSQL whose passwordHash is not yet bcrypt
-  const allUsers = await prisma.user.findMany();
+  const allUsers = await prisma.user.findMany({
+    select: { id: true, email: true, passwordHash: true },
+  });
   for (const u of allUsers) {
     if (!isBcryptHash(u.passwordHash)) {
       // If passwordHash was stored as plain text (not scrypt$), hash that plain text; otherwise use default password
@@ -1110,7 +1203,9 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
   } else {
     // Backfill weeklySchedule or address for any existing court records that do not have them yet
     try {
-      const existingCourts = await prisma.court.findMany();
+      const existingCourts = await prisma.court.findMany({
+        select: { id: true, code: true, weeklySchedule: true, address: true, subCourts: true },
+      });
       for (const ec of existingCourts) {
         if (!ec.weeklySchedule || !ec.address || !ec.subCourts || ec.subCourts.length === 0) {
           const initMatch = INITIAL_COURTS.find((ic) => ic.id === ec.id || ic.code === ec.code);
@@ -1328,16 +1423,16 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
           fullName: a.fullName,
           dob: a.dob,
           position: a.position,
-          hometownCountry: a.hometownCountry,
+          hometownCountry: a.hometownCountry || 'Vietnam',
           desiredJerseyNumber: Number(a.desiredJerseyNumber) || 0,
           level: a.level,
           height: Number(a.height) || 175,
           weight: Number(a.weight) || 68,
           spikeReach: Number(a.spikeReach) || 295,
           blockReach: Number(a.blockReach) || 280,
-          gmail: a.gmail,
+          gmail: a.gmail || '',
           instagram: a.instagram || 'None',
-          zalo: a.zalo,
+          zalo: a.zalo || '',
           rotationKnowledge: toRotationEnum(a.rotationKnowledge),
           status: a.status,
           reviewNotes: a.reviewNotes ?? null,
@@ -1373,10 +1468,13 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
     }
   } else {
     // Backfill thumbnail for any existing news records that have empty thumbnail
-    const legacyNews = readLegacyJsonIfExists<NewsPost[]>('news.json', INITIAL_NEWS);
-    const existingNews = await prisma.newsPost.findMany();
-    for (const en of existingNews) {
-      if (!en.thumbnail || !en.thumbnail.trim()) {
+    const existingNews = await prisma.newsPost.findMany({
+      select: { id: true, slug: true, thumbnail: true },
+    });
+    const missingThumbs = existingNews.filter((en) => !en.thumbnail || !en.thumbnail.trim());
+    if (missingThumbs.length > 0) {
+      const legacyNews = readLegacyJsonIfExists<NewsPost[]>('news.json', INITIAL_NEWS);
+      for (const en of missingThumbs) {
         const match =
           legacyNews.find((ln) => ln.id === en.id || ln.slug === en.slug) ||
           INITIAL_NEWS.find((inw) => inw.id === en.id || inw.slug === en.slug);

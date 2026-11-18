@@ -12,6 +12,7 @@ import { BackToTop } from './components/common/BackToTop';
 // Code Splitting / Lazy Loading cho các trang thứ cấp và module quản trị
 const PlayersPage = lazy(() => import('./pages/PlayersPage').then((m) => ({ default: m.PlayersPage })));
 const InformationPage = lazy(() => import('./pages/InformationPage').then((m) => ({ default: m.InformationPage })));
+const TryoutPage = lazy(() => import('./pages/TryoutPage').then((m) => ({ default: m.TryoutPage })));
 const NewsPage = lazy(() => import('./pages/NewsPage').then((m) => ({ default: m.NewsPage })));
 const NewsDetailPage = lazy(() => import('./pages/NewsDetailPage').then((m) => ({ default: m.NewsDetailPage })));
 const CourtBookingPage = lazy(() => import('./pages/CourtBookingPage').then((m) => ({ default: m.CourtBookingPage })));
@@ -104,8 +105,9 @@ export default function App() {
               <Route path="/youth" element={<Navigate to="/players/youth" replace />} />
               <Route path="/kid" element={<Navigate to="/players/youth" replace />} />
 
-              {/* Module 3: Information */}
+              {/* Module 3: Information & Try-Out Subpage */}
               <Route path="/information" element={<InformationPage />} />
+              <Route path="/information/try-out" element={<TryoutPage />} />
 
               {/* Module 4: News */}
               <Route path="/news" element={<NewsPage currentUser={currentUser} />} />

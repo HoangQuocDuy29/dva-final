@@ -213,28 +213,164 @@ export interface TrainingRegistration {
 
 export type RotationKnowledge = '5-1' | '6-2' | '4-2' | 'BEGINNER';
 
+export type ApplicationStatus = 'PENDING' | 'SCHEDULED' | 'RETEST' | 'APPROVED' | 'REJECTED';
+export type TryoutPaymentStatus = 'PENDING' | 'PAID' | 'FREE';
+
+export interface TryoutEvaluationScores {
+  physical: number;  // 1-5: Thể lực & Sức bật
+  technique: number; // 1-5: Kỹ thuật cơ bản (Đệm/Chuyền/Phát)
+  tactical: number;  // 1-5: Tư duy chiến thuật & Vị trí sở trường
+  attitude: number;  // 1-5: Thái độ & Tinh thần đồng đội
+  total: number;     // 4-20
+  evaluatedBy?: string;
+  evaluatedAt?: string;
+}
+
+export interface TryoutScheduleHistoryEntry {
+  date: string;
+  dayLabel: string;
+  timeSlot: string;
+  notes?: string;
+  toEmail?: string; // Stripped for non-SUPERADMIN roles
+  sentAt: string;
+  sentBy?: string;
+  emailSent?: boolean;
+}
+
+export interface TryoutResultEmailHistoryEntry {
+  outcome: 'APPROVED' | 'REJECTED';
+  coachNotes?: string;
+  toEmail?: string; // Stripped for non-SUPERADMIN roles
+  sentAt: string;
+  sentBy?: string;
+  emailSent?: boolean;
+}
+
 export interface MemberApplication {
   id: string;
   fullName: string;
   dob: string;
+  birthYear?: number;
   position: VolleyballPosition;
-  hometownCountry: string;
+  hometownCountry?: string;
   desiredJerseyNumber: number;
   level: PlayerLevel;
   height: number;
   weight: number;
   spikeReach: number;
   blockReach: number;
-  gmail: string;
-  instagram: string; // or "None"
-  zalo: string;
+  // Sensitive contact fields (stripped by backend when requester is not SUPERADMIN)
+  gmail?: string;
+  instagram?: string;
+  zalo?: string;
   rotationKnowledge: RotationKnowledge;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: ApplicationStatus;
+  paymentStatus: TryoutPaymentStatus;
+  paidAt?: string;
   entryFee?: number;
   approvedAt?: string;
   reviewNotes?: string;
+  experience?: string;
+  preferredDays?: string;
+  preferredSchedule?: string;
+  scores?: TryoutEvaluationScores;
+  evaluationScores?: TryoutEvaluationScores;
+  coachNotes?: string;
+  scheduledAt?: string;
+  scheduledDate?: string;
+  scheduledDayLabel?: string;
+  scheduledTime?: string;
+  scheduledNotes?: string;
+  scheduledEmailSentAt?: string;
+  scheduleHistory?: TryoutScheduleHistoryEntry[];
+  resultEmailSentAt?: string;
+  resultEmailHistory?: TryoutResultEmailHistoryEntry[];
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface TryoutApplicationRegisterPayload {
+  source?: 'TRYOUT_PAGE' | 'MEMBER_REGISTER';
+  fullName: string;
+  birthYear?: number;
+  dob?: string;
+  position: VolleyballPosition;
+  level?: PlayerLevel;
+  height: number;
+  weight?: number;
+  spikeReach?: number;
+  blockReach?: number;
+  hometownCountry?: string;
+  desiredJerseyNumber?: number;
+  gmail: string;
+  instagram?: string;
+  zalo: string;
+  rotationKnowledge?: RotationKnowledge;
+  experience?: string;
+  preferredDays?: string;
+}
+
+export interface TryoutScheduleEmailPayload {
+  toEmail?: string;
+  date: string;
+  timeSlot: string;
+  notes?: string;
+}
+
+export interface TryoutEvaluatePayload {
+  scores: TryoutEvaluationScores;
+  coachNotes?: string;
+  status: 'APPROVED' | 'RETEST' | 'REJECTED';
+  level?: PlayerLevel;
+}
+
+export interface TryoutUnifiedSendEmailPayload {
+  kind: 'SCHEDULE' | 'RESULT';
+  toEmail?: string;
+  date?: string;
+  timeSlot?: string;
+  notes?: string;
+  outcome?: 'APPROVED' | 'REJECTED';
+  coachNotes?: string;
+  scores?: TryoutEvaluationScores;
+  level?: PlayerLevel;
+}
+
+export interface AdminOverviewMonthlyPoint {
+  monthKey: string;
+  label: string;
+  court: number;
+  training: number;
+  store: number;
+  guest: number;
+  tryout: number;
+  tournament: number;
+}
+
+export interface AdminOverviewSummary {
+  totalBookingsCount: number;
+  paidBookingsCount: number;
+  pendingBookingsCount: number;
+  totalStoreOrdersCount: number;
+  paidStoreOrdersCount: number;
+  pendingStoreOrdersCount: number;
+  totalGuestSessionsCount: number;
+  paidGuestSessionsCount: number;
+  pendingGuestSessionsCount: number;
+  totalTrainingRegsCount: number;
+  confirmedTrainingCount: number;
+  pendingTrainingCount: number;
+  playersCount: number;
+  activePlayersCount: number;
+  coursesCount: number;
+  coachesCount: number;
+  newsCount: number;
+  storeProductsCount: number;
+  courtRevenue: number;
+  trainingRevenue: number;
+  storeRevenue: number;
+  guestSessionRevenue: number;
+  monthlyRevenue: AdminOverviewMonthlyPoint[];
 }
 
 export type NewsCategoryId =

@@ -7,11 +7,13 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import {
   DUMMY_HASH,
+  StoredUser,
   apiAccessPolicy,
   assertSecurityConfig,
   attachAuth,
   hashPassword,
   isStaff,
+  isSuperAdmin,
   publicUser,
   rateLimit,
   securityHeaders,
@@ -28,6 +30,7 @@ import {
 import { EM, HttpError, E, I, S, N, D, sanitize } from './lib/validation';
 import {
   APPLICATION_ENTRY_FEE_SCHEMA,
+  APPLICATION_PAYMENT_STATUS_SCHEMA,
   APPLICATION_STATUSES,
   BOOKING_ADMIN_EXTRA_SCHEMA,
   BOOKING_CREATE_SCHEMA,
@@ -39,6 +42,10 @@ import {
   LEVELS,
   LEVEL_RULE,
   MEMBER_REGISTER_SCHEMA,
+  TRYOUT_REGISTER_SCHEMA,
+  TRYOUT_EVALUATE_SCHEMA,
+  TRYOUT_SCHEDULE_EMAIL_SCHEMA,
+  TRYOUT_UNIFIED_EMAIL_SCHEMA,
   NEWS_SCHEMA,
   ORDER_CREATE_SCHEMA,
   ORDER_STATUS_SCHEMA,
@@ -115,6 +122,9 @@ import {
   StoreOrder,
 } from './src/types';
 import {
+  getTryoutDayInfo,
+} from './src/shared/tryoutEmail';
+import {
   ADMIN_ALERT_EMAIL,
   buildBookingVietQrUrl,
   generateGuestSessionTransferDescription,
@@ -125,6 +135,8 @@ import {
   removeVietnameseTones,
   sendBookingConfirmationEmail,
   sendMemberRegistrationEmail,
+  sendTryoutInvitationEmail,
+  sendTryoutResultEmail,
   sendTrainingRegistrationEmail,
   sendGuestSessionEmail,
   sendShopOrderConfirmationEmail,
@@ -260,18 +272,45 @@ export function getGooglePrivateKey(): string | undefined {
   return process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 }
 
-// Resolve authenticated user directly from PostgreSQL on every Bearer token request
+// Resolve authenticated user from PostgreSQL with short TTL (5s) + single-flight coalescing
+// so concurrent dashboard requests (e.g. 12 parallel fetches) share 1 DB query.
+const USER_LOOKUP_TTL_MS = 5_000;
+const userLookupCache = new Map<string, { user?: StoredUser; expiresAt: number }>();
+const userLookupInFlight = new Map<string, Promise<StoredUser | undefined>>();
+
+function invalidateUserLookupCache(id: string): void {
+  userLookupCache.delete(id);
+}
+
 setUserLookup(async (id) => {
-  try {
-    const dbUser = await prisma.user.findUnique({ where: { id } });
-    if (dbUser) return toStoredUser(dbUser);
-  } catch (error) {
-    if (isDatabaseUnavailableError(error)) {
-      throw error;
-    }
-    console.error("[API ERROR] setUserLookup:", error);
+  const now = Date.now();
+  const cached = userLookupCache.get(id);
+  if (cached && now < cached.expiresAt) {
+    return cached.user;
   }
-  return undefined;
+
+  const pending = userLookupInFlight.get(id);
+  if (pending) return pending;
+
+  const lookupPromise = (async (): Promise<StoredUser | undefined> => {
+    try {
+      const dbUser = await prisma.user.findUnique({ where: { id } });
+      const resolved = dbUser ? toStoredUser(dbUser) : undefined;
+      userLookupCache.set(id, { user: resolved, expiresAt: Date.now() + USER_LOOKUP_TTL_MS });
+      return resolved;
+    } catch (error) {
+      if (isDatabaseUnavailableError(error)) {
+        throw error;
+      }
+      console.error("[API ERROR] setUserLookup:", error);
+      return undefined;
+    } finally {
+      userLookupInFlight.delete(id);
+    }
+  })();
+
+  userLookupInFlight.set(id, lookupPromise);
+  return lookupPromise;
 });
 
 const isAllowedScriptUrl = (url: string) => /^https:\/\/script\.google(usercontent)?\.com\//i.test(url);
@@ -649,6 +688,7 @@ app.patch('/api/users/:id/role', requireSuperAdmin, ah(async (req, res) => {
   }
 
   const updated = await prisma.user.update({ where: { id }, data: { role } });
+  invalidateUserLookupCache(id);
   res.json(publicUser(toStoredUser(updated)));
 }));
 
@@ -661,6 +701,7 @@ app.delete('/api/users/:id', requireSuperAdmin, ah(async (req, res) => {
   }
   try {
     await prisma.user.delete({ where: { id } });
+    invalidateUserLookupCache(id);
   } catch (err: any) {
     if (err?.code === 'P2003') {
       return res.status(409).json({ error: 'Account is still referenced by other records and cannot be deleted.' });
@@ -1267,8 +1308,8 @@ app.get('/api/bookings', ah(async (req, res) => {
     orderBy: { createdAt: 'desc' },
   });
 
-  // Public visitors only learn which slots are taken - never customer names, phones or emails.
-  if (!isStaff(req.user)) {
+  // Only SUPERADMIN sees booking customer names, phones, emails; ADMIN & public visitors only see slot availability.
+  if (!isSuperAdmin(req.user)) {
     return res.json(
       dbBookings
         .filter((b) => b.paymentStatus !== 'CANCELLED')
@@ -2056,35 +2097,77 @@ app.delete('/api/coaches/:id', ah(async (req, res) => {
 }));
 
 // 6. Member Application & Auto-Player Promotion
-app.get('/api/members/applications', ah(async (_req, res) => {
+app.get('/api/members/applications', ah(async (req, res) => {
+  const includeContact = isSuperAdmin(req.user);
   const dbApps = await prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' } });
-  return res.json(dbApps.map(toApplicationDto));
+  return res.json(dbApps.map((a) => toApplicationDto(a, includeContact)));
 }));
 
+function deriveLevelFromExperience(experience?: string, birthYear?: number): 'SENIOR' | 'JUNIOR' | 'YOUTH' {
+  const exp = (experience || '').toLowerCase();
+  if (exp.includes('3+') || exp.includes('senior') || exp.includes('advanced') || exp.includes('trên 3')) {
+    return 'SENIOR';
+  }
+  if (
+    exp.includes('< 1') ||
+    exp.includes('dưới 1') ||
+    exp.includes('beginner') ||
+    exp.includes('mới') ||
+    exp.includes('6 tháng') ||
+    exp.includes('youth') ||
+    (birthYear !== undefined && birthYear >= 2010)
+  ) {
+    return 'YOUTH';
+  }
+  return 'JUNIOR';
+}
+
 app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) => {
-  const data = sanitize(req.body, MEMBER_REGISTER_SCHEMA, {
-    required: ['fullName', 'dob', 'position', 'hometownCountry', 'level', 'height', 'weight', 'spikeReach', 'blockReach', 'gmail', 'zalo'],
-  });
+  const isTryoutPage = req.body?.source === 'TRYOUT_PAGE';
+  const data = isTryoutPage
+    ? sanitize(req.body, TRYOUT_REGISTER_SCHEMA, {
+        required: ['fullName', 'position', 'height', 'gmail', 'zalo', 'experience', 'preferredDays'],
+      })
+    : sanitize(req.body, MEMBER_REGISTER_SCHEMA, {
+        required: ['fullName', 'dob', 'position', 'hometownCountry', 'level', 'height', 'weight', 'spikeReach', 'blockReach', 'gmail', 'zalo'],
+      });
+
+  const resolvedDob =
+    data.dob ||
+    (data.birthYear ? `${data.birthYear}-01-01` : '');
+  if (!resolvedDob) {
+    return res.status(400).json({ error: 'Date of birth or birth year is required.' });
+  }
+
+  const resolvedLevel =
+    data.level ||
+    deriveLevelFromExperience(data.experience, data.birthYear);
+  const resolvedRotation =
+    data.rotationKnowledge ||
+    (resolvedLevel === 'SENIOR' ? '5-1' : resolvedLevel === 'YOUTH' ? 'BEGINNER' : '4-2');
 
   const appId = `app-${crypto.randomUUID()}`;
   const created = await prisma.memberApplication.create({
     data: {
       id: appId,
       fullName: data.fullName,
-      dob: data.dob,
+      dob: resolvedDob,
       position: data.position,
-      hometownCountry: data.hometownCountry,
+      hometownCountry: data.hometownCountry || 'Hà Nội',
       desiredJerseyNumber: data.desiredJerseyNumber ?? 0,
-      level: data.level,
+      level: resolvedLevel,
       height: data.height,
-      weight: data.weight,
-      spikeReach: data.spikeReach,
-      blockReach: data.blockReach,
+      weight: data.weight ?? 0,
+      spikeReach: data.spikeReach ?? 0,
+      blockReach: data.blockReach ?? 0,
       gmail: data.gmail,
       instagram: data.instagram || 'None',
       zalo: data.zalo,
-      rotationKnowledge: toRotationEnum(data.rotationKnowledge),
+      rotationKnowledge: toRotationEnum(resolvedRotation),
       status: 'PENDING',
+      paymentStatus: 'PENDING',
+      experience: data.experience || null,
+      preferredDays: data.preferredDays || null,
     },
   });
 
@@ -2111,6 +2194,8 @@ app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) =>
     'Instagram': dto.instagram || 'None',
     'Chiến thuật 5-1': dto.rotationKnowledge,
     'Quê quán': dto.hometownCountry,
+    ...(dto.experience ? { 'Kinh nghiệm': dto.experience } : {}),
+    ...(dto.preferredDays ? { 'Khung ngày mong muốn': dto.preferredDays } : {}),
     'Thời gian gửi': new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
   };
   dispatchGoogleSheetsWebhookAsync('Member_Registrations', 'TuyenThanhVien', memberSheetPayload);
@@ -2136,11 +2221,13 @@ app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) =>
         weight: dto.weight,
         spikeReach: dto.spikeReach,
         blockReach: dto.blockReach,
-        gmail: dto.gmail,
-        zalo: dto.zalo,
+        gmail: dto.gmail || '',
+        zalo: dto.zalo || '',
         instagram: dto.instagram,
         rotationKnowledge: dto.rotationKnowledge,
         hometownCountry: dto.hometownCountry,
+        experience: dto.experience,
+        preferredDays: dto.preferredDays,
       }).catch((mailError: any) => {
         console.error('[Email Service Warning] Gửi mail thất bại cho:', memberEmail, mailError?.message || mailError);
         // Không throw error ra ngoài, server vẫn tiếp tục chạy bình thường
@@ -2157,33 +2244,81 @@ app.post(['/api/members/register', '/api/members/apply'], ah(async (req, res) =>
 
   sendAdminNotification({
     type: 'MEMBER',
-    title: 'Đăng Ký Thành Viên CLB (Phí 100k)',
+    title: isTryoutPage ? 'Đăng Ký Try-Out CLB DVA' : 'Đăng Ký Thành Viên CLB (Phí 100k)',
     code: dto.id,
     customerName: dto.fullName,
-    phone: dto.zalo,
+    phone: dto.zalo || '',
     email: dto.gmail || undefined,
     amount: 100000,
     transferContent: memberTransferContent,
-    details: `Cấp độ: ${dto.level} | Vị trí: ${dto.position || 'N/A'} | Chiều cao: ${dto.height}cm | Quê: ${dto.hometownCountry || 'N/A'}`,
+    details: [
+      `Cấp độ: ${dto.level}`,
+      `Vị trí: ${dto.position || 'N/A'}`,
+      `Chiều cao: ${dto.height}cm`,
+      dto.experience ? `Kinh nghiệm: ${dto.experience}` : '',
+      dto.preferredDays ? `Ngày mong muốn: ${dto.preferredDays}` : '',
+      `Quê: ${dto.hometownCountry || 'N/A'}`,
+    ]
+      .filter(Boolean)
+      .join(' | '),
   }).catch((err) => console.error('[Admin Alert Error - Member Application]:', err?.message || err));
 
   res.status(200).json(dto);
 }));
 
+async function promoteApplicationToPlayerIfNeeded(tx: any, existing: any): Promise<boolean> {
+  if (existing.status === 'APPROVED') return false;
+  await tx.player.create({
+    data: {
+      id: `p-${crypto.randomUUID()}`,
+      fullName: existing.fullName,
+      jerseyNumber: existing.desiredJerseyNumber || Math.floor(Math.random() * 50) + 1,
+      height: existing.height || 185,
+      weight: existing.weight || 75,
+      spikeTouch: existing.spikeReach || 325,
+      blockTouch: existing.blockReach || 310,
+      hometownCountry: existing.hometownCountry || 'Việt Nam',
+      countryName: 'Vietnam',
+      countryCode: 'VN',
+      countryFlag: '🇻🇳',
+      level: existing.level || 'JUNIOR',
+      position: existing.position || 'OH',
+      avatarUrl: '',
+      bio: `Tân binh DVA gia nhập qua đợt tuyển chọn thành viên 2026. Am hiểu sơ đồ ${fromRotationEnum(existing.rotationKnowledge)}.`,
+      joinedYear: new Date().getFullYear(),
+    },
+  });
+  console.log(`[DVA Member Approved] Auto-created player profile for ${existing.fullName} in PostgreSQL!`);
+  return true;
+}
+
 app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
   const { id } = req.params;
+  const superAdmin = isSuperAdmin(req.user);
   const { status, reviewNotes, entryFee } = sanitize(
     req.body,
     { status: E(APPLICATION_STATUSES), reviewNotes: S(500), entryFee: I(0, 100_000_000) },
     { required: ['status'] }
   );
+  if (!superAdmin && status === 'APPROVED') {
+    return res.status(403).json({
+      error: 'Direct priority approval is restricted to SUPERADMIN. Use the Evaluation Scorecard to evaluate candidates.',
+    });
+  }
   const existing = await prisma.memberApplication.findUnique({ where: { id } });
   if (!existing) {
     return res.status(404).json({ error: 'Application not found' });
   }
 
-  const alreadyApproved = existing.status === 'APPROVED';
+  const existingPay = String(existing.paymentStatus || 'PENDING').toUpperCase();
+  const resolvedFee =
+    superAdmin && entryFee !== undefined
+      ? entryFee
+      : existingPay === 'FREE'
+        ? 0
+        : (existing.entryFee ?? 100000);
 
+  let promoted = false;
   const updated = await prisma.$transaction(async (tx) => {
     const appUpdated = await tx.memberApplication.update({
       where: { id },
@@ -2193,7 +2328,7 @@ app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
         ...(status === 'APPROVED'
           ? {
               approvedAt: existing.approvedAt ?? new Date(),
-              entryFee: entryFee !== undefined ? entryFee : (existing.entryFee ?? 100000),
+              entryFee: resolvedFee,
             }
           : {
               approvedAt: null,
@@ -2201,38 +2336,20 @@ app.patch('/api/members/applications/:id/status', ah(async (req, res) => {
       },
     });
 
-    // Auto Promote to Player if APPROVED (only once - re-approving must not duplicate the athlete)
-    if (status === 'APPROVED' && !alreadyApproved) {
-      await tx.player.create({
-        data: {
-          id: `p-${crypto.randomUUID()}`,
-          fullName: existing.fullName,
-          jerseyNumber: existing.desiredJerseyNumber || Math.floor(Math.random() * 50) + 1,
-          height: existing.height || 185,
-          weight: existing.weight || 75,
-          spikeTouch: existing.spikeReach || 325,
-          blockTouch: existing.blockReach || 310,
-          hometownCountry: existing.hometownCountry || 'Việt Nam',
-          countryName: 'Vietnam',
-          countryCode: 'VN',
-          countryFlag: '🇻🇳',
-          level: existing.level || 'JUNIOR',
-          position: existing.position || 'OH',
-          avatarUrl: '',
-          bio: `Tân binh DVA gia nhập qua đợt tuyển chọn thành viên 2026. Am hiểu sơ đồ ${fromRotationEnum(existing.rotationKnowledge)}.`,
-          joinedYear: new Date().getFullYear(),
-        },
-      });
-      console.log(`[DVA Member Approved] Auto-created player profile for ${existing.fullName} in PostgreSQL!`);
+    if (status === 'APPROVED') {
+      promoted = await promoteApplicationToPlayerIfNeeded(tx, existing);
     }
 
     return appUpdated;
   });
 
-  res.json({ application: toApplicationDto(updated), promotedPlayer: status === 'APPROVED' });
+  res.json({
+    application: toApplicationDto(updated, superAdmin),
+    promotedPlayer: status === 'APPROVED' && (promoted || existing.status === 'APPROVED'),
+  });
 }));
 
-app.patch('/api/members/applications/:id/entry-fee', ah(async (req, res) => {
+app.patch('/api/members/applications/:id/entry-fee', requireSuperAdmin, ah(async (req, res) => {
   const { id } = req.params;
   const { entryFee } = sanitize(req.body, APPLICATION_ENTRY_FEE_SCHEMA, {
     required: ['entryFee'],
@@ -2245,10 +2362,307 @@ app.patch('/api/members/applications/:id/entry-fee', ah(async (req, res) => {
     where: { id },
     data: { entryFee },
   });
-  res.json(toApplicationDto(updated));
+  res.json(toApplicationDto(updated, true));
 }));
 
-app.delete('/api/members/applications/:id', ah(async (req, res) => {
+// Try-Out Payment Status (SUPERADMIN only):
+// - Completely decoupled from evaluation approval (`status`):
+//   never auto-approves or promotes to Player Roster when toggling PENDING <-> PAID / FREE.
+// - Always unlocked for SUPERADMIN regardless of current `status`.
+app.patch('/api/members/applications/:id/payment-status', requireSuperAdmin, ah(async (req, res) => {
+  const { id } = req.params;
+  const { paymentStatus } = sanitize(req.body, APPLICATION_PAYMENT_STATUS_SCHEMA, {
+    required: ['paymentStatus'],
+  });
+  const existing = await prisma.memberApplication.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+
+  const now = new Date();
+  if (paymentStatus === 'PENDING') {
+    const restoredFee = existing.entryFee > 0 ? existing.entryFee : 100000;
+    const updated = await prisma.memberApplication.update({
+      where: { id },
+      data: {
+        paymentStatus: 'PENDING',
+        paidAt: null,
+        entryFee: restoredFee,
+      },
+    });
+    return res.json(toApplicationDto(updated, true));
+  }
+
+  const nextEntryFee =
+    paymentStatus === 'FREE' ? 0 : existing.entryFee > 0 ? existing.entryFee : 100000;
+
+  const updated = await prisma.memberApplication.update({
+    where: { id },
+    data: {
+      paymentStatus,
+      paidAt: existing.paidAt ?? now,
+      entryFee: nextEntryFee,
+    },
+  });
+
+  res.json(toApplicationDto(updated, true));
+}));
+
+type AssignedPlayerLevel = 'SENIOR' | 'JUNIOR' | 'YOUTH';
+
+function resolveAssignedPlayerLevel(requested: unknown, fallback: unknown): AssignedPlayerLevel {
+  const raw = String(requested || fallback || 'JUNIOR').trim().toUpperCase();
+  if (raw === 'SENIOR' || raw === 'JUNIOR' || raw === 'YOUTH') return raw;
+  return 'JUNIOR';
+}
+
+// 4-Criteria Try-Out Evaluation Scorecard (ADMIN & SUPERADMIN)
+async function handleEvaluateTryoutRequest(req: express.Request, res: express.Response) {
+  const { id } = req.params;
+  const superAdmin = isSuperAdmin(req.user);
+  const { scores, coachNotes, status, level } = sanitize(req.body, TRYOUT_EVALUATE_SCHEMA, {
+    required: ['scores', 'status'],
+  });
+
+  const existing = await prisma.memberApplication.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+
+  const resolvedLevel = resolveAssignedPlayerLevel(level, existing.level);
+  const now = new Date();
+  const scoresPayload = {
+    ...scores,
+    evaluatedBy: req.user?.fullName || req.user?.role || 'Coach',
+    evaluatedAt: now.toISOString(),
+  };
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const appUpdated = await tx.memberApplication.update({
+      where: { id },
+      data: {
+        level: resolvedLevel,
+        evaluationScores: scoresPayload as any,
+        coachNotes: coachNotes !== undefined ? coachNotes : existing.coachNotes,
+        status,
+        ...(status === 'APPROVED'
+          ? { approvedAt: existing.approvedAt ?? now }
+          : { approvedAt: null }),
+      },
+    });
+    if (status === 'APPROVED') {
+      await promoteApplicationToPlayerIfNeeded(tx, { ...existing, level: resolvedLevel });
+    }
+    return appUpdated;
+  });
+
+  res.json(toApplicationDto(updated, superAdmin));
+}
+
+app.patch('/api/members/applications/:id/evaluate', ah(handleEvaluateTryoutRequest));
+app.patch('/api/admin/tryouts/:id/evaluate', ah(handleEvaluateTryoutRequest));
+
+async function handleSendTryoutEmailRequest(
+  req: express.Request,
+  res: express.Response,
+  forcedKind?: 'SCHEDULE' | 'RESULT'
+) {
+  const { id } = req.params;
+  const superAdmin = isSuperAdmin(req.user);
+  const existing = await prisma.memberApplication.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+
+  const rawBody = req.body && typeof req.body === 'object' ? { ...req.body } : {};
+  const body = forcedKind
+    ? sanitize(rawBody, TRYOUT_SCHEDULE_EMAIL_SCHEMA, { required: ['date', 'timeSlot'] })
+    : sanitize(rawBody, TRYOUT_UNIFIED_EMAIL_SCHEMA, { required: ['kind'] });
+
+  const kind: 'SCHEDULE' | 'RESULT' = forcedKind || body.kind;
+
+  // Backend ALWAYS looks up athlete's email from DB for ADMIN (never trusts client email for ADMIN, never exposes it back)
+  const resolvedRecipient =
+    superAdmin && body.toEmail && body.toEmail.trim()
+      ? body.toEmail.trim().toLowerCase()
+      : (existing.gmail || '').trim().toLowerCase();
+
+  if (!resolvedRecipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resolvedRecipient)) {
+    return res.status(400).json({ error: 'Ứng viên chưa có địa chỉ email hợp lệ trong hệ thống.' });
+  }
+
+  const now = new Date();
+
+  if (kind === 'SCHEDULE') {
+    if (existing.status === 'APPROVED') {
+      return res.status(400).json({
+        error: 'Hồ sơ đã được APPROVED — không cần gửi lịch hẹn Try-Out.',
+      });
+    }
+
+    const date = body.date;
+    const timeSlot = (body.timeSlot || '').trim();
+    const notes = body.notes || '';
+    if (!date || !timeSlot) {
+      return res.status(400).json({ error: 'Vui lòng chọn ngày và khung giờ hẹn Try-Out.' });
+    }
+
+    const dayInfo = getTryoutDayInfo(date);
+    if (!dayInfo.valid) {
+      return res.status(400).json({ error: 'Ngày hẹn Try-Out không hợp lệ.' });
+    }
+
+    const mailResult = await sendTryoutInvitationEmail({
+      applicationId: existing.id,
+      fullName: existing.fullName,
+      position: existing.position,
+      level: existing.level,
+      phone: existing.zalo,
+      toEmail: resolvedRecipient,
+      date,
+      timeSlot,
+      notes,
+      paymentStatus: existing.paymentStatus || 'PENDING',
+    });
+
+    const prevHistory = Array.isArray(existing.scheduleHistory) ? existing.scheduleHistory : [];
+    const nextEntry = {
+      date,
+      dayLabel: dayInfo.combinedLabel,
+      timeSlot,
+      notes,
+      toEmail: resolvedRecipient,
+      sentAt: now.toISOString(),
+      sentBy: req.user?.fullName || req.user?.role || 'Admin',
+      emailSent: mailResult.sent,
+    };
+
+    const nextStatus = 'SCHEDULED';
+    const scheduledAtDate = new Date(`${date}T00:00:00+07:00`);
+
+    const updated = await prisma.memberApplication.update({
+      where: { id },
+      data: {
+        status: nextStatus,
+        scheduledAt: Number.isNaN(scheduledAtDate.getTime()) ? now : scheduledAtDate,
+        scheduledDate: date,
+        scheduledDayLabel: dayInfo.combinedLabel,
+        scheduledTime: timeSlot,
+        scheduledNotes: notes || null,
+        scheduledEmailSentAt: now,
+        scheduleHistory: [nextEntry, ...prevHistory].slice(0, 20) as any,
+      },
+    });
+
+    return res.json({
+      success: true,
+      emailSent: mailResult.sent,
+      emailError: mailResult.error,
+      message: mailResult.sent
+        ? superAdmin
+          ? `Đã gửi thư mời Try-Out tới ${resolvedRecipient} (${dayInfo.viDay} ${dayInfo.formattedDate} · ${timeSlot}).`
+          : `Đã gửi thư mời Try-Out cho ${existing.fullName} (${dayInfo.viDay} ${dayInfo.formattedDate} · ${timeSlot}).`
+        : `Đã lưu lịch hẹn Try-Out cho ${existing.fullName} (Email chưa gửi được: ${mailResult.error || 'Chưa cấu hình Resend'}).`,
+      application: toApplicationDto(updated, superAdmin),
+    });
+  }
+
+  // kind === 'RESULT'
+  const requestedOutcome = body.outcome as 'APPROVED' | 'REJECTED' | undefined;
+  const resolvedOutcome: 'APPROVED' | 'REJECTED' | null =
+    requestedOutcome ||
+    (existing.status === 'APPROVED' || existing.status === 'REJECTED' ? existing.status : null);
+
+  if (!resolvedOutcome) {
+    return res.status(400).json({
+      error: 'Vui lòng chấm điểm hoặc chọn kết luận (APPROVED / REJECTED) trước khi gửi mail kết quả.',
+    });
+  }
+
+  const resolvedLevel = resolveAssignedPlayerLevel(body.level, existing.level);
+  const resolvedScores =
+    body.scores ||
+    (existing.evaluationScores && typeof existing.evaluationScores === 'object'
+      ? (existing.evaluationScores as any)
+      : null);
+  const resolvedCoachNotes =
+    body.coachNotes !== undefined ? body.coachNotes : (existing.coachNotes ?? '');
+
+  const scoresWithMeta = body.scores
+    ? {
+        ...body.scores,
+        evaluatedBy: req.user?.fullName || req.user?.role || 'Coach',
+        evaluatedAt: now.toISOString(),
+      }
+    : existing.evaluationScores;
+
+  const mailResult = await sendTryoutResultEmail({
+    applicationId: existing.id,
+    fullName: existing.fullName,
+    position: existing.position,
+    level: resolvedLevel,
+    toEmail: resolvedRecipient,
+    outcome: resolvedOutcome,
+    scores: resolvedScores,
+    coachNotes: resolvedCoachNotes,
+  });
+
+  const prevResHistory = Array.isArray(existing.resultEmailHistory) ? existing.resultEmailHistory : [];
+  const nextResEntry = {
+    outcome: resolvedOutcome,
+    level: resolvedLevel,
+    coachNotes: resolvedCoachNotes,
+    toEmail: resolvedRecipient,
+    sentAt: now.toISOString(),
+    sentBy: req.user?.fullName || req.user?.role || 'Admin',
+    emailSent: mailResult.sent,
+  };
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const appUpdated = await tx.memberApplication.update({
+      where: { id },
+      data: {
+        level: resolvedLevel,
+        status: resolvedOutcome,
+        ...(scoresWithMeta ? { evaluationScores: scoresWithMeta as any } : {}),
+        ...(resolvedCoachNotes !== undefined ? { coachNotes: resolvedCoachNotes || null } : {}),
+        ...(resolvedOutcome === 'APPROVED'
+          ? { approvedAt: existing.approvedAt ?? now }
+          : { approvedAt: null }),
+        resultEmailSentAt: now,
+        resultEmailHistory: [nextResEntry, ...prevResHistory].slice(0, 20) as any,
+      },
+    });
+    if (resolvedOutcome === 'APPROVED') {
+      await promoteApplicationToPlayerIfNeeded(tx, { ...existing, level: resolvedLevel });
+    }
+    return appUpdated;
+  });
+
+  return res.json({
+    success: true,
+    emailSent: mailResult.sent,
+    emailError: mailResult.error,
+    message: mailResult.sent
+      ? superAdmin
+        ? `Đã gửi email kết quả (${resolvedOutcome}) tới ${resolvedRecipient}.`
+        : `Đã gửi email kết quả (${resolvedOutcome}) cho ${existing.fullName} thành công!`
+      : `Đã lưu kết quả ${resolvedOutcome} cho ${existing.fullName} (Email chưa gửi được: ${mailResult.error || 'Chưa cấu hình Resend'}).`,
+    application: toApplicationDto(updated, superAdmin),
+  });
+}
+
+// Schedule Try-Out Invitation & Send Email via Resend (legacy/direct path)
+app.post('/api/members/applications/:id/schedule-tryout', ah(async (req, res) => {
+  return handleSendTryoutEmailRequest(req, res, 'SCHEDULE');
+}));
+
+// Unified Try-Out Email Endpoint (Schedule Invitation & Evaluation Result) — hides athlete email from ADMIN
+app.post('/api/admin/tryouts/:id/send-email', ah(async (req, res) => {
+  return handleSendTryoutEmailRequest(req, res);
+}));
+
+app.delete('/api/members/applications/:id', requireSuperAdmin, ah(async (req, res) => {
   const { id } = req.params;
   const existing = await prisma.memberApplication.findUnique({ where: { id } });
   if (existing) await prisma.memberApplication.delete({ where: { id } });
@@ -2560,6 +2974,10 @@ app.get('/api/sheets/data', ah(async (_req, res) => {
         Instagram: a.instagram,
         Rotation_Knowledge: fromRotationEnum(a.rotationKnowledge),
         Status: a.status,
+        Payment_Status: (a as any).paymentStatus || 'PENDING',
+        Scheduled_Tryout: (a as any).scheduledDate
+          ? `${(a as any).scheduledDate} ${(a as any).scheduledTime || ''}`.trim()
+          : '',
       })),
       Court_Bookings: bookingsList.map((b) => ({
         Timestamp: formatTimestamp(b.createdAt),
@@ -3845,6 +4263,142 @@ const TOURNAMENT_FULL_INCLUDE = {
   },
 };
 
+// PII-free aggregated Overview Summary for Dashboard Analytics (ADMIN & SUPERADMIN)
+app.get('/api/admin/overview-summary', ah(async (_req, res) => {
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const CHART_MONTHS = 6;
+  const toMonthKey = (value: unknown): string | null => {
+    if (!value) return null;
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return null;
+      return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
+    }
+    const str = String(value);
+    const plain = /^(\d{4})-(\d{2})-\d{2}$/.exec(str);
+    if (plain) return `${plain[1]}-${plain[2]}`;
+    const d = new Date(str);
+    if (Number.isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  const now = new Date();
+  const monthlyRevenue = Array.from({ length: CHART_MONTHS }, (_, idx) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (CHART_MONTHS - 1 - idx), 1);
+    return {
+      monthKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: MONTH_LABELS[d.getMonth()],
+      court: 0,
+      training: 0,
+      store: 0,
+      guest: 0,
+      tryout: 0,
+      tournament: 0,
+    };
+  });
+  const bucketByKey = new Map(monthlyRevenue.map((b) => [b.monthKey, b]));
+
+  // Batch into bounded Promise.all groups so overview summary does not saturate small pg.Pool limits (max=5)
+  const [bookingsRows, ordersRows, guestRows, regRows] = await Promise.all([
+    prisma.booking.findMany({ select: { paymentStatus: true, totalPrice: true, bookingDate: true } }),
+    prisma.order.findMany({ select: { status: true, totalAmount: true, createdAt: true } }),
+    prisma.guestSession.findMany({ select: { paymentStatus: true, amount: true, paidAt: true, sessionDate: true } }),
+    prisma.trainingRegistration.findMany({ select: { status: true, courseId: true, createdAt: true } }),
+  ]);
+
+  const [coursesRows, appsRows, hostedTours, playersRows] = await Promise.all([
+    prisma.trainingCourse.findMany({ select: { id: true, price: true } }),
+    prisma.memberApplication.findMany({ select: { status: true, paymentStatus: true, entryFee: true, paidAt: true, approvedAt: true, updatedAt: true, createdAt: true } }),
+    prisma.tournament.findMany({
+      where: { mode: 'HOSTED' },
+      select: {
+        entryFeePerTeam: true,
+        teams: { select: { paymentStatus: true, entryFeeAmount: true, paidAt: true, createdAt: true } },
+      },
+    }),
+    prisma.player.findMany({ select: { isActive: true } }),
+  ]);
+
+  const [coachesCount, newsCount, storeProductsCount] = await Promise.all([
+    prisma.coachProfile.count(),
+    prisma.newsPost.count(),
+    prisma.product.count(),
+  ]);
+
+  const paidBookings = bookingsRows.filter((b) => b.paymentStatus === 'PAID');
+  const courtRevenue = paidBookings.reduce((s, b) => s + (Number(b.totalPrice) || 0), 0);
+  paidBookings.forEach((b) => {
+    const bucket = bucketByKey.get(toMonthKey(b.bookingDate) ?? '');
+    if (bucket) bucket.court += Number(b.totalPrice) || 0;
+  });
+
+  const paidOrders = ordersRows.filter((o) => ['PAID', 'SHIPPED', 'COMPLETED'].includes(String(o.status)));
+  const storeRevenue = paidOrders.reduce((s, o) => s + (Number(o.totalAmount) || 0), 0);
+  paidOrders.forEach((o) => {
+    const bucket = bucketByKey.get(toMonthKey(o.createdAt) ?? '');
+    if (bucket) bucket.store += Number(o.totalAmount) || 0;
+  });
+
+  const paidGuests = guestRows.filter((g) => g.paymentStatus === 'PAID');
+  const guestSessionRevenue = paidGuests.reduce((s, g) => s + (Number(g.amount) || 0), 0);
+  paidGuests.forEach((g) => {
+    const bucket = bucketByKey.get(toMonthKey(g.paidAt ?? g.sessionDate) ?? '');
+    if (bucket) bucket.guest += Number(g.amount) || 0;
+  });
+
+  const coursePriceMap = new Map(coursesRows.map((c) => [c.id, Number(c.price) || 0]));
+  const confirmedRegs = regRows.filter((r) => r.status === 'CONFIRMED');
+  const trainingRevenue = confirmedRegs.reduce((s, r) => s + (coursePriceMap.get(r.courseId) ?? 0), 0);
+  confirmedRegs.forEach((r) => {
+    const bucket = bucketByKey.get(toMonthKey(r.createdAt) ?? '');
+    if (bucket) bucket.training += coursePriceMap.get(r.courseId) ?? 0;
+  });
+
+  appsRows.forEach((a) => {
+    const pay = String(a.paymentStatus || 'PENDING').toUpperCase();
+    const isCounted = pay === 'PAID' || (a.status === 'APPROVED' && pay !== 'FREE');
+    if (!isCounted) return;
+    const fee = pay === 'FREE' ? 0 : (a.entryFee !== null && a.entryFee !== undefined ? Number(a.entryFee) : 100000);
+    const bucket = bucketByKey.get(toMonthKey(a.paidAt ?? a.approvedAt ?? a.updatedAt ?? a.createdAt) ?? '');
+    if (bucket) bucket.tryout += fee;
+  });
+
+  hostedTours.forEach((tour) => {
+    tour.teams.forEach((tm) => {
+      if (tm.paymentStatus === 'PAID') {
+        const amt = Number(tm.entryFeeAmount ?? tour.entryFeePerTeam) || 0;
+        const bucket = bucketByKey.get(toMonthKey(tm.paidAt ?? tm.createdAt) ?? '');
+        if (bucket) bucket.tournament += amt;
+      }
+    });
+  });
+
+  res.json({
+    totalBookingsCount: bookingsRows.length,
+    paidBookingsCount: paidBookings.length,
+    pendingBookingsCount: bookingsRows.filter((b) => b.paymentStatus === 'PENDING').length,
+    totalStoreOrdersCount: ordersRows.length,
+    paidStoreOrdersCount: paidOrders.length,
+    pendingStoreOrdersCount: ordersRows.filter((o) => o.status === 'PENDING').length,
+    totalGuestSessionsCount: guestRows.length,
+    paidGuestSessionsCount: paidGuests.length,
+    pendingGuestSessionsCount: guestRows.filter((g) => g.paymentStatus === 'PENDING').length,
+    totalTrainingRegsCount: regRows.length,
+    confirmedTrainingCount: confirmedRegs.length,
+    pendingTrainingCount: regRows.filter((r) => r.status === 'PENDING').length,
+    playersCount: playersRows.length,
+    activePlayersCount: playersRows.filter((p) => p.isActive !== false).length,
+    coursesCount: coursesRows.length,
+    coachesCount,
+    newsCount,
+    storeProductsCount,
+    courtRevenue,
+    trainingRevenue,
+    storeRevenue,
+    guestSessionRevenue,
+    monthlyRevenue,
+  });
+}));
+
 // Admin lightweight finance summary for Dashboard Overview & RevenueTrendChart
 app.get('/api/admin/tournaments/finance-summary', ah(async (_req, res) => {
   const rows = await prisma.tournament.findMany({
@@ -3866,9 +4420,10 @@ app.get('/api/admin/tournaments/finance-summary', ah(async (_req, res) => {
   res.json(rows.map(toTournamentFinanceSummaryDto));
 }));
 
-// Public & Staff tournament list
+// Public & Staff tournament list (strips sensitive captain/official contact details unless SUPERADMIN)
 app.get('/api/tournaments', ah(async (req, res) => {
   const isStaffUser = isStaff(req.user);
+  const includeContacts = isSuperAdmin(req.user);
   applyTournamentCacheHeaders(res, isStaffUser);
 
   const where: Record<string, any> = {};
@@ -3883,12 +4438,13 @@ app.get('/api/tournaments', ah(async (req, res) => {
     orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
   });
 
-  res.json(rows.map((row) => toTournamentDto(row, isStaffUser)));
+  res.json(rows.map((row) => toTournamentDto(row, isStaffUser, includeContacts)));
 }));
 
 // Public & Staff single tournament lookup by id or slug
 app.get('/api/tournaments/:slugOrId', ah(async (req, res) => {
   const isStaffUser = isStaff(req.user);
+  const includeContacts = isSuperAdmin(req.user);
   const { slugOrId } = req.params;
 
   const row = await prisma.tournament.findFirst({
@@ -3904,7 +4460,7 @@ app.get('/api/tournaments/:slugOrId', ah(async (req, res) => {
   }
 
   applyTournamentCacheHeaders(res, isStaffUser, row.status);
-  res.json(toTournamentDto(row, isStaffUser));
+  res.json(toTournamentDto(row, isStaffUser, includeContacts));
 }));
 
 // Public Team Captain Registration (1 unified form for whole team + roster) -> VietQR

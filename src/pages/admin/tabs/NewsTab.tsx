@@ -29,6 +29,7 @@ const toDateInputValue = (raw?: string): string => {
 export const NewsTab: React.FC = () => {
   const {
     currentUser,
+    isSuperAdmin,
     data: { newsList },
     setData: { setNewsList },
     notify,
@@ -235,14 +236,16 @@ export const NewsTab: React.FC = () => {
                   >
                     <Edit3 className="w-4 h-4 text-orange-400" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteNews(story.id, story.title)}
-                    className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer transition-colors"
-                    title="Delete story"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteNews(story.id, story.title)}
+                      className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer transition-colors"
+                      title="Delete story"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

@@ -2,6 +2,11 @@ import crypto from 'crypto';
 import { Resend } from 'resend';
 import dotenv from 'dotenv';
 import { formatTournamentScheduleDisplay } from '../src/shared/tournaments';
+import {
+  buildTryoutInvitationEmailHtml,
+  buildTryoutResultEmailHtml,
+  getTryoutDayInfo,
+} from '../src/shared/tryoutEmail';
 
 dotenv.config();
 
@@ -153,6 +158,8 @@ export interface MemberEmailPayload {
   instagram?: string;
   rotationKnowledge?: string;
   hometownCountry?: string;
+  experience?: string;
+  preferredDays?: string;
 }
 
 export interface GuestSessionEmailPayload {
@@ -1213,6 +1220,8 @@ export function getMemberRegistrationHtml(member: {
   instagram: string;
   rotation_knowledge: string;
   hometown_country: string;
+  experience?: string;
+  preferred_days?: string;
   transfer_content: string;
   vietqr_url: string;
 }): string {
@@ -1221,6 +1230,14 @@ export function getMemberRegistrationHtml(member: {
     member.jersey_number !== undefined && member.jersey_number !== null && member.jersey_number !== ''
       ? `#${member.jersey_number}`
       : 'Tự do / Any';
+  const weightDisplay =
+    Number(member.weight) > 0
+      ? `${escapeHtml(member.weight)} kg`
+      : 'Đo tại buổi Try-Out / At Try-Out';
+  const reachDisplay =
+    Number(member.spike_reach) > 0 && Number(member.block_reach) > 0
+      ? `Đập ${escapeHtml(member.spike_reach)} cm | Chắn ${escapeHtml(member.block_reach)} cm`
+      : 'Đo tại buổi Try-Out / Measured at Try-Out';
 
   return `
 <!DOCTYPE html>
@@ -1324,7 +1341,7 @@ export function getMemberRegistrationHtml(member: {
                     Chiều cao / Cân nặng<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Height / Weight</span>
                   </td>
                   <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
-                    ${escapeHtml(member.height)} cm / ${escapeHtml(member.weight)} kg
+                    ${escapeHtml(member.height)} cm / ${weightDisplay}
                   </td>
                 </tr>
                 <tr>
@@ -1332,9 +1349,33 @@ export function getMemberRegistrationHtml(member: {
                     Tầm bật đập / chắn<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Spike / Block Reach</span>
                   </td>
                   <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#f8fafc;text-align:right;">
-                    Đập ${escapeHtml(member.spike_reach)} cm | Chắn ${escapeHtml(member.block_reach)} cm
+                    ${reachDisplay}
                   </td>
                 </tr>
+                ${
+                  member.experience
+                    ? `<tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Kinh nghiệm chơi bóng<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Volleyball Experience</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#fbbf24;text-align:right;">
+                    ${escapeHtml(member.experience)}
+                  </td>
+                </tr>`
+                    : ''
+                }
+                ${
+                  member.preferred_days
+                    ? `<tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Khung ngày mong muốn<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Preferred Try-Out Days</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#38bdf8;text-align:right;">
+                    ${escapeHtml(member.preferred_days)}
+                  </td>
+                </tr>`
+                    : ''
+                }
                 <tr>
                   <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
                     Chiến thuật 5-1<br /><span style="font-size:11px;color:#64748b;font-style:italic;">5-1 System Knowledge</span>
@@ -1845,6 +1886,8 @@ export async function sendMemberRegistrationEmail(
       instagram: member.instagram || 'None',
       rotation_knowledge: member.rotationKnowledge || '',
       hometown_country: member.hometownCountry || '',
+      experience: member.experience,
+      preferred_days: member.preferredDays,
       transfer_content: transferContent,
       vietqr_url: vietQrUrl,
     });
@@ -3175,6 +3218,221 @@ export async function sendTournamentRegistrationEmail(
     return false;
   }
 }
+
+// ============================================================================
+// 8. LUỒNG GỬI EMAIL HẸN LỊCH TRY-OUT CHO ỨNG VIÊN (TRY-OUT INVITATION)
+// ============================================================================
+export interface TryoutInvitationEmailPayload {
+  applicationId: string;
+  fullName: string;
+  position: string;
+  level?: string;
+  phone?: string;
+  toEmail: string;
+  date: string; // YYYY-MM-DD
+  timeSlot: string;
+  notes?: string;
+  paymentStatus?: 'PENDING' | 'PAID' | string;
+}
+
+export async function sendTryoutInvitationEmail(
+  payload: TryoutInvitationEmailPayload
+): Promise<{ sent: boolean; messageId?: string; error?: string }> {
+  const recipientEmail = (payload.toEmail || '').trim().toLowerCase();
+  if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+    return { sent: false, error: 'Invalid recipient email address' };
+  }
+
+  if (!getResendApiKey()) {
+    console.warn('[Resend Mailer Warning] RESEND_API_KEY chưa được cấu hình. Bỏ qua gửi email hẹn lịch Try-Out.');
+    return { sent: false, error: 'RESEND_API_KEY is not configured' };
+  }
+
+  const client = getResendClient();
+  const sender = getSenderEmail();
+  const admin = getAdminEmail();
+  const hotline = process.env.HOTLINE || '0768 299 329';
+  const dayInfo = getTryoutDayInfo(payload.date);
+
+  const html = buildTryoutInvitationEmailHtml({
+    fullName: payload.fullName,
+    position: payload.position,
+    level: payload.level,
+    phone: payload.phone,
+    toEmail: recipientEmail,
+    date: payload.date,
+    dayLabel: dayInfo.combinedLabel,
+    timeSlot: payload.timeSlot,
+    notes: payload.notes,
+    paymentStatus: payload.paymentStatus,
+    hotline,
+  });
+
+  try {
+    const subjectDate = dayInfo.valid ? `${dayInfo.viDay} ${dayInfo.formattedDate}` : payload.date;
+    const { data, error } = await client.emails.send({
+      from: sender,
+      to: recipientEmail,
+      subject: `[DVA Volleyball Club] Thư mời tham gia Try-Out / Try-Out Invitation - ${payload.fullName} (${subjectDate})`,
+      html,
+      replyTo: admin,
+    });
+
+    if (error) {
+      console.warn(`[Resend Mailer Warning] Lỗi gửi email hẹn lịch Try-Out tới ${recipientEmail}:`, error.message);
+      return { sent: false, error: error.message };
+    }
+
+    console.log(`[Resend Mailer] ✅ Đã gửi thư mời Try-Out tới ${recipientEmail} (ID: ${data?.id})`);
+
+    // Gửi bản sao thông báo ngắn tới Admin (non-blocking)
+    try {
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 600px;">
+          <h2 style="color: #f97316; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-top: 0;">
+            📅 [DVA Admin] Đã gửi thư mời Try-Out cho VĐV: ${escapeHtml(payload.fullName)}
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px;">
+            <tr><td style="padding: 6px 0; color: #94a3b8; width: 140px;">Ứng viên:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${escapeHtml(payload.fullName)} (${escapeHtml(payload.position)})</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Email nhận:</td><td style="padding: 6px 0; color: #38bdf8;">${escapeHtml(recipientEmail)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">SĐT / Zalo:</td><td style="padding: 6px 0; color: #ffffff;">${escapeHtml(payload.phone || 'N/A')}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Thời gian hẹn:</td><td style="padding: 6px 0; font-weight: bold; color: #fb923c;">${escapeHtml(dayInfo.combinedLabel)} · ${escapeHtml(dayInfo.formattedDate)} (${escapeHtml(payload.timeSlot)})</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Trạng thái phí:</td><td style="padding: 6px 0; font-weight: bold; color: ${payload.paymentStatus === 'PAID' ? '#4ade80' : '#fbbf24'};">${escapeHtml(payload.paymentStatus || 'PENDING')}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Ghi chú HLV:</td><td style="padding: 6px 0; color: #cbd5e1;">${escapeHtml(payload.notes || 'Không có')}</td></tr>
+          </table>
+          <div style="margin-top: 18px; padding-top: 12px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
+            Hệ thống Quản lý DVA Volleyball Club • Gửi tự động qua Resend
+          </div>
+        </div>
+      `.trim();
+
+      await client.emails.send({
+        from: sender,
+        to: admin,
+        subject: `[DVA Admin] Đã hẹn Try-Out: ${payload.fullName} (${payload.position}) - ${dayInfo.formattedDate} ${payload.timeSlot}`,
+        html: adminHtml,
+        replyTo: recipientEmail,
+      });
+    } catch (adminErr: any) {
+      console.warn('[Resend Mailer Warning] Không thể gửi notify Admin Try-Out:', adminErr?.message || adminErr);
+    }
+
+    return { sent: true, messageId: data?.id };
+  } catch (err: any) {
+    const msg = err?.message || 'Unknown Resend error';
+    console.warn(`[Resend Mailer Warning] Ngoại lệ khi gửi thư mời Try-Out tới ${recipientEmail}:`, msg);
+    return { sent: false, error: msg };
+  }
+}
+
+// ============================================================================
+// 9. LUỒNG GỬI EMAIL KẾT QUẢ TRY-OUT (APPROVED ZALO/IG BY LEVEL | REJECTED FEEDBACK)
+// ============================================================================
+export interface TryoutResultEmailPayload {
+  applicationId: string;
+  fullName: string;
+  position: string;
+  level: string;
+  toEmail: string;
+  outcome: 'APPROVED' | 'REJECTED';
+  scores?: {
+    physical?: number;
+    technique?: number;
+    tactical?: number;
+    attitude?: number;
+    total?: number;
+  } | null;
+  coachNotes?: string;
+}
+
+export async function sendTryoutResultEmail(
+  payload: TryoutResultEmailPayload
+): Promise<{ sent: boolean; messageId?: string; error?: string }> {
+  const recipientEmail = (payload.toEmail || '').trim().toLowerCase();
+  if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+    return { sent: false, error: 'Invalid recipient email address' };
+  }
+
+  if (!getResendApiKey()) {
+    console.warn('[Resend Mailer Warning] RESEND_API_KEY chưa được cấu hình. Bỏ qua gửi email kết quả Try-Out.');
+    return { sent: false, error: 'RESEND_API_KEY is not configured' };
+  }
+
+  const client = getResendClient();
+  const sender = getSenderEmail();
+  const admin = getAdminEmail();
+  const hotline = process.env.HOTLINE || '0768 299 329';
+
+  const html = buildTryoutResultEmailHtml({
+    fullName: payload.fullName,
+    position: payload.position,
+    level: payload.level,
+    outcome: payload.outcome,
+    scores: payload.scores,
+    coachNotes: payload.coachNotes,
+    hotline,
+  });
+
+  const isApproved = payload.outcome === 'APPROVED';
+  const subject = isApproved
+    ? `[DVA Volleyball Club] 🎉 Chúc mừng bạn trúng tuyển đội hình ${payload.level} / Try-Out Accepted - ${payload.fullName}`
+    : `[DVA Volleyball Club] Kết quả đánh giá Try-Out & Nhận xét chuyên môn / Try-Out Feedback - ${payload.fullName}`;
+
+  try {
+    const { data, error } = await client.emails.send({
+      from: sender,
+      to: recipientEmail,
+      subject,
+      html,
+      replyTo: admin,
+    });
+
+    if (error) {
+      console.warn(`[Resend Mailer Warning] Lỗi gửi email kết quả Try-Out tới ${recipientEmail}:`, error.message);
+      return { sent: false, error: error.message };
+    }
+
+    console.log(`[Resend Mailer] ✅ Đã gửi email kết quả Try-Out (${payload.outcome}) tới ${recipientEmail} (ID: ${data?.id})`);
+
+    // Notify Admin non-blocking
+    try {
+      const totalScore = payload.scores?.total ? `${payload.scores.total}/20` : 'Chưa chấm';
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px; max-width: 600px;">
+          <h2 style="color: ${isApproved ? '#10b981' : '#f59e0b'}; border-bottom: 2px solid #334155; padding-bottom: 10px; margin-top: 0;">
+            ${isApproved ? '🎉 [DVA Admin] Đã gửi thư CHÚC MỪNG TRÚNG TUYỂN' : '🏐 [DVA Admin] Đã gửi thư KẾT QUẢ TRY-OUT (CHƯA ĐẠT)'}
+          </h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px;">
+            <tr><td style="padding: 6px 0; color: #94a3b8; width: 140px;">Ứng viên:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${escapeHtml(payload.fullName)} (${escapeHtml(payload.position)} · ${escapeHtml(payload.level)})</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Kết luận:</td><td style="padding: 6px 0; font-weight: bold; color: ${isApproved ? '#4ade80' : '#fca5a5'};">${escapeHtml(payload.outcome)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Tổng điểm:</td><td style="padding: 6px 0; font-family: monospace; color: #fbbf24;">${escapeHtml(totalScore)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #94a3b8;">Nhận xét HLV:</td><td style="padding: 6px 0; color: #cbd5e1;">${escapeHtml(payload.coachNotes || 'Không có')}</td></tr>
+          </table>
+          <div style="margin-top: 18px; padding-top: 12px; border-top: 1px solid #334155; font-size: 12px; color: #64748b; text-align: center;">
+            Hệ thống Quản lý DVA Volleyball Club • Gửi tự động qua Resend
+          </div>
+        </div>
+      `.trim();
+
+      await client.emails.send({
+        from: sender,
+        to: admin,
+        subject: `[DVA Admin] Kết quả Try-Out (${payload.outcome}): ${payload.fullName} - ${payload.level}`,
+        html: adminHtml,
+        replyTo: recipientEmail,
+      });
+    } catch (adminErr: any) {
+      console.warn('[Resend Mailer Warning] Không thể gửi notify Admin kết quả Try-Out:', adminErr?.message || adminErr);
+    }
+
+    return { sent: true, messageId: data?.id };
+  } catch (err: any) {
+    const msg = err?.message || 'Unknown Resend error';
+    console.warn(`[Resend Mailer Warning] Ngoại lệ khi gửi email kết quả Try-Out tới ${recipientEmail}:`, msg);
+    return { sent: false, error: msg };
+  }
+}
+
 
 
 

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { User as UserType, StoreSubView } from '../../../types';
 import { authService } from '../../../services/api';
 import { AdminDashboardContextValue, AdminTabId } from '../types';
-import { VALID_TABS, createInitialManageDate } from '../constants';
+import { VALID_TABS, ADMIN_ALLOWED_TABS, createInitialManageDate } from '../constants';
 import { useFeedback } from '../hooks/useFeedback';
 import { useAdminData } from '../hooks/useAdminData';
 
@@ -53,8 +53,11 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
   const isSuperAdmin = currentUser.role === 'SUPERADMIN';
   const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
 
-  const activeModule: AdminTabId =
-    VALID_TABS.includes(currentTabParam as any) && (currentTabParam !== 'USERS' || isSuperAdmin)
+  const activeModule: AdminTabId = isSuperAdmin
+    ? VALID_TABS.includes(currentTabParam as any)
+      ? (currentTabParam as AdminTabId)
+      : 'OVERVIEW'
+    : ADMIN_ALLOWED_TABS.includes(currentTabParam as any)
       ? (currentTabParam as AdminTabId)
       : 'OVERVIEW';
 
@@ -64,38 +67,43 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
 
   const setActiveModule = useCallback(
     (mod: AdminTabId | string, subView?: string) => {
-      const nextParams: Record<string, string> = { tab: mod.toLowerCase() };
-      if (subView) {
+      const upper = mod.toUpperCase() as AdminTabId;
+      const safeMod =
+        !isSuperAdmin && !ADMIN_ALLOWED_TABS.includes(upper) ? 'OVERVIEW' : mod;
+      const nextParams: Record<string, string> = { tab: safeMod.toLowerCase() };
+      if (subView && isSuperAdmin) {
         nextParams.view = subView.toLowerCase();
       }
       setSearchParams(nextParams);
     },
-    [setSearchParams]
+    [setSearchParams, isSuperAdmin]
   );
 
   const setStoreSubView = useCallback(
     (view: StoreSubView) => {
+      if (!isSuperAdmin) return;
       setSearchParams({ tab: 'store', view: view.toLowerCase() });
     },
-    [setSearchParams]
+    [setSearchParams, isSuperAdmin]
   );
 
   const { feedback, setFeedback, notify } = useFeedback();
-  const { loading, fetchData, data, setData } = useAdminData(activeModule);
+  const { loading, fetchData, data, setData } = useAdminData(activeModule, isSuperAdmin);
 
   // Court Schedule & Slot Lock Control state (shared across COURTS and BOOKINGS)
   const [selectedManageCourtId, setSelectedManageCourtId] = useState<string>('court-btl');
   const [adminSelectedSubCourt, setAdminSelectedSubCourt] = useState<string>('Sân A');
   const [selectedManageDate, setSelectedManageDate] = useState<string>(createInitialManageDate);
 
-  // Shared Guest Session Email Modal visibility
+  // Shared Guest Session Email Modal visibility (SUPERADMIN only)
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [guestModalError, setGuestModalError] = useState<string | null>(null);
 
   const openGuestModal = useCallback(() => {
+    if (!isSuperAdmin) return;
     setGuestModalError(null);
     setIsGuestModalOpen(true);
-  }, []);
+  }, [isSuperAdmin]);
 
   const closeGuestModal = useCallback(() => {
     setIsGuestModalOpen(false);

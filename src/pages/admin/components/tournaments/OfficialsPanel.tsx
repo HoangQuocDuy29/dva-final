@@ -102,12 +102,14 @@ interface OfficialsPanelProps {
   tournament: Tournament;
   onRefresh: () => Promise<void>;
   notify: (msg: string, durationMs?: number) => void;
+  readOnly?: boolean;
 }
 
 export const OfficialsPanel: React.FC<OfficialsPanelProps> = ({
   tournament,
   onRefresh,
   notify,
+  readOnly = false,
 }) => {
   // Quick Add state
   const [fullName, setFullName] = useState('');
@@ -255,6 +257,7 @@ export const OfficialsPanel: React.FC<OfficialsPanelProps> = ({
   return (
     <div className="space-y-5">
       {/* Quick Add Official Form */}
+      {!readOnly && (
       <form
         onSubmit={handleAddOfficial}
         className="rounded-3xl bg-[#111827] border border-[#1E293B] p-5 space-y-3 text-xs"
@@ -322,6 +325,7 @@ export const OfficialsPanel: React.FC<OfficialsPanelProps> = ({
           </button>
         </div>
       </form>
+      )}
 
       {/* Officials Grid */}
       {tournament.officials.length === 0 ? (
@@ -356,28 +360,30 @@ export const OfficialsPanel: React.FC<OfficialsPanelProps> = ({
                   {off.certification && (
                     <div className="text-[10px] text-slate-400 truncate">{off.certification}</div>
                   )}
-                  {off.phone && (
+                  {!readOnly && off.phone && (
                     <div className="text-[10px] font-mono text-slate-500">{off.phone}</div>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(off)}
-                    className="p-2 rounded-xl bg-slate-800/80 hover:bg-sky-950 text-slate-300 hover:text-sky-300 cursor-pointer"
-                    title="Edit official"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(off)}
-                    className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
-                    title="Remove official"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                {!readOnly && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(off)}
+                      className="p-2 rounded-xl bg-slate-800/80 hover:bg-sky-950 text-slate-300 hover:text-sky-300 cursor-pointer"
+                      title="Edit official"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(off)}
+                      className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
+                      title="Remove official"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -385,7 +391,7 @@ export const OfficialsPanel: React.FC<OfficialsPanelProps> = ({
       )}
 
       {/* Edit Official Modal */}
-      {editingOfficial && (
+      {!readOnly && editingOfficial && (
         <div
           className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={closeEditModal}

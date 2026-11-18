@@ -40,12 +40,14 @@ interface CourtsideMatchesPanelProps {
   tournament: Tournament;
   onRefresh: () => Promise<void>;
   notify: (msg: string, durationMs?: number) => void;
+  readOnly?: boolean;
 }
 
 export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
   tournament,
   onRefresh,
   notify,
+  readOnly = false,
 }) => {
   const [stageFilter, setStageFilter] = useState<MatchStageFilterKey>('ALL');
   const [courtFilter, setCourtFilter] = useState<TournamentCourtFilter>('ALL');
@@ -537,6 +539,7 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
           </div>
 
           {/* Schedule Generators & Custom Match CTA */}
+          {!readOnly && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {tournament.trackingMode === 'FULL_BRACKET' && (
               <>
@@ -609,6 +612,7 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
               <span>Add Match</span>
             </button>
           </div>
+          )}
         </div>
 
         {/* Combinable Court Filter Row */}
@@ -779,15 +783,21 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleSwapCourt(m)}
-                              className="px-2 py-0.5 rounded-lg bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-sky-300 font-bold inline-flex items-center gap-1 cursor-pointer"
-                              title="Swap between Court A & Court B"
-                            >
-                              <ArrowLeftRight className="w-3 h-3" />
-                              <span>{normalizeTournamentCourtName(m.courtName)}</span>
-                            </button>
+                            {readOnly ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-sky-300 font-bold">
+                                {normalizeTournamentCourtName(m.courtName)}
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSwapCourt(m)}
+                                className="px-2 py-0.5 rounded-lg bg-[#0B0F19] hover:bg-[#1E293B] border border-[#1E293B] text-sky-300 font-bold inline-flex items-center gap-1 cursor-pointer"
+                                title="Swap between Court A & Court B"
+                              >
+                                <ArrowLeftRight className="w-3 h-3" />
+                                <span>{normalizeTournamentCourtName(m.courtName)}</span>
+                              </button>
+                            )}
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
                                 m.status === 'LIVE'
@@ -812,36 +822,47 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
                         />
 
                         <div className="pt-2 border-t border-[#1E293B] flex flex-wrap items-center justify-between gap-2">
-                          <select
-                            value={m.officialId || ''}
-                            onChange={(e) => handleQuickOfficial(m, e.target.value)}
-                            className="px-2 py-1 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-[11px] text-slate-300 max-w-[170px]"
-                          >
-                            <option value="">Assign 1st Referee...</option>
-                            {tournament.officials.map((off) => (
-                              <option key={off.id} value={off.id}>
-                                {off.fullName}
-                              </option>
-                            ))}
-                          </select>
+                          {readOnly ? (
+                            <span className="text-[11px] text-slate-400">
+                              1st Ref:{' '}
+                              <span className="text-slate-200 font-semibold">
+                                {tournament.officials.find((off) => off.id === m.officialId)?.fullName || 'Unassigned'}
+                              </span>
+                            </span>
+                          ) : (
+                            <select
+                              value={m.officialId || ''}
+                              onChange={(e) => handleQuickOfficial(m, e.target.value)}
+                              className="px-2 py-1 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-[11px] text-slate-300 max-w-[170px]"
+                            >
+                              <option value="">Assign 1st Referee...</option>
+                              {tournament.officials.map((off) => (
+                                <option key={off.id} value={off.id}>
+                                  {off.fullName}
+                                </option>
+                              ))}
+                            </select>
+                          )}
 
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => openScorer(m)}
-                              className="px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-500 text-white font-bold inline-flex items-center gap-1 cursor-pointer"
-                            >
-                              <Play className="w-3 h-3" />
-                              <span>Live Score / Edit</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteMatch(m)}
-                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          {!readOnly && (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openScorer(m)}
+                                className="px-3 py-1.5 rounded-xl bg-[#F97316] hover:bg-orange-500 text-white font-bold inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <Play className="w-3 h-3" />
+                                <span>Live Score / Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMatch(m)}
+                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -853,7 +874,7 @@ export const CourtsideMatchesPanel: React.FC<CourtsideMatchesPanelProps> = ({
       )}
 
       {/* Touch-Friendly Courtside Live Scorer Modal */}
-      {scoringMatch && (
+      {!readOnly && scoringMatch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md">
           <div className="w-full max-w-2xl bg-[#111827] border border-[#1E293B] rounded-3xl p-5 sm:p-6 text-white space-y-4 max-h-[92vh] overflow-y-auto no-scrollbar text-xs">
             <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">

@@ -1,0 +1,127 @@
+{
+  "breadcrumb": {
+    "information": "Thông tin CLB",
+    "tryout": "Chương trình Try-Out"
+  },
+  "hero": {
+    "badge": "Tuyển chọn Thành viên Chính thức DVA",
+    "title": "Chương Trình Try-Out — DVA Volleyball Club",
+    "subtitle": "Gia nhập cộng đồng bóng chuyền trong nhà chuyên nghiệp tại Hà Nội. Đăng ký buổi đánh giá năng lực trực tiếp trên sân cùng Ban Huấn luyện cho các đội hình Senior, Junior và Youth.",
+    "groupRuleBadge": "Điều kiện Tổ chức Buổi Test",
+    "groupRuleTitle": "Mở buổi đánh giá khi có từ 5 VĐV đăng ký trở lên",
+    "groupRuleDesc": "Ngay khi khung giờ trong tuần đủ từ 5 vận động viên đăng ký, Ban chuyên môn sẽ chốt lịch và gửi Email Thư mời Try-Out kèm sơ đồ hướng dẫn di chuyển đến sân cho từng bạn.",
+    "applyCta": "Đăng Ký Try-Out Ngay",
+    "backToInfo": "Xem Bảng giá & Nội quy",
+    "venueChip": "Nhà thi đấu 155 Trường Chinh, Thanh Xuân, Hà Nội"
+  },
+  "schedule": {
+    "sectionTitle": "1. Lịch Try-Out Cố Định Hàng Tuần & Địa Điểm",
+    "sectionBadge": "Lịch Cố Định",
+    "eveningLabel": "Buổi tối trong tuần & Thứ 7",
+    "eveningDays": "Thứ 2 · Thứ 4 · Thứ 6 · Thứ 7",
+    "eveningTime": "18:00 – 19:00",
+    "eveningNote": "Thời lượng đánh giá 60 phút trên sân thảm Taraflex trước ca tập chính thức. VĐV vui lòng có mặt trước 17:45 để khởi động.",
+    "sundayLabel": "Buổi chiều cuối tuần",
+    "sundayDays": "Chủ Nhật",
+    "sundayTime": "13:30 – 14:30",
+    "sundayNote": "Buổi test chuyên môn chiều Chủ Nhật (60 phút). Vui lòng có mặt trước 13:15 để điểm danh và khởi động kỹ.",
+    "venueTitle": "Địa điểm Sân tập Chính",
+    "venueName": "Nhà thi đấu BTL Thông Tin",
+    "venueAddress": "155 Trường Chinh, Thanh Xuân, Hà Nội",
+    "venueStandards": "Thảm sàn Taraflex 7.5mm · Bắt buộc giày bóng chuyền indoor đế bằng sạch (non-marking) · CLB chuẩn bị sẵn bóng Mikasa V200W.",
+    "openMaps": "Mở Google Maps Chỉ Đường"
+  },
+  "criteria": {
+    "sectionTitle": "2. Các Bài Test Năng Lực & Tiêu Chuẩn Đánh Giá",
+    "sectionSubtitle": "Mỗi ứng viên được Ban Huấn luyện chấm điểm toàn diện qua 4 tiêu chí chuyên môn cốt lõi trong buổi test 60 phút.",
+    "items": [
+      {
+        "number": "01",
+        "title": "Thể lực & Sức bật",
+        "subtitle": "Physical & Vertical Jump",
+        "desc": "Đo tầm với bật nhảy tại chỗ & bật đà tấn công, tầm bật chắn lưới, tốc độ di chuyển ngang và bước đệm trên sân."
+      },
+      {
+        "number": "02",
+        "title": "Kỹ thuật Cơ bản",
+        "subtitle": "Fundamental Ball Control",
+        "desc": "Đánh giá độ ổn định đệm bóng bước 1 (passing accuracy), chuyền bóng bổng chuẩn xác và phát bóng qua lưới có điểm rơi."
+      },
+      {
+        "number": "03",
+        "title": "Tư duy Chiến thuật & Vị trí",
+        "subtitle": "OH · MB · OP · S · L",
+        "desc": "Đánh giá thực chiến theo vị trí đăng ký (OH, MB, OP, S, L) — khả năng phối hợp bước 1 – chuyền 2 – tấn công, chắn bóng và bọc lót hàng sau."
+      },
+      {
+        "number": "04",
+        "title": "Thái độ & Tinh thần Đồng đội",
+        "subtitle": "Discipline & Team Spirit",
+        "desc": "Tuân thủ giờ giấc nghiêm túc, lắng nghe chỉ dẫn của HLV trưởng, giao tiếp tích cực và hỗ trợ đồng đội trên sân."
+      }
+    ]
+  },
+  "form": {
+    "sectionTitle": "3. Form Đăng Ký Try-Out Trực Tiếp",
+    "sectionSubtitle": "Hồ sơ của bạn được chuyển thẳng về hệ thống Tryout Applications của Ban Huấn luyện DVA để xếp lịch test sớm nhất.",
+    "fullName": "Họ và tên *",
+    "fullNamePlaceholder": "VD: Nguyễn Minh Quân",
+    "birthYear": "Năm sinh *",
+    "birthYearPlaceholder": "VD: 2004",
+    "phone": "Số điện thoại / Zalo *",
+    "phonePlaceholder": "VD: 0912 345 678",
+    "email": "Email liên hệ *",
+    "emailPlaceholder": "VD: minhquan@gmail.com",
+    "height": "Chiều cao (cm) *",
+    "heightPlaceholder": "VD: 178",
+    "position": "Vị trí sở trường *",
+    "positions": {
+      "OH": "OH — Chủ công (Outside Hitter)",
+      "MB": "MB — Phụ công (Middle Blocker)",
+      "OP": "OP — Đối chuyền (Opposite Spiker)",
+      "S": "S — Chuyền hai (Setter)",
+      "L": "L — Libero (Phòng thủ)"
+    },
+    "experience": "Kinh nghiệm chơi bóng *",
+    "experienceOptions": [
+      "Dưới 6 tháng (Mới chơi / Cơ bản)",
+      "6 tháng – 1 năm (Youth / Sơ đồ 4-2)",
+      "1 – 3 năm (Junior / Sơ đồ 5-1 & 6-2)",
+      "Trên 3 năm (Senior / Thi đấu phong trào nâng cao)"
+    ],
+    "experienceDetailPlaceholder": "Tùy chọn: CLB từng tham gia, đội tuyển trường hoặc mức độ nắm bắt chiến thuật 5-1 / 6-2...",
+    "preferredDays": "Khung ngày mong muốn *",
+    "preferredDaysHint": "Chọn một hoặc nhiều khung giờ Try-Out phù hợp với lịch của bạn:",
+    "daySlots": [
+      { "id": "Thứ 2 (18:00 - 19:00)", "label": "Thứ 2 · 18:00 – 19:00" },
+      { "id": "Thứ 4 (18:00 - 19:00)", "label": "Thứ 4 · 18:00 – 19:00" },
+      { "id": "Thứ 6 (18:00 - 19:00)", "label": "Thứ 6 · 18:00 – 19:00" },
+      { "id": "Thứ 7 (18:00 - 19:00)", "label": "Thứ 7 · 18:00 – 19:00" },
+      { "id": "Chủ Nhật (13:30 - 14:30)", "label": "Chủ Nhật · 13:30 – 14:30" }
+    ],
+    "submit": "Gửi Đăng Ký Try-Out",
+    "submitting": "Đang gửi hồ sơ đăng ký...",
+    "errors": {
+      "fullName": "Vui lòng nhập họ và tên (tối thiểu 2 ký tự).",
+      "birthYear": "Vui lòng nhập năm sinh hợp lệ (1960 – 2016).",
+      "phone": "Vui lòng nhập SĐT / Zalo hợp lệ (8–15 chữ số).",
+      "email": "Vui lòng nhập địa chỉ email hợp lệ.",
+      "height": "Vui lòng nhập chiều cao theo cm (100 – 250).",
+      "preferredDays": "Vui lòng chọn ít nhất một khung ngày Try-Out mong muốn."
+    }
+  },
+  "success": {
+    "badge": "ĐÃ TIẾP NHẬN HỒ SƠ TRY-OUT",
+    "title": "Đăng Ký Try-Out Thành Công!",
+    "subtitle": "Thông tin của bạn đã được lưu trực tiếp vào danh sách Tryout Applications của CLB DVA.",
+    "passId": "Mã hồ sơ",
+    "athlete": "Vận động viên",
+    "position": "Vị trí",
+    "division": "Nhóm dự kiến",
+    "preferred": "Khung ngày mong muốn",
+    "nextStepTitle": "Quy trình tiếp theo",
+    "nextStepDesc": "Buổi Try-Out sẽ mở khi đủ từ 5 VĐV đăng ký trở lên. Ban Huấn luyện sẽ gửi Email Thư mời Try-Out chính thức (kèm ngày giờ cụ thể và hướng dẫn vào sân 155 Trường Chinh) qua hòm thư bạn vừa đăng ký.",
+    "registerAnother": "Đăng ký thêm hồ sơ khác",
+    "viewInfo": "Quay lại trang Thông tin CLB"
+  }
+}

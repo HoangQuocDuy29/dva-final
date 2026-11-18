@@ -19,6 +19,8 @@ export interface AdminMetrics {
   paidStoreOrdersCount: number;
   paidGuestSessionsCount: number;
   approvedTryoutsCount: number;
+  paidTryoutsCount: number;
+  scheduledApplicationsCount: number;
   paidTournamentTeamsCount: number;
   pendingBookingsCount: number;
   pendingApplicationsCount: number;
@@ -28,6 +30,9 @@ export interface AdminMetrics {
   pendingTournamentFeesCount: number;
   hostedTournamentsCount: number;
   playersCount: number;
+  activePlayersCount: number;
+  totalBookingsCount: number;
+  totalTrainingRegsCount: number;
   coursesCount: number;
   coachesCount: number;
   newsCount: number;
@@ -84,7 +89,7 @@ function buildMonthBuckets(now: Date): MonthlyRevenuePoint[] {
 }
 
 export function useAdminMetrics(): AdminMetrics {
-  const { data } = useAdminDashboard();
+  const { isSuperAdmin, data } = useAdminDashboard();
   const {
     bookings,
     applications,
@@ -98,44 +103,75 @@ export function useAdminMetrics(): AdminMetrics {
     guestSessions,
     tournamentsSummary,
     tournamentsList,
+    overviewSummary,
   } = data;
 
   return useMemo(() => {
+    const useSummary = !isSuperAdmin && overviewSummary !== null;
+
     const paidBookings = bookings.filter((b) => b.paymentStatus === 'PAID');
-    const courtRevenue = paidBookings.reduce((sum, b) => sum + toNumber(b.totalPrice), 0);
-    const paidBookingsCount = paidBookings.length;
-    const pendingBookingsCount = bookings.filter((b) => b.paymentStatus === 'PENDING').length;
+    const courtRevenue = useSummary
+      ? overviewSummary.courtRevenue
+      : paidBookings.reduce((sum, b) => sum + toNumber(b.totalPrice), 0);
+    const paidBookingsCount = useSummary ? overviewSummary.paidBookingsCount : paidBookings.length;
+    const pendingBookingsCount = useSummary
+      ? overviewSummary.pendingBookingsCount
+      : bookings.filter((b) => b.paymentStatus === 'PENDING').length;
+
     const pendingApplicationsCount = applications.filter((a) => a.status === 'PENDING').length;
-    const pendingTrainingCount = trainingRegs.filter((r) => r.status === 'PENDING').length;
-    const pendingStoreOrdersCount = storeOrders.filter(
-      (o) => (o.status || o.paymentStatus) === 'PENDING'
-    ).length;
-    const pendingGuestSessionsCount = guestSessions.filter(
-      (g) => g.paymentStatus === 'PENDING'
-    ).length;
+    const scheduledApplicationsCount = applications.filter((a) => a.status === 'SCHEDULED').length;
+
+    const pendingTrainingCount = useSummary
+      ? overviewSummary.pendingTrainingCount
+      : trainingRegs.filter((r) => r.status === 'PENDING').length;
+    const pendingStoreOrdersCount = useSummary
+      ? overviewSummary.pendingStoreOrdersCount
+      : storeOrders.filter((o) => (o.status || o.paymentStatus) === 'PENDING').length;
+    const pendingGuestSessionsCount = useSummary
+      ? overviewSummary.pendingGuestSessionsCount
+      : guestSessions.filter((g) => g.paymentStatus === 'PENDING').length;
 
     const coursePriceById = new Map<string, number>();
     coursesList.forEach((c) => coursePriceById.set(c.id, toNumber(c.price)));
 
     const confirmedRegs = trainingRegs.filter((r) => r.status === 'CONFIRMED');
     const regValue = (courseId: string) => coursePriceById.get(courseId) ?? 0;
-    const trainingRevenue = confirmedRegs.reduce((sum, r) => sum + regValue(r.courseId), 0);
+    const trainingRevenue = useSummary
+      ? overviewSummary.trainingRevenue
+      : confirmedRegs.reduce((sum, r) => sum + regValue(r.courseId), 0);
+    const confirmedTrainingCount = useSummary
+      ? overviewSummary.confirmedTrainingCount
+      : confirmedRegs.length;
 
     const paidStoreOrders = storeOrders.filter((o) =>
       ['PAID', 'SHIPPED', 'COMPLETED'].includes(String(o.status || o.paymentStatus))
     );
-    const paidStoreOrdersCount = paidStoreOrders.length;
-    const storeRevenue = paidStoreOrders.reduce((sum, o) => sum + toNumber(o.totalAmount), 0);
+    const paidStoreOrdersCount = useSummary
+      ? overviewSummary.paidStoreOrdersCount
+      : paidStoreOrders.length;
+    const storeRevenue = useSummary
+      ? overviewSummary.storeRevenue
+      : paidStoreOrders.reduce((sum, o) => sum + toNumber(o.totalAmount), 0);
 
     const paidGuestSessions = guestSessions.filter((g) => g.paymentStatus === 'PAID');
-    const paidGuestSessionsCount = paidGuestSessions.length;
-    const guestSessionRevenue = paidGuestSessions.reduce((sum, g) => sum + toNumber(g.amount), 0);
+    const paidGuestSessionsCount = useSummary
+      ? overviewSummary.paidGuestSessionsCount
+      : paidGuestSessions.length;
+    const guestSessionRevenue = useSummary
+      ? overviewSummary.guestSessionRevenue
+      : paidGuestSessions.reduce((sum, g) => sum + toNumber(g.amount), 0);
 
     const approvedApplications = applications.filter((a) => a.status === 'APPROVED');
     const approvedTryoutsCount = approvedApplications.length;
-    const tryoutFeeOf = (app: (typeof applications)[number]) =>
-      app.entryFee !== undefined && app.entryFee !== null ? toNumber(app.entryFee) : 100000;
-    const tryoutRevenue = approvedApplications.reduce((sum, a) => sum + tryoutFeeOf(a), 0);
+    const paidTryoutsCount = applications.filter((a) => a.paymentStatus === 'PAID').length;
+    const revenueTryouts = applications.filter(
+      (a) => a.paymentStatus === 'PAID' || (a.status === 'APPROVED' && a.paymentStatus !== 'FREE')
+    );
+    const tryoutFeeOf = (app: (typeof applications)[number]) => {
+      if (app.paymentStatus === 'FREE') return 0;
+      return app.entryFee !== undefined && app.entryFee !== null ? toNumber(app.entryFee) : 100000;
+    };
+    const tryoutRevenue = revenueTryouts.reduce((sum, a) => sum + tryoutFeeOf(a), 0);
 
     // Strictly count HOSTED tournaments (PARTICIPATING tournaments NEVER enter revenue)
     const hostedSource =
@@ -168,38 +204,47 @@ export function useAdminMetrics(): AdminMetrics {
       courtRevenue + storeRevenue + guestSessionRevenue + tryoutRevenue + tournamentRevenue;
     const totalClubRevenue = verifiedClubRevenue + trainingRevenue;
 
-    const monthlyRevenue = buildMonthBuckets(new Date());
-    const bucketByKey = new Map(monthlyRevenue.map((p) => [p.monthKey, p]));
-    paidBookings.forEach((b) => {
-      const bucket = bucketByKey.get(toMonthKey(b.bookingDate) ?? '');
-      if (bucket) bucket.court += toNumber(b.totalPrice);
-    });
-    confirmedRegs.forEach((r) => {
-      const bucket = bucketByKey.get(toMonthKey(r.createdAt) ?? '');
-      if (bucket) bucket.training += regValue(r.courseId);
-    });
-    paidStoreOrders.forEach((o) => {
-      const bucket = bucketByKey.get(toMonthKey(o.createdAt) ?? '');
-      if (bucket) bucket.store += toNumber(o.totalAmount);
-    });
-    paidGuestSessions.forEach((g) => {
-      const bucket = bucketByKey.get(toMonthKey(g.paidAt ?? g.sessionDate) ?? '');
-      if (bucket) bucket.guest += toNumber(g.amount);
-    });
-    approvedApplications.forEach((a) => {
-      const bucket = bucketByKey.get(toMonthKey(a.approvedAt ?? a.updatedAt ?? a.createdAt) ?? '');
-      if (bucket) bucket.tryout += tryoutFeeOf(a);
-    });
-    paidTournamentTeams.forEach((tm) => {
-      const bucket = bucketByKey.get(toMonthKey(tm.paidAt ?? tm.createdAt) ?? '');
-      if (bucket) bucket.tournament += tm.amount;
-    });
+    const monthlyRevenue = useSummary
+      ? overviewSummary.monthlyRevenue
+      : (() => {
+          const buckets = buildMonthBuckets(new Date());
+          const bucketByKey = new Map(buckets.map((p) => [p.monthKey, p]));
+          paidBookings.forEach((b) => {
+            const bucket = bucketByKey.get(toMonthKey(b.bookingDate) ?? '');
+            if (bucket) bucket.court += toNumber(b.totalPrice);
+          });
+          confirmedRegs.forEach((r) => {
+            const bucket = bucketByKey.get(toMonthKey(r.createdAt) ?? '');
+            if (bucket) bucket.training += regValue(r.courseId);
+          });
+          paidStoreOrders.forEach((o) => {
+            const bucket = bucketByKey.get(toMonthKey(o.createdAt) ?? '');
+            if (bucket) bucket.store += toNumber(o.totalAmount);
+          });
+          paidGuestSessions.forEach((g) => {
+            const bucket = bucketByKey.get(toMonthKey(g.paidAt ?? g.sessionDate) ?? '');
+            if (bucket) bucket.guest += toNumber(g.amount);
+          });
+          revenueTryouts.forEach((a) => {
+            const bucket = bucketByKey.get(
+              toMonthKey(a.paidAt ?? a.approvedAt ?? a.updatedAt ?? a.createdAt) ?? ''
+            );
+            if (bucket) bucket.tryout += tryoutFeeOf(a);
+          });
+          paidTournamentTeams.forEach((tm) => {
+            const bucket = bucketByKey.get(toMonthKey(tm.paidAt ?? tm.createdAt) ?? '');
+            if (bucket) bucket.tournament += tm.amount;
+          });
+          return buckets;
+        })();
 
     return {
       paidBookingsCount,
       paidStoreOrdersCount,
       paidGuestSessionsCount,
       approvedTryoutsCount,
+      paidTryoutsCount,
+      scheduledApplicationsCount,
       paidTournamentTeamsCount,
       pendingBookingsCount,
       pendingApplicationsCount,
@@ -208,13 +253,18 @@ export function useAdminMetrics(): AdminMetrics {
       pendingGuestSessionsCount,
       pendingTournamentFeesCount,
       hostedTournamentsCount,
-      playersCount: players.length,
-      coursesCount: coursesList.length,
-      coachesCount: coachesList.length,
+      playersCount: useSummary ? overviewSummary.playersCount : players.length,
+      activePlayersCount: useSummary
+        ? overviewSummary.activePlayersCount
+        : players.filter((p) => p.isActive !== false).length,
+      totalBookingsCount: useSummary ? overviewSummary.totalBookingsCount : bookings.length,
+      totalTrainingRegsCount: useSummary ? overviewSummary.totalTrainingRegsCount : trainingRegs.length,
+      coursesCount: useSummary ? overviewSummary.coursesCount : coursesList.length,
+      coachesCount: useSummary ? overviewSummary.coachesCount : coachesList.length,
       newsCount: newsList.length,
-      storeProductsCount: storeProducts.length,
-      storeOrdersCount: storeOrders.length,
-      guestSessionsCount: guestSessions.length,
+      storeProductsCount: useSummary ? overviewSummary.storeProductsCount : storeProducts.length,
+      storeOrdersCount: useSummary ? overviewSummary.totalStoreOrdersCount : storeOrders.length,
+      guestSessionsCount: useSummary ? overviewSummary.totalGuestSessionsCount : guestSessions.length,
       courtRevenue,
       trainingRevenue,
       storeRevenue,
@@ -223,10 +273,12 @@ export function useAdminMetrics(): AdminMetrics {
       tournamentRevenue,
       verifiedClubRevenue,
       totalClubRevenue,
-      confirmedTrainingCount: confirmedRegs.length,
+      confirmedTrainingCount,
       monthlyRevenue,
     };
   }, [
+    isSuperAdmin,
+    overviewSummary,
     bookings,
     applications,
     trainingRegs,

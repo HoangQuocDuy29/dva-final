@@ -118,87 +118,96 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
         target: item.id,
       }));
 
-    const storeSubShortcuts: QuickSearchResult[] = q
-      ? STORE_SUBVIEW_SHORTCUTS.filter(
-          (s) =>
-            s.title.toLowerCase().includes(q) ||
-            s.keywords.some((k) => k.includes(q))
-        ).map((s) => ({
-          kind: 'MODULE' as const,
-          id: s.id,
-          title: s.title,
-          subtitle: s.subtitle,
-          target: 'STORE' as const,
-          subView: s.subView,
-        }))
-      : [];
+    const storeSubShortcuts: QuickSearchResult[] =
+      isSuperAdmin && q
+        ? STORE_SUBVIEW_SHORTCUTS.filter(
+            (s) =>
+              s.title.toLowerCase().includes(q) ||
+              s.keywords.some((k) => k.includes(q))
+          ).map((s) => ({
+            kind: 'MODULE' as const,
+            id: s.id,
+            title: s.title,
+            subtitle: s.subtitle,
+            target: 'STORE' as const,
+            subView: s.subView,
+          }))
+        : [];
 
     const modules = [...baseModules, ...storeSubShortcuts].slice(0, q ? MAX_PER_KIND : 12);
 
     if (!q) return modules;
 
-    const athletes: QuickSearchResult[] = players
-      .filter(
-        (p) =>
-          (p.fullName || '').toLowerCase().includes(q) || String(p.jerseyNumber ?? '') === q.replace('#', '')
-      )
-      .slice(0, MAX_PER_KIND)
-      .map((p) => ({
-        kind: 'PLAYER' as const,
-        id: `player-${p.id}`,
-        title: p.fullName,
-        subtitle: `#${p.jerseyNumber}${p.isActive === false ? ' · Hidden' : ''}`,
-        target: 'PLAYERS' as const,
-      }));
+    const athletes: QuickSearchResult[] = isSuperAdmin
+      ? players
+          .filter(
+            (p) =>
+              (p.fullName || '').toLowerCase().includes(q) || String(p.jerseyNumber ?? '') === q.replace('#', '')
+          )
+          .slice(0, MAX_PER_KIND)
+          .map((p) => ({
+            kind: 'PLAYER' as const,
+            id: `player-${p.id}`,
+            title: p.fullName,
+            subtitle: `#${p.jerseyNumber}${p.isActive === false ? ' · Hidden' : ''}`,
+            target: 'PLAYERS' as const,
+          }))
+      : [];
 
-    const reservations: QuickSearchResult[] = bookings
-      .filter(
-        (b) =>
-          (b.bookingCode || '').toLowerCase().includes(q) ||
-          (b.customerName || '').toLowerCase().includes(q) ||
-          (b.customerPhone || '').toLowerCase().includes(q)
-      )
-      .slice(0, MAX_PER_KIND)
-      .map((b) => ({
-        kind: 'BOOKING' as const,
-        id: `booking-${b.id}`,
-        title: b.customerName,
-        subtitle: `${b.bookingCode} · ${b.bookingDate} · ${b.paymentStatus}`,
-        target: 'BOOKINGS' as const,
-      }));
+    const reservations: QuickSearchResult[] = isSuperAdmin
+      ? bookings
+          .filter(
+            (b) =>
+              (b.bookingCode || '').toLowerCase().includes(q) ||
+              (b.customerName || '').toLowerCase().includes(q) ||
+              (b.customerPhone || '').toLowerCase().includes(q)
+          )
+          .slice(0, MAX_PER_KIND)
+          .map((b) => ({
+            kind: 'BOOKING' as const,
+            id: `booking-${b.id}`,
+            title: b.customerName,
+            subtitle: `${b.bookingCode} · ${b.bookingDate} · ${b.paymentStatus}`,
+            target: 'BOOKINGS' as const,
+          }))
+      : [];
 
-    const matchedStoreOrders: QuickSearchResult[] = storeOrders
-      .filter(
-        (o) =>
-          (o.orderCode || '').toLowerCase().includes(q) ||
-          (o.customerName || '').toLowerCase().includes(q) ||
-          (o.customerPhone || '').toLowerCase().includes(q)
-      )
-      .slice(0, MAX_PER_KIND)
-      .map((o) => ({
-        kind: 'STORE_ORDER' as const,
-        id: `store-order-${o.id}`,
-        title: `${o.orderCode} · ${o.customerName}`,
-        subtitle: `${o.totalAmount.toLocaleString('vi-VN')} đ · ${o.paymentStatus}`,
-        target: 'STORE' as const,
-        subView: 'orders',
-      }));
+    const matchedStoreOrders: QuickSearchResult[] = isSuperAdmin
+      ? storeOrders
+          .filter(
+            (o) =>
+              (o.orderCode || '').toLowerCase().includes(q) ||
+              (o.customerName || '').toLowerCase().includes(q) ||
+              (o.customerPhone || '').toLowerCase().includes(q)
+          )
+          .slice(0, MAX_PER_KIND)
+          .map((o) => ({
+            kind: 'STORE_ORDER' as const,
+            id: `store-order-${o.id}`,
+            title: `${o.orderCode} · ${o.customerName}`,
+            subtitle: `${o.totalAmount.toLocaleString('vi-VN')} đ · ${o.paymentStatus}`,
+            target: 'STORE' as const,
+            subView: 'orders',
+          }))
+      : [];
 
-    const matchedStoreProducts: QuickSearchResult[] = storeProducts
-      .filter(
-        (p) =>
-          (p.name || '').toLowerCase().includes(q) ||
-          (p.sku || '').toLowerCase().includes(q)
-      )
-      .slice(0, MAX_PER_KIND)
-      .map((p) => ({
-        kind: 'STORE_PRODUCT' as const,
-        id: `store-product-${p.id}`,
-        title: p.name,
-        subtitle: `${p.sku} · ${p.price.toLocaleString('vi-VN')} đ · Stock: ${p.stock}`,
-        target: 'STORE' as const,
-        subView: 'products',
-      }));
+    const matchedStoreProducts: QuickSearchResult[] = isSuperAdmin
+      ? storeProducts
+          .filter(
+            (p) =>
+              (p.name || '').toLowerCase().includes(q) ||
+              (p.sku || '').toLowerCase().includes(q)
+          )
+          .slice(0, MAX_PER_KIND)
+          .map((p) => ({
+            kind: 'STORE_PRODUCT' as const,
+            id: `store-product-${p.id}`,
+            title: p.name,
+            subtitle: `${p.sku} · ${p.price.toLocaleString('vi-VN')} đ · Stock: ${p.stock}`,
+            target: 'STORE' as const,
+            subView: 'products',
+          }))
+      : [];
 
     const matchedTournaments: QuickSearchResult[] = tournamentsSummary
       .filter(

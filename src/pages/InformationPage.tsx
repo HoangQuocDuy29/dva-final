@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   Calendar, 
   CreditCard, 
@@ -12,11 +13,16 @@ import {
   Users,
   Sparkles,
   UserPlus,
-  ArrowRight
+  ArrowRight,
+  Target,
+  MapPin
 } from 'lucide-react';
 import { ContactBanner } from '../components/common/ContactBanner';
 
 export const InformationPage: React.FC = () => {
+  const { i18n } = useTranslation('common');
+  const isVi = i18n.language?.startsWith('vi');
+
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white py-12 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
@@ -33,6 +39,59 @@ export const InformationPage: React.FC = () => {
             Official rate cards for court reservations, membership programs, weekly training schedules, and Taraflex shoe etiquette rules.
           </p>
         </div>
+
+        {/* FEATURED SUB-PAGE NAVIGATION CARD: DVA SQUAD TRY-OUT PROGRAM */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#161F30] via-[#1C1428] to-[#161F30] border-2 border-orange-500/40 p-6 sm:p-7 shadow-2xl">
+          <div className="absolute -right-12 -top-12 w-56 h-56 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2.5 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/80 border border-red-700/70 text-red-300 text-[11px] font-bold uppercase tracking-wider">
+                  <Target className="w-3.5 h-3.5 text-orange-400" />
+                  <span>{isVi ? 'Tuyển sinh Thành viên Chính thức' : 'Official Squad Try-Out Hub'}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-[10px] font-bold">
+                  <Users className="w-3 h-3" />
+                  <span>{isVi ? 'Mở test khi đủ 5+ VĐV' : 'Opens with 5+ Athletes'}</span>
+                </span>
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-black text-white font-heading">
+                {isVi
+                  ? 'Chương Trình Try-Out & Kiểm Tra Năng Lực CLB DVA'
+                  : 'DVA Volleyball Club Try-Out Program & Assessment Schedule'}
+              </h2>
+
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                {isVi
+                  ? 'Xem lịch test cố định hàng tuần (T2, T4, T6, T7: 18:00–19:00 · Chủ Nhật: 13:30–14:30), 4 bài kiểm tra chuyên môn và đăng ký giữ suất đánh giá tại Nhà thi đấu 155 Trường Chinh.'
+                  : 'Explore fixed weekly evaluation slots (Mon/Wed/Fri/Sat 18:00–19:00 · Sunday 13:30–14:30), 4 core skill tests, and register directly for an on-court assessment at 155 Truong Chinh.'}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400 pt-1">
+                <span className="inline-flex items-center gap-1.5 font-mono text-orange-300 font-semibold">
+                  <Clock className="w-3.5 h-3.5 text-orange-400" />
+                  18:00–19:00 (T2/4/6/7) · 13:30–14:30 (CN)
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-slate-300">
+                  <MapPin className="w-3.5 h-3.5 text-red-400" />
+                  155 Trường Chinh, Thanh Xuân, Hà Nội
+                </span>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex flex-col sm:flex-row lg:flex-col gap-2.5">
+              <Link
+                to="/information/try-out"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-black text-xs sm:text-sm text-white bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 shadow-lg shadow-red-950/40 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Target className="w-4 h-4" />
+                <span>{isVi ? 'Xem Chi Tiết & Đăng Ký Try-Out' : 'Try-Out Program & Register'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
 
         {/* SECTION 1: TRANSPARENT FEE STRUCTURE */}
         <section className="space-y-6">
@@ -379,11 +438,21 @@ export const InformationPage: React.FC = () => {
 
         {/* SECTION 3: JOINING CRITERIA */}
         <section className="space-y-6">
-          <div className="flex items-center gap-2">
-            <Award className="w-5 h-5 text-red-500" />
-            <h2 className="text-xl font-black text-white font-heading">
-              3. Squad Tryout Selection Criteria
-            </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-red-500" />
+              <h2 className="text-xl font-black text-white font-heading">
+                3. Squad Tryout Selection Criteria
+              </h2>
+            </div>
+            <Link
+              to="/information/try-out"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-950/60 hover:bg-orange-900/60 border border-orange-500/40 text-orange-300 font-bold text-xs transition-colors w-fit"
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span>{isVi ? 'Xem lịch Try-Out & Bài test' : 'View Try-Out Schedule & Tests'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
           {/* Responsive Criteria Cards: 1 col on mobile, 2 cols on tablet, 3 cols on laptop/desktop */}
@@ -494,14 +563,21 @@ export const InformationPage: React.FC = () => {
               Register today to secure your training spot and become part of our volleyball community.
             </p>
 
-            <div className="pt-2 flex justify-center">
+            <div className="pt-2 flex flex-wrap justify-center gap-3">
+              <Link
+                to="/information/try-out"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 shadow-lg shadow-red-900/40 hover:shadow-orange-500/25 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
+              >
+                <Target className="w-4 h-4" />
+                <span>{isVi ? 'Đăng Ký Try-Out CLB' : 'Try-Out Program & Apply'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
               <Link
                 to="/register"
-                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 shadow-lg shadow-red-900/40 hover:shadow-orange-500/25 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl text-xs sm:text-sm font-bold text-slate-200 bg-[#0E1524] hover:bg-slate-800 border border-slate-700 transition-all duration-300 cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>Register Now</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>Register Full Athlete Profile</span>
               </Link>
             </div>
           </div>

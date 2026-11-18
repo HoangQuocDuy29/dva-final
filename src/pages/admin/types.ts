@@ -16,6 +16,7 @@ import {
   GuestSessionRecord,
   Tournament,
   TournamentFinanceSummary,
+  AdminOverviewSummary,
 } from '../../types';
 
 export type AdminTabId =
@@ -76,6 +77,7 @@ export interface AdminDataState {
   guestSessions: GuestSessionRecord[];
   tournamentsSummary: TournamentFinanceSummary[];
   tournamentsList: Tournament[];
+  overviewSummary: AdminOverviewSummary | null;
 }
 
 export interface AdminDataSetters {
@@ -94,6 +96,7 @@ export interface AdminDataSetters {
   setGuestSessions: React.Dispatch<React.SetStateAction<GuestSessionRecord[]>>;
   setTournamentsSummary: React.Dispatch<React.SetStateAction<TournamentFinanceSummary[]>>;
   setTournamentsList: React.Dispatch<React.SetStateAction<Tournament[]>>;
+  setOverviewSummary: React.Dispatch<React.SetStateAction<AdminOverviewSummary | null>>;
 }
 
 export interface AdminDashboardContextValue {

@@ -39,6 +39,16 @@ export const VALID_TABS: readonly AdminTabId[] = [
   'TOURNAMENTS',
 ] as const;
 
+/** Strict RBAC: ADMIN role only sees these exact 4 modules. All other modules are SUPERADMIN-only. */
+export const ADMIN_ALLOWED_TABS: readonly AdminTabId[] = [
+  'OVERVIEW',
+  'TOURNAMENTS',
+  'NEWS',
+  'APPLICATIONS',
+] as const;
+
+const ADMIN_ALLOWED_SET = new Set<AdminTabId>(ADMIN_ALLOWED_TABS);
+
 /**
  * Static sidebar registry (Spec 005). Group and item order is contractual —
  * see specs/005-admin-modern-analytics-hub/contracts/admin-ui-contract.md §2.
@@ -125,11 +135,11 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
 ];
 
-/** Returns the nav groups visible to the current role (USERS only for SUPERADMIN). */
+/** Returns the nav groups visible to the current role (ADMIN sees strictly 4 modules; SUPERADMIN sees all). */
 export function getVisibleNavGroups(isSuperAdmin: boolean): AdminNavGroup[] {
   return ADMIN_NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((i) => !i.superAdminOnly || isSuperAdmin),
+    items: g.items.filter((i) => (isSuperAdmin ? true : ADMIN_ALLOWED_SET.has(i.id))),
   })).filter((g) => g.items.length > 0);
 }
 

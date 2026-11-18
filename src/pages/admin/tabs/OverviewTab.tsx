@@ -17,8 +17,9 @@ import { GuestSessionsPanel } from '../components/overview/GuestSessionsPanel';
 
 export const OverviewTab: React.FC = () => {
   const {
+    isSuperAdmin,
     setActiveModule,
-    data: { bookings, trainingRegs, storeOrders, guestSessions, applications },
+    data: { bookings, trainingRegs, applications },
   } = useAdminDashboard();
   const {
     totalClubRevenue,
@@ -32,9 +33,14 @@ export const OverviewTab: React.FC = () => {
     paidStoreOrdersCount,
     paidGuestSessionsCount,
     approvedTryoutsCount,
+    paidTryoutsCount,
     paidTournamentTeamsCount,
     hostedTournamentsCount,
     confirmedTrainingCount,
+    totalBookingsCount,
+    storeOrdersCount,
+    guestSessionsCount,
+    totalTrainingRegsCount,
   } = useAdminMetrics();
 
   const guestSessionsPanelRef = useRef<HTMLDivElement>(null);
@@ -67,10 +73,10 @@ export const OverviewTab: React.FC = () => {
       label: 'Court Bookings',
       revenue: courtRevenue,
       pct: bookingSharePct,
-      volume: `${paidBookingsCount} paid / ${bookings.length} total bookings`,
+      volume: `${paidBookingsCount} paid / ${totalBookingsCount} total bookings`,
       color: 'bg-[#F97316]',
       textColor: 'text-[#F97316]',
-      onClick: () => setActiveModule('BOOKINGS'),
+      onClick: isSuperAdmin ? () => setActiveModule('BOOKINGS') : undefined,
     },
     {
       id: 'STORE' as const,
@@ -78,10 +84,10 @@ export const OverviewTab: React.FC = () => {
       label: 'DVA Store',
       revenue: storeRevenue,
       pct: storeSharePct,
-      volume: `${paidStoreOrdersCount} paid / ${storeOrders.length} total orders`,
+      volume: `${paidStoreOrdersCount} paid / ${storeOrdersCount} total orders`,
       color: 'bg-[#FACC15]',
       textColor: 'text-[#FACC15]',
-      onClick: () => setActiveModule('STORE'),
+      onClick: isSuperAdmin ? () => setActiveModule('STORE') : undefined,
     },
     {
       id: 'GUEST_SESSIONS' as const,
@@ -89,10 +95,10 @@ export const OverviewTab: React.FC = () => {
       label: 'Guest Sessions',
       revenue: guestSessionRevenue,
       pct: guestSharePct,
-      volume: `${paidGuestSessionsCount} paid / ${guestSessions.length} drop-in passes`,
+      volume: `${paidGuestSessionsCount} paid / ${guestSessionsCount} drop-in passes`,
       color: 'bg-[#A855F7]',
       textColor: 'text-[#A855F7]',
-      onClick: jumpToGuestSessions,
+      onClick: isSuperAdmin ? jumpToGuestSessions : undefined,
     },
     {
       id: 'APPLICATIONS' as const,
@@ -100,7 +106,7 @@ export const OverviewTab: React.FC = () => {
       label: 'Tryout Fees',
       revenue: tryoutRevenue,
       pct: tryoutSharePct,
-      volume: `${approvedTryoutsCount} approved / ${applications.length} applications`,
+      volume: `${paidTryoutsCount} paid · ${approvedTryoutsCount} approved / ${applications.length} apps`,
       color: 'bg-[#10B981]',
       textColor: 'text-[#10B981]',
       onClick: () => setActiveModule('APPLICATIONS'),
@@ -122,10 +128,10 @@ export const OverviewTab: React.FC = () => {
       label: 'Training & Scrimmages (Est.)',
       revenue: trainingRevenue,
       pct: trainingSharePct,
-      volume: `${confirmedTrainingCount} confirmed / ${trainingRegs.length} enrollments`,
+      volume: `${confirmedTrainingCount} confirmed / ${totalTrainingRegsCount} enrollments`,
       color: 'bg-[#38BDF8]',
       textColor: 'text-[#38BDF8]',
-      onClick: () => setActiveModule('TRAINING'),
+      onClick: isSuperAdmin ? () => setActiveModule('TRAINING') : undefined,
     },
   ];
 
@@ -184,7 +190,10 @@ export const OverviewTab: React.FC = () => {
                   key={s.id}
                   type="button"
                   onClick={s.onClick}
-                  className="w-full text-left p-2.5 rounded-2xl bg-[#0B0F19] hover:bg-[#161F30] border border-[#1E293B] transition-colors cursor-pointer space-y-1"
+                  disabled={!s.onClick}
+                  className={`w-full text-left p-2.5 rounded-2xl bg-[#0B0F19] border border-[#1E293B] transition-colors space-y-1 ${
+                    s.onClick ? 'hover:bg-[#161F30] cursor-pointer' : 'cursor-default'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-xs font-bold text-white">
@@ -208,10 +217,11 @@ export const OverviewTab: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Guest Sessions & Drop-in Pass Cashflow Management */}
-      <GuestSessionsPanel panelRef={guestSessionsPanelRef} />
+      {/* 3. Guest Sessions & Drop-in Pass Cashflow Management (SUPERADMIN only) */}
+      {isSuperAdmin && <GuestSessionsPanel panelRef={guestSessionsPanelRef} />}
 
-      {/* 4. Bottom Section: Recent Activity (Top 5 Bookings & Top 5 Training Registrations) */}
+      {/* 4. Bottom Section: Recent Activity (Top 5 Bookings & Top 5 Training Registrations — SUPERADMIN only) */}
+      {isSuperAdmin && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Court Bookings (Top 5) */}
         <div className="bg-[#111827] border border-[#1E293B] rounded-3xl p-6 space-y-4">
@@ -322,6 +332,7 @@ export const OverviewTab: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

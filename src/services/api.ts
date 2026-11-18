@@ -2,7 +2,14 @@ import {
   Booking, 
   ClosedSlot,
   Court, 
-  MemberApplication, 
+  MemberApplication,
+  ApplicationStatus,
+  TryoutPaymentStatus,
+  TryoutApplicationRegisterPayload,
+  TryoutScheduleEmailPayload,
+  TryoutEvaluatePayload,
+  TryoutUnifiedSendEmailPayload,
+  AdminOverviewSummary,
   NewsPost, 
   Player, 
   PlayerLevel, 
@@ -684,11 +691,14 @@ export const coachService = {
 };
 
 export const memberService = {
-  async register(applicationData: Partial<MemberApplication>): Promise<MemberApplication> {
+  async register(
+    applicationData: TryoutApplicationRegisterPayload | Partial<MemberApplication>
+  ): Promise<MemberApplication> {
     return deduplicatedPost<MemberApplication>('/members/register', applicationData, {
       ...applicationData,
       id: `app-${Date.now()}`,
       status: 'PENDING',
+      paymentStatus: 'PENDING',
       createdAt: new Date().toISOString(),
     } as MemberApplication);
   },
@@ -699,7 +709,7 @@ export const memberService = {
 
   async updateStatus(
     id: string,
-    status: 'PENDING' | 'APPROVED' | 'REJECTED',
+    status: ApplicationStatus,
     reviewNotes?: string,
     entryFee?: number
   ): Promise<{ application: MemberApplication; promotedPlayer: boolean }> {
@@ -721,6 +731,64 @@ export const memberService = {
     return request<MemberApplication>(`/members/applications/${id}/entry-fee`, {
       method: 'PATCH',
       body: JSON.stringify({ entryFee }),
+    });
+  },
+
+  async updatePaymentStatus(
+    id: string,
+    paymentStatus: TryoutPaymentStatus
+  ): Promise<MemberApplication> {
+    return request<MemberApplication>(`/members/applications/${id}/payment-status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ paymentStatus }),
+    });
+  },
+
+  async evaluate(
+    id: string,
+    payload: TryoutEvaluatePayload
+  ): Promise<MemberApplication> {
+    return request<MemberApplication>(`/admin/tryouts/${id}/evaluate`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async sendTryoutEmail(
+    id: string,
+    payload: TryoutUnifiedSendEmailPayload
+  ): Promise<{
+    success: boolean;
+    emailSent: boolean;
+    emailError?: string;
+    message: string;
+    application: MemberApplication;
+  }> {
+    return request<{
+      success: boolean;
+      emailSent: boolean;
+      emailError?: string;
+      message: string;
+      application: MemberApplication;
+    }>(`/admin/tryouts/${id}/send-email`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async scheduleTryout(
+    id: string,
+    payload: TryoutScheduleEmailPayload
+  ): Promise<{
+    success: boolean;
+    emailSent: boolean;
+    emailError?: string;
+    message: string;
+    application: MemberApplication;
+  }> {
+    return this.sendTryoutEmail(id, {
+      kind: 'SCHEDULE',
+      ...payload,
     });
   },
 
@@ -1046,6 +1114,9 @@ export const cloudinaryService = {
 };
 
 export const adminService = {
+  getOverviewSummary: () =>
+    request<AdminOverviewSummary | null>('/admin/overview-summary', undefined, null),
+
   sendGuestSessionEmail: (payload: GuestSessionPayload) =>
     request<{ success: boolean; message: string; guestSession?: GuestSessionRecord }>(
       '/admin/send-guest-session-email',

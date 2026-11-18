@@ -80,22 +80,22 @@ const AdminDashboardShell: React.FC = () => {
           {activeModule === 'OVERVIEW' && <OverviewTab />}
 
           {/* MODULE 2: COURTS CRUD, WEEKLY SCHEDULE & LIVE SLOT LOCK MANAGEMENT */}
-          {activeModule === 'COURTS' && <CourtsTab />}
+          {activeModule === 'COURTS' && isSuperAdmin && <CourtsTab />}
 
           {/* MODULE 3: COURT BOOKINGS & PAYMENT APPROVAL */}
-          {activeModule === 'BOOKINGS' && <BookingsTab />}
+          {activeModule === 'BOOKINGS' && isSuperAdmin && <BookingsTab />}
 
           {/* MODULE 4: MEMBER APPLICATIONS & AUTO-PLAYER PROMOTION */}
           {activeModule === 'APPLICATIONS' && <ApplicationsTab />}
 
           {/* MODULE 5: SQUAD ROSTER CRUD WITH SEARCH */}
-          {activeModule === 'PLAYERS' && <PlayersTab />}
+          {activeModule === 'PLAYERS' && isSuperAdmin && <PlayersTab />}
 
           {/* MODULE 6: ACADEMY COURSES & SCRIMMAGE TRAINEES */}
-          {activeModule === 'TRAINING' && <TrainingTab />}
+          {activeModule === 'TRAINING' && isSuperAdmin && <TrainingTab />}
 
           {/* MODULE 7: COACHING STAFF MANAGEMENT */}
-          {activeModule === 'COACHES' && <CoachesTab />}
+          {activeModule === 'COACHES' && isSuperAdmin && <CoachesTab />}
 
           {/* MODULE 8: NEWS & STORY PUBLISHING */}
           {activeModule === 'NEWS' && <NewsTab />}
@@ -104,10 +104,10 @@ const AdminDashboardShell: React.FC = () => {
           {activeModule === 'USERS' && isSuperAdmin && <UsersTab />}
 
           {/* MODULE 10: GOOGLE SHEETS LIVE SYNC INSPECTOR */}
-          {activeModule === 'SHEETS' && <SheetsTab onOpenSheets={onOpenSheets} />}
+          {activeModule === 'SHEETS' && isSuperAdmin && <SheetsTab onOpenSheets={onOpenSheets} />}
 
           {/* MODULE 11: DVA STORE (Phase 2 placeholder) */}
-          {activeModule === 'STORE' && <StoreTab />}
+          {activeModule === 'STORE' && isSuperAdmin && <StoreTab />}
 
           {/* MODULE 12: TOURNAMENTS (Coming Soon) */}
           {activeModule === 'TOURNAMENTS' && <TournamentsTab />}
@@ -115,7 +115,7 @@ const AdminDashboardShell: React.FC = () => {
       </div>
 
       {/* GUEST SESSION EMAIL MODAL */}
-      <GuestSessionEmailModal />
+      {isSuperAdmin && <GuestSessionEmailModal />}
     </div>
   );
 };

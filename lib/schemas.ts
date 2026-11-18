@@ -16,7 +16,8 @@ export const LEVEL_RULE: Rule = (v, k) => {
 export const POSITIONS = ['OH', 'OP', 'MB', 'S', 'L'] as const;
 export const PAYMENT_STATUSES = ['PENDING', 'PAID', 'CANCELLED'] as const;
 export const REGISTRATION_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED'] as const;
-export const APPLICATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
+export const APPLICATION_STATUSES = ['PENDING', 'SCHEDULED', 'RETEST', 'APPROVED', 'REJECTED'] as const;
+export const TRYOUT_PAYMENT_STATUSES = ['PENDING', 'PAID', 'FREE'] as const;
 export const ROTATIONS = ['5-1', '6-2', '4-2', 'BEGINNER'] as const;
 
 export const PLAYER_SCHEMA: Schema = {
@@ -258,7 +259,9 @@ export const TRAINING_REGISTER_SCHEMA: Schema = {
 };
 
 export const MEMBER_REGISTER_SCHEMA: Schema = {
+  source: S(30),
   fullName: S(100, 2),
+  birthYear: I(1950, 2020),
   dob: D,
   position: E(POSITIONS),
   hometownCountry: S(100, 1),
@@ -272,6 +275,82 @@ export const MEMBER_REGISTER_SCHEMA: Schema = {
   instagram: S(100),
   zalo: PH,
   rotationKnowledge: E(ROTATIONS),
+  experience: S(400),
+  preferredDays: S(400),
+};
+
+const OPTIONAL_TRYOUT_METRIC = (min: number, max: number): Rule => (v, k) => {
+  if (v === undefined || v === null || v === '' || v === 0 || v === '0') return 0;
+  return N(min, max)(v, k);
+};
+
+export const TRYOUT_REGISTER_SCHEMA: Schema = {
+  source: S(30),
+  fullName: S(100, 2),
+  birthYear: I(1950, 2020),
+  dob: OPTIONAL_DATE,
+  position: E(POSITIONS),
+  level: LEVEL_RULE,
+  height: N(100, 250),
+  weight: OPTIONAL_TRYOUT_METRIC(20, 220),
+  spikeReach: OPTIONAL_TRYOUT_METRIC(140, 420),
+  blockReach: OPTIONAL_TRYOUT_METRIC(130, 400),
+  hometownCountry: S(100),
+  desiredJerseyNumber: I(0, 99),
+  gmail: EM,
+  instagram: S(100),
+  zalo: PH,
+  rotationKnowledge: E(ROTATIONS),
+  experience: S(400, 1),
+  preferredDays: S(400, 1),
+};
+
+export const APPLICATION_PAYMENT_STATUS_SCHEMA: Schema = {
+  paymentStatus: E(TRYOUT_PAYMENT_STATUSES),
+};
+
+export const EVALUATION_SCORES_RULE: Rule = (v, k) => {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+    throw new HttpError(400, `${k} must be an object with physical, technique, tactical, attitude`);
+  }
+  const obj = v as Record<string, unknown>;
+  const physical = I(1, 5)(obj.physical, `${k}.physical`);
+  const technique = I(1, 5)(obj.technique, `${k}.technique`);
+  const tactical = I(1, 5)(obj.tactical, `${k}.tactical`);
+  const attitude = I(1, 5)(obj.attitude, `${k}.attitude`);
+  return {
+    physical,
+    technique,
+    tactical,
+    attitude,
+    total: physical + technique + tactical + attitude,
+  };
+};
+
+export const TRYOUT_EVALUATE_SCHEMA: Schema = {
+  scores: EVALUATION_SCORES_RULE,
+  coachNotes: S(2000),
+  status: E(['APPROVED', 'RETEST', 'REJECTED']),
+  level: LEVEL_RULE,
+};
+
+export const TRYOUT_SCHEDULE_EMAIL_SCHEMA: Schema = {
+  toEmail: OPTIONAL_EMAIL,
+  date: D,
+  timeSlot: S(80, 3),
+  notes: S(1500),
+};
+
+export const TRYOUT_UNIFIED_EMAIL_SCHEMA: Schema = {
+  kind: E(['SCHEDULE', 'RESULT']),
+  toEmail: OPTIONAL_EMAIL,
+  date: OPTIONAL_DATE,
+  timeSlot: S(80),
+  notes: S(1500),
+  outcome: E(['APPROVED', 'REJECTED']),
+  coachNotes: S(2000),
+  scores: EVALUATION_SCORES_RULE,
+  level: LEVEL_RULE,
 };
 
 // ============================================================================

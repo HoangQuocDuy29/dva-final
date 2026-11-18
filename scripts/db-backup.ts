@@ -95,6 +95,7 @@ function createPgPool(connectionString: string): Pool {
   const useSsl = !sslDisabled && !isLocalDbUrl(connectionString);
   return new Pool({
     connectionString,
+    max: 2,
     connectionTimeoutMillis: 10_000,
     idleTimeoutMillis: 10_000,
     ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {}),
@@ -394,7 +395,7 @@ async function syncSnapshotToLocalDb(localUrl: string, snapshotTables: Record<st
 async function main(): Promise<void> {
   const syncLocal = hasFlag('--sync-local');
   const fromFile = getArgValue('--from-file=');
-  const sourceUrl = (process.env.DATABASE_URL || '').trim();
+  const sourceUrl = (process.env.DIRECT_URL || process.env.DATABASE_URL || '').trim();
   const localUrl = (process.env.LOCAL_DATABASE_URL || '').trim();
 
   if (syncLocal && !localUrl) {
@@ -411,7 +412,7 @@ async function main(): Promise<void> {
     snapshotTables = loadSnapshotFromFile(fromFile);
   } else {
     if (!sourceUrl) {
-      throw new Error('DATABASE_URL is missing in .env.');
+      throw new Error('DATABASE_URL (or DIRECT_URL) is missing in .env.');
     }
     const exported = await exportSnapshotFromSource(sourceUrl);
     snapshotTables = exported.tables;

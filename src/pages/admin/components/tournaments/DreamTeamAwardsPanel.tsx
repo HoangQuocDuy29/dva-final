@@ -33,6 +33,7 @@ interface DreamTeamAwardsPanelProps {
   tournament: Tournament;
   onRefresh: () => Promise<void>;
   notify: (msg: string, durationMs?: number) => void;
+  readOnly?: boolean;
 }
 
 interface AthleteOption {
@@ -47,6 +48,7 @@ interface SlotPickerCardProps {
   pairedPlayerId: string | null;
   verifiedOptions: AthleteOption[];
   isOpen: boolean;
+  readOnly?: boolean;
   onToggleOpen: () => void;
   onSelect: (playerId: string | null) => void;
 }
@@ -57,6 +59,7 @@ const DreamTeamSlotPickerCard: React.FC<SlotPickerCardProps> = ({
   pairedPlayerId,
   verifiedOptions,
   isOpen,
+  readOnly = false,
   onToggleOpen,
   onSelect,
 }) => {
@@ -138,9 +141,14 @@ const DreamTeamSlotPickerCard: React.FC<SlotPickerCardProps> = ({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={onToggleOpen}
-          className={`flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-[#111827] border text-left flex items-center justify-between gap-2 transition-colors cursor-pointer ${
-            isOpen ? 'border-[#F97316]' : 'border-[#1E293B] hover:border-slate-600'
+          disabled={readOnly}
+          onClick={readOnly ? undefined : onToggleOpen}
+          className={`flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-[#111827] border text-left flex items-center justify-between gap-2 transition-colors ${
+            readOnly
+              ? 'border-[#1E293B] cursor-default opacity-90'
+              : isOpen
+                ? 'border-[#F97316] cursor-pointer'
+                : 'border-[#1E293B] hover:border-slate-600 cursor-pointer'
           }`}
         >
           {selectedOption ? (
@@ -168,13 +176,15 @@ const DreamTeamSlotPickerCard: React.FC<SlotPickerCardProps> = ({
             </div>
           ) : (
             <span className="text-xs text-slate-500 truncate">
-              Select verified athlete ({slot.shortLabel})...
+              {readOnly ? `No athlete selected (${slot.shortLabel})` : `Select verified athlete (${slot.shortLabel})...`}
             </span>
           )}
-          <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          {!readOnly && (
+            <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          )}
         </button>
 
-        {selectedOption && (
+        {!readOnly && selectedOption && (
           <button
             type="button"
             onClick={() => onSelect(null)}
@@ -187,7 +197,7 @@ const DreamTeamSlotPickerCard: React.FC<SlotPickerCardProps> = ({
       </div>
 
       {/* Searchable Dropdown Popover */}
-      {isOpen && (
+      {!readOnly && isOpen && (
         <div className="absolute left-0 right-0 top-full mt-1.5 z-40 rounded-2xl bg-[#111827] border border-[#F97316]/60 shadow-2xl overflow-hidden">
           <div className="p-2.5 bg-[#0B0F19] border-b border-[#1E293B] space-y-2">
             <div className="relative">
@@ -296,6 +306,7 @@ export const DreamTeamAwardsPanel: React.FC<DreamTeamAwardsPanelProps> = ({
   tournament,
   onRefresh,
   notify,
+  readOnly = false,
 }) => {
   const verifiedOptions = useMemo<AthleteOption[]>(() => {
     const teamMap = new Map(tournament.teams.map((tm) => [tm.id, tm]));
@@ -391,28 +402,30 @@ export const DreamTeamAwardsPanel: React.FC<DreamTeamAwardsPanelProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {isDirty && (
+        {!readOnly && (
+          <div className="flex flex-wrap items-center gap-2">
+            {isDirty && (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setDraft(initialSelection)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            )}
             <button
               type="button"
               disabled={saving}
-              onClick={() => setDraft(initialSelection)}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+              onClick={handleSave}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B0000] to-[#F97316] hover:brightness-110 text-white font-bold text-xs inline-flex items-center gap-2 shadow cursor-pointer disabled:opacity-50"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>Save Honor Roll &amp; Sync Awards</span>
             </button>
-          )}
-          <button
-            type="button"
-            disabled={saving}
-            onClick={handleSave}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B0000] to-[#F97316] hover:brightness-110 text-white font-bold text-xs inline-flex items-center gap-2 shadow cursor-pointer disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            <span>Save Honor Roll &amp; Sync Awards</span>
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {verifiedOptions.length === 0 ? (
@@ -430,11 +443,12 @@ export const DreamTeamAwardsPanel: React.FC<DreamTeamAwardsPanelProps> = ({
             selectedPlayerId={draft[mvpSlot.slotKey] || null}
             pairedPlayerId={null}
             verifiedOptions={verifiedOptions}
-            isOpen={openSlot === mvpSlot.slotKey}
+            isOpen={!readOnly && openSlot === mvpSlot.slotKey}
+            readOnly={readOnly}
             onToggleOpen={() =>
-              setOpenSlot((prev) => (prev === mvpSlot.slotKey ? null : mvpSlot.slotKey))
+              !readOnly && setOpenSlot((prev) => (prev === mvpSlot.slotKey ? null : mvpSlot.slotKey))
             }
-            onSelect={(id) => handleSelectSlot(mvpSlot.slotKey, id)}
+            onSelect={(id) => !readOnly && handleSelectSlot(mvpSlot.slotKey, id)}
           />
 
           {/* 7 Positional Dream Team Pickers */}
@@ -448,11 +462,12 @@ export const DreamTeamAwardsPanel: React.FC<DreamTeamAwardsPanelProps> = ({
                   selectedPlayerId={draft[slot.slotKey] || null}
                   pairedPlayerId={pairedId}
                   verifiedOptions={verifiedOptions}
-                  isOpen={openSlot === slot.slotKey}
+                  isOpen={!readOnly && openSlot === slot.slotKey}
+                  readOnly={readOnly}
                   onToggleOpen={() =>
-                    setOpenSlot((prev) => (prev === slot.slotKey ? null : slot.slotKey))
+                    !readOnly && setOpenSlot((prev) => (prev === slot.slotKey ? null : slot.slotKey))
                   }
-                  onSelect={(id) => handleSelectSlot(slot.slotKey, id)}
+                  onSelect={(id) => !readOnly && handleSelectSlot(slot.slotKey, id)}
                 />
               );
             })}

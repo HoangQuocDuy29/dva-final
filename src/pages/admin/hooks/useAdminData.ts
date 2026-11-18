@@ -14,6 +14,7 @@ import {
   GuestSessionRecord,
   Tournament,
   TournamentFinanceSummary,
+  AdminOverviewSummary,
 } from '../../../types';
 import {
   adminService,
@@ -56,7 +57,10 @@ function normalizeActiveCourts(fetchedCourts: unknown): Court[] {
  * - Module-specific datasets (`SHEETS`, `COURTS` closed-slots, `STORE` products & orders)
  *   lazy-load when their tab is first activated and refresh when `fetchData()` is called.
  */
-export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
+export function useAdminData(
+  activeModule: AdminTabId = 'OVERVIEW',
+  isSuperAdmin: boolean = false
+) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [courtsList, setCourtsList] = useState<Court[]>([]);
   const [applications, setApplications] = useState<MemberApplication[]>([]);
@@ -72,38 +76,68 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
   const [guestSessions, setGuestSessions] = useState<GuestSessionRecord[]>([]);
   const [tournamentsSummary, setTournamentsSummary] = useState<TournamentFinanceSummary[]>([]);
   const [tournamentsList, setTournamentsList] = useState<Tournament[]>([]);
+  const [overviewSummary, setOverviewSummary] = useState<AdminOverviewSummary | null>(null);
   const [loading, setLoading] = useState(false);
 
   const loadedLazyScopesRef = useRef<Set<'COURTS' | 'SHEETS' | 'STORE' | 'TOURNAMENTS'>>(new Set());
 
-  const fetchLazyScope = useCallback(async (scope: 'COURTS' | 'SHEETS' | 'STORE' | 'TOURNAMENTS') => {
-    try {
-      if (scope === 'COURTS') {
-        const cs = await courtService.getClosedSlots();
-        setClosedSlots(Array.isArray(cs) ? cs : []);
-      } else if (scope === 'SHEETS') {
-        const s = await sheetsService.getSheetsData();
-        setSheetsData(s || null);
-      } else if (scope === 'STORE') {
-        const [products, orders] = await Promise.all([
-          storeService.getProducts(),
-          storeService.getOrders(),
-        ]);
-        setStoreProducts(Array.isArray(products) ? products : []);
-        setStoreOrders(Array.isArray(orders) ? orders : []);
-      } else if (scope === 'TOURNAMENTS') {
-        const tours = await tournamentService.getTournaments({ adminMode: true });
-        setTournamentsList(Array.isArray(tours) ? tours : []);
+  const fetchLazyScope = useCallback(
+    async (scope: 'COURTS' | 'SHEETS' | 'STORE' | 'TOURNAMENTS') => {
+      if (!isSuperAdmin && scope !== 'TOURNAMENTS') return;
+      try {
+        if (scope === 'COURTS') {
+          const cs = await courtService.getClosedSlots();
+          setClosedSlots(Array.isArray(cs) ? cs : []);
+        } else if (scope === 'SHEETS') {
+          const s = await sheetsService.getSheetsData();
+          setSheetsData(s || null);
+        } else if (scope === 'STORE') {
+          const [products, orders] = await Promise.all([
+            storeService.getProducts(),
+            storeService.getOrders(),
+          ]);
+          setStoreProducts(Array.isArray(products) ? products : []);
+          setStoreOrders(Array.isArray(orders) ? orders : []);
+        } else if (scope === 'TOURNAMENTS') {
+          const tours = await tournamentService.getTournaments({ adminMode: true });
+          setTournamentsList(Array.isArray(tours) ? tours : []);
+        }
+        loadedLazyScopesRef.current.add(scope);
+      } catch (e) {
+        console.error(`[useAdminData] Failed lazy-loading scope ${scope}:`, e);
       }
-      loadedLazyScopesRef.current.add(scope);
-    } catch (e) {
-      console.error(`[useAdminData] Failed lazy-loading scope ${scope}:`, e);
-    }
-  }, []);
+    },
+    [isSuperAdmin]
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      if (!isSuperAdmin) {
+        // Strict RBAC: ADMIN only loads PII-free summary, stripped applications, news, and tournament summary.
+        // Never fetches bookings, store orders, guest sessions, training registrations, or sheets data.
+        const [summary, a, n, fetchedTournamentSummary] = await Promise.all([
+          adminService.getOverviewSummary(),
+          memberService.getApplications(),
+          newsService.getNews(),
+          tournamentService.getFinanceSummary(),
+        ]);
+        setOverviewSummary(summary || null);
+        setApplications(Array.isArray(a) ? a : []);
+        setNewsList(Array.isArray(n) ? n : []);
+        setTournamentsSummary(Array.isArray(fetchedTournamentSummary) ? fetchedTournamentSummary : []);
+        setBookings([]);
+        setTrainingRegs([]);
+        setStoreOrders([]);
+        setGuestSessions([]);
+        setSheetsData(null);
+
+        if (loadedLazyScopesRef.current.has('TOURNAMENTS')) {
+          await fetchLazyScope('TOURNAMENTS');
+        }
+        return;
+      }
+
       const [b, a, t, p, n, courses, coaches, fetchedCourts, fetchedProducts, fetchedOrders, fetchedGuestSessions, fetchedTournamentSummary] = await Promise.all([
         bookingService.getBookings(),
         memberService.getApplications(),
@@ -118,6 +152,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
         adminService.getGuestSessions(),
         tournamentService.getFinanceSummary(),
       ]);
+      setOverviewSummary(null);
       setBookings(Array.isArray(b) ? b : []);
       setApplications(Array.isArray(a) ? a : []);
       setTrainingRegs(Array.isArray(t) ? t : []);
@@ -142,7 +177,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
     } finally {
       setLoading(false);
     }
-  }, [fetchLazyScope]);
+  }, [fetchLazyScope, isSuperAdmin]);
 
   useEffect(() => {
     fetchData();
@@ -151,16 +186,19 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
   // Lazy-fetch tab-specific datasets only when the Admin visits that module
   useEffect(() => {
     if (
+      isSuperAdmin &&
       (activeModule === 'COURTS' || activeModule === 'BOOKINGS') &&
       !loadedLazyScopesRef.current.has('COURTS')
     ) {
       fetchLazyScope('COURTS');
     } else if (
+      isSuperAdmin &&
       activeModule === 'SHEETS' &&
       !loadedLazyScopesRef.current.has('SHEETS')
     ) {
       fetchLazyScope('SHEETS');
     } else if (
+      isSuperAdmin &&
       activeModule === 'STORE' &&
       !loadedLazyScopesRef.current.has('STORE')
     ) {
@@ -171,7 +209,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
     ) {
       fetchLazyScope('TOURNAMENTS');
     }
-  }, [activeModule, fetchLazyScope]);
+  }, [activeModule, fetchLazyScope, isSuperAdmin]);
 
   return {
     loading,
@@ -192,6 +230,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       guestSessions,
       tournamentsSummary,
       tournamentsList,
+      overviewSummary,
     },
     setData: {
       setBookings,
@@ -209,6 +248,7 @@ export function useAdminData(activeModule: AdminTabId = 'OVERVIEW') {
       setGuestSessions,
       setTournamentsSummary,
       setTournamentsList,
+      setOverviewSummary,
     },
   };
 }

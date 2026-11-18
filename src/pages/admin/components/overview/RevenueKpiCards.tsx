@@ -22,8 +22,8 @@ interface RevenueKpiCardsProps {
 /** Overview top KPI grid: balanced 2x4 grid covering 5 cashflow streams + club ops. */
 export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestSessions }) => {
   const {
+    isSuperAdmin,
     setActiveModule,
-    data: { players },
   } = useAdminDashboard();
   const {
     verifiedClubRevenue,
@@ -38,6 +38,7 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
     paidStoreOrdersCount,
     paidGuestSessionsCount,
     approvedTryoutsCount,
+    paidTryoutsCount,
     confirmedTrainingCount,
     pendingBookingsCount,
     pendingTrainingCount,
@@ -46,11 +47,12 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
     pendingGuestSessionsCount,
     pendingTournamentFeesCount,
     playersCount,
+    activePlayersCount,
   } = useAdminMetrics();
 
   const [includeEstTuition, setIncludeEstTuition] = useState(false);
 
-  const activeAthletesCount = players.filter((p) => p.isActive !== false).length;
+  const activeAthletesCount = activePlayersCount;
   const totalPendingApprovals =
     pendingBookingsCount +
     pendingStoreOrdersCount +
@@ -109,7 +111,7 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
         note={`${paidBookingsCount} verified sessions (PAID)`}
         accent="text-[#F97316]"
         bar="bg-[#F97316]"
-        onClick={() => setActiveModule('BOOKINGS')}
+        onClick={isSuperAdmin ? () => setActiveModule('BOOKINGS') : undefined}
       />
 
       {/* Row 1, Card 3: Shop Revenue */}
@@ -121,7 +123,7 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
         note={`${paidStoreOrdersCount} verified store orders`}
         accent="text-[#FACC15]"
         bar="bg-[#FACC15]"
-        onClick={() => setActiveModule('STORE')}
+        onClick={isSuperAdmin ? () => setActiveModule('STORE') : undefined}
       />
 
       {/* Row 1, Card 4: Est. Training Tuition */}
@@ -135,7 +137,7 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
         accent="text-[#38BDF8]"
         bar="bg-[#38BDF8]"
         hint="Estimated as current course price × each CONFIRMED registration (not included in Verified Cash Only)."
-        onClick={() => setActiveModule('TRAINING')}
+        onClick={isSuperAdmin ? () => setActiveModule('TRAINING') : undefined}
       />
 
       {/* Row 2, Card 5: Guest Sessions */}
@@ -147,7 +149,7 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
         accent="text-[#A855F7]"
         bar="bg-[#A855F7]"
         hint="Verified drop-in & scrimmage guest passes marked as PAID."
-        onClick={onJumpToGuestSessions}
+        onClick={isSuperAdmin ? onJumpToGuestSessions : undefined}
       />
 
       {/* Row 2, Card 6: Tryout Fees */}
@@ -155,10 +157,10 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
         icon={UserCheck}
         label="Tryout Fees"
         value={formatVnd(tryoutRevenue)}
-        note={`${approvedTryoutsCount} approved squad athletes`}
+        note={`${paidTryoutsCount} paid · ${approvedTryoutsCount} approved`}
         accent="text-[#10B981]"
         bar="bg-[#10B981]"
-        hint="Club entry fees recorded from APPROVED tryout applications (default 100,000 đ, adjustable for waived athletes)."
+        hint="Try-out & club entry fees recorded from PAID or APPROVED applications (default 100,000 đ, adjustable for waived athletes)."
         onClick={() => setActiveModule('APPLICATIONS')}
       />
 
@@ -170,7 +172,7 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
         note="Published on public roster"
         accent="text-emerald-400"
         bar="bg-emerald-400"
-        onClick={() => setActiveModule('PLAYERS')}
+        onClick={isSuperAdmin ? () => setActiveModule('PLAYERS') : undefined}
       />
 
       {/* Row 2, Card 8: Pending Approvals */}
@@ -182,6 +184,10 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
         accent="text-amber-400"
         bar="bg-amber-400"
         onClick={() => {
+          if (!isSuperAdmin) {
+            setActiveModule('APPLICATIONS');
+            return;
+          }
           if (pendingBookingsCount > 0) setActiveModule('BOOKINGS');
           else if (pendingStoreOrdersCount > 0) setActiveModule('STORE');
           else if (pendingTournamentFeesCount > 0) setActiveModule('TOURNAMENTS');

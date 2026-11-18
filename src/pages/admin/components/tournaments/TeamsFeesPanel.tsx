@@ -50,6 +50,7 @@ interface TeamsFeesPanelProps {
   tournament: Tournament;
   onRefresh: () => Promise<void>;
   notify: (msg: string, durationMs?: number) => void;
+  readOnly?: boolean;
 }
 
 const AWARDS: Array<{ code: TournamentIndividualAward; short: string }> = [
@@ -66,6 +67,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
   tournament,
   onRefresh,
   notify,
+  readOnly = false,
 }) => {
   const isHosted = tournament.mode === 'HOSTED';
 
@@ -562,14 +564,16 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openAddTeam}
-          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B0000] to-[#F97316] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add Team</span>
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={openAddTeam}
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B0000] to-[#F97316] hover:brightness-110 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Team</span>
+          </button>
+        )}
       </div>
 
       {tournament.teams.length === 0 ? (
@@ -620,6 +624,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                           {tm.shortName && (
                             <span className="text-[10px] font-mono text-slate-400">{tm.shortName}</span>
                           )}
+                          {!readOnly && (
                           <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px]">
                             <label
                               title="Upload square logo (recommended 400×400px PNG/JPG)"
@@ -669,30 +674,37 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                               </button>
                             )}
                           </div>
+                          )}
                         </div>
                       </div>
                     </td>
 
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-1.5">
-                        <select
-                          value={tm.pool || ''}
-                          disabled={isBusy}
-                          onChange={(e) => handleQuickPoolChange(tm, e.target.value)}
-                          className="px-2 py-1 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white font-semibold"
-                        >
-                          <option value="">No Pool</option>
-                          <option value="A">Pool A</option>
-                          <option value="B">Pool B</option>
-                        </select>
+                        {readOnly ? (
+                          <span className="px-2 py-1 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-slate-200 font-semibold">
+                            {tm.pool ? `Pool ${tm.pool}` : 'No Pool'}
+                          </span>
+                        ) : (
+                          <select
+                            value={tm.pool || ''}
+                            disabled={isBusy}
+                            onChange={(e) => handleQuickPoolChange(tm, e.target.value)}
+                            className="px-2 py-1 rounded-lg bg-[#0B0F19] border border-[#1E293B] text-white font-semibold"
+                          >
+                            <option value="">No Pool</option>
+                            <option value="A">Pool A</option>
+                            <option value="B">Pool B</option>
+                          </select>
+                        )}
                         <span className="text-[11px] font-mono text-slate-400">#{tm.seedOrder}</span>
                       </div>
                     </td>
 
                     <td className="py-3 px-3 text-[11px]">
                       <div className="font-semibold text-slate-200">{tm.captainName || '—'}</div>
-                      {tm.captainPhone && <div className="font-mono text-slate-400">{tm.captainPhone}</div>}
-                      {tm.captainEmail && <div className="text-slate-500 truncate max-w-[160px]">{tm.captainEmail}</div>}
+                      {!readOnly && tm.captainPhone && <div className="font-mono text-slate-400">{tm.captainPhone}</div>}
+                      {!readOnly && tm.captainEmail && <div className="text-slate-500 truncate max-w-[160px]">{tm.captainEmail}</div>}
                     </td>
 
                     <td className="py-3 px-3 space-y-1">
@@ -763,48 +775,54 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                     )}
 
                     <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {isHosted && tm.paymentStatus !== 'PAID' && (
+                      {readOnly ? (
+                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                          Read-Only
+                        </span>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {isHosted && tm.paymentStatus !== 'PAID' && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleUpdatePaymentStatus(tm, 'PAID')}
+                              className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Mark Paid</span>
+                            </button>
+                          )}
+                          {isHosted && tm.paymentStatus === 'PAID' && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleUpdatePaymentStatus(tm, 'CANCELLED')}
+                              className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                              title="Cancel payment"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>Cancel</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openEditTeam(tm)}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                            title="Edit team"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             type="button"
                             disabled={isBusy}
-                            onClick={() => handleUpdatePaymentStatus(tm, 'PAID')}
-                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                            onClick={() => handleDeleteTeam(tm)}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
+                            title="Delete team"
                           >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Mark Paid</span>
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                        )}
-                        {isHosted && tm.paymentStatus === 'PAID' && (
-                          <button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() => handleUpdatePaymentStatus(tm, 'CANCELLED')}
-                            className="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] inline-flex items-center gap-1 cursor-pointer"
-                            title="Cancel payment"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Cancel</span>
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => openEditTeam(tm)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
-                          title="Edit team"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => handleDeleteTeam(tm)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 cursor-pointer"
-                          title="Delete team"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -815,7 +833,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
       )}
 
       {/* Add / Edit Team Modal */}
-      {teamModalOpen && (
+      {!readOnly && teamModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm">
           <div className="w-full max-w-xl bg-[#111827] border border-[#1E293B] rounded-3xl p-6 text-white space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar text-xs">
             <div className="flex items-center justify-between border-b border-[#1E293B] pb-3">
@@ -1062,7 +1080,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {pendingRosterCount > 0 && (
+                {!readOnly && pendingRosterCount > 0 && (
                   <button
                     type="button"
                     disabled={busyId === 'verify-all'}
@@ -1073,7 +1091,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                     <span>Approve All Pending ({pendingRosterCount})</span>
                   </button>
                 )}
-                {rosterTeam.isDvaTeam && (
+                {!readOnly && rosterTeam.isDvaTeam && (
                   <button
                     type="button"
                     disabled={busyId === 'import-squad'}
@@ -1130,12 +1148,14 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
               <div className="p-3 rounded-2xl bg-amber-950/30 border border-amber-600/50 text-amber-200 text-[11px] flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                 <span>
-                  Team currently has <strong>{eligibleRosterCount}</strong> eligible non-rejected athletes (below the standard 7-athlete threshold). Add a replacement player below or contact Captain ({rosterTeam.captainPhone || 'N/A'}).
+                  Team currently has <strong>{eligibleRosterCount}</strong> eligible non-rejected athletes (below the standard 7-athlete threshold).
+                  {!readOnly && ` Add a replacement player below or contact Captain (${rosterTeam.captainPhone || 'N/A'}).`}
                 </span>
               </div>
             )}
 
             {/* Add Athlete Form */}
+            {!readOnly && (
             <form onSubmit={handleAddPlayer} className="p-3.5 rounded-2xl bg-[#0B0F19] border border-[#1E293B] space-y-2.5">
               <div className="grid grid-cols-2 sm:grid-cols-12 gap-2 items-center">
                 <div className="col-span-2 sm:col-span-2 flex items-center gap-2">
@@ -1253,6 +1273,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                 </p>
               )}
             </form>
+            )}
 
             {/* Roster List */}
             {rosterPlayers.length === 0 ? (
@@ -1472,25 +1493,27 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                                 #{pl.jerseyNumber}
                               </span>
                             )}
-                            <label
-                              title="Upload / Replace player photo"
-                              className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#0B0F19] hover:bg-sky-600 border border-slate-600 text-sky-300 hover:text-white flex items-center justify-center cursor-pointer shadow"
-                            >
-                              {isUploadingThis ? (
-                                <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                              ) : (
-                                <Camera className="w-2.5 h-2.5" />
-                              )}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  void handleQuickPlayerAvatarUpload(pl, e.target.files?.[0]);
-                                  e.target.value = '';
-                                }}
-                              />
-                            </label>
+                            {!readOnly && (
+                              <label
+                                title="Upload / Replace player photo"
+                                className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#0B0F19] hover:bg-sky-600 border border-slate-600 text-sky-300 hover:text-white flex items-center justify-center cursor-pointer shadow"
+                              >
+                                {isUploadingThis ? (
+                                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                ) : (
+                                  <Camera className="w-2.5 h-2.5" />
+                                )}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    void handleQuickPlayerAvatarUpload(pl, e.target.files?.[0]);
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            )}
                           </div>
 
                           <div className="min-w-0 space-y-0.5">
@@ -1517,7 +1540,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                               <span>· {pl.position}</span>
                               {pl.height ? <span>· {pl.height}cm</span> : null}
                               {pl.spikeTouch ? <span>· Reach {pl.spikeTouch}cm</span> : null}
-                              {pl.avatarUrl && (
+                              {!readOnly && pl.avatarUrl && (
                                 <button
                                   type="button"
                                   disabled={isUploadingThis}
@@ -1536,6 +1559,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                           </div>
                         </div>
 
+                        {!readOnly && (
                         <div className="flex flex-wrap items-center gap-1.5">
                           {status !== 'VERIFIED' && (
                             <button
@@ -1613,6 +1637,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
+                        )}
                       </div>
 
                       {isModeratingThis && (
