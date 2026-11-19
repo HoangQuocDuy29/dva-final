@@ -237,6 +237,30 @@ export const normalizeSquad = (squad?: any): 'Youth' | 'Junior' | 'Senior' => {
   return 'Senior';
 };
 
+export function extractBirthYearFromDob(dob?: unknown): number | null {
+  if (typeof dob !== 'string') return null;
+  const trimmed = dob.trim();
+  if (!trimmed) return null;
+  const isoMatch = /^(\d{4})(?:[-/]|$)/.exec(trimmed);
+  const dmyMatch = !isoMatch ? /(\d{4})$/.exec(trimmed) : null;
+  const year = Number((isoMatch ?? dmyMatch)?.[1]);
+  return Number.isInteger(year) && year >= 1950 && year <= 2030 ? year : null;
+}
+
+export function resolveApplicationBirthYear(app: {
+  birthYear?: unknown;
+  bornYear?: unknown;
+  dob?: unknown;
+}): number | null {
+  for (const candidate of [app.birthYear, app.bornYear]) {
+    if (candidate !== undefined && candidate !== null && candidate !== '') {
+      const year = Number(candidate);
+      if (Number.isInteger(year) && year >= 1950 && year <= 2030) return year;
+    }
+  }
+  return extractBirthYearFromDob(app.dob);
+}
+
 export function toPlayerDto(p: DbPlayer | any): Player {
   const resolvedCountry = p.countryName || p.country || 'Vietnam';
   const resolvedCode = (p.countryCode || 'VN').toUpperCase();
@@ -245,6 +269,11 @@ export function toPlayerDto(p: DbPlayer | any): Player {
   const rawSquad = (p as any).squad || (p as any).category || (p as any).team || p.level;
   const normalizedSquad = normalizeSquad(rawSquad);
   const normalizedLevel = normalizedSquad.toUpperCase() as PlayerLevel;
+  const rawBornYear = p.bornYear ?? (p as any).birthYear;
+  const resolvedBornYear =
+    rawBornYear !== undefined && rawBornYear !== null && Number.isInteger(Number(rawBornYear)) && Number(rawBornYear) > 0
+      ? Number(rawBornYear)
+      : undefined;
 
   return {
     id: p.id,
@@ -260,7 +289,7 @@ export function toPlayerDto(p: DbPlayer | any): Player {
     countryName: resolvedCountry,
     countryCode: resolvedCode,
     countryFlag: resolvedFlag,
-    bornYear: p.bornYear ?? undefined,
+    bornYear: resolvedBornYear,
     level: normalizedLevel,
     position: p.position || 'OH',
     avatarUrl: p.avatarUrl ?? '',
@@ -466,8 +495,7 @@ export function toApplicationDto(
   const normalizedPaymentStatus: MemberApplication['paymentStatus'] =
     rawPay === 'PAID' ? 'PAID' : rawPay === 'FREE' ? 'FREE' : 'PENDING';
 
-  const birthYearMatch = typeof a.dob === 'string' ? /^(\d{4})/.exec(a.dob.trim()) : null;
-  const birthYear = birthYearMatch ? Number(birthYearMatch[1]) : undefined;
+  const birthYear = resolveApplicationBirthYear(a) ?? undefined;
 
   const evalScores =
     a.evaluationScores && typeof a.evaluationScores === 'object' && !Array.isArray(a.evaluationScores)

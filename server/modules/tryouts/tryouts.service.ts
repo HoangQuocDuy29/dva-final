@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import {
   fromRotationEnum,
   prisma,
+  resolveApplicationBirthYear,
   toApplicationDto,
   toRotationEnum,
 } from '../../config/prisma';
@@ -55,6 +56,7 @@ function deriveLevelFromExperience(experience?: string, birthYear?: number): 'SE
 
 async function promoteApplicationToPlayerIfNeeded(tx: any, existing: any): Promise<boolean> {
   if (existing.status === 'APPROVED') return false;
+  const resolvedBornYear = resolveApplicationBirthYear(existing);
   await tx.player.create({
     data: {
       id: `p-${crypto.randomUUID()}`,
@@ -68,6 +70,7 @@ async function promoteApplicationToPlayerIfNeeded(tx: any, existing: any): Promi
       countryName: 'Vietnam',
       countryCode: 'VN',
       countryFlag: '🇻🇳',
+      bornYear: resolvedBornYear,
       level: existing.level || 'JUNIOR',
       position: existing.position || 'OH',
       avatarUrl: '',

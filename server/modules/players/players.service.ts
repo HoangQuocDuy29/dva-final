@@ -1,6 +1,12 @@
 import crypto from 'crypto';
 import { readJsonFileSafe } from '../../config/env';
-import { normalizeSquad, prisma, toCoachDto, toPlayerDto } from '../../config/prisma';
+import {
+  extractBirthYearFromDob,
+  normalizeSquad,
+  prisma,
+  toCoachDto,
+  toPlayerDto,
+} from '../../config/prisma';
 import { getOrSetCache, invalidateCache } from '../../utils/cache';
 import { HttpError } from '../../utils/validation';
 import { LEVELS, POSITIONS } from '../../utils/schemas';
@@ -13,6 +19,65 @@ export interface PlayerQueryFilters {
   all?: string;
   isActive?: string;
   staff: boolean;
+}
+
+async function enrichMissingBornYears(
+  dbPlayers: Array<Record<string, any> & { user?: { email?: string | null } | null }>
+): Promise<void> {
+  const missing = dbPlayers.filter((p) => !p.bornYear || Number(p.bornYear) <= 0);
+  if (missing.length === 0) return;
+
+  const normalizeName = (v: unknown) => String(v || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const uniqueNames = Array.from(new Set(missing.map((p) => String(p.fullName || '').trim()).filter(Boolean)));
+  const uniqueEmails = Array.from(
+    new Set(missing.map((p) => String(p.user?.email || '').trim().toLowerCase()).filter(Boolean))
+  );
+  if (uniqueNames.length === 0 && uniqueEmails.length === 0) return;
+
+  const orConditions: Record<string, any>[] = [
+    ...uniqueNames.map((name) => ({ fullName: { equals: name, mode: 'insensitive' } })),
+    ...uniqueEmails.map((email) => ({ gmail: { equals: email, mode: 'insensitive' } })),
+  ];
+
+  try {
+    const matchedApps = await prisma.memberApplication.findMany({
+      where: { OR: orConditions },
+      select: { fullName: true, gmail: true, dob: true, status: true, approvedAt: true, createdAt: true },
+      orderBy: [{ approvedAt: 'desc' }, { createdAt: 'desc' }],
+    });
+    if (matchedApps.length === 0) return;
+
+    // Prefer APPROVED applications first, then most recent
+    const sortedApps = [...matchedApps].sort((a, b) => {
+      const statusDiff = (b.status === 'APPROVED' ? 1 : 0) - (a.status === 'APPROVED' ? 1 : 0);
+      if (statusDiff !== 0) return statusDiff;
+      const bTime = (b.approvedAt ?? b.createdAt)?.getTime?.() ?? 0;
+      const aTime = (a.approvedAt ?? a.createdAt)?.getTime?.() ?? 0;
+      return bTime - aTime;
+    });
+
+    const yearByEmail = new Map<string, number>();
+    const yearByName = new Map<string, number>();
+    for (const app of sortedApps) {
+      const year = extractBirthYearFromDob(app.dob);
+      if (!year) continue;
+      const emailKey = String(app.gmail || '').trim().toLowerCase();
+      const nameKey = normalizeName(app.fullName);
+      if (emailKey && !yearByEmail.has(emailKey)) yearByEmail.set(emailKey, year);
+      if (nameKey && !yearByName.has(nameKey)) yearByName.set(nameKey, year);
+    }
+
+    for (const player of missing) {
+      const emailKey = String(player.user?.email || '').trim().toLowerCase();
+      const nameKey = normalizeName(player.fullName);
+      const fallbackYear = (emailKey ? yearByEmail.get(emailKey) : undefined) ?? yearByName.get(nameKey);
+      if (fallbackYear) {
+        player.bornYear = fallbackYear;
+      }
+    }
+  } catch (err) {
+    console.warn('[Players Service] Failed to fallback bornYear from MemberApplication:', err);
+  }
 }
 
 export async function listPlayers(filters: PlayerQueryFilters) {
@@ -48,8 +113,10 @@ export async function listPlayers(filters: PlayerQueryFilters) {
     try {
       const dbPlayers = await prisma.player.findMany({
         where,
+        include: { user: { select: { email: true } } },
         orderBy: [{ level: 'asc' }, { isCaptain: 'desc' }, { jerseyNumber: 'asc' }],
       });
+      await enrichMissingBornYears(dbPlayers);
       return dbPlayers.map(toPlayerDto);
     } catch (error) {
       console.error('[API /players Error]:', error);

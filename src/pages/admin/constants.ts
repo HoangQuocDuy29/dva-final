@@ -239,7 +239,7 @@ export function createDefaultPlayerForm(jerseyNumber: number = 1): Partial<Playe
     countryName: 'Vietnam',
     countryCode: 'VN',
     countryFlag: '🇻🇳',
-    bornYear: 2005,
+    bornYear: undefined,
     joined: 2025,
     joinedYear: 2025,
     level: 'SENIOR',

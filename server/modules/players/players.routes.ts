@@ -33,6 +33,9 @@ function normalizePlayerBody(raw: unknown): Record<string, any> {
   } else if (rawBody.squad || rawBody.category || rawBody.team) {
     rawBody.level = normalizeSquad(rawBody.squad || rawBody.category || rawBody.team).toUpperCase();
   }
+  if (rawBody.bornYear === undefined && rawBody.birthYear !== undefined) {
+    rawBody.bornYear = rawBody.birthYear;
+  }
   return rawBody;
 }
 
@@ -66,7 +69,11 @@ playersRouter.post(
 );
 
 const handleUpdatePlayer = ah(async (req, res) => {
-  const data = sanitize(normalizePlayerBody(req.body), PLAYER_SCHEMA, { partial: true });
+  const normalized = normalizePlayerBody(req.body);
+  const data = sanitize(normalized, PLAYER_SCHEMA, { partial: true });
+  if (normalized.bornYear === null || normalized.bornYear === '') {
+    data.bornYear = null;
+  }
   const updated = await updatePlayer(req.params.id, data);
   res.json(updated);
 });

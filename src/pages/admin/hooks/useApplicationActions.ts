@@ -33,7 +33,7 @@ export function useApplicationActions() {
             4500
           );
           if (isSuperAdmin) {
-            playerService.getPlayers().then(setPlayers);
+            playerService.getPlayers({ adminMode: true }).then(setPlayers);
           }
         } else if (status === 'REJECTED') {
           notify('Application rejected.', 4000);
@@ -128,7 +128,7 @@ export function useApplicationActions() {
         prev.map((a) => (a.id === updatedApp.id ? { ...a, ...updatedApp } : a))
       );
       if (refreshPlayers && isSuperAdmin) {
-        playerService.getPlayers().then(setPlayers);
+        playerService.getPlayers({ adminMode: true }).then(setPlayers);
       }
       notify(message, 4500);
     },

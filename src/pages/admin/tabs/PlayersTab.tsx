@@ -57,8 +57,23 @@ export const PlayersTab: React.FC = () => {
         playerForm.countryFlag || matchedCountry?.flag || countryCodeToFlagEmoji(resolvedCode);
       const resolvedJoinedYear = Number(playerForm.joined ?? playerForm.joinedYear ?? 2025) || 2025;
 
+      const rawBornYear = playerForm.bornYear ?? (playerForm as { birthYear?: number }).birthYear;
+      const parsedBornYear =
+        rawBornYear !== undefined && rawBornYear !== null && String(rawBornYear).trim() !== ''
+          ? Math.trunc(Number(rawBornYear))
+          : undefined;
+      const resolvedBornYear =
+        parsedBornYear !== undefined && Number.isFinite(parsedBornYear) && parsedBornYear > 0
+          ? parsedBornYear
+          : undefined;
+
       const payload: Partial<Player> = {
         ...playerForm,
+        ...(editingPlayer
+          ? { bornYear: (resolvedBornYear ?? null) as unknown as number | undefined }
+          : resolvedBornYear !== undefined
+            ? { bornYear: resolvedBornYear }
+            : { bornYear: undefined }),
         country: resolvedCountry,
         countryName: resolvedCountry,
         countryCode: resolvedCode,
@@ -70,12 +85,16 @@ export const PlayersTab: React.FC = () => {
       if (editingPlayer) {
         const updated = await playerService.updatePlayer(editingPlayer.id, payload);
         setPlayers((prev) =>
-          prev.map((p) => (p.id === editingPlayer.id ? { ...p, ...payload, ...updated } : p))
+          prev.map((p) =>
+            p.id === editingPlayer.id
+              ? { ...p, ...payload, ...updated, bornYear: updated.bornYear }
+              : p
+          )
         );
         notify(`Player ${payload.fullName} updated successfully.`, 3000);
       } else {
         const created = await playerService.addPlayer(payload);
-        setPlayers((prev) => [{ ...payload, ...created } as Player, ...prev]);
+        setPlayers((prev) => [{ ...payload, ...created, bornYear: created.bornYear } as Player, ...prev]);
         notify(`Athlete ${payload.fullName} added to DVA roster.`, 3000);
       }
       setIsPlayerModalOpen(false);
@@ -353,9 +372,18 @@ export const PlayersTab: React.FC = () => {
                           'Vietnam';
                         const initFlag = p.countryFlag || countryCodeToFlagEmoji(initCode);
                         const initJoined = Number(p.joined ?? p.joinedYear ?? 2025) || 2025;
+                        const rawBornYear = p.bornYear ?? (p as { birthYear?: number }).birthYear;
+                        const initBornYear =
+                          rawBornYear !== undefined &&
+                          rawBornYear !== null &&
+                          Number.isFinite(Number(rawBornYear)) &&
+                          Number(rawBornYear) > 0
+                            ? Math.trunc(Number(rawBornYear))
+                            : undefined;
                         setEditingPlayer(p);
                         setPlayerForm({
                           ...p,
+                          bornYear: initBornYear,
                           country: initCountry,
                           countryName: initCountry,
                           countryCode: initCode,

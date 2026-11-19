@@ -249,7 +249,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               player.blockTouch > 0 ? 'col-span-2 mx-auto w-full max-w-[180px]' : ''
             }`}>
               <span className="text-[10px] tracking-wider text-slate-400 font-semibold uppercase block">BORN</span>
-              <span className="font-mono font-bold text-xs sm:text-sm text-white">{player.bornYear || 2005}</span>
+              <span className="font-mono font-bold text-xs sm:text-sm text-white">{player.bornYear || '—'}</span>
             </div>
           </div>
 

@@ -248,8 +248,17 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               <label className="block text-slate-300 font-semibold mb-1">Năm sinh (Born Year)</label>
               <input
                 type="number"
-                value={playerForm.bornYear ?? 2005}
-                onChange={(e) => setPlayerForm({ ...playerForm, bornYear: Number(e.target.value) })}
+                min={1950}
+                max={2030}
+                placeholder="VD: 2003"
+                value={playerForm.bornYear ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  setPlayerForm({
+                    ...playerForm,
+                    bornYear: raw === '' ? undefined : Number(raw),
+                  });
+                }}
                 className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
               />
             </div>
