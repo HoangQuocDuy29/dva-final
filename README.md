@@ -83,8 +83,12 @@ Các cơ chế bảo vệ được tập trung tại [server/utils/bookingHolds.
    - Có khóa **single-flight**, thời gian nghỉ **`15s`** giữa các lần dọn thành công, và **exponential backoff** khi lỗi (`30s → 60s → 300s → 900s`, riêng lỗi quota `53000`/`P2039` lùi `900s`).
 2. **Global Database Circuit Breaker (`createDatabaseCircuitBreaker`):**
    - Khi DB gặp sự cố kết nối (`P1001`, `P1002`, `P1017`, `ECONNREFUSED`, `ENOTFOUND`, `ETIMEDOUT`) hoặc quá tải/quota (`53000`, `P2039`), middleware `/api` (`server/middlewares/error.middleware.ts`) tự ngắt mạch trong `20s` (transient) hoặc `60s` (quota), trả ngay HTTP `503` + header `Retry-After` thay vì spam connection pool, và tự động kiểm tra phục hồi (half-open).
-3. **Health Check Không Chạm DB (`GET /health`) & TTL/SWR Cache:**
+3. **Health Check Không Chạm DB (`GET /health`), Cron Keep-Alive & TTL/SWR Cache:**
    - Endpoint `GET /health` chỉ đọc trạng thái từ RAM (`dbCircuitBreaker.isOpen()`), **tuyệt đối không query DB**.
+   - **Cron Keep-Alive cho Render Free (cấu hình ngoài tại `cron-job.org`, đã xóa UptimeRobot):**
+     - Mục đích: Ngăn container `dva-backend` trên Render Free bị spin down (ngủ sau 15 phút) gây cold-start 5–10s trong giờ người dùng hoạt động.
+     - Cấu hình hiện tại: `GET https://dva-backend-jask.onrender.com/health` mỗi **10 phút**, khung giờ **06:00 – 02:00 sáng hôm sau** (giờ Việt Nam, `Asia/Ho_Chi_Minh`); cho Render nghỉ từ **02:00 – 06:00** (~20 giờ/ngày ≈ ~620 giờ/tháng, dưới trần 750 giờ/tháng của Render Free và tốn `0` query / `0` byte Egress Supabase).
+     - **Lưu ý bảo trì / sự cố:** Nếu sau này cần tạm dừng hoặc hủy (khi nâng cấp Render Starter, nghi ngờ chạm quota Render/DB, hoặc đổi domain backend), đăng nhập **https://console.cron-job.org → Cronjobs → `DVA Backend Keep-Alive`** để tắt hoặc xóa job này.
    - Backend dùng `appCache` ([server/utils/cache.ts](server/utils/cache.ts), giới hạn 400 entries + single-flight + `applyPublicCacheHeaders`) giảm truy vấn Supabase; Frontend dùng `createSwrCache` ([src/utils/swrCache.ts](src/utils/swrCache.ts)) trên Memory + `sessionStorage`.
 4. **Tinh chỉnh `pg.Pool` ([server/config/prisma.ts](server/config/prisma.ts)) & Seed chạy nền:**
    - Pool lưu singleton cùng `prisma` trên `globalForPrisma`, bật `disposeExternalPool: true` để `prisma.$disconnect()` đóng sạch pool (`pool.end()`), cấu hình mặc định `max: 5` (`PG_POOL_MAX`), `connectionTimeoutMillis: 5000`, `idleTimeoutMillis: 10000` (`PG_POOL_IDLE_TIMEOUT_MS`), `keepAlive: true` (`10s`), `ssl: { rejectUnauthorized: false }` cho Cloud DB (`supabase.co`, `supabase.com`, `neon.tech`, `render.com`, `sslmode=require`), và `pool.on('error')` bỏ qua `ECONNRESET`/`EPIPE` khi cloud pooler thu hồi socket nhàn rỗi.
