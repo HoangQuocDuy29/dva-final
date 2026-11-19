@@ -60,6 +60,9 @@ tryoutsRouter.patch(
   requireAdminOrSuperAdmin,
   ah(async (req, res) => {
     const superAdmin = isSuperAdmin(req.user);
+    if (!superAdmin && (req.body?.fullName !== undefined || req.body?.name !== undefined)) {
+      throw new HttpError(403, 'Only SUPERADMIN can edit applicant name.');
+    }
     assertCanRejectApplication(superAdmin, req.body?.status, req.body?.conclusion, req.body?.outcome);
     const data = sanitize(req.body, TRYOUT_PATCH_SCHEMA, { partial: true });
     if (Object.keys(data).length === 0) {

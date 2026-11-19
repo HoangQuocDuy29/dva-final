@@ -350,6 +350,8 @@ export const APPLICATION_STATUS_UPDATE_SCHEMA: Schema = {
 };
 
 export const TRYOUT_PATCH_SCHEMA: Schema = {
+  fullName: S(100, 1),
+  name: S(100, 1),
   level: LEVEL_RULE,
   status: E(APPLICATION_STATUSES),
   conclusion: E(APPLICATION_STATUSES),

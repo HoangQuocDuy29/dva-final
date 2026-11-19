@@ -82,6 +82,54 @@ async function promoteApplicationToPlayerIfNeeded(tx: any, existing: any): Promi
   return true;
 }
 
+async function syncApprovedPlayerNameIfNeeded(
+  tx: any,
+  existing: any,
+  nextFullName: string
+): Promise<boolean> {
+  if (existing.status !== 'APPROVED') return false;
+  const oldName = String(existing.fullName || '').trim();
+  if (!oldName || oldName === nextFullName) return false;
+
+  const email = String(existing.gmail || '').trim().toLowerCase();
+  const candidates: any[] = await tx.player.findMany({
+    where: {
+      OR: [
+        { fullName: { equals: oldName, mode: 'insensitive' } },
+        ...(email ? [{ user: { email: { equals: email, mode: 'insensitive' } } }] : []),
+      ],
+    },
+    include: { user: { select: { email: true } } },
+  });
+
+  if (candidates.length === 0) return false;
+
+  let target = candidates[0];
+  if (candidates.length > 1) {
+    const appBornYear = resolveApplicationBirthYear(existing);
+    const approvedMs = existing.approvedAt ? new Date(existing.approvedAt).getTime() : null;
+    const scoreOf = (p: any): number => {
+      let score = 0;
+      if (email && String(p.user?.email || '').trim().toLowerCase() === email) score += 10;
+      if (approvedMs && p.createdAt && Math.abs(new Date(p.createdAt).getTime() - approvedMs) <= 60_000) score += 6;
+      if (appBornYear && p.bornYear === appBornYear) score += 4;
+      if (p.position === existing.position) score += 3;
+      if (p.level === existing.level) score += 2;
+      if (existing.height > 0 && Number(p.height) === Number(existing.height)) score += 2;
+      if (existing.desiredJerseyNumber > 0 && Number(p.jerseyNumber) === Number(existing.desiredJerseyNumber)) score += 2;
+      return score;
+    };
+    candidates.sort((a, b) => scoreOf(b) - scoreOf(a));
+    target = candidates[0];
+  }
+
+  await tx.player.update({
+    where: { id: target.id },
+    data: { fullName: nextFullName },
+  });
+  return true;
+}
+
 export async function listApplications(includeSensitive: boolean) {
   const dbApps = await prisma.memberApplication.findMany({ orderBy: { createdAt: 'desc' } });
   return dbApps.map((a) => toApplicationDto(a, includeSensitive));
@@ -258,6 +306,8 @@ export async function updateApplicationStatus(
 export async function updateTryoutApplication(
   id: string,
   input: {
+    fullName?: string;
+    name?: string;
     level?: string;
     status?: string;
     conclusion?: string;
@@ -268,6 +318,11 @@ export async function updateTryoutApplication(
   },
   isSuperAdminUser: boolean
 ) {
+  const requestedFullName = input.fullName !== undefined ? input.fullName : input.name;
+  if (!isSuperAdminUser && requestedFullName !== undefined) {
+    throw new HttpError(403, 'Only SUPERADMIN can edit applicant name.');
+  }
+
   const targetStatus = input.status ?? input.conclusion ?? input.outcome;
   assertCanRejectApplication(isSuperAdminUser, input.status, input.conclusion, input.outcome);
 
@@ -284,6 +339,12 @@ export async function updateTryoutApplication(
   const existing = await prisma.memberApplication.findUnique({ where: { id } });
   if (!existing) throw new HttpError(404, 'Application not found');
 
+  const trimmedFullName = requestedFullName !== undefined ? requestedFullName.trim() : undefined;
+  if (trimmedFullName !== undefined && trimmedFullName.length === 0) {
+    throw new HttpError(400, 'fullName cannot be empty.');
+  }
+  const nextFullName = trimmedFullName ?? existing.fullName;
+
   const nextLevel =
     input.level !== undefined ? resolveAssignedPlayerLevel(input.level, existing.level) : existing.level;
 
@@ -296,8 +357,10 @@ export async function updateTryoutApplication(
         : (existing.entryFee ?? 100000);
 
   let promoted = false;
+  let playerSynced = false;
   const updated = await prisma.$transaction(async (tx) => {
     const updateData: Record<string, any> = {};
+    if (isSuperAdminUser && trimmedFullName !== undefined) updateData.fullName = trimmedFullName;
     if (input.level !== undefined) updateData.level = nextLevel;
     if (input.reviewNotes !== undefined) updateData.reviewNotes = input.reviewNotes;
     if (input.coachNotes !== undefined) updateData.coachNotes = input.coachNotes;
@@ -319,12 +382,19 @@ export async function updateTryoutApplication(
     });
 
     if (targetStatus === 'APPROVED') {
-      promoted = await promoteApplicationToPlayerIfNeeded(tx, { ...existing, level: nextLevel });
+      promoted = await promoteApplicationToPlayerIfNeeded(tx, {
+        ...existing,
+        fullName: nextFullName,
+        level: nextLevel,
+      });
+    }
+    if (!promoted && isSuperAdminUser && trimmedFullName !== undefined) {
+      playerSynced = await syncApprovedPlayerNameIfNeeded(tx, existing, nextFullName);
     }
     return appUpdated;
   });
 
-  if (promoted) {
+  if (promoted || playerSynced) {
     invalidateCache(['players', 'home']);
   }
 

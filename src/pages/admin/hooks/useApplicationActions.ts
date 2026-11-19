@@ -83,6 +83,29 @@ export function useApplicationActions() {
     [isSuperAdmin, setApplications, notify]
   );
 
+  const handleUpdateApplicationName = useCallback(
+    async (app: MemberApplication, nextName: string): Promise<MemberApplication | null> => {
+      if (!isSuperAdmin) return null;
+      const trimmed = nextName.trim();
+      if (!trimmed) {
+        throw new Error('Họ tên ứng viên không được để trống.');
+      }
+      if (trimmed === (app.fullName || '').trim()) return null;
+
+      const updated = await memberService.updateTryout(app.id, { fullName: trimmed });
+      const resolvedName = updated.fullName || trimmed;
+      setApplications((prev) =>
+        prev.map((a) => (a.id === app.id ? { ...a, ...updated, fullName: resolvedName } : a))
+      );
+      if (app.status === 'APPROVED' || updated.status === 'APPROVED') {
+        playerService.getPlayers({ adminMode: true }).then(setPlayers);
+      }
+      notify(`Đã đổi tên ứng viên → ${resolvedName}.`, 3500);
+      return updated;
+    },
+    [isSuperAdmin, setApplications, setPlayers, notify]
+  );
+
   /**
    * SUPERADMIN only (Completely decoupled from approval status & always unlocked):
    * - Updates paymentStatus ONLY (PENDING <-> PAID / FREE) and entryFee.
@@ -179,6 +202,7 @@ export function useApplicationActions() {
     handleApproveApplication,
     handleRejectApplication,
     handleUpdateApplicationLevel,
+    handleUpdateApplicationName,
     handleChangePaymentStatus,
     handleApplicationUpdated,
     handleUpdateEntryFee,

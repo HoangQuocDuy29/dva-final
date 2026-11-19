@@ -3,16 +3,19 @@ import {
   AlertCircle,
   Award,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronDown,
   ClipboardCheck,
   Clock,
   Loader2,
   Mail,
+  Pencil,
   Search,
   ShieldCheck,
   Trash2,
   Users,
+  X,
 } from 'lucide-react';
 import {
   ApplicationStatus,
@@ -55,6 +58,7 @@ export const ApplicationsTab: React.FC = () => {
     handleApproveApplication,
     handleRejectApplication,
     handleUpdateApplicationLevel,
+    handleUpdateApplicationName,
     handleChangePaymentStatus,
     handleApplicationUpdated,
     handleDeleteApplication,
@@ -67,6 +71,9 @@ export const ApplicationsTab: React.FC = () => {
   const [schedulingApp, setSchedulingApp] = useState<MemberApplication | null>(null);
   const [evaluatingApp, setEvaluatingApp] = useState<MemberApplication | null>(null);
   const [updatingLevelId, setUpdatingLevelId] = useState<string | null>(null);
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState('');
+  const [savingNameId, setSavingNameId] = useState<string | null>(null);
   const [levelToast, setLevelToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const levelToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -96,6 +103,48 @@ export const ApplicationsTab: React.FC = () => {
       showLevelToast('error', err?.message || 'Không thể cập nhật cấp độ. Vui lòng thử lại.');
     } finally {
       setUpdatingLevelId(null);
+    }
+  };
+
+  const startEditName = (app: MemberApplication) => {
+    if (!isSuperAdmin || savingNameId) return;
+    setEditingNameId(app.id);
+    setEditingNameValue(app.fullName || '');
+  };
+
+  const cancelEditName = () => {
+    if (savingNameId) return;
+    setEditingNameId(null);
+    setEditingNameValue('');
+  };
+
+  const onSaveInlineName = async (app: MemberApplication) => {
+    if (!isSuperAdmin || savingNameId) return;
+    const trimmed = editingNameValue.trim();
+    if (!trimmed) {
+      showLevelToast('error', 'Họ tên ứng viên không được để trống.');
+      return;
+    }
+    if (trimmed === (app.fullName || '').trim()) {
+      setEditingNameId(null);
+      setEditingNameValue('');
+      return;
+    }
+    setSavingNameId(app.id);
+    try {
+      await handleUpdateApplicationName(app, trimmed);
+      setEditingNameId(null);
+      setEditingNameValue('');
+      showLevelToast(
+        'success',
+        app.status === 'APPROVED'
+          ? `Đã cập nhật tên → ${trimmed} (đã đồng bộ Squad Roster)`
+          : `Đã cập nhật tên ứng viên → ${trimmed}`
+      );
+    } catch (err: any) {
+      showLevelToast('error', err?.message || 'Không thể cập nhật tên ứng viên. Vui lòng thử lại.');
+    } finally {
+      setSavingNameId(null);
     }
   };
 
@@ -377,15 +426,39 @@ export const ApplicationsTab: React.FC = () => {
 
         {/* Applications Table */}
         <div className="overflow-x-auto no-scrollbar">
-          <table className="w-full min-w-[960px] text-xs text-left border-collapse">
+          <table
+            className={`w-full table-fixed text-xs text-left border-collapse ${
+              isSuperAdmin ? 'min-w-[1080px]' : 'min-w-[880px]'
+            }`}
+          >
+            <colgroup>
+              {isSuperAdmin ? (
+                <>
+                  <col className="w-[21%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[23%]" />
+                </>
+              ) : (
+                <>
+                  <col className="w-[27%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[24%]" />
+                </>
+              )}
+            </colgroup>
             <thead>
               <tr className="bg-[#0E1524] text-slate-400 font-bold border-b border-slate-800">
-                <th className="py-3 px-3">Candidate / Profile</th>
+                <th className="py-3 px-3 min-w-[190px]">Candidate / Profile</th>
                 <th className="py-3 px-3">Division &amp; Metrics</th>
                 {isSuperAdmin && <th className="py-3 px-3">Contact (Zalo / Email)</th>}
-                <th className="py-3 px-3 min-w-[180px]">Try-Out Fee</th>
-                <th className="py-3 px-3 min-w-[195px]">Evaluation &amp; Scorecard</th>
-                <th className="py-3 px-3 text-right min-w-[310px]">Actions</th>
+                <th className="py-3 px-3">Try-Out Fee</th>
+                <th className="py-3 px-3">Evaluation &amp; Scorecard</th>
+                <th className="py-3 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
@@ -425,20 +498,89 @@ export const ApplicationsTab: React.FC = () => {
                   return (
                     <tr key={app.id} className="hover:bg-slate-800/40 align-top">
                       {/* 1. Candidate / Profile */}
-                      <td className="py-3.5 px-3 space-y-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-white text-[13px]">{app.fullName}</span>
+                      <td className="py-3.5 px-3 space-y-1.5 min-w-[190px]">
+                        {isSuperAdmin && editingNameId === app.id ? (
+                          <div className="flex items-center gap-1 w-full">
+                            <input
+                              type="text"
+                              autoFocus
+                              maxLength={100}
+                              value={editingNameValue}
+                              disabled={savingNameId === app.id}
+                              onChange={(e) => setEditingNameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  void onSaveInlineName(app);
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  cancelEditName();
+                                }
+                              }}
+                              aria-label="Edit applicant full name"
+                              className="flex-1 min-w-0 bg-[#0B0F19] border border-orange-500/80 rounded-lg px-2.5 py-1 text-[13px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:opacity-60"
+                            />
+                            <button
+                              type="button"
+                              disabled={savingNameId === app.id}
+                              onClick={() => void onSaveInlineName(app)}
+                              title="Lưu tên (Enter)"
+                              aria-label="Save name"
+                              className="p-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white transition-colors cursor-pointer disabled:opacity-60 shrink-0"
+                            >
+                              {savingNameId === app.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={savingNameId === app.id}
+                              onClick={cancelEditName}
+                              title="Hủy (Esc)"
+                              aria-label="Cancel edit name"
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer disabled:opacity-60 shrink-0"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : isSuperAdmin ? (
+                          <div className="inline-flex items-center gap-1.5 max-w-full">
+                            <span
+                              onDoubleClick={() => startEditName(app)}
+                              title="Double-click để sửa tên"
+                              className="font-bold text-white text-[13px] leading-snug cursor-text hover:text-orange-200 transition-colors"
+                            >
+                              {app.fullName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => startEditName(app)}
+                              title="Edit Name"
+                              aria-label={`Edit name for ${app.fullName}`}
+                              className="p-1 rounded-md text-slate-400 hover:text-orange-300 hover:bg-slate-800/90 transition-colors cursor-pointer shrink-0"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="font-bold text-white text-[13px] leading-snug">
+                            {app.fullName}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-slate-400">
                           {birthYearDisplay && (
                             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
                               {birthYearDisplay}
                             </span>
                           )}
-                        </div>
-                        <div className="text-[11px] text-slate-400">
-                          Position: <strong className="text-orange-400">{app.position}</strong>
-                          {app.desiredJerseyNumber > 0 && (
-                            <span> · Jersey #{app.desiredJerseyNumber}</span>
-                          )}
+                          <span>
+                            Position: <strong className="text-orange-400">{app.position}</strong>
+                            {app.desiredJerseyNumber > 0 && (
+                              <span> · Jersey #{app.desiredJerseyNumber}</span>
+                            )}
+                          </span>
                         </div>
                         {app.experience && (
                           <div className="text-[11px] text-slate-300">
@@ -446,7 +588,7 @@ export const ApplicationsTab: React.FC = () => {
                           </div>
                         )}
                         {(app.preferredDays || app.preferredSchedule) && (
-                          <div className="text-[10px] text-sky-300 bg-sky-950/30 border border-sky-800/40 rounded-md px-2 py-0.5 inline-block max-w-[240px]">
+                          <div className="text-[10px] text-sky-300 bg-sky-950/30 border border-sky-800/40 rounded-md px-2 py-0.5 inline-block max-w-full">
                             Preferred: {app.preferredDays || app.preferredSchedule}
                           </div>
                         )}
@@ -511,7 +653,7 @@ export const ApplicationsTab: React.FC = () => {
                           <div>
                             Zalo: <strong className="font-mono text-white">{app.zalo || '—'}</strong>
                           </div>
-                          <div className="text-slate-400 break-all max-w-[190px]">
+                          <div className="text-slate-400 break-all">
                             {app.gmail || '—'}
                           </div>
                           {app.instagram && app.instagram !== 'None' && (
@@ -521,7 +663,7 @@ export const ApplicationsTab: React.FC = () => {
                       )}
 
                       {/* 4. Try-Out Fee (Decoupled from APPROVED & Always Unlocked for SUPERADMIN) */}
-                      <td className="py-3.5 px-3 min-w-[180px]">
+                      <td className="py-3.5 px-3">
                         <div className="flex flex-col items-start gap-1.5">
                           {isSuperAdmin ? (
                             <div className="flex flex-wrap items-center gap-1.5">
@@ -624,7 +766,7 @@ export const ApplicationsTab: React.FC = () => {
                       </td>
 
                       {/* 5. Evaluation Status & Scorecard */}
-                      <td className="py-3.5 px-3 min-w-[195px]">
+                      <td className="py-3.5 px-3">
                         <div className="flex flex-col items-start gap-1.5">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span
@@ -675,7 +817,7 @@ export const ApplicationsTab: React.FC = () => {
                           )}
 
                           {app.coachNotes && (
-                            <p className="text-[10px] text-slate-400 italic line-clamp-2 max-w-[220px]">
+                            <p className="text-[10px] text-slate-400 italic line-clamp-2 max-w-[180px]">
                               “{app.coachNotes}”
                             </p>
                           )}

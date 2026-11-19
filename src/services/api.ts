@@ -993,6 +993,7 @@ export const memberService = {
   async updateTryout(
     id: string,
     payload: {
+      fullName?: string;
       level?: PlayerLevel;
       status?: ApplicationStatus;
       reviewNotes?: string;
@@ -1004,7 +1005,10 @@ export const memberService = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
-    if (payload.status === 'APPROVED') {
+    if (
+      payload.status === 'APPROVED' ||
+      (payload.fullName !== undefined && res.status === 'APPROVED')
+    ) {
       playersCache.invalidate();
       homeSummaryCache.invalidate();
     }
