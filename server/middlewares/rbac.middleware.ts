@@ -1,10 +1,13 @@
 import type { RequestHandler } from 'express';
 import type { UserRole } from '../../src/types';
+import { getUnauthorizedErrorMessage } from './auth.middleware';
 
 /** Ensures `req.user` is populated via Bearer auth; responds 401 otherwise. */
 export const requireAuth: RequestHandler = (req, res, next) => {
   if (!req.user) {
-    return void res.status(401).json({ error: 'Authentication required.' });
+    return void res.status(401).json({
+      error: getUnauthorizedErrorMessage(req),
+    });
   }
   next();
 };
@@ -14,7 +17,9 @@ export function requireRole(allowedRoles: readonly UserRole[], message?: string)
   const allowed = new Set<UserRole>(allowedRoles);
   return (req, res, next) => {
     if (!req.user) {
-      return void res.status(401).json({ error: 'Authentication required.' });
+      return void res.status(401).json({
+        error: getUnauthorizedErrorMessage(req),
+      });
     }
     if (!allowed.has(req.user.role)) {
       return void res.status(403).json({

@@ -108,6 +108,17 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
     setIsGuestModalOpen(false);
   }, []);
 
+  // Self-service Change My Password modal (accessible to all authenticated admins)
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+
+  const openChangePasswordModal = useCallback(() => {
+    setIsChangePasswordModalOpen(true);
+  }, []);
+
+  const closeChangePasswordModal = useCallback(() => {
+    setIsChangePasswordModalOpen(false);
+  }, []);
+
   // Sidebar UI state (Spec 005) — client-only, persisted to localStorage
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
@@ -135,6 +146,7 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
     isAdmin,
     isSuperAdmin,
     onOpenSheets,
+    onUserChange,
     handleLogout,
     activeModule,
     setActiveModule,
@@ -161,6 +173,9 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
     setGuestModalError,
     openGuestModal,
     closeGuestModal,
+    isChangePasswordModalOpen,
+    openChangePasswordModal,
+    closeChangePasswordModal,
     isSidebarCollapsed,
     setIsSidebarCollapsed,
     isMobileNavOpen,

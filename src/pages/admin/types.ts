@@ -105,6 +105,7 @@ export interface AdminDashboardContextValue {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   onOpenSheets: () => void;
+  onUserChange?: (user: UserType) => void;
   handleLogout: () => void;
   activeModule: AdminTabId;
   setActiveModule: (mod: AdminTabId | string, subView?: string) => void;
@@ -124,6 +125,9 @@ export interface AdminDashboardContextValue {
   setGuestModalError: React.Dispatch<React.SetStateAction<string | null>>;
   openGuestModal: () => void;
   closeGuestModal: () => void;
+  isChangePasswordModalOpen: boolean;
+  openChangePasswordModal: () => void;
+  closeChangePasswordModal: () => void;
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   isMobileNavOpen: boolean;

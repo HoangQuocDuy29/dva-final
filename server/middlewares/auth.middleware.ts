@@ -13,15 +13,30 @@ import { env, isProd, validateEnv } from '../config/env';
 
 export interface StoredUser extends User {
   passwordHash?: string;
+  tokenVersion?: number;
 }
+
+export type AuthFailReason = 'SUSPENDED' | 'REVOKED';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: StoredUser;
+      tokenInvalidated?: boolean;
+      authFailReason?: AuthFailReason;
     }
   }
+}
+
+export function getUnauthorizedErrorMessage(req: Express.Request): string {
+  if (req.authFailReason === 'SUSPENDED') {
+    return 'Tài khoản đã bị tạm khóa. Vui lòng liên hệ Superadmin.';
+  }
+  if (req.authFailReason === 'REVOKED' || req.tokenInvalidated) {
+    return 'Session expired because your account credentials or session changed. Please sign in again.';
+  }
+  return 'Authentication required.';
 }
 
 let cachedSecret: string | null = null;
@@ -89,16 +104,24 @@ export const DUMMY_HASH = '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZd
 interface TokenPayload {
   sub: string;
   role: UserRole;
+  tokenVersion: number;
   iat: number;
   exp: number;
 }
 
 const b64url = (input: Buffer | string) => Buffer.from(input).toString('base64url');
 
-export function signToken(user: { id: string; role: UserRole }): string {
+export function signToken(user: { id: string; role: UserRole; tokenVersion?: number }): string {
   const ttlHours = env.jwtExpiresInHours;
   const now = Math.floor(Date.now() / 1000);
-  const payload: TokenPayload = { sub: user.id, role: user.role, iat: now, exp: now + ttlHours * 3600 };
+  const tokenVersion = typeof user.tokenVersion === 'number' ? user.tokenVersion : 1;
+  const payload: TokenPayload = {
+    sub: user.id,
+    role: user.role,
+    tokenVersion,
+    iat: now,
+    exp: now + ttlHours * 3600,
+  };
   const body = `${b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))}.${b64url(JSON.stringify(payload))}`;
   const sig = crypto.createHmac('sha256', getSecret()).update(body).digest('base64url');
   return `${body}.${sig}`;
@@ -123,7 +146,7 @@ export function verifyToken(token: string): TokenPayload | null {
 }
 
 export function publicUser(user: StoredUser): User {
-  const { passwordHash: _omit, ...rest } = user;
+  const { passwordHash: _omitPassword, tokenVersion: _omitTokenVersion, ...rest } = user;
   return rest;
 }
 
@@ -135,13 +158,34 @@ export function setUserLookup(fn: UserLookupFn): void {
   userLookup = fn;
 }
 
-/** Resolves `req.user` from the Bearer token. The role is always read from PostgreSQL, not the JWT claim. */
+/**
+ * Resolves `req.user` from the Bearer token.
+ * Role, `isActive`, and `tokenVersion` are always verified against PostgreSQL
+ * (via short-TTL cache invalidated on mutations). Any suspension or `tokenVersion`
+ * mismatch rejects the session with 401 so old devices are logged out immediately.
+ */
 export const attachAuth: RequestHandler = async (req, _res, next) => {
   try {
     const header = req.headers.authorization;
     if (header && header.startsWith('Bearer ')) {
       const payload = verifyToken(header.slice(7).trim());
-      if (payload) req.user = await userLookup(payload.sub);
+      if (payload) {
+        const user = await userLookup(payload.sub);
+        if (user) {
+          if (user.isActive === false) {
+            req.tokenInvalidated = true;
+            req.authFailReason = 'SUSPENDED';
+          } else {
+            const currentVersion = typeof user.tokenVersion === 'number' ? user.tokenVersion : 1;
+            if (typeof payload.tokenVersion === 'number' && payload.tokenVersion === currentVersion) {
+              req.user = user;
+            } else {
+              req.tokenInvalidated = true;
+              req.authFailReason = 'REVOKED';
+            }
+          }
+        }
+      }
     }
     next();
   } catch (err) {
@@ -214,8 +258,18 @@ export const apiAccessPolicy: RequestHandler = (req, res, next) => {
   if (method === 'OPTIONS' || method === 'HEAD') return next();
   if (matches(PUBLIC_RULES, method, req.path)) return next();
 
-  if (!req.user) return void res.status(401).json({ error: 'Authentication required.' });
-  if (req.path === '/auth/me') return next();
+  if (!req.user) {
+    return void res.status(401).json({
+      error: getUnauthorizedErrorMessage(req),
+    });
+  }
+  if (
+    req.path === '/auth/me' ||
+    (method === 'POST' && /^\/admin\/auth\/change-password\/?$/.test(req.path)) ||
+    (method === 'PATCH' && /^\/admin\/auth\/profile\/?$/.test(req.path))
+  ) {
+    return next();
+  }
 
   const role = req.user.role;
   if (role === 'SUPERADMIN') return next();

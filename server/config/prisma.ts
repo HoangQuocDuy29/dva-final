@@ -87,7 +87,6 @@ import {
   hashPassword,
   isBcryptHash,
   setUserLookup,
-  verifyPassword,
 } from '../middlewares/auth.middleware';
 
 export { INITIAL_PLAYERS, INITIAL_MEMBER_APPLICATIONS };
@@ -224,8 +223,11 @@ export function toStoredUser(u: DbUser | any): StoredUser {
     role: u.role,
     phoneNumber: u.phoneNumber ?? undefined,
     avatarUrl: u.avatarUrl ?? undefined,
+    isActive: u.isActive !== false,
+    lastLoginAt: u.lastLoginAt ? safeIsoString(u.lastLoginAt) : undefined,
     createdAt: safeIsoString(u.createdAt),
     passwordHash: u.passwordHash,
+    tokenVersion: typeof u.tokenVersion === 'number' ? u.tokenVersion : 1,
   };
 }
 
@@ -1158,17 +1160,18 @@ export async function bootstrapSuperAdminAndUsers(): Promise<void> {
     });
     console.log(`[Bootstrap] Created SUPERADMIN (${superAdminEmail}) with bcrypt password hash.`);
   } else {
-    const hasValidBcryptPassword =
-      isBcryptHash(existingSuperAdmin.passwordHash) &&
-      (await verifyPassword(superAdminPassword, existingSuperAdmin.passwordHash));
+    const needsRehash = !isBcryptHash(existingSuperAdmin.passwordHash);
+    const needsRoleFix = existingSuperAdmin.role !== 'SUPERADMIN';
 
-    if (!hasValidBcryptPassword || existingSuperAdmin.role !== 'SUPERADMIN') {
-      const passwordHash = await hashPassword(superAdminPassword);
+    if (needsRehash || needsRoleFix) {
+      const data: { passwordHash?: string; role?: 'SUPERADMIN' } = {};
+      if (needsRehash) data.passwordHash = await hashPassword(superAdminPassword);
+      if (needsRoleFix) data.role = 'SUPERADMIN';
       await prisma.user.update({
         where: { email: superAdminEmail },
-        data: { passwordHash, role: 'SUPERADMIN' },
+        data,
       });
-      console.log(`[Bootstrap] Updated SUPERADMIN (${superAdminEmail}) passwordHash with bcrypt in PostgreSQL.`);
+      console.log(`[Bootstrap] Ensured SUPERADMIN (${superAdminEmail}) role/hash integrity in PostgreSQL.`);
     }
   }
 

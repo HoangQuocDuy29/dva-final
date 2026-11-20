@@ -40,6 +40,28 @@ export const USER_ROLE_UPDATE_SCHEMA: Schema = {
   role: E(MANAGED_ROLES),
 };
 
+export const CHANGE_PASSWORD_SCHEMA: Schema = {
+  currentPassword: S(200, 1),
+  newPassword: S(200, 8),
+};
+
+export const STAFF_RESET_PASSWORD_SCHEMA: Schema = {
+  newPassword: S(200, 8),
+};
+
+export const SELF_PROFILE_UPDATE_SCHEMA: Schema = {
+  fullName: S(100, 2),
+  avatarUrl: U,
+};
+
+export const STAFF_UPDATE_SCHEMA: Schema = {
+  fullName: S(100, 2),
+  avatarUrl: U,
+  role: E(MANAGED_ROLES),
+  isActive: B,
+  forceLogout: B,
+};
+
 export const PLAYER_SCHEMA: Schema = {
   fullName: S(100, 2),
   jerseyNumber: I(0, 99),

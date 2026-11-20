@@ -1,16 +1,41 @@
 import { Router } from 'express';
 import { publicUser } from '../../middlewares/auth.middleware';
 import { requireAuth, requireSuperAdmin } from '../../middlewares/rbac.middleware';
-import { ah, loginLimiter } from '../../middlewares/error.middleware';
+import { ah, loginLimiter, passwordChangeLimiter } from '../../middlewares/error.middleware';
 import { sanitize } from '../../utils/validation';
-import { LOGIN_SCHEMA, USER_CREATE_SCHEMA, USER_ROLE_UPDATE_SCHEMA } from '../../utils/schemas';
+import {
+  CHANGE_PASSWORD_SCHEMA,
+  LOGIN_SCHEMA,
+  SELF_PROFILE_UPDATE_SCHEMA,
+  STAFF_RESET_PASSWORD_SCHEMA,
+  STAFF_UPDATE_SCHEMA,
+  USER_CREATE_SCHEMA,
+  USER_ROLE_UPDATE_SCHEMA,
+} from '../../utils/schemas';
 import {
   authenticateUser,
+  changeOwnPassword,
   createManagedUser,
   deleteManagedUser,
   listAllUsers,
+  resetStaffPassword,
+  updateManagedStaff,
   updateManagedUserRole,
+  updateOwnProfile,
 } from './auth.service';
+
+/** Normalizes legacy `name` -> `fullName` and `avatarUrl: null` -> `''` before schema validation. */
+function normalizeProfilePayload(raw: unknown): Record<string, unknown> {
+  const body = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...(raw as Record<string, unknown>) } : {};
+  if (body.fullName === undefined && body.name !== undefined) {
+    body.fullName = body.name;
+  }
+  delete body.name;
+  if (body.avatarUrl === null) {
+    body.avatarUrl = '';
+  }
+  return body;
+}
 
 export const authRouter = Router();
 
@@ -57,10 +82,9 @@ authRouter.post(
   '/users',
   requireSuperAdmin,
   ah(async (req, res) => {
-    const body = req.body && typeof req.body === 'object' ? { ...req.body } : {};
-    if (body.fullName === undefined && body.name !== undefined) body.fullName = body.name;
-    delete body.name;
-    const data = sanitize(body, USER_CREATE_SCHEMA, { required: ['email', 'password', 'fullName'] });
+    const data = sanitize(normalizeProfilePayload(req.body), USER_CREATE_SCHEMA, {
+      required: ['email', 'password', 'fullName'],
+    });
     const created = await createManagedUser(data as any);
     res.status(201).json(created);
   })
@@ -82,5 +106,78 @@ authRouter.delete(
   ah(async (req, res) => {
     const result = await deleteManagedUser(req.params.id, req.user!.id);
     res.json(result);
+  })
+);
+
+authRouter.post(
+  '/admin/auth/change-password',
+  requireAuth,
+  passwordChangeLimiter,
+  ah(async (req, res) => {
+    const rawCurrent = typeof req.body?.currentPassword === 'string' ? req.body.currentPassword : '';
+    const rawNew = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+    if (!rawCurrent.trim()) {
+      return res.status(400).json({ error: 'Current password is required.' });
+    }
+    if (rawNew.trim().length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    }
+    const sanitized = sanitize(
+      { currentPassword: rawCurrent, newPassword: rawNew },
+      CHANGE_PASSWORD_SCHEMA,
+      { required: ['currentPassword', 'newPassword'] }
+    );
+    const result = await changeOwnPassword(
+      req.user!.id,
+      sanitized.currentPassword,
+      sanitized.newPassword
+    );
+    return res.json(result);
+  })
+);
+
+authRouter.patch(
+  '/admin/auth/profile',
+  requireAuth,
+  ah(async (req, res) => {
+    const data = sanitize(normalizeProfilePayload(req.body), SELF_PROFILE_UPDATE_SCHEMA, {
+      partial: true,
+    });
+    const result = await updateOwnProfile(req.user!.id, data);
+    return res.json(result);
+  })
+);
+
+authRouter.patch(
+  '/admin/staff/:id',
+  requireSuperAdmin,
+  ah(async (req, res) => {
+    const data = sanitize(normalizeProfilePayload(req.body), STAFF_UPDATE_SCHEMA, {
+      partial: true,
+    });
+    const result = await updateManagedStaff(req.params.id, data as any, req.user!.id);
+    return res.json(result);
+  })
+);
+
+authRouter.patch(
+  '/admin/staff/:id/reset-password',
+  requireSuperAdmin,
+  ah(async (req, res) => {
+    const rawNew = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+    if (rawNew.trim().length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    }
+    const sanitized = sanitize(
+      { newPassword: rawNew },
+      STAFF_RESET_PASSWORD_SCHEMA,
+      { required: ['newPassword'] }
+    );
+    const result = await resetStaffPassword(
+      req.params.id,
+      sanitized.newPassword,
+      req.user!.id
+    );
+    return res.json(result);
   })
 );

@@ -11,6 +11,8 @@ export interface User {
   role: UserRole;
   avatarUrl?: string;
   phoneNumber?: string;
+  isActive?: boolean;
+  lastLoginAt?: string;
   createdAt: string;
 }
 

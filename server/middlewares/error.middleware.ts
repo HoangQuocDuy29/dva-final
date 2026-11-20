@@ -159,6 +159,13 @@ export const loginLimiter = rateLimit({
   message: 'Too many login attempts. Please try again in 15 minutes.',
 });
 
+export const passwordChangeLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 20,
+  key: (req) => `${req.ip}|${req.user?.id || 'anon'}`,
+  message: 'Too many password change attempts. Please try again in 15 minutes.',
+});
+
 export const publicWriteLimiter = rateLimit({
   windowMs: 10 * 60_000,
   max: 30,

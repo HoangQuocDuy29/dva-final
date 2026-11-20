@@ -104,7 +104,16 @@ Các cơ chế bảo vệ được tập trung tại [server/utils/bookingHolds.
   ```
 - **KHÔNG** chạy `prisma migrate dev` (dự án dùng Pooler và không có baseline migration history) và **TUYỆT ĐỐI KHÔNG** dùng cờ `--force-reset` hay `--accept-data-loss`.
 
-### 4. Tổng hợp 21 Bảng Database (`prisma/schema.prisma`)
+### 4. Nâng cấp Bảo mật Tài khoản, Avatar & Quản trị Nhân sự (`Staff & Roles` — 20/11/2026)
+- **Schema (`User` trong [prisma/schema.prisma](prisma/schema.prisma)):** Bổ sung additive-only `tokenVersion Int @default(1)`, `isActive Boolean @default(true)`, `lastLoginAt DateTime?` (cùng `avatarUrl String?`).
+- **Xác thực & Thu hồi Phiên tức thì ([server/middlewares/auth.middleware.ts](server/middlewares/auth.middleware.ts), [server/modules/auth/](server/modules/auth/)):**
+  - `POST /api/auth/login` chặn tài khoản bị khóa (`isActive === false` → `403`), ghi nhận `lastLoginAt`, và nhúng `tokenVersion` vào JWT.
+  - `attachAuth` kiểm tra đồng thời `user.isActive === true` và `decoded.tokenVersion === user.tokenVersion` (vô hiệu hóa cache ngay khi đổi mật khẩu, khóa tài khoản hoặc Force Logout → trả `401`).
+  - Self-service cho mọi user đã đăng nhập: `POST /api/admin/auth/change-password` & `PATCH /api/admin/auth/profile`.
+  - Quản trị `SUPERADMIN` (`requireSuperAdmin`): `PATCH /api/admin/staff/:id` (sửa tên/avatar, đổi role, Khóa/Mở khóa, Force Logout — chặn tự khóa/hạ quyền `SUPERADMIN`) và `PATCH /api/admin/staff/:id/reset-password`.
+- **UI Admin Dashboard ([AdminHeader.tsx](src/pages/admin/layout/AdminHeader.tsx), [UsersTab.tsx](src/pages/admin/tabs/UsersTab.tsx)):** Component dùng chung `RoleAvatarRing` (vòng hào quang phân cấp 5 role chuẩn Google Pro 3 lớp, fallback chữ cái đầu) & `StaffProfileModal` tái sử dụng `uploadToCloudinary(file, 'staff')`, hiển thị trạng thái `Active`/`Đã khóa`, `Last login`, bấm trực tiếp vào Avatar trên Header để đổi ảnh nhanh, cùng nút Sửa Hồ Sơ, Khóa/Mở khóa, Force Logout và Reset Password.
+
+### 5. Tổng hợp 21 Bảng Database (`prisma/schema.prisma`)
 - **Người dùng & Vận động viên:** `User` (`users`), `Player` (`players`), `CoachProfile` (`coaches`), `MemberApplication` (`member_applications`)
 - **Đặt sân & Lịch sân:** `Court` (`courts`), `ClosedSlot` (`closed_slots`), `Booking` (`bookings`)
 - **Học viện & Drop-in:** `TrainingCourse` (`training_courses`), `TrainingRegistration` (`training_registrations`), `GuestSession` (`guest_sessions`)

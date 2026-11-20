@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User as UserType, ManagedUserRole } from '../../../types';
-import { userService } from '../../../services/api';
+import { authService, userService } from '../../../services/api';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { createDefaultUserForm } from '../constants';
 
 export function useUsersTab() {
-  const { isSuperAdmin, notify } = useAdminDashboard();
+  const { currentUser, isSuperAdmin, onUserChange, notify } = useAdminDashboard();
 
   const [usersList, setUsersList] = useState<UserType[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -18,6 +18,15 @@ export function useUsersTab() {
     role: ManagedUserRole;
   }>(createDefaultUserForm);
 
+  // Reset staff password modal state (SUPERADMIN only)
+  const [resetTargetUser, setResetTargetUser] = useState<UserType | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+
+  // Edit staff profile & avatar modal state
+  const [editingProfileUser, setEditingProfileUser] = useState<UserType | null>(null);
+  const [busyUserId, setBusyUserId] = useState<string | null>(null);
+
   const loadUsers = useCallback(async () => {
     try {
       setUsersList(await userService.getUsers());
@@ -29,6 +38,17 @@ export function useUsersTab() {
   useEffect(() => {
     if (isSuperAdmin) loadUsers();
   }, [isSuperAdmin, loadUsers]);
+
+  // Keep current user's row synced immediately when avatar/name is updated from AdminHeader
+  useEffect(() => {
+    setUsersList((prev) =>
+      prev.map((u) =>
+        u.id === currentUser.id
+          ? { ...u, fullName: currentUser.fullName, avatarUrl: currentUser.avatarUrl }
+          : u
+      )
+    );
+  }, [currentUser.id, currentUser.fullName, currentUser.avatarUrl]);
 
   const openCreateUserModal = () => {
     setUserForm(createDefaultUserForm());
@@ -62,13 +82,93 @@ export function useUsersTab() {
 
   const handleChangeUserRole = async (user: UserType, role: ManagedUserRole) => {
     if (role === user.role) return;
+    setBusyUserId(user.id);
     try {
-      const updated = await userService.updateUserRole(user.id, role);
-      setUsersList((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...updated } : u)));
+      const res = await userService.updateStaff(user.id, { role });
+      setUsersList((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...res.user } : u)));
       notify(`Đã đổi quyền ${user.email} thành ${role}.`, 3500);
     } catch (err: any) {
       notify(err?.message || 'Không thể cập nhật quyền.', 3500);
+    } finally {
+      setBusyUserId(null);
     }
+  };
+
+  const handleToggleUserActive = async (user: UserType) => {
+    const currentlyActive = user.isActive !== false;
+    const nextActive = !currentlyActive;
+    if (
+      !nextActive &&
+      !window.confirm(
+        `Tạm khóa tài khoản ${user.email}? Tài khoản này sẽ bị đăng xuất ngay lập tức khỏi mọi thiết bị.`
+      )
+    ) {
+      return;
+    }
+
+    setBusyUserId(user.id);
+    try {
+      const res = await userService.updateStaff(user.id, { isActive: nextActive });
+      setUsersList((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...res.user } : u)));
+      notify(
+        nextActive
+          ? `Đã mở khóa tài khoản ${user.email}.`
+          : `Đã tạm khóa ${user.email} và đăng xuất toàn bộ phiên cũ.`,
+        4000
+      );
+    } catch (err: any) {
+      notify(err?.message || 'Không thể thay đổi trạng thái tài khoản.', 3500);
+    } finally {
+      setBusyUserId(null);
+    }
+  };
+
+  const handleForceLogoutUser = async (user: UserType) => {
+    if (
+      !window.confirm(
+        `Đăng xuất toàn bộ thiết bị đang dùng tài khoản ${user.email}? Nhân sự sẽ phải đăng nhập lại.`
+      )
+    ) {
+      return;
+    }
+
+    setBusyUserId(user.id);
+    try {
+      const res = await userService.updateStaff(user.id, { forceLogout: true });
+      if (res.user) {
+        setUsersList((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...res.user } : u)));
+      }
+      notify(`Đã Force Logout toàn bộ phiên đăng nhập của ${user.email}.`, 4000);
+    } catch (err: any) {
+      notify(err?.message || 'Không thể thực hiện Force Logout.', 3500);
+    } finally {
+      setBusyUserId(null);
+    }
+  };
+
+  const openEditProfileModal = (user: UserType) => {
+    setEditingProfileUser(user);
+  };
+
+  const closeEditProfileModal = () => {
+    setEditingProfileUser(null);
+  };
+
+  const handleSaveStaffProfile = async (payload: { fullName: string; avatarUrl: string }) => {
+    if (!editingProfileUser) return;
+    const target = editingProfileUser;
+    const res =
+      target.id === currentUser.id
+        ? await authService.updateProfile(payload)
+        : await userService.updateStaff(target.id, payload);
+
+    if (res.user) {
+      setUsersList((prev) => prev.map((u) => (u.id === target.id ? { ...u, ...res.user } : u)));
+      if (target.id === currentUser.id && onUserChange) {
+        onUserChange(res.user);
+      }
+    }
+    notify(`Đã cập nhật hồ sơ & avatar cho ${target.email}.`, 3500);
   };
 
   const handleDeleteUser = async (user: UserType) => {
@@ -82,8 +182,41 @@ export function useUsersTab() {
     }
   };
 
+  const openResetPasswordModal = (user: UserType) => {
+    setResetPasswordError(null);
+    setResetTargetUser(user);
+  };
+
+  const closeResetPasswordModal = () => {
+    if (isResettingPassword) return;
+    setResetTargetUser(null);
+    setResetPasswordError(null);
+  };
+
+  const handleResetUserPassword = async (
+    targetUser: UserType,
+    newPassword: string
+  ): Promise<boolean> => {
+    setResetPasswordError(null);
+    setIsResettingPassword(true);
+    try {
+      await userService.resetPassword(targetUser.id, newPassword);
+      notify(
+        `Đã đặt lại mật khẩu cho ${targetUser.email} và đăng xuất toàn bộ phiên cũ.`,
+        4500
+      );
+      return true;
+    } catch (err: any) {
+      setResetPasswordError(err?.message || 'Không thể đặt lại mật khẩu.');
+      return false;
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   return {
     usersList,
+    busyUserId,
     isUserModalOpen,
     setIsUserModalOpen,
     isSavingUser,
@@ -93,6 +226,19 @@ export function useUsersTab() {
     openCreateUserModal,
     handleCreateUser,
     handleChangeUserRole,
+    handleToggleUserActive,
+    handleForceLogoutUser,
     handleDeleteUser,
+    editingProfileUser,
+    openEditProfileModal,
+    closeEditProfileModal,
+    handleSaveStaffProfile,
+    resetTargetUser,
+    isResettingPassword,
+    resetPasswordError,
+    setResetPasswordError,
+    openResetPasswordModal,
+    closeResetPasswordModal,
+    handleResetUserPassword,
   };
 }

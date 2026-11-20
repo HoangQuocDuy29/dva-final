@@ -15,6 +15,9 @@ import { OverviewTab } from './tabs/OverviewTab';
 const GuestSessionEmailModal = lazy(() =>
   import('./components/GuestSessionEmailModal').then((m) => ({ default: m.GuestSessionEmailModal }))
 );
+const ChangePasswordModal = lazy(() =>
+  import('./components/ChangePasswordModal').then((m) => ({ default: m.ChangePasswordModal }))
+);
 const CourtsTab = lazy(() => import('./tabs/CourtsTab').then((m) => ({ default: m.CourtsTab })));
 const BookingsTab = lazy(() => import('./tabs/BookingsTab').then((m) => ({ default: m.BookingsTab })));
 const ApplicationsTab = lazy(() => import('./tabs/ApplicationsTab').then((m) => ({ default: m.ApplicationsTab })));
@@ -113,6 +116,11 @@ const AdminDashboardShell: React.FC = () => {
           <GuestSessionEmailModal />
         </Suspense>
       )}
+
+      {/* SELF-SERVICE CHANGE MY PASSWORD MODAL (All authenticated admins) */}
+      <Suspense fallback={null}>
+        <ChangePasswordModal />
+      </Suspense>
     </div>
   );
 };

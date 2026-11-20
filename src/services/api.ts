@@ -271,6 +271,41 @@ export const authService = {
     return res;
   },
 
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message: string; token: string; user: User }> {
+    const res = await request<{ success: boolean; message: string; token: string; user: User }>(
+      '/admin/auth/change-password',
+      {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      }
+    );
+    if (res.token) {
+      localStorage.setItem(TOKEN_KEY, res.token);
+    }
+    if (res.user) {
+      this.setCurrentUser(res.user);
+    }
+    return res;
+  },
+
+  async updateProfile(data: {
+    name?: string;
+    fullName?: string;
+    avatarUrl?: string | null;
+  }): Promise<{ success: boolean; user: User }> {
+    const res = await request<{ success: boolean; user: User }>('/admin/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    if (res.user) {
+      this.setCurrentUser(res.user);
+    }
+    return res;
+  },
+
   async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
     return request('/auth/forgot-password', {
       method: 'POST',
@@ -307,6 +342,39 @@ export const userService = {
 
   async deleteUser(id: string): Promise<{ success: boolean }> {
     return request<{ success: boolean }>(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
+  async resetPassword(
+    id: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message: string; user?: User }> {
+    return request<{ success: boolean; message: string; user?: User }>(
+      `/admin/staff/${encodeURIComponent(id)}/reset-password`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ newPassword }),
+      }
+    );
+  },
+
+  async updateStaff(
+    id: string,
+    data: {
+      name?: string;
+      fullName?: string;
+      avatarUrl?: string | null;
+      role?: ManagedUserRole;
+      isActive?: boolean;
+      forceLogout?: boolean;
+    }
+  ): Promise<{ success: boolean; user: User; sessionRevoked?: boolean }> {
+    return request<{ success: boolean; user: User; sessionRevoked?: boolean }>(
+      `/admin/staff/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }
+    );
   },
 };
 

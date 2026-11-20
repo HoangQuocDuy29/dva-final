@@ -100,10 +100,13 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   - **Route Soft Visibility Toggles:** `PATCH /api/players/:id/visibility` và `PATCH /api/training/courses/:id/visibility` yêu cầu `SUPERADMIN` (`requireSuperAdmin`).
 - **Cơ chế Kiểm duyệt Đăng ký Khóa học / Giao lưu (`POST /api/training/register`):**
   - Server kiểm tra trạng thái hoạt động của gói tập được đăng ký: nếu `course.isActive === false`, request bị từ chối ngay lập tức với mã lỗi HTTP 400 (`This training course or scrimmage session is currently inactive and not accepting registrations.`), ngăn chặn việc ghi nhận đơn đăng ký ngoài luồng.
-- **Token & Header Xác thực:**
+- **Token, Phiên Đăng Nhập & Quản Trị Nhân Sự (`server/modules/auth/`):**
   - Token key trong Storage: `dva_token` (lưu trữ trong `localStorage`).
-  - Cấu trúc Header: `Authorization: Bearer <dva_token>`.
-  - Middleware `attachAuth`: Giải mã token, truy vấn người dùng qua `userLookupCache` (TTL `5s` + single-flight coalescing trong `server/config/prisma.ts`) và gán vào `req.user`.
+  - Cấu trúc Header: `Authorization: Bearer <dva_token>`, payload nhúng `tokenVersion`.
+  - Middleware `attachAuth`: Giải mã token, truy vấn người dùng qua `userLookupCache` (TTL `5s` + single-flight coalescing trong `server/config/prisma.ts`), đối chiếu đồng thời `user.isActive === true` và `decoded.tokenVersion === user.tokenVersion`; nếu bị khóa hoặc lệch phiên lập tức trả `401 Unauthorized`.
+  - **Self-Service cho mọi tài khoản đã đăng nhập:** `POST /api/admin/auth/change-password` (bcrypt 10 rounds, tăng `tokenVersion` + cấp JWT mới) và `PATCH /api/admin/auth/profile` (cập nhật tên hiển thị & `avatarUrl` Cloudinary).
+  - **Staff Governance (`SUPERADMIN` only — `requireSuperAdmin`):** `PATCH /api/admin/staff/:id` (cập nhật tên, `avatarUrl`, `role`, `isActive` Khóa/Mở khóa, `forceLogout` đá toàn bộ thiết bị — tự tăng `tokenVersion` và chặn tự khóa/hạ quyền `SUPERADMIN`) và `PATCH /api/admin/staff/:id/reset-password`.
+  - **Avatar dùng chung:** Component `RoleAvatarRing` (`src/pages/admin/components/RoleAvatarRing.tsx` — vòng hào quang phân cấp 5 role chuẩn Google Pro 3 lớp, chỉ xoay vòng viền ngoài, lõi ảnh đứng yên) + modal dùng chung `StaffProfileModal` (`src/pages/admin/components/StaffProfileModal.tsx`) tái sử dụng `uploadToCloudinary(file, 'staff')` (`src/utils/cloudinary.ts`) cho cả `AdminHeader` và bảng `Staff & Roles` (`UsersTab.tsx`).
 
 ### 3.3. Client API Wrapper & Caching (`src/services/api.ts` & `src/utils/swrCache.ts`)
 - **Hàm gọi trung tâm `request<T>()`:**
