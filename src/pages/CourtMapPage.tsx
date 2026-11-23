@@ -9,7 +9,7 @@ import type { CourtClubProfile, VenueGenderRule, VenuePlayStyle, VenueSessionSlo
 import {
   VN_DAY_OPTIONS, PLAY_STYLE_META, GENDER_RULE_META, RECRUITMENT_META, VENUE_TYPE_META, VIETNAM_CITIES, VIETNAM_OVERVIEW, getVietnamNow, getDateForWeekdayInCurrentWeek, isSessionCancelledOnDate, getSubCourtNames,
   getSessionRealtimeInfo, isVenueClosedNow, formatClosedUntilDate, isVenueLiveNow, isVenueUpcomingToday,
-  formatDaysOfWeek, formatDayFull, buildGoogleMapsUrl, buildZaloContact, sanitizePhoneForLink, getClubInitials, parseTimeToMinutes, calcDistanceKm,
+  formatDaysOfWeek, formatDayFull, formatShortVnDate, buildGoogleMapsUrl, buildZaloContact, sanitizePhoneForLink, getClubInitials, parseTimeToMinutes, calcDistanceKm,
 } from '../utils/venueSchedule';
 import { optimizeCloudinaryLogoUrl, optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { HanoiLeafletMap, type MapVenueItem, type MapViewportTarget, type UserGeoPoint } from '../components/court-map/HanoiLeafletMap';
@@ -39,7 +39,13 @@ export const CourtMapPage: React.FC = () => {
   const [locating, setLocating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  useEffect(() => { const t = setInterval(() => setNowVn(getVietnamNow()), 30_000); return () => clearInterval(t); }, []);
+  useEffect(() => {
+    const syncNow = () => setNowVn(getVietnamNow());
+    const t = setInterval(syncNow, 30_000);
+    const onVis = () => { if (document.visibilityState === 'visible') syncNow(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVis); };
+  }, []);
   const showToast = useCallback((m: string) => { setToast(m); setTimeout(() => setToast((p) => (p === m ? null : p)), 3500); }, []);
 
   const loadVenues = useCallback(async (forceRefresh = false) => {
@@ -217,7 +223,7 @@ export const CourtMapPage: React.FC = () => {
                 <div key={s.id} className={`rounded-2xl p-3.5 border space-y-2 ${cancelled ? 'opacity-50 bg-[#121622] border-amber-500/40' : rt.state === 'LIVE' ? 'opacity-65 hover:opacity-95 bg-[#121826] border-slate-700' : rt.state === 'UPCOMING' ? 'bg-gradient-to-br from-[#1B1726] to-[#141C2B] border-orange-400/75 ring-1 ring-orange-500/35' : 'bg-[#141C2B] border-slate-800'}`}>
                   {!closed && !cancelled && (rt.state === 'LIVE' || rt.state === 'UPCOMING' || rt.state === 'SCHEDULED') && (
                     <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
-                      {rt.state === 'LIVE' ? <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">● ĐANG ĐÁNH ({s.startTime} - {s.endTime})</span> : rt.state === 'UPCOMING' ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-500/20 text-amber-200 border border-orange-400/60"><Timer className="w-3.5 h-3.5 text-orange-300" />⏳ {rt.countdownText}</span> : <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">📅 Lịch {formatDayFull(selectedDay)} ({s.startTime} - {s.endTime})</span>}
+                      {rt.state === 'LIVE' ? <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">● ĐANG ĐÁNH ({s.startTime} - {s.endTime})</span> : rt.state === 'UPCOMING' ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-500/20 text-amber-200 border border-orange-400/60"><Timer className="w-3.5 h-3.5 text-orange-300" />⏳ {rt.countdownText}</span> : <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">📅 Lịch {formatDayFull(selectedDay)} {formatShortVnDate(viewedDate)} ({s.startTime} - {s.endTime})</span>}
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${rec.badgeClass}`}>{rec.label}</span>
                     </div>
                   )}

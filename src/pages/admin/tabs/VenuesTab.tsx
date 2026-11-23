@@ -43,7 +43,8 @@ export const VenuesTab: React.FC = () => {
   const [cancelReasonDrafts, setCancelReasonDrafts] = useState<Record<string, string>>({});
   const [captainUsers, setCaptainUsers] = useState<User[]>([]);
 
-  const nowVn = useMemo(() => getVietnamNow(), [venuesList]);
+  const [nowVn, setNowVn] = useState(() => getVietnamNow());
+  useEffect(() => { const t = setInterval(() => setNowVn(getVietnamNow()), 30_000); return () => clearInterval(t); }, []);
   const reload = async () => setVenuesList(await venueService.getAdminVenues());
   const loadCaptainUsers = async () => { if (isSuperAdmin) try { setCaptainUsers((await userService.getUsers()).filter((u) => u.role === 'CAPTAIN')); } catch { /* ignore */ } };
   useEffect(() => { if (isSuperAdmin) void loadCaptainUsers(); }, [isSuperAdmin]);

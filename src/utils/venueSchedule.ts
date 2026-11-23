@@ -73,8 +73,8 @@ export function getVietnamNow(date: Date = new Date()): VietnamNow {
 
 export function getDateForWeekdayInCurrentWeek(dayOfWeek: number, nowVn: VietnamNow): string {
   const [y, m, d] = nowVn.dateStr.split('-').map(Number);
-  const diff = (DAY_ORDER[dayOfWeek] ?? 0) - (DAY_ORDER[nowVn.dayOfWeek] ?? 0);
-  return new Date(Date.UTC(y, m - 1, d + diff)).toISOString().slice(0, 10);
+  const offset = ((dayOfWeek - nowVn.dayOfWeek) % 7 + 7) % 7;
+  return new Date(Date.UTC(y, m - 1, d + offset)).toISOString().slice(0, 10);
 }
 
 export const isSessionCancelledOnDate = (s: Pick<VenueSessionSlot, 'isCancelled' | 'cancelledDates'>, dateStr: string) =>
