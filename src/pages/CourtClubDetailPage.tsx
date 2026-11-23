@@ -56,7 +56,7 @@ export const CourtClubDetailPage: React.FC = () => {
   const closed = isVenueClosedNow(club.venue, nowVn.nowMs);
   const reopenStr = formatClosedUntilDate(club.venue.closedUntil);
   const heroCover = club.coverUrl || club.venue.coverUrl || club.venue.imageUrl;
-  const gallery = (club.galleryUrls || []).filter(Boolean);
+  const gallery = (club.galleryUrls || []).filter(Boolean).slice(0, 5);
   const telHref = `tel:${sanitizePhoneForLink(club.captainPhone)}`;
 
   return (

@@ -33,7 +33,8 @@ export type AdminTabId =
   | 'SHEETS'
   | 'STORE'
   | 'TOURNAMENTS'
-  | 'VENUES';
+  | 'VENUES'
+  | 'CAPTAIN_PROFILE';
 
 export type AdminNavGroupId = 'OVERVIEW' | 'ATHLETICS' | 'COMMERCE' | 'SYSTEM';
 

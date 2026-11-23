@@ -1015,6 +1015,12 @@ export type VenueCapacityMode = 'UNLIMITED' | 'LIMITED_SLOTS';
 
 export type VenueGenderRule = 'MALE_ONLY' | 'MIXED' | 'FEMALE_ONLY';
 
+export interface SessionDailyOverride {
+  currentPlayers: number;
+  neededPositions: VolleyballPosition[];
+}
+export type SessionDailyOverridesMap = Record<string, SessionDailyOverride>;
+
 export interface CourtClubProfile {
   id: string;
   venueId: string;
@@ -1023,6 +1029,8 @@ export interface CourtClubProfile {
   logoUrl?: string | null;
   coverUrl?: string | null;
   galleryUrls: string[];
+  coverUpdatedAt?: string | null;
+  galleryUpdatedAt?: string | null;
   captainName: string;
   captainPhone: string;
   captainZalo?: string | null;
@@ -1056,6 +1064,7 @@ export interface VenueSessionSlot {
   currentPlayers?: number;
   maxPlayers?: number;
   neededPositions?: VolleyballPosition[];
+  dailyOverrides?: SessionDailyOverridesMap;
   genderRule?: VenueGenderRule;
   club?: CourtClubProfile;
   createdAt?: string;
@@ -1130,6 +1139,8 @@ export type VenueClubPayload = {
   logoUrl?: string | null;
   coverUrl?: string | null;
   galleryUrls: string[];
+  coverUpdatedAt?: string | null;
+  galleryUpdatedAt?: string | null;
   captainName: string;
   captainPhone: string;
   captainZalo?: string | null;
@@ -1157,6 +1168,7 @@ export type VenueSessionPayload = {
   currentPlayers?: number;
   maxPlayers?: number;
   neededPositions?: VolleyballPosition[];
+  dailyOverrides?: SessionDailyOverridesMap;
   genderRule?: VenueGenderRule;
   forceOverride?: boolean;
 };

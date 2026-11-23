@@ -150,13 +150,11 @@ export function getVisibleNavGroups(isSuperAdmin: boolean, isCaptain = false): A
   if (isCaptain) {
     return [{
       id: 'COMMERCE',
-      label: 'Đội Của Tôi',
-      items: [{
-        id: 'VENUES',
-        label: 'Đội & Lịch Chơi Của Tôi',
-        icon: MapPin,
-        keywords: ['club', 'team', 'schedule', 'captain'],
-      }],
+      label: 'ĐỘI CỦA TÔI',
+      items: [
+        { id: 'VENUES', label: '📅 Lịch Chơi & Slot Ca', icon: CalendarClock, keywords: ['schedule', 'slot', 'session', 'captain'] },
+        { id: 'CAPTAIN_PROFILE', label: '🛡️ Hồ Sơ & Ảnh Đội', icon: ShieldCheck, keywords: ['profile', 'club', 'cover', 'gallery'] },
+      ],
     }];
   }
   return ADMIN_NAV_GROUPS.map((g) => ({

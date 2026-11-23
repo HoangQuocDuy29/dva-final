@@ -1,4 +1,4 @@
-import type { CourtClubProfile, SessionConflictDetail, VenueGenderRule, VenuePlayStyle, VenueRecruitmentStatus, VenueSessionSlot, VenueType, VolleyballVenue } from '../types';
+import type { CourtClubProfile, SessionConflictDetail, SessionDailyOverride, VenueGenderRule, VenuePlayStyle, VenueRecruitmentStatus, VenueSessionSlot, VenueType, VolleyballVenue } from '../types';
 
 export const VN_DAY_OPTIONS = [
   { value: 1, short: 'T2', label: 'Thứ 2' },
@@ -82,6 +82,34 @@ export const isSessionCancelledOnDate = (s: Pick<VenueSessionSlot, 'isCancelled'
 
 export const formatShortVnDate = (ymd: string) => { const [, m, d] = ymd.split('-'); return m && d ? `${d}/${m}` : ymd; };
 
+export function getMonthlyQuotaStatus(updatedAt?: string | null): { locked: boolean; unlockDateLabel: string | null } {
+  if (!updatedAt) return { locked: false, unlockDateLabel: null };
+  const unlockMs = new Date(updatedAt).getTime() + 30 * 24 * 60 * 60 * 1000;
+  if (Number.isNaN(unlockMs) || Date.now() >= unlockMs) return { locked: false, unlockDateLabel: null };
+  return { locked: true, unlockDateLabel: new Date(unlockMs).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) };
+}
+
+export function getSessionDailyState(s: Pick<VenueSessionSlot, 'dailyOverrides'>, targetDateStr: string): SessionDailyOverride {
+  const ov = s.dailyOverrides && typeof s.dailyOverrides === 'object' ? s.dailyOverrides[targetDateStr] : undefined;
+  return {
+    currentPlayers: ov && typeof ov.currentPlayers === 'number' ? Math.max(0, ov.currentPlayers) : 0,
+    neededPositions: Array.isArray(ov?.neededPositions) ? ov.neededPositions : [],
+  };
+}
+
+export function getUpcomingSessionDates(daysOfWeek: number[], nowVn: VietnamNow): { day: number; dateStr: string; label: string }[] {
+  const [y, m, d] = nowVn.dateStr.split('-').map(Number);
+  const set = new Set(daysOfWeek || []);
+  const out: { day: number; dateStr: string; label: string }[] = [];
+  for (let offset = 0; offset < 7; offset++) {
+    const day = (nowVn.dayOfWeek + offset) % 7;
+    if (!set.has(day)) continue;
+    const dateStr = new Date(Date.UTC(y, m - 1, d + offset)).toISOString().slice(0, 10);
+    out.push({ day, dateStr, label: `${DAY_SHORT[day]} ${formatShortVnDate(dateStr)}` });
+  }
+  return out.length ? out : [{ day: nowVn.dayOfWeek, dateStr: nowVn.dateStr, label: `${DAY_SHORT[nowVn.dayOfWeek]} ${formatShortVnDate(nowVn.dateStr)}` }];
+}
+
 export const getSubCourtNames = (count: number) => Array.from({ length: Math.max(1, Math.min(12, Math.floor(Number(count) || 1))) }, (_, i) => `Court ${String.fromCharCode(65 + i)}`);
 export const parseTimeToMinutes = (hhmm: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec((hhmm || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : -1; };
 export const formatDayFull = (day: number) => DAY_FULL[day] ?? String(day);
@@ -101,10 +129,18 @@ export function formatClosedUntilDate(iso?: string | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
-export function getSessionRealtimeInfo(session: Pick<VenueSessionSlot, 'daysOfWeek' | 'startTime' | 'endTime' | 'isCancelled' | 'cancelledDates'>, nowVn: VietnamNow, venueClosed = false) {
-  const cancelledToday = isSessionCancelledOnDate(session, nowVn.dateStr);
-  if (venueClosed || cancelledToday || !session.daysOfWeek?.includes(nowVn.dayOfWeek)) {
-    return { state: cancelledToday && !venueClosed ? ('CANCELLED' as const) : ('OTHER_DAY' as const), countdownText: null };
+export function getSessionRealtimeInfo(session: Pick<VenueSessionSlot, 'daysOfWeek' | 'startTime' | 'endTime' | 'isCancelled' | 'cancelledDates'>, nowVn: VietnamNow, venueClosed = false, selectedDay: number | null = null) {
+  const isViewingToday = selectedDay === null || selectedDay === nowVn.dayOfWeek;
+  const checkDate = selectedDay !== null ? getDateForWeekdayInCurrentWeek(selectedDay, nowVn) : nowVn.dateStr;
+  const cancelled = isSessionCancelledOnDate(session, checkDate);
+  if (venueClosed || cancelled) {
+    return { state: cancelled && !venueClosed ? ('CANCELLED' as const) : ('OTHER_DAY' as const), countdownText: null };
+  }
+  if (!isViewingToday) {
+    return { state: session.daysOfWeek?.includes(selectedDay!) ? ('SCHEDULED' as const) : ('OTHER_DAY' as const), countdownText: null };
+  }
+  if (!session.daysOfWeek?.includes(nowVn.dayOfWeek)) {
+    return { state: 'OTHER_DAY' as const, countdownText: null };
   }
   const [start, end] = [parseTimeToMinutes(session.startTime), parseTimeToMinutes(session.endTime)];
   if (start < 0 || end < 0) return { state: 'OTHER_DAY' as const, countdownText: null };

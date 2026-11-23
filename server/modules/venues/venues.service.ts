@@ -18,7 +18,9 @@ const slugify = (s: string) => (s || '').trim().toLowerCase().normalize('NFD').r
 const toMin = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
 const parseDate = (v: unknown) => { if (!v) return null; const s = String(v).trim(); const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00+07:00`) : new Date(s); return Number.isNaN(d.getTime()) ? null : d; };
 const CAPTAIN_USER_SELECT = { id: true, email: true, fullName: true, role: true, isActive: true } as const;
-const stripEmail = <T extends Record<string, any>>(c: T) => { const { captainEmail: _e, captainUserId: _u, captainUser: _cu, ...rest } = c; return rest; };
+const QUOTA_30D_MS = 30 * 24 * 60 * 60 * 1000;
+const formatVnDate = (ms: number) => new Date(ms).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+const stripEmail = <T extends Record<string, any>>(c: T) => { const { captainEmail: _e, captainUserId: _u, captainUser: _cu, coverUpdatedAt: _c, galleryUpdatedAt: _g, ...rest } = c; return rest; };
 type Actor = { id: string; role: string };
 
 async function uniqueSlug(model: 'venue' | 'club', raw: string, excludeId?: string): Promise<string> {
@@ -118,9 +120,37 @@ export async function upsertClub(venueId: string, data: Record<string, any>, clu
     throw new HttpError(404, 'Không tìm thấy CLB tại sân này.');
   }
   const p: Record<string, any> = {};
-  for (const k of ['name', 'captainName', 'captainPhone', 'playStyle', 'feeType'] as const) if (data[k] !== undefined) p[k] = data[k];
-  for (const k of ['logoUrl', 'coverUrl', 'captainZalo', 'captainEmail', 'description', 'feeAmount'] as const) if (data[k] !== undefined) p[k] = data[k] ? String(data[k]) : null;
-  if (data.galleryUrls !== undefined) p.galleryUrls = Array.isArray(data.galleryUrls) ? data.galleryUrls : [];
+  const norm = (v: unknown) => (v ? String(v).trim() : null);
+  if (isCaptain && existing) {
+    if (
+      (data.captainPhone !== undefined && norm(data.captainPhone) !== norm(existing.captainPhone)) ||
+      (data.captainZalo !== undefined && norm(data.captainZalo) !== norm(existing.captainZalo)) ||
+      (data.captainEmail !== undefined && norm(data.captainEmail) !== norm(existing.captainEmail))
+    ) throw new HttpError(403, 'Liên hệ Quốc Duy (0768299329) nếu bạn muốn thay đổi SĐT, Zalo hoặc Gmail đội trưởng.');
+    if (data.coverUrl !== undefined && norm(data.coverUrl) !== norm(existing.coverUrl)) {
+      if (existing.coverUpdatedAt && Date.now() - existing.coverUpdatedAt.getTime() < QUOTA_30D_MS) {
+        throw new HttpError(429, `Đã đổi ảnh bìa trong 30 ngày qua. Có thể đổi lại sau ngày ${formatVnDate(existing.coverUpdatedAt.getTime() + QUOTA_30D_MS)}.`);
+      }
+      p.coverUpdatedAt = new Date();
+    }
+    if (data.galleryUrls !== undefined) {
+      const nextGal = Array.isArray(data.galleryUrls) ? data.galleryUrls : [];
+      if (nextGal.length > 5) throw new HttpError(400, 'Thư viện ảnh đội tối đa 5 ảnh.');
+      if (JSON.stringify(nextGal) !== JSON.stringify(existing.galleryUrls || [])) {
+        if (existing.galleryUpdatedAt && Date.now() - existing.galleryUpdatedAt.getTime() < QUOTA_30D_MS) {
+          throw new HttpError(429, `Đã cập nhật Gallery tháng này. Mở lại sau ngày ${formatVnDate(existing.galleryUpdatedAt.getTime() + QUOTA_30D_MS)}.`);
+        }
+        p.galleryUpdatedAt = new Date();
+      }
+    }
+  }
+  for (const k of ['name', 'captainName', 'playStyle', 'feeType'] as const) if (data[k] !== undefined) p[k] = data[k];
+  for (const k of ['logoUrl', 'coverUrl', 'description', 'feeAmount'] as const) if (data[k] !== undefined) p[k] = data[k] ? String(data[k]) : null;
+  if (!isCaptain) {
+    if (data.captainPhone !== undefined) p.captainPhone = data.captainPhone;
+    for (const k of ['captainZalo', 'captainEmail'] as const) if (data[k] !== undefined) p[k] = data[k] ? String(data[k]) : null;
+  }
+  if (data.galleryUrls !== undefined) p.galleryUrls = Array.isArray(data.galleryUrls) ? (isCaptain ? data.galleryUrls.slice(0, 5) : data.galleryUrls) : [];
   if (data.tags !== undefined) p.tags = Array.isArray(data.tags) ? data.tags.filter(Boolean) : [];
   if (!isCaptain && data.isActive !== undefined) p.isActive = Boolean(data.isActive);
   if (!isCaptain && data.captainUserId !== undefined) {
@@ -177,8 +207,9 @@ export async function upsertSession(venueId: string, data: Record<string, any>, 
   const maxPlayers = data.maxPlayers !== undefined ? Math.max(1, Number(data.maxPlayers)) : (existing?.maxPlayers ?? 14);
   const currentPlayers = data.currentPlayers !== undefined ? Math.max(0, Number(data.currentPlayers)) : (existing?.currentPlayers ?? 0);
   const neededPositions = data.neededPositions !== undefined ? data.neededPositions : (existing?.neededPositions ?? []);
+  const dailyOverrides = data.dailyOverrides !== undefined ? data.dailyOverrides : ((existing?.dailyOverrides as Record<string, any>) ?? {});
   const genderRule = data.genderRule ?? existing?.genderRule ?? 'MIXED';
-  const p = { clubId, daysOfWeek, startTime, endTime, subCourts, recruitmentStatus: data.recruitmentStatus ?? existing?.recruitmentStatus ?? 'CHECK_CAPTAIN', isCancelled, cancelledDates, cancelReason, capacityMode, currentPlayers, maxPlayers, neededPositions, genderRule };
+  const p = { clubId, daysOfWeek, startTime, endTime, subCourts, recruitmentStatus: data.recruitmentStatus ?? existing?.recruitmentStatus ?? 'CHECK_CAPTAIN', isCancelled, cancelledDates, cancelReason, capacityMode, currentPlayers, maxPlayers, neededPositions, dailyOverrides, genderRule };
   const out = sessionId ? await prisma.venueSessionSlot.update({ where: { id: sessionId }, data: p, include: { club: true } }) : await prisma.venueSessionSlot.create({ data: { venueId, ...p }, include: { club: true } });
   invalidateCache('venues');
   return out;

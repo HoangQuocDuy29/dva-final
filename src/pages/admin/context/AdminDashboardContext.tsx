@@ -54,7 +54,7 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
   const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
 
   const activeModule: AdminTabId = isCaptain
-    ? 'VENUES'
+    ? (currentTabParam === 'CAPTAIN_PROFILE' ? 'CAPTAIN_PROFILE' : 'VENUES')
     : isSuperAdmin
       ? VALID_TABS.includes(currentTabParam as any)
         ? (currentTabParam as AdminTabId)
@@ -69,11 +69,11 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
 
   const setActiveModule = useCallback(
     (mod: AdminTabId | string, subView?: string) => {
+      const upper = mod.toUpperCase() as AdminTabId;
       if (isCaptain) {
-        setSearchParams({ tab: 'venues' });
+        setSearchParams({ tab: upper === 'CAPTAIN_PROFILE' ? 'captain_profile' : 'venues' });
         return;
       }
-      const upper = mod.toUpperCase() as AdminTabId;
       const safeMod =
         !isSuperAdmin && !ADMIN_ALLOWED_TABS.includes(upper) ? 'OVERVIEW' : mod;
       const nextParams: Record<string, string> = { tab: safeMod.toLowerCase() };

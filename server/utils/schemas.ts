@@ -920,6 +920,23 @@ const CANCELLED_DATES_RULE: Rule = (v, k) => {
   return Array.from(new Set(v.map((item) => D(item, k)))).sort();
 };
 
+const DAILY_OVERRIDES_RULE: Rule = (v, k) => {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new HttpError(400, `${k} must be an object keyed by YYYY-MM-DD`);
+  const entries = Object.entries(v as Record<string, unknown>);
+  if (entries.length > 62) throw new HttpError(400, `${k} cannot exceed 62 dates`);
+  const out: Record<string, { currentPlayers: number; neededPositions: string[] }> = {};
+  for (const [rawDate, rawVal] of entries) {
+    const dateKey = D(rawDate, `${k}.key`);
+    if (!rawVal || typeof rawVal !== 'object' || Array.isArray(rawVal)) continue;
+    const obj = rawVal as Record<string, unknown>;
+    out[dateKey] = {
+      currentPlayers: obj.currentPlayers !== undefined ? I(0, 100)(obj.currentPlayers, `${k}.${dateKey}.currentPlayers`) : 0,
+      neededPositions: obj.neededPositions !== undefined ? NEEDED_POSITIONS_RULE(obj.neededPositions, `${k}.${dateKey}.neededPositions`) : [],
+    };
+  }
+  return out;
+};
+
 const DAYS_OF_WEEK_INT_ARRAY: Rule = (v, k) => {
   if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array of integers (0-6)`);
   if (v.length === 0) throw new HttpError(400, `${k} must include at least one day of the week`);
@@ -1002,6 +1019,7 @@ export const VENUE_SESSION_SCHEMA: Schema = {
   currentPlayers: I(0, 100),
   maxPlayers: I(1, 100),
   neededPositions: NEEDED_POSITIONS_RULE,
+  dailyOverrides: DAILY_OVERRIDES_RULE,
   genderRule: E(VENUE_GENDER_RULES),
   forceOverride: B,
 };

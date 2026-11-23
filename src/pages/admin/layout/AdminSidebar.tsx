@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { Shield, X, LogOut } from 'lucide-react';
+import { Shield, X, LogOut, Phone } from 'lucide-react';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { getAdminNavBadges, getVisibleNavGroups } from '../constants';
 import { useAdminMetrics } from '../hooks/useAdminMetrics';
 import { AdminNavItem } from '../types';
+import { getMonthlyQuotaStatus, isVenueClosedNow } from '../../../utils/venueSchedule';
 
 /**
  * Collapsible grouped sidebar (Spec 005).
@@ -16,11 +17,14 @@ export const AdminSidebar: React.FC = () => {
     setActiveModule,
     isSuperAdmin,
     isCaptain,
+    data: { venuesList },
     isSidebarCollapsed,
     isMobileNavOpen,
     setIsMobileNavOpen,
     handleLogout,
   } = useAdminDashboard();
+  const captainVenue = isCaptain ? venuesList[0] : undefined;
+  const captainClub = captainVenue?.clubs?.[0];
   const metrics = useAdminMetrics();
   const badges = getAdminNavBadges(metrics);
   const groups = getVisibleNavGroups(isSuperAdmin, isCaptain);
@@ -63,6 +67,29 @@ export const AdminSidebar: React.FC = () => {
           </ul>
         </div>
       ))}
+      {isCaptain && !collapsed && (
+        <div className="px-3 pt-2">
+          <div className="rounded-2xl p-3 bg-[#0B0F19] border border-[#1E293B] space-y-2.5 text-[11px]">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Trạng thái & Hỗ trợ</p>
+            {captainVenue && (
+              <div className={`px-2.5 py-1.5 rounded-xl border font-bold ${isVenueClosedNow(captainVenue) ? 'bg-red-950/60 border-red-500/45 text-red-200' : 'bg-emerald-950/40 border-emerald-500/35 text-emerald-300'}`}>
+                {isVenueClosedNow(captainVenue) ? `🔴 Sân tạm nghỉ` : '🟢 Sân đang mở cửa'}
+              </div>
+            )}
+            {captainClub && (
+              <div className="flex items-center justify-between text-[10px] text-slate-300 px-0.5">
+                <span>Ảnh bìa: <strong className="text-white">{getMonthlyQuotaStatus(captainClub.coverUpdatedAt).locked ? '1/1' : '0/1'}</strong></span>
+                <span className="text-slate-600">•</span>
+                <span>Gallery: <strong className="text-white">{Math.min(5, (captainClub.galleryUrls || []).length)}/5</strong></span>
+              </div>
+            )}
+            <a href="https://zalo.me/0768299329" target="_blank" rel="noopener noreferrer" className="w-full py-2 px-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/35 text-cyan-200 font-bold flex items-center justify-center gap-1.5 transition-colors">
+              <Phone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="truncate">Hỗ trợ Quốc Duy · 0768299329</span>
+            </a>
+          </div>
+        </div>
+      )}
     </nav>
   );
 

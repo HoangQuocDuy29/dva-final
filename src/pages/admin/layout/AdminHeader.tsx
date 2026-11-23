@@ -75,7 +75,7 @@ export const AdminHeader: React.FC = () => {
     };
   }, [isProfileMenuOpen]);
 
-  const moduleLabel = isCaptain ? 'Quản lý Đội & Lịch Chơi Của Tôi' : (findNavItem(activeModule)?.label ?? 'Overview & Analytics');
+  const moduleLabel = isCaptain ? (activeModule === 'CAPTAIN_PROFILE' ? '🛡️ Hồ Sơ & Ảnh Đội' : '📅 Lịch Chơi & Slot Ca') : (findNavItem(activeModule)?.label ?? 'Overview & Analytics');
 
   const handleQuickAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -855,9 +855,11 @@ model CourtClubProfile {
   slug         String             @unique
 
   // Nhận diện hình ảnh (Cloudinary)
-  logoUrl      String?
-  coverUrl     String?
-  galleryUrls  String[]           @default([])
+  logoUrl          String?
+  coverUrl         String?
+  galleryUrls      String[]           @default([])
+  coverUpdatedAt   DateTime?
+  galleryUpdatedAt DateTime?
 
   // Liên hệ Đội trưởng
   captainName   String
@@ -906,6 +908,7 @@ model VenueSessionSlot {
   currentPlayers    Int              @default(0)
   maxPlayers        Int              @default(14)
   neededPositions   String[]         @default([]) // "OH" | "MB" | "OP" | "S" | "L"
+  dailyOverrides    Json             @default("{}") // { "YYYY-MM-DD": { currentPlayers, neededPositions } }
   genderRule        String           @default("MIXED") // "MALE_ONLY" | "MIXED" | "FEMALE_ONLY"
 
   createdAt         DateTime         @default(now())

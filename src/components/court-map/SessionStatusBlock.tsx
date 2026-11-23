@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Users } from 'lucide-react';
 import type { VenueSessionSlot } from '../../types';
-import { formatShortVnDate, getVietnamNow, isSessionCancelledOnDate } from '../../utils/venueSchedule';
+import { formatShortVnDate, getSessionDailyState, getVietnamNow, isSessionCancelledOnDate } from '../../utils/venueSchedule';
 
 export const SessionStatusBlock: React.FC<{ session: VenueSessionSlot; venueClosed?: boolean; targetDate?: string; todayDate?: string }> = ({ session, venueClosed = false, targetDate, todayDate }) => {
   const today = todayDate || getVietnamNow().dateStr;
@@ -10,10 +10,11 @@ export const SessionStatusBlock: React.FC<{ session: VenueSessionSlot; venueClos
   const upcomingOff = !venueClosed && !isCancelled && checkDate === today ? (session.cancelledDates || []).filter((d) => d > today) : [];
   const isLimited = session.capacityMode === 'LIMITED_SLOTS';
   const max = Math.max(1, session.maxPlayers ?? 14);
-  const cur = Math.max(0, session.currentPlayers ?? 0);
+  const daily = getSessionDailyState(session, checkDate);
+  const cur = daily.currentPlayers;
   const left = Math.max(0, max - cur);
   const pct = Math.min(100, Math.round((cur / max) * 100));
-  const positions = session.neededPositions || [];
+  const positions = daily.neededPositions;
 
   return (
     <div className="space-y-1.5">

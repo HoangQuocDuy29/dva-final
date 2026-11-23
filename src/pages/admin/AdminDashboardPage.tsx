@@ -109,7 +109,7 @@ const AdminDashboardShell: React.FC = () => {
             {activeModule === 'TOURNAMENTS' && <TournamentsTab />}
 
             {/* MODULE 13: COURT MAP & VENUES (SUPERADMIN & CAPTAIN self-service) */}
-            {activeModule === 'VENUES' && (isSuperAdmin || isCaptain) && <VenuesTab />}
+            {(activeModule === 'VENUES' || activeModule === 'CAPTAIN_PROFILE') && (isSuperAdmin || isCaptain) && <VenuesTab />}
           </Suspense>
         </main>
       </div>

@@ -100,13 +100,14 @@ export function useAdminData(
     async (scope: AdminTabId, force: boolean = false) => {
       if ((!isAdmin && !isCaptain) || !authService.hasToken()) return;
       if (scope === 'OVERVIEW' || scope === 'USERS') return;
-      if (isCaptain && scope !== 'VENUES') return;
-      if (!isSuperAdmin && !isCaptain && !ADMIN_PERMITTED_DATA_TABS.has(scope)) return;
-      if (!force && (loadedScopesRef.current.has(scope) || inflightScopesRef.current.has(scope))) return;
+      if (isCaptain && scope !== 'VENUES' && scope !== 'CAPTAIN_PROFILE') return;
+      const effectiveScope: AdminTabId = scope === 'CAPTAIN_PROFILE' ? 'VENUES' : scope;
+      if (!isSuperAdmin && !isCaptain && !ADMIN_PERMITTED_DATA_TABS.has(effectiveScope)) return;
+      if (!force && (loadedScopesRef.current.has(effectiveScope) || inflightScopesRef.current.has(effectiveScope))) return;
 
-      inflightScopesRef.current.add(scope);
+      inflightScopesRef.current.add(effectiveScope);
       try {
-        switch (scope) {
+        switch (effectiveScope) {
           case 'APPLICATIONS': {
             const apps = await memberService.getApplications();
             setApplications(Array.isArray(apps) ? apps : []);
@@ -181,11 +182,11 @@ export function useAdminData(
             break;
           }
         }
-        markScopeLoaded(scope);
+        markScopeLoaded(effectiveScope);
       } catch (e) {
-        console.error(`[useAdminData] Failed loading scope ${scope}:`, e);
+        console.error(`[useAdminData] Failed loading scope ${effectiveScope}:`, e);
       } finally {
-        inflightScopesRef.current.delete(scope);
+        inflightScopesRef.current.delete(effectiveScope);
       }
     },
     [isAdmin, isSuperAdmin, isCaptain, markScopeLoaded]

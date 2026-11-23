@@ -67,15 +67,16 @@ export const CourtMapPage: React.FC = () => {
   };
   const handleViewAllVietnam = () => { setCityFilter('ALL'); setSelectedId(null); setViewportTarget({ ...VIETNAM_OVERVIEW, tick: Date.now() }); };
 
-  const viewedDay = timeMode === 'DAY' ? selectedDay : nowVn.dayOfWeek;
-  const viewedDate = timeMode === 'DAY' ? getDateForWeekdayInCurrentWeek(selectedDay, nowVn) : nowVn.dateStr;
+  const activeSelectedDay = timeMode === 'DAY' ? selectedDay : null;
+  const viewedDay = activeSelectedDay ?? nowVn.dayOfWeek;
+  const viewedDate = activeSelectedDay !== null ? getDateForWeekdayInCurrentWeek(activeSelectedDay, nowVn) : nowVn.dateStr;
 
   const entries = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = venues.map((venue) => {
       const closed = isVenueClosedNow(venue, nowVn.nowMs);
       const activeSessions = [...(venue.sessions || [])].filter((s) => s.club && s.club.isActive !== false).sort((a, b) => {
-        const rk = (s: VenueSessionSlot) => { const st = getSessionRealtimeInfo(s, nowVn, closed).state; return st === 'UPCOMING' ? 0 : st === 'LIVE' ? 1 : st === 'OTHER_DAY' ? 2 : st === 'CANCELLED' ? 3 : 4; };
+        const rk = (s: VenueSessionSlot) => { const st = getSessionRealtimeInfo(s, nowVn, closed, activeSelectedDay).state; return st === 'UPCOMING' ? 0 : st === 'LIVE' ? 1 : st === 'SCHEDULED' ? 2 : st === 'OTHER_DAY' ? 3 : st === 'CANCELLED' ? 4 : 5; };
         return rk(a) - rk(b) || parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime);
       });
       const matchingSessions = activeSessions.filter((s) => {
@@ -186,13 +187,13 @@ export const CourtMapPage: React.FC = () => {
               if (!club) return null;
               const style = PLAY_STYLE_META[club.playStyle] || PLAY_STYLE_META.FUN_GAME;
               const rec = RECRUITMENT_META[s.recruitmentStatus] || RECRUITMENT_META.CHECK_CAPTAIN;
-              const rt = getSessionRealtimeInfo(s, nowVn, closed);
+              const rt = getSessionRealtimeInfo(s, nowVn, closed, activeSelectedDay);
               const cancelled = !closed && isSessionCancelledOnDate(s, viewedDate);
               return (
                 <div key={s.id} className={`rounded-2xl p-3.5 border space-y-2 ${cancelled ? 'opacity-50 bg-[#121622] border-amber-500/40' : rt.state === 'LIVE' ? 'opacity-65 hover:opacity-95 bg-[#121826] border-slate-700' : rt.state === 'UPCOMING' ? 'bg-gradient-to-br from-[#1B1726] to-[#141C2B] border-orange-400/75 ring-1 ring-orange-500/35' : 'bg-[#141C2B] border-slate-800'}`}>
-                  {!closed && !cancelled && (rt.state === 'LIVE' || rt.state === 'UPCOMING') && (
+                  {!closed && !cancelled && (rt.state === 'LIVE' || rt.state === 'UPCOMING' || rt.state === 'SCHEDULED') && (
                     <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
-                      {rt.state === 'LIVE' ? <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">● ĐANG ĐÁNH ({s.startTime} - {s.endTime})</span> : <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-500/20 text-amber-200 border border-orange-400/60"><Timer className="w-3.5 h-3.5 text-orange-300" />⏳ {rt.countdownText}</span>}
+                      {rt.state === 'LIVE' ? <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">● ĐANG ĐÁNH ({s.startTime} - {s.endTime})</span> : rt.state === 'UPCOMING' ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-500/20 text-amber-200 border border-orange-400/60"><Timer className="w-3.5 h-3.5 text-orange-300" />⏳ {rt.countdownText}</span> : <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">📅 Lịch {formatDayFull(selectedDay)} ({s.startTime} - {s.endTime})</span>}
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${rec.badgeClass}`}>{rec.label}</span>
                     </div>
                   )}
