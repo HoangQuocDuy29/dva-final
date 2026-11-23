@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MapPin, Navigation, MessageCircle, Phone, Clock, Search, Sparkles, X, ChevronLeft, ChevronRight,
@@ -101,8 +101,32 @@ export const CourtMapPage: React.FC = () => {
   const liveCount = useMemo(() => venues.filter((v) => isVenueLiveNow(v, nowVn)).length, [venues, nowVn]);
   const upcomingCount = useMemo(() => venues.filter((v) => isVenueUpcomingToday(v, nowVn)).length, [venues, nowVn]);
   const selected = useMemo(() => entries.find((e) => e.venue.id === selectedId) || null, [entries, selectedId]);
-
-  const onSelectVenue = useCallback((id: string) => { setSelectedId(id); setShowAllSessions(false); setFocusTick((n) => n + 1); }, []);
+  const [activeVenue, setActiveVenue] = useState<typeof selected>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!selected) { setIsSheetOpen(false); setActiveVenue(null); return; }
+    if (closeTimerRef.current) { window.clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
+    setActiveVenue(selected);
+    let r2 = 0;
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setIsSheetOpen(true)); });
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); };
+  }, [selected]);
+  useEffect(() => {
+    if (!isSheetOpen || window.innerWidth >= 1024) return;
+    document.body.classList.add('overflow-hidden');
+    return () => { document.body.classList.remove('overflow-hidden'); };
+  }, [isSheetOpen]);
+  useEffect(() => () => { if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current); }, []);
+  const closeSheet = useCallback(() => {
+    setIsSheetOpen(false);
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = window.setTimeout(() => { setSelectedId(null); setActiveVenue(null); closeTimerRef.current = null; }, 300);
+  }, []);
+  const onSelectVenue = useCallback((id: string) => {
+    if (closeTimerRef.current) { window.clearTimeout(closeTimerRef.current); closeTimerRef.current = null; setIsSheetOpen(true); }
+    setSelectedId(id); setShowAllSessions(false); setFocusTick((n) => n + 1);
+  }, []);
   const openZalo = async (club: CourtClubProfile, venue: VolleyballVenue, s: VenueSessionSlot) => {
     const { zaloUrl, messageTemplate } = buildZaloContact(club, venue, s);
     try { await navigator.clipboard.writeText(messageTemplate); showToast('Đã sao chép tin nhắn mẫu hỏi slot — dán vào Zalo để gửi!'); } catch { /* ignore */ }
@@ -117,10 +141,10 @@ export const CourtMapPage: React.FC = () => {
     const vt = VENUE_TYPE_META[venue.venueType] || VENUE_TYPE_META.COMMERCIAL;
 
     return (
-      <div className="flex flex-col h-full bg-[#0F1420] text-white">
+      <div className="flex flex-col h-full min-h-0 bg-[#0F1420] text-white">
         <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#0F1420]/95 backdrop-blur border-b border-slate-800">
           {!isMobile ? <button type="button" onClick={() => setSelectedId(null)} className="inline-flex items-center gap-1 text-xs font-bold text-slate-300 hover:text-orange-400 cursor-pointer"><ChevronLeft className="w-4 h-4" />Danh sách sân ({entries.length})</button> : <span className="text-xs font-bold text-slate-300">Chi tiết sân & lịch ca</span>}
-          <button type="button" onClick={() => setSelectedId(null)} aria-label="Đóng chi tiết sân" className="p-1.5 rounded-lg bg-slate-800 text-slate-300 cursor-pointer"><X className="w-4 h-4" /></button>
+          <button type="button" onClick={() => (isMobile ? closeSheet() : setSelectedId(null))} aria-label="Đóng chi tiết sân" className="p-1.5 rounded-lg bg-slate-800 text-slate-300 cursor-pointer"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -300,20 +324,24 @@ export const CourtMapPage: React.FC = () => {
               })}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-2 max-w-full">
-                {(['ALL', 'COMPETITIVE', 'FUN_GAME', 'TRAINING'] as const).map((id) => (
-                  <button key={id} type="button" onClick={() => setPlayStyle(id)} className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${playStyle === id ? (id === 'ALL' ? 'bg-slate-200 text-slate-950 border-white' : PLAY_STYLE_META[id].activeClass) : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>
-                    {id === 'ALL' ? 'Tất cả gu' : `${PLAY_STYLE_META[id].emoji} ${PLAY_STYLE_META[id].shortLabel}`}
-                  </button>
-                ))}
-                <span className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
-                {([['ALL', 'Tất cả'], ['MALE_ONLY', '♂️ Chỉ Nam'], ['MIXED', '⚥ Nam & Nữ'], ['FEMALE_ONLY', '♀️ Chỉ Nữ']] as const).map(([id, label]) => (
-                  <button key={id} type="button" onClick={() => setGenderFilter(id)} className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${genderFilter === id ? 'bg-purple-600 text-white border-purple-400' : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{label}</button>
-                ))}
-                <span className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
-                {([['ALL', 'Mọi loại sân'], ['COMMERCIAL', 'Sân dịch vụ'], ['FREE_PUBLIC', 'Sân Free']] as const).map(([id, label]) => (
-                  <button key={id} type="button" onClick={() => setVenueType(id)} className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${venueType === id ? 'bg-sky-600 text-white border-sky-400' : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{label}</button>
-                ))}
+              <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center w-full lg:w-auto">
+                <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+                  {(['ALL', 'COMPETITIVE', 'FUN_GAME', 'TRAINING'] as const).map((id) => (
+                    <button key={id} type="button" onClick={() => setPlayStyle(id)} className={`px-1.5 sm:px-2.5 py-1 md:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${playStyle === id ? (id === 'ALL' ? 'bg-slate-200 text-slate-950 border-white' : PLAY_STYLE_META[id].activeClass) : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{id === 'ALL' ? 'Tất cả gu' : `${PLAY_STYLE_META[id].emoji} ${PLAY_STYLE_META[id].shortLabel}`}</button>
+                  ))}
+                </div>
+                <span className="hidden md:block h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
+                <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+                  {([['ALL', 'Tất cả'], ['MALE_ONLY', '♂️ Chỉ Nam'], ['MIXED', '⚥ Nam & Nữ'], ['FEMALE_ONLY', '♀️ Chỉ Nữ']] as const).map(([id, label]) => (
+                    <button key={id} type="button" onClick={() => setGenderFilter(id)} className={`px-1.5 sm:px-2.5 py-1 md:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${genderFilter === id ? 'bg-purple-600 text-white border-purple-400' : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{label}</button>
+                  ))}
+                </div>
+                <span className="hidden md:block h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
+                <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+                  {([['ALL', 'Mọi loại sân'], ['COMMERCIAL', 'Sân dịch vụ'], ['FREE_PUBLIC', 'Sân Free']] as const).map(([id, label]) => (
+                    <button key={id} type="button" onClick={() => setVenueType(id)} className={`px-1.5 sm:px-2.5 py-1 md:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${venueType === id ? 'bg-sky-600 text-white border-sky-400' : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{label}</button>
+                  ))}
+                </div>
               </div>
               <div className="flex lg:hidden bg-[#141C2B] border border-slate-800 rounded-xl p-0.5 shrink-0">
                 {([['MAP', MapIcon, 'Bản đồ'], ['LIST', List, `Danh sách (${entries.length})`]] as const).map(([id, Icon, label]) => (
@@ -342,12 +370,68 @@ export const CourtMapPage: React.FC = () => {
         </div>
       </section>
 
-      {selected && (
-        <div className="lg:hidden fixed inset-0 z-[100] flex flex-col justify-end" role="dialog" aria-modal="true">
-          <button type="button" aria-label="Đóng" onClick={() => setSelectedId(null)} className="absolute inset-0 bg-black/70 backdrop-blur-xs" />
-          <div className="relative z-10 w-full max-h-[86vh] rounded-t-3xl overflow-hidden border-t border-slate-700 bg-[#0F1420] flex flex-col">
-            <div className="flex justify-center pt-2 pb-1"><span className="w-10 h-1 rounded-full bg-slate-700" /></div>
-            <div className="flex-1 overflow-hidden flex flex-col">{renderDrawer(selected, true)}</div>
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-10">
+        <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-5 sm:p-6 space-y-5">
+          <div className="space-y-1.5">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/35">
+              <Info className="w-3.5 h-3.5" />HƯỚNG DẪN SỬ DỤNG
+            </span>
+            <h2 className="font-heading font-black text-lg sm:text-xl lg:text-2xl text-white">Cách Tìm Sân &amp; Xin Ghép Kèo Nhanh Chóng</h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 space-y-2">
+              <span className="inline-block px-2 py-0.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 font-black text-[11px]">Bước 1</span>
+              <h3 className="font-heading font-extrabold text-sm text-white leading-snug">Chọn Khu Vực &amp; Định Vị (📍 Gần tôi)</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Chọn <strong className="text-white">Thành phố</strong> (Hà Nội, Đà Nẵng, TP.HCM), bấm <strong className="text-white">🇻🇳 Toàn Việt Nam</strong>, hoặc bấm <strong className="text-blue-300">📍 Gần tôi</strong> để bản đồ tự động đo khoảng cách (km) và xếp ưu tiên các sân gần bạn nhất.
+              </p>
+            </div>
+            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 space-y-2">
+              <span className="inline-block px-2 py-0.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 font-black text-[11px]">Bước 2</span>
+              <h3 className="font-heading font-extrabold text-sm text-white leading-snug">Lọc Đúng Thứ, Gu Chơi &amp; Giới Tính</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Chọn <strong className="text-white">Thứ trong tuần (T2 → CN)</strong>, lọc theo <strong className="text-white">Gu chơi</strong> (🔥 Đấu căng, 😊 Chơi vui, 🎯 Tập luyện), <strong className="text-white">Đối tượng</strong> (♂️ Chỉ Nam, ⚥ Nam &amp; Nữ, ♀️ Chỉ Nữ) và <strong className="text-white">Loại sân</strong> (Sân dịch vụ, Sân miễn phí).
+              </p>
+            </div>
+            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 space-y-2">
+              <span className="inline-block px-2 py-0.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 font-black text-[11px]">Bước 3</span>
+              <h3 className="font-heading font-extrabold text-sm text-white leading-snug">Xem Slot Trống &amp; Vị Trí Đang Thiếu</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Bấm vào điểm ghim sân sáng màu để xem danh sách các đội đang hoạt động, kiểm tra số suất (slot) còn trống theo đúng ngày đã chọn và các vị trí đang cần tuyển (<strong className="text-white">OH</strong> Chủ công, <strong className="text-white">MB</strong> Phụ công, <strong className="text-white">OP</strong> Đối chuyền, <strong className="text-white">S</strong> Chuyền hai, <strong className="text-white">L</strong> Libero).
+              </p>
+            </div>
+            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 space-y-2">
+              <span className="inline-block px-2 py-0.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 font-black text-[11px]">Bước 4</span>
+              <h3 className="font-heading font-extrabold text-sm text-white leading-snug">Nhắn Zalo Đội Trưởng Hoặc Thuê Sân</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Bấm <strong className="text-sky-300">Zalo</strong> hoặc <strong className="text-emerald-300">Gọi</strong> trực tiếp cho đội trưởng của đội phù hợp để xin ghép buổi. Nếu bạn cần <strong className="text-white">thuê nguyên sân dịch vụ</strong> cho đội riêng, liên hệ ngay hotline điều phối{' '}
+                <a href="tel:0768299329" className="font-black text-amber-300 hover:text-orange-300 underline decoration-amber-400/60 underline-offset-2 whitespace-nowrap">0768299329</a>.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+            {([
+              ['🟠 Ghim Sáng / ● Đang đánh', 'text-orange-300', 'Sân có lịch đội hoạt động trong ngày đang xem hoặc đang diễn ra trực tiếp.'],
+              ['⚫ Ghim Xám Mờ', 'text-slate-300', 'Sân chưa có lịch đội sinh hoạt vào thứ đang lọc (bấm vào vẫn xem được lịch các ngày khác trong tuần).'],
+              ['🔴 Tạm nghỉ / Báo nghỉ buổi', 'text-red-300', 'Sân tạm đóng cửa dịp lễ Tết hoặc đội tạm nghỉ riêng buổi hôm đó (hệ thống tự động mở lại ở các buổi tiếp theo).'],
+            ] as const).map(([title, color, desc]) => (
+              <div key={title} className="bg-[#0B0F19]/60 border border-white/10 rounded-xl px-3.5 py-3 space-y-1">
+                <p className={`text-xs font-extrabold ${color}`}>{title}</p>
+                <p className="text-xs text-slate-300 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {activeVenue && (
+        <div className="lg:hidden fixed inset-0 z-[100]" role="dialog" aria-modal="true">
+          <button type="button" aria-label="Đóng" onClick={closeSheet} className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ease-out ${isSheetOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} />
+          <div className={`fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-3xl overflow-hidden border-t border-slate-700 bg-[#0F1420] flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSheetOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto my-2 shrink-0" />
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">{renderDrawer(activeVenue, true)}</div>
           </div>
         </div>
       )}
