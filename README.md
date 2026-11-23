@@ -47,7 +47,7 @@
 
 | Lớp | Công nghệ & Phiên bản (`package.json`) | Vai trò chính & Ghi chú |
 | :--- | :--- | :--- |
-| **Frontend Core** | `React 19.0.1`, `TypeScript` (`~7.0`), `Vite 8.3.0`, `React Router DOM 7.18.4` | SPA đa route, code splitting (`React.lazy` cho `/admin/dashboard` và các trang phụ) + SWR cache (`src/utils/swrCache.ts`). |
+| **Frontend Core** | `React 19.0.1`, `TypeScript` (`~7.0`), `Vite 8.3.0`, `React Router DOM 7.18.4`, `@vercel/analytics ^2.0.1` | SPA đa route, code splitting (`React.lazy` cho `/admin/dashboard` và các trang phụ), SWR cache (`src/utils/swrCache.ts`) + Vercel Web Analytics (`<Analytics />` trong `src/App.tsx`). |
 | **UI, Style & Motion** | `Tailwind CSS 4.3.3` (`@tailwindcss/vite`), `Motion 12.23.24`, `Lucide React 0.546.0` | Dark Theme (`#0B0F19`), Floating Capsule Navbar, Responsive Mobile UI (`TournamentsPage`, `ShopPage`...). |
 | **Đa ngôn ngữ (i18n)** | `i18next 26.5.12`, `react-i18next 17.1.9`, `i18next-browser-languagedetector 8.2.4` | English-first (`en` mặc định, chuyển đổi `EN \| VI` lưu `localStorage['dva_lang']`), gồm **4 namespaces**: `common`, `news`, `tournaments`, `tryout`. |
 | **Backend Runtime** | `Node.js`, `Express 4.21.2`, `cors 2.8.6`, `dotenv 17.2.3` | Kiến trúc module hóa tại `server/` (entry `server/index.ts`; `server.ts` & `lib/*` là shim tương thích). Dev qua `tsx watch server/index.ts`; build ESM bằng `esbuild` ra `dist/server.js`. |

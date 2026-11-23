@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-system-overview`  
 **Created**: 2026-11-03  
-**Last Reviewed**: 2026-11-23  
+**Last Reviewed**: 2026-11-24  
 **Status**: Historical Baseline (Extended by Specs `005`, `007`, `008`, `009` and `./ARCHITECTURE.md`)  
 
 **Input**: User description: "Tạo một baseline specification tổng quan về hiện trạng hệ thống dva-final dựa trên ARCHITECTURE.md và cấu trúc thư mục src/. Đặt tên spec là specs/system-overview.md."
@@ -10,6 +10,7 @@
 > [!NOTE]
 > **Evolution Beyond 2026-11-03 Baseline (See [ARCHITECTURE.md](../ARCHITECTURE.md)):**
 > - **Modular Backend & Infrastructure:** Production DB migrated from Render/Neon to **Supabase PostgreSQL** (`ap-southeast-1`, Pooler IPv4 `:6543` / `:5432`); monolithic `server.ts` & `lib/*` refactored into `server/` (`server/index.ts`, `server/config/*`, `server/middlewares/*`, `server/modules/*`, `server/utils/*`) with FinOps (`releaseExpiredHolds`, `dbCircuitBreaker`, `appCache` TTL + `src/utils/swrCache.ts`).
+> - **Frontend Telemetry & Analytics:** Integrated **Vercel Web Analytics** (`@vercel/analytics` `^2.0.1`, `<Analytics />` from `@vercel/analytics/react` mounted inside `<BrowserRouter>` in `src/App.tsx`) to track zero-bloat SPA pageviews and top routes on `dva-volleyball-hanoi.com`.
 > - **Added Public Modules & Localization:** Added **DVA Shop** (`/shop`), **Tournaments & Leagues** (`/tournaments/*`, Spec 008 + `BO1_25` + mobile responsive layout), **Hanoi Volleyball Court Map & Club Profiles** (`/services/court-map`, `/services/court-map/teams/:slug`, Spec 009 — per-date `cancelledDates`, `dailyOverrides`, `genderRule`, date-aware `LIVE`/`SCHEDULED`), and **Try-Out Guide** (`/information/try-out`, `TryoutPage.tsx`, `tryout` i18n namespace alongside `common`, `news`, `tournaments`).
 > - **Admin Hub & RBAC Hardening:** Expanded to **13 tabs across 4 groups** + scoped **`CAPTAIN` 2-tab Portal** (`📅 Lịch Chơi & Slot Ca`, `🛡️ Hồ Sơ & Ảnh Đội`, locked contact fields & 30-day Cloudinary media quotas, Spec 009), lazy-loaded per tab (`useAdminData.ts`), enforcing `ADMIN_ALLOWED_TABS` & `CAPTAIN_ALLOWED_RULES`, `SUPERADMIN` Master–Detail venues workspace, and `!isHubAllowed` + `<AdminDashboardProvider key={currentUser.id}>` + `request()` token-staleness guards eliminating `401` sign-out/sign-in races.
 
@@ -159,7 +160,7 @@ Authenticated Administrators (`ADMIN`) and Super Administrators (`SUPERADMIN`) a
 
 | Layer / Directory | Files & Modules | Baseline Responsibility |
 | :--- | :--- | :--- |
-| **App Entry & Routing** | `src/main.tsx`, `src/App.tsx`, `src/index.css` | Initializes `i18n`, mounts React root, configures client routes, and lazy-loads `AdminDashboardPage`. |
+| **App Entry & Routing** | `src/main.tsx`, `src/App.tsx`, `src/index.css` | Initializes `i18n`, mounts React root, configures client routes, mounts Vercel `<Analytics />` (`@vercel/analytics/react`), and lazy-loads `AdminDashboardPage`. |
 | **Layout & Navigation** | `src/components/layout/Navbar.tsx`, `Footer.tsx` | Single-container transitioning Floating Capsule Navbar, Mobile Drawer, `LanguageSwitcher` integration, and club footer with VietQR banking info. |
 | **Shared UI Components** | `src/components/common/LanguageSwitcher.tsx`, `ShareButton.tsx`, `VietQRModal.tsx`, `CountrySelect.tsx`, `ContactBanner.tsx`, `GoogleSheetsViewerModal.tsx`, `BackToTop.tsx` | Micro segmented `EN \| VI` language pill, native/clipboard share button, dynamic VietQR payment dialog, country selector, and utility modals. |
 | **Authentication UI** | `src/components/auth/AuthModal.tsx` | Login, registration, password reset, and OTP verification modal flows. |

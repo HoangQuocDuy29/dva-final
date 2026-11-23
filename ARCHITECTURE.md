@@ -25,6 +25,7 @@ Hệ thống hoạt động theo mô hình Monorepo lai (Fullstack TypeScript) p
   - Core: React `19.0.1`, TypeScript (`~7.0`, target ES2022), Vite `8.3.0`.
   - UI & Styling: Tailwind CSS `v4.3.3` (`@tailwindcss/vite`), Motion (Framer Motion `12.23.24`), Lucide React (`0.546.0`).
   - Router: React Router v7 (`react-router-dom` `7.18.4`).
+  - Web Analytics: Vercel Web Analytics (`@vercel/analytics` `^2.0.1`, import `{ Analytics } from '@vercel/analytics/react'` gắn trong `src/App.tsx` bên trong `<BrowserRouter>` để tự động ghi nhận SPA pageview & top routes trên `dva-volleyball-hanoi.com`, không ảnh hưởng hiệu năng tải trang).
   - Internationalization (i18n): `i18next` (`26.5.12`), `react-i18next` (`17.1.9`), `i18next-browser-languagedetector` (`8.2.4`) — English-first `'en'` mặc định, hỗ trợ chuyển đổi song ngữ `'en' | 'vi'`, lưu cache `localStorage` qua key `'dva_lang'`, gồm 4 namespaces: `common`, `news`, `tournaments`, `tryout`.
 - **Backend (Deploy trên Render `dva-backend`, Port `10000`):**
   - Runtime & Build: Node.js, Express v4 (`4.21.2`, entry `server/index.ts`; `server.ts` là shim tương thích), `tsx` `4.21.0` (dev), `esbuild` `0.28.2` (bundle ESM production từ `server/index.ts` ra `dist/server.js`).
