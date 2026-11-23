@@ -21,6 +21,7 @@ enum UserRole {
   ADMIN
   STAFF
   COACH
+  CAPTAIN
   PLAYER
   GUEST
 }
@@ -84,8 +85,9 @@ model User {
   tokenVersion Int        @default(1)
 
   // Relations
-  player       Player?
-  newsPosts    NewsPost[]
+  player        Player?
+  newsPosts     NewsPost[]
+  captainedClub CourtClubProfile?
 
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
@@ -798,4 +800,144 @@ model TournamentOfficial {
 
   @@index([tournamentId, sortOrder(sort: Asc)])
   @@map("tournament_officials")
+}
+
+// ============================================================================
+// HANOI VOLLEYBALL COURT MAP & CLUB PROFILES MODULE
+// ============================================================================
+
+/// Địa điểm sân bóng chuyền / nhà thi đấu tại Hà Nội
+model VolleyballVenue {
+  id              String              @id @default(uuid())
+  name            String
+  slug            String?
+  address         String
+  city            String              @default("Hà Nội")
+  district        String
+  latitude        Float
+  longitude       Float
+  surfaceType     String              // "Sàn thảm PVC" | "Sàn gỗ" | "Sân xi măng / Ngoài trời"
+  subCourtsCount  Int                 @default(2)
+  venueType       String              @default("COMMERCIAL") // "COMMERCIAL" | "FREE_PUBLIC"
+  rentalPriceInfo String?             // VD: "550.000đ / giờ / sân" hoặc "Miễn phí — Tự đến xin ghép đội"
+  entryNote       String?             @db.Text
+  isDvaOfficial   Boolean             @default(false)
+  isFeatured      Boolean             @default(false)
+  isClosed        Boolean             @default(false)
+  closureReason   String?             @db.Text
+  closedUntil     DateTime?
+  imageUrl        String?             // Legacy column preserved for additive-only compatibility
+  coverUrl        String?
+
+  // Relations
+  clubs           CourtClubProfile[]
+  sessions        VenueSessionSlot[]
+  teams           VenueTeamSchedule[] // Legacy relation preserved for additive-only compatibility
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([slug])
+  @@index([isDvaOfficial(sort: Desc), isFeatured(sort: Desc), name(sort: Asc)])
+  @@index([city])
+  @@index([district])
+  @@index([venueType])
+  @@map("volleyball_venues")
+}
+
+/// Hồ sơ chi tiết Đội / CLB hoạt động tại sân (có trang chi tiết /services/court-map/teams/:slug)
+model CourtClubProfile {
+  id           String             @id @default(uuid())
+  venueId      String
+  venue        VolleyballVenue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  name         String
+  slug         String             @unique
+
+  // Nhận diện hình ảnh (Cloudinary)
+  logoUrl      String?
+  coverUrl     String?
+  galleryUrls  String[]           @default([])
+
+  // Liên hệ Đội trưởng
+  captainName   String
+  captainPhone  String
+  captainZalo   String?
+  captainEmail  String?
+  captainUserId String?            @unique
+  captainUser   User?              @relation(fields: [captainUserId], references: [id], onDelete: SetNull)
+
+  // Tính chất, Tag & Phí tham gia
+  playStyle    String             @default("FUN_GAME") // "COMPETITIVE" | "FUN_GAME" | "TRAINING"
+  tags         String[]           @default([])
+  description  String?            @db.Text
+  feeType      String             @default("PAID") // "PAID" | "FREE"
+  feeAmount    String?
+  isActive     Boolean            @default(true)
+
+  // Relations
+  sessions     VenueSessionSlot[]
+
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([venueId, isActive])
+  @@index([playStyle])
+  @@map("court_club_profiles")
+}
+
+/// Từng ca sinh hoạt cụ thể theo Thứ, Giờ & Sân con (Court A, Court B...)
+model VenueSessionSlot {
+  id                String           @id @default(uuid())
+  venueId           String
+  venue             VolleyballVenue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  clubId            String
+  club              CourtClubProfile @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  daysOfWeek        Int[]            // 1=T2, 2=T3, 3=T4, 4=T5, 5=T6, 6=T7, 0=CN
+  startTime         String           // HH:mm (VD: "19:00")
+  endTime           String           // HH:mm (VD: "21:30")
+  subCourts         String[]         @default(["Court A"]) // VD: ["Court A"], ["Court B"], ["Court A", "Court B"]
+  recruitmentStatus String           @default("CHECK_CAPTAIN") // "OPEN_RECRUIT" | "CHECK_CAPTAIN" | "FULL"
+  isCancelled       Boolean          @default(false)
+  cancelledDates    String[]         @default([]) // Ngày nghỉ cụ thể YYYY-MM-DD (Asia/Ho_Chi_Minh)
+  cancelReason      String?
+  capacityMode      String           @default("UNLIMITED") // "UNLIMITED" | "LIMITED_SLOTS"
+  currentPlayers    Int              @default(0)
+  maxPlayers        Int              @default(14)
+  neededPositions   String[]         @default([]) // "OH" | "MB" | "OP" | "S" | "L"
+  genderRule        String           @default("MIXED") // "MALE_ONLY" | "MIXED" | "FEMALE_ONLY"
+
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([venueId])
+  @@index([clubId])
+  @@map("venue_session_slots")
+}
+
+/// Legacy v1 table preserved for strictly additive-only schema evolution
+model VenueTeamSchedule {
+  id                String          @id @default(uuid())
+  venueId           String
+  venue             VolleyballVenue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  teamName          String
+  captainName       String
+  captainPhone      String
+  captainZalo       String?
+  daysOfWeek        Int[]
+  startTime         String
+  endTime           String
+  playStyle         String          @default("FUN_GAME")
+  notes             String?         @db.Text
+  skillLevel        String
+  feeInfo           String
+  recruitmentStatus String          @default("CHECK_CAPTAIN")
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([venueId, isActive])
+  @@index([playStyle])
+  @@map("venue_team_schedules")
 }

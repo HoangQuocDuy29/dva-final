@@ -1570,4 +1570,159 @@ export async function ensurePostgreSQLSeeded(): Promise<void> {
       console.warn('[Prisma Shop Seed Notice]:', err?.message || err);
     }
   }
+
+  await ensureVenuesSeeded();
+}
+
+export async function ensureVenuesSeeded(): Promise<void> {
+  try {
+    if ((await prisma.volleyballVenue.count()) > 0) return;
+
+    const btl = await prisma.volleyballVenue.create({
+      data: {
+        id: 'venue-btl-thong-tin',
+        name: 'Nhà thi đấu BTL Thông Tin',
+        slug: 'nha-thi-dau-btl-thong-tin',
+        address: '155 Trường Chinh, Thanh Xuân, Hà Nội',
+        district: 'Thanh Xuân',
+        latitude: 21.0005,
+        longitude: 105.8294,
+        surfaceType: 'Sàn thảm PVC',
+        subCourtsCount: 2,
+        venueType: 'COMMERCIAL',
+        rentalPriceInfo: '550.000đ / giờ / sân',
+        entryNote: 'Gửi xe cổng 155 Trường Chinh. Nhà thi đấu trong nhà gồm 2 sân tiêu chuẩn Court A & Court B.',
+        isDvaOfficial: true,
+        isFeatured: true,
+        coverUrl: '/courts/btl.png',
+        imageUrl: '/courts/btl.png',
+      },
+    });
+
+    const clubs = [
+      {
+        id: 'club-dva-volleyball',
+        name: 'DVA Volleyball Club',
+        slug: 'dva-volleyball-club',
+        logoUrl: '/logo.png',
+        coverUrl: '/courts/btl.png',
+        galleryUrls: ['/courts/btl.png', '/courts/thecong.png'],
+        captainName: 'Hoàng Quốc Duy',
+        captainPhone: '0968155247',
+        captainZalo: '0968155247',
+        captainEmail: 'duy.dva@dvavolleyball.com',
+        playStyle: 'COMPETITIVE',
+        tags: ['5-1 Chuẩn FIVB', 'Kèo trình độ', 'Mikasa V200W', 'DVA Official'],
+        description: 'Đội hình chính thức CLB DVA Hà Nội. Đánh 5-1 chuẩn luật FIVB, áp dụng chặt lỗi chạm lưới & bước 1.',
+        feeType: 'PAID',
+        feeAmount: '70k–80k/buổi',
+        sessions: [{ daysOfWeek: [1, 3, 6], startTime: '19:00', endTime: '21:30', subCourts: ['Court A'], recruitmentStatus: 'CHECK_CAPTAIN' }],
+      },
+      {
+        id: 'club-dva-middle',
+        name: 'DVA Middle',
+        slug: 'dva-middle',
+        logoUrl: '/logo.png',
+        coverUrl: '/courts/btl.png',
+        galleryUrls: ['/courts/btl.png', '/courts/mydinh.png'],
+        captainName: 'HLV Trần Tuấn Anh',
+        captainPhone: '0975155889',
+        captainZalo: '0975155889',
+        captainEmail: 'tuananh.coach@dvavolleyball.com',
+        playStyle: 'TRAINING',
+        tags: ['Tập luyện', 'Middle Focus', '5-1 Chuẩn FIVB', 'Tuyển vãng lai'],
+        description: 'Ca tập luyện chuyên sâu kỹ thuật đánh nhanh, chắn bóng giữa lưới, bước 1 và ghép chiến thuật.',
+        feeType: 'PAID',
+        feeAmount: '70k–100k/buổi',
+        sessions: [
+          { daysOfWeek: [5], startTime: '19:00', endTime: '21:30', subCourts: ['Court A'], recruitmentStatus: 'OPEN_RECRUIT' },
+          { daysOfWeek: [0], startTime: '15:00', endTime: '17:00', subCourts: ['Court A', 'Court B'], recruitmentStatus: 'OPEN_RECRUIT' },
+        ],
+      },
+      {
+        id: 'club-gevc',
+        name: 'GEVC',
+        slug: 'gevc',
+        coverUrl: '/courts/btl.png',
+        galleryUrls: ['/courts/btl.png'],
+        captainName: 'Nguyễn Quang Minh',
+        captainPhone: '0982345155',
+        captainZalo: '0982345155',
+        captainEmail: 'gevc.hanoi@gmail.com',
+        playStyle: 'FUN_GAME',
+        tags: ['Giao lưu', 'Tuyển vãng lai', 'Hòa đồng'],
+        description: 'CLB GEVC sinh hoạt đều tối T2, T4, T6 tại Court B. Không khí thân thiện, cởi mở sau giờ làm.',
+        feeType: 'PAID',
+        feeAmount: '65k–75k/buổi',
+        sessions: [{ daysOfWeek: [1, 3, 5], startTime: '19:00', endTime: '21:30', subCourts: ['Court B'], recruitmentStatus: 'OPEN_RECRUIT' }],
+      },
+      {
+        id: 'club-bvc',
+        name: 'BVC',
+        slug: 'bvc',
+        coverUrl: '/courts/btl.png',
+        galleryUrls: ['/courts/btl.png'],
+        captainName: 'Phạm Đức Mạnh',
+        captainPhone: '0912889456',
+        captainZalo: '0912889456',
+        captainEmail: 'bvc.captain@gmail.com',
+        playStyle: 'COMPETITIVE',
+        tags: ['Đấu set 25 điểm', '5-1 Tốc độ cao'],
+        description: 'Đội BVC đánh tối T3 & T5 tại Court A. Lối chơi chắc tay, giữ kỷ luật đội hình.',
+        feeType: 'PAID',
+        feeAmount: '70k/buổi',
+        sessions: [{ daysOfWeek: [2, 4], startTime: '19:00', endTime: '21:30', subCourts: ['Court A'], recruitmentStatus: 'CHECK_CAPTAIN' }],
+      },
+      {
+        id: 'club-tat',
+        name: 'TAT',
+        slug: 'tat',
+        coverUrl: '/courts/btl.png',
+        galleryUrls: ['/courts/btl.png'],
+        captainName: 'Vũ Quang Huy',
+        captainPhone: '0936778123',
+        captainZalo: '0936778123',
+        captainEmail: 'tat.volley@gmail.com',
+        playStyle: 'FUN_GAME',
+        tags: ['Giao lưu', 'Cởi mở', 'Tuyển vãng lai'],
+        description: 'CLB TAT sinh hoạt tối T3 & T5 tại Court B. Chia kèo cân bằng, vui vẻ cho cả nam & nữ.',
+        feeType: 'PAID',
+        feeAmount: '60k–70k/buổi',
+        sessions: [{ daysOfWeek: [2, 4], startTime: '19:00', endTime: '21:30', subCourts: ['Court B'], recruitmentStatus: 'OPEN_RECRUIT' }],
+      },
+      {
+        id: 'club-nippon',
+        name: 'Nippon',
+        slug: 'nippon',
+        coverUrl: '/courts/btl.png',
+        galleryUrls: ['/courts/btl.png', '/courts/thecong.png'],
+        captainName: 'Kenji / Đặng Bảo Long',
+        captainPhone: '0945112908',
+        captainZalo: '0945112908',
+        captainEmail: 'nippon.hanoi@gmail.com',
+        playStyle: 'COMPETITIVE',
+        tags: ['Giao lưu Quốc tế', 'Phòng thủ bền bỉ', '5-1 Chuẩn FIVB'],
+        description: 'CLB Nippon kết nối cộng đồng bóng chuyền Việt – Nhật với bước 1 chắc và phòng thủ hàng sau bền bỉ.',
+        feeType: 'PAID',
+        feeAmount: '70k/buổi',
+        sessions: [
+          { daysOfWeek: [6], startTime: '19:00', endTime: '21:30', subCourts: ['Court B'], recruitmentStatus: 'CHECK_CAPTAIN' },
+          { daysOfWeek: [0], startTime: '19:00', endTime: '21:30', subCourts: ['Court A', 'Court B'], recruitmentStatus: 'OPEN_RECRUIT' },
+        ],
+      },
+    ];
+
+    for (const { sessions, ...clubData } of clubs) {
+      await prisma.courtClubProfile.create({
+        data: {
+          ...clubData,
+          venueId: btl.id,
+          sessions: { create: sessions.map((s) => ({ ...s, venueId: btl.id })) },
+        },
+      });
+    }
+    console.log('[Bootstrap] Seeded BTL Thong Tin venue with 6 real clubs.');
+  } catch (err: any) {
+    console.warn('[Prisma Venues Seed Notice]:', err?.message || err);
+  }
 }

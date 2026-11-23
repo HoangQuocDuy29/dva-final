@@ -15,6 +15,7 @@ import {
   Tournament,
   TournamentFinanceSummary,
   AdminOverviewSummary,
+  VolleyballVenue,
 } from '../../../types';
 import {
   adminService,
@@ -29,6 +30,7 @@ import {
   sheetsService,
   storeService,
   tournamentService,
+  venueService,
 } from '../../../services/api';
 import { normalizeCourtWeeklySchedule } from '../../../shared/schedule';
 import { AdminTabId } from '../types';
@@ -63,7 +65,8 @@ const ADMIN_PERMITTED_DATA_TABS = new Set<AdminTabId>(['OVERVIEW', 'APPLICATIONS
 export function useAdminData(
   activeModule: AdminTabId = 'OVERVIEW',
   isSuperAdmin: boolean = false,
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
+  isCaptain: boolean = false
 ) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [courtsList, setCourtsList] = useState<Court[]>([]);
@@ -80,6 +83,7 @@ export function useAdminData(
   const [guestSessions, setGuestSessions] = useState<GuestSessionRecord[]>([]);
   const [tournamentsSummary, setTournamentsSummary] = useState<TournamentFinanceSummary[]>([]);
   const [tournamentsList, setTournamentsList] = useState<Tournament[]>([]);
+  const [venuesList, setVenuesList] = useState<VolleyballVenue[]>([]);
   const [overviewSummary, setOverviewSummary] = useState<AdminOverviewSummary | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -94,9 +98,10 @@ export function useAdminData(
 
   const fetchScopeData = useCallback(
     async (scope: AdminTabId, force: boolean = false) => {
-      if (!isAdmin || !authService.hasToken()) return;
+      if ((!isAdmin && !isCaptain) || !authService.hasToken()) return;
       if (scope === 'OVERVIEW' || scope === 'USERS') return;
-      if (!isSuperAdmin && !ADMIN_PERMITTED_DATA_TABS.has(scope)) return;
+      if (isCaptain && scope !== 'VENUES') return;
+      if (!isSuperAdmin && !isCaptain && !ADMIN_PERMITTED_DATA_TABS.has(scope)) return;
       if (!force && (loadedScopesRef.current.has(scope) || inflightScopesRef.current.has(scope))) return;
 
       inflightScopesRef.current.add(scope);
@@ -170,6 +175,11 @@ export function useAdminData(
             setSheetsData(data || null);
             break;
           }
+          case 'VENUES': {
+            const rows = await venueService.getAdminVenues();
+            setVenuesList(Array.isArray(rows) ? rows : []);
+            break;
+          }
         }
         markScopeLoaded(scope);
       } catch (e) {
@@ -178,11 +188,11 @@ export function useAdminData(
         inflightScopesRef.current.delete(scope);
       }
     },
-    [isAdmin, isSuperAdmin, markScopeLoaded]
+    [isAdmin, isSuperAdmin, isCaptain, markScopeLoaded]
   );
 
   const loadOverviewOnly = useCallback(async () => {
-    if (!isAdmin || !authService.hasToken()) return;
+    if (!isAdmin || isCaptain || !authService.hasToken()) return;
     const summary = await adminService.getOverviewSummary();
     setOverviewSummary(summary || null);
     markScopeLoaded('OVERVIEW');
@@ -201,6 +211,7 @@ export function useAdminData(
       setGuestSessions([]);
       setSheetsData(null);
       setTournamentsSummary([]);
+      setVenuesList([]);
       return;
     }
 
@@ -219,9 +230,13 @@ export function useAdminData(
 
   // Refresh overview + ONLY currently visited permitted scopes (never pre-loads unvisited tabs)
   const fetchData = useCallback(async () => {
-    if (!isAdmin || !authService.hasToken()) return;
+    if ((!isAdmin && !isCaptain) || !authService.hasToken()) return;
     setLoading(true);
     try {
+      if (isCaptain) {
+        await fetchScopeData('VENUES', true);
+        return;
+      }
       await loadOverviewOnly();
 
       const scopesToRefresh = new Set<AdminTabId>();
@@ -242,13 +257,13 @@ export function useAdminData(
     } finally {
       setLoading(false);
     }
-  }, [activeModule, fetchScopeData, isSuperAdmin, loadOverviewOnly]);
+  }, [activeModule, fetchScopeData, isAdmin, isCaptain, isSuperAdmin, loadOverviewOnly]);
 
   // Initial Hub mount / role transition: load ONLY overview summary (+ active deep-linked tab if any)
   useEffect(() => {
     loadedScopesRef.current.clear();
     setLoadedScopes(new Set());
-    if (!isAdmin || !authService.hasToken()) {
+    if ((!isAdmin && !isCaptain) || !authService.hasToken()) {
       setLoading(false);
       return;
     }
@@ -257,6 +272,10 @@ export function useAdminData(
     (async () => {
       setLoading(true);
       try {
+        if (isCaptain) {
+          await fetchScopeData('VENUES', false);
+          return;
+        }
         await loadOverviewOnly();
         if (!cancelled && activeModule !== 'OVERVIEW') {
           await fetchScopeData(activeModule, false);
@@ -273,13 +292,14 @@ export function useAdminData(
     };
     // Intentionally triggered only on role / mount; tab switches below trigger lazy loading
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, isSuperAdmin]);
+  }, [isAdmin, isSuperAdmin, isCaptain]);
 
   // Lazy-fetch exact dataset whenever the user switches to a new tab
   useEffect(() => {
-    if (!isAdmin || !authService.hasToken()) return;
+    if ((!isAdmin && !isCaptain) || !authService.hasToken()) return;
     if (activeModule === 'OVERVIEW' || activeModule === 'USERS') return;
-    if (!isSuperAdmin && !ADMIN_PERMITTED_DATA_TABS.has(activeModule)) return;
+    if (isCaptain && activeModule !== 'VENUES') return;
+    if (!isSuperAdmin && !isCaptain && !ADMIN_PERMITTED_DATA_TABS.has(activeModule)) return;
     if (loadedScopesRef.current.has(activeModule)) return;
 
     let cancelled = false;
@@ -316,6 +336,7 @@ export function useAdminData(
       guestSessions,
       tournamentsSummary,
       tournamentsList,
+      venuesList,
       overviewSummary,
       loadedScopes,
     },
@@ -335,6 +356,7 @@ export function useAdminData(
       setGuestSessions,
       setTournamentsSummary,
       setTournamentsList,
+      setVenuesList,
       setOverviewSummary,
     },
   };

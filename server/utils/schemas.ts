@@ -20,7 +20,7 @@ export const REGISTRATION_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED'] as co
 export const APPLICATION_STATUSES = ['PENDING', 'SCHEDULED', 'RETEST', 'APPROVED', 'REJECTED'] as const;
 export const TRYOUT_PAYMENT_STATUSES = ['PENDING', 'PAID', 'FREE'] as const;
 export const ROTATIONS = ['5-1', '6-2', '4-2', 'BEGINNER'] as const;
-export const MANAGED_ROLES = ['ADMIN', 'STAFF', 'COACH', 'PLAYER'] as const;
+export const MANAGED_ROLES = ['ADMIN', 'STAFF', 'COACH', 'CAPTAIN', 'PLAYER'] as const;
 
 export const LOGIN_SCHEMA: Schema = {
   email: EM,
@@ -895,4 +895,113 @@ export const TOURNAMENT_OFFICIAL_SCHEMA: Schema = {
   avatarUrl: U,
   phone: S(30),
   sortOrder: I(0, 200),
+};
+
+// ============================================================================
+// HANOI VOLLEYBALL COURT MAP & CLUB PROFILES SCHEMAS
+// ============================================================================
+
+const VENUE_TYPES = ['COMMERCIAL', 'FREE_PUBLIC'] as const;
+const VENUE_FEE_TYPES = ['PAID', 'FREE'] as const;
+const VENUE_PLAY_STYLES = ['COMPETITIVE', 'FUN_GAME', 'TRAINING'] as const;
+const VENUE_RECRUITMENT_STATUSES = ['OPEN_RECRUIT', 'CHECK_CAPTAIN', 'FULL'] as const;
+const VENUE_CAPACITY_MODES = ['UNLIMITED', 'LIMITED_SLOTS'] as const;
+const VENUE_GENDER_RULES = ['MALE_ONLY', 'MIXED', 'FEMALE_ONLY'] as const;
+
+const NEEDED_POSITIONS_RULE: Rule = (v, k) => {
+  if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array of positions`);
+  if (v.length > 5) throw new HttpError(400, `${k} cannot exceed 5 positions`);
+  return Array.from(new Set(v.map((p) => E(POSITIONS)(String(p).trim().toUpperCase(), k))));
+};
+
+const CANCELLED_DATES_RULE: Rule = (v, k) => {
+  if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array of YYYY-MM-DD dates`);
+  if (v.length > 31) throw new HttpError(400, `${k} cannot exceed 31 dates`);
+  return Array.from(new Set(v.map((item) => D(item, k)))).sort();
+};
+
+const DAYS_OF_WEEK_INT_ARRAY: Rule = (v, k) => {
+  if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array of integers (0-6)`);
+  if (v.length === 0) throw new HttpError(400, `${k} must include at least one day of the week`);
+  if (v.length > 7) throw new HttpError(400, `${k} cannot exceed 7 days`);
+  const unique = new Set<number>();
+  for (const item of v) {
+    const day = I(0, 6)(item, k);
+    unique.add(day);
+  }
+  return Array.from(unique);
+};
+
+const SUB_COURTS_ARRAY: Rule = (v, k) => {
+  if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array of court names`);
+  if (v.length === 0) throw new HttpError(400, `${k} must include at least one sub-court (e.g. Court A)`);
+  if (v.length > 12) throw new HttpError(400, `${k} cannot exceed 12 sub-courts`);
+  const cleaned = v.map((item) => S(40, 1)(item, k));
+  return Array.from(new Set(cleaned));
+};
+
+const GALLERY_URLS_RULE: Rule = (v, k) => {
+  if (!Array.isArray(v)) throw new HttpError(400, `${k} must be an array of image URLs`);
+  if (v.length > 20) throw new HttpError(400, `${k} cannot exceed 20 images`);
+  return v
+    .map((item) => U(item, k))
+    .filter((url): url is string => typeof url === 'string' && url.length > 0);
+};
+
+export const VENUE_SCHEMA: Schema = {
+  name: S(180, 2),
+  slug: S(150),
+  address: S(300, 3),
+  city: S(80, 2),
+  district: S(80, 2),
+  latitude: N(-90, 90),
+  longitude: N(-180, 180),
+  surfaceType: S(100, 2),
+  subCourtsCount: I(1, 12),
+  venueType: E(VENUE_TYPES),
+  rentalPriceInfo: S(200),
+  entryNote: S(1500),
+  isDvaOfficial: B,
+  isFeatured: B,
+  isClosed: B,
+  closureReason: S(500),
+  closedUntil: OPTIONAL_DATE,
+  coverUrl: U,
+};
+
+export const VENUE_CLUB_SCHEMA: Schema = {
+  name: S(150, 2),
+  slug: S(150),
+  logoUrl: U,
+  coverUrl: U,
+  galleryUrls: GALLERY_URLS_RULE,
+  captainName: S(100, 2),
+  captainPhone: PH,
+  captainZalo: S(120),
+  captainEmail: OPTIONAL_EMAIL,
+  captainUserId: S(80),
+  playStyle: E(VENUE_PLAY_STYLES),
+  tags: SA(15, 60),
+  description: S(3000),
+  feeType: E(VENUE_FEE_TYPES),
+  feeAmount: S(150),
+  isActive: B,
+};
+
+export const VENUE_SESSION_SCHEMA: Schema = {
+  clubId: S(80, 2),
+  daysOfWeek: DAYS_OF_WEEK_INT_ARRAY,
+  startTime: T,
+  endTime: T,
+  subCourts: SUB_COURTS_ARRAY,
+  recruitmentStatus: E(VENUE_RECRUITMENT_STATUSES),
+  isCancelled: B,
+  cancelledDates: CANCELLED_DATES_RULE,
+  cancelReason: S(300),
+  capacityMode: E(VENUE_CAPACITY_MODES),
+  currentPlayers: I(0, 100),
+  maxPlayers: I(1, 100),
+  neededPositions: NEEDED_POSITIONS_RULE,
+  genderRule: E(VENUE_GENDER_RULES),
+  forceOverride: B,
 };

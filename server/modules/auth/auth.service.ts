@@ -56,7 +56,7 @@ export async function createManagedUser(data: {
   fullName: string;
   phoneNumber?: string;
   avatarUrl?: string;
-  role?: 'ADMIN' | 'STAFF' | 'COACH' | 'PLAYER';
+  role?: 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER';
 }) {
   const existing = await prisma.user.findUnique({
     where: { email: data.email },
@@ -81,7 +81,7 @@ export async function createManagedUser(data: {
 
 export async function updateManagedUserRole(
   id: string,
-  role: 'ADMIN' | 'STAFF' | 'COACH' | 'PLAYER',
+  role: 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER',
   actorId: string
 ) {
   const { user } = await updateManagedStaff(id, { role }, actorId);
@@ -204,7 +204,7 @@ export async function updateManagedStaff(
   data: {
     fullName?: string;
     avatarUrl?: string;
-    role?: 'ADMIN' | 'STAFF' | 'COACH' | 'PLAYER';
+    role?: 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER';
     isActive?: boolean;
     forceLogout?: boolean;
   },
@@ -237,7 +237,7 @@ export async function updateManagedStaff(
   const updateData: {
     fullName?: string;
     avatarUrl?: string | null;
-    role?: 'ADMIN' | 'STAFF' | 'COACH' | 'PLAYER';
+    role?: 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER';
     isActive?: boolean;
     tokenVersion?: { increment: number };
   } = {};

@@ -50,15 +50,18 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
   const currentTabParam = (searchParams.get('tab') || 'OVERVIEW').toUpperCase();
   const currentViewParam = (searchParams.get('view') || 'ORDERS').toUpperCase();
   const isSuperAdmin = currentUser.role === 'SUPERADMIN';
+  const isCaptain = currentUser.role === 'CAPTAIN';
   const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
 
-  const activeModule: AdminTabId = isSuperAdmin
-    ? VALID_TABS.includes(currentTabParam as any)
-      ? (currentTabParam as AdminTabId)
-      : 'OVERVIEW'
-    : ADMIN_ALLOWED_TABS.includes(currentTabParam as any)
-      ? (currentTabParam as AdminTabId)
-      : 'OVERVIEW';
+  const activeModule: AdminTabId = isCaptain
+    ? 'VENUES'
+    : isSuperAdmin
+      ? VALID_TABS.includes(currentTabParam as any)
+        ? (currentTabParam as AdminTabId)
+        : 'OVERVIEW'
+      : ADMIN_ALLOWED_TABS.includes(currentTabParam as any)
+        ? (currentTabParam as AdminTabId)
+        : 'OVERVIEW';
 
   const storeSubView: StoreSubView = VALID_STORE_VIEWS.includes(currentViewParam as StoreSubView)
     ? (currentViewParam as StoreSubView)
@@ -66,6 +69,10 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
 
   const setActiveModule = useCallback(
     (mod: AdminTabId | string, subView?: string) => {
+      if (isCaptain) {
+        setSearchParams({ tab: 'venues' });
+        return;
+      }
       const upper = mod.toUpperCase() as AdminTabId;
       const safeMod =
         !isSuperAdmin && !ADMIN_ALLOWED_TABS.includes(upper) ? 'OVERVIEW' : mod;
@@ -75,7 +82,7 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
       }
       setSearchParams(nextParams);
     },
-    [setSearchParams, isSuperAdmin]
+    [setSearchParams, isSuperAdmin, isCaptain]
   );
 
   const setStoreSubView = useCallback(
@@ -87,7 +94,7 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
   );
 
   const { feedback, setFeedback, notify } = useFeedback();
-  const { loading, fetchData, data, setData } = useAdminData(activeModule, isSuperAdmin, isAdmin);
+  const { loading, fetchData, data, setData } = useAdminData(activeModule, isSuperAdmin, isAdmin, isCaptain);
 
   // Court Schedule & Slot Lock Control state (shared across COURTS and BOOKINGS)
   const [selectedManageCourtId, setSelectedManageCourtId] = useState<string>('court-btl');
@@ -145,6 +152,7 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
     currentUser,
     isAdmin,
     isSuperAdmin,
+    isCaptain,
     onOpenSheets,
     onUserChange,
     handleLogout,

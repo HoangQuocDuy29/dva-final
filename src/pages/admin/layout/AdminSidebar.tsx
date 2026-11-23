@@ -15,6 +15,7 @@ export const AdminSidebar: React.FC = () => {
     activeModule,
     setActiveModule,
     isSuperAdmin,
+    isCaptain,
     isSidebarCollapsed,
     isMobileNavOpen,
     setIsMobileNavOpen,
@@ -22,7 +23,7 @@ export const AdminSidebar: React.FC = () => {
   } = useAdminDashboard();
   const metrics = useAdminMetrics();
   const badges = getAdminNavBadges(metrics);
-  const groups = getVisibleNavGroups(isSuperAdmin);
+  const groups = getVisibleNavGroups(isSuperAdmin, isCaptain);
 
   useEffect(() => {
     if (!isMobileNavOpen) return undefined;

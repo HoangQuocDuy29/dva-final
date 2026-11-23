@@ -32,6 +32,7 @@ export const AdminHeader: React.FC = () => {
   const {
     currentUser,
     isSuperAdmin,
+    isCaptain,
     loading,
     fetchData,
     openGuestModal,
@@ -74,7 +75,7 @@ export const AdminHeader: React.FC = () => {
     };
   }, [isProfileMenuOpen]);
 
-  const moduleLabel = findNavItem(activeModule)?.label ?? 'Overview & Analytics';
+  const moduleLabel = isCaptain ? 'Quản lý Đội & Lịch Chơi Của Tôi' : (findNavItem(activeModule)?.label ?? 'Overview & Analytics');
 
   const handleQuickAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,22 +145,28 @@ export const AdminHeader: React.FC = () => {
             <h1 className="font-heading font-black text-sm text-white truncate mt-1">{moduleLabel}</h1>
           </div>
 
-          {/* Quick search */}
-          <div className="hidden md:block flex-1 max-w-md mx-auto">
-            <AdminQuickSearch />
-          </div>
-          <div className="flex-1 md:hidden" />
+          {/* Quick search (hidden for CAPTAIN) */}
+          {!isCaptain ? (
+            <div className="hidden md:block flex-1 max-w-md mx-auto">
+              <AdminQuickSearch />
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+          {!isCaptain && <div className="flex-1 md:hidden" />}
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="Search"
-              onClick={() => setIsMobileSearchOpen(true)}
-              className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E293B] cursor-pointer"
-            >
-              <Search className="w-5 h-5" />
-            </button>
+            {!isCaptain && (
+              <button
+                type="button"
+                aria-label="Search"
+                onClick={() => setIsMobileSearchOpen(true)}
+                className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E293B] cursor-pointer"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+            )}
 
             {isSuperAdmin && (
               <button

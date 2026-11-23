@@ -31,6 +31,11 @@ const ROLE_RING_STYLES: Record<UserRole, RoleRingStyle> = {
     gradient: 'conic-gradient(from 135deg, #10B981, #14B8A6, #84CC16, #10B981)',
     spinClass: '',
   },
+  CAPTAIN: {
+    gradient: 'conic-gradient(from 0deg, #06B6D4, #10B981, #FACC15, #06B6D4)',
+    spinClass: 'animate-[spin_12s_linear_infinite] motion-reduce:animate-none will-change-transform',
+    glowClass: 'blur-[2px] opacity-55',
+  },
   PLAYER: {
     gradient: 'conic-gradient(from 135deg, #38BDF8, #94A3B8, #38BDF8)',
     spinClass: '',

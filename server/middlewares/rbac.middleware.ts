@@ -40,6 +40,11 @@ export const requireAdminOrSuperAdmin: RequestHandler = requireRole(
   'Administrator access required.'
 );
 
+export const requireCaptainOrSuperAdmin: RequestHandler = requireRole(
+  ['SUPERADMIN', 'CAPTAIN'],
+  'Only SUPERADMIN or assigned CAPTAIN can perform this action.'
+);
+
 const SENSITIVE_FIELD_KEYS = new Set([
   'phone',
   'phoneNumber',

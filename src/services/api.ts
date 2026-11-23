@@ -35,6 +35,13 @@ import {
   TournamentPlayer,
   TournamentPublicRegistrationPayload,
   TournamentTeam,
+  VolleyballVenue,
+  CourtClubProfile,
+  VenueSessionSlot,
+  VenueClubDetailResponse,
+  VenuePayload,
+  VenueClubPayload,
+  VenueSessionPayload,
   getShopCategoryCode
 } from '../types';
 import { 
@@ -117,6 +124,19 @@ const tournamentDetailCache = createSwrCache<Tournament>({
   storagePrefix: 'dva_tournament_detail_v1:',
   freshMs: 15_000,
   staleMs: 120_000,
+});
+
+const venuesCache = createSwrCache<VolleyballVenue[]>({
+  storagePrefix: 'dva_venues_public_v2:',
+  freshMs: 60_000,
+  staleMs: 300_000,
+  validate: Array.isArray,
+});
+
+const venueClubDetailCache = createSwrCache<VenueClubDetailResponse>({
+  storagePrefix: 'dva_venue_club_detail_v1:',
+  freshMs: 60_000,
+  staleMs: 300_000,
 });
 
 const TOKEN_KEY = 'dva_token';
@@ -2163,6 +2183,149 @@ export const tournamentService = {
       { method: 'PUT', body: JSON.stringify({ dreamTeam }) }
     );
     invalidateTournamentsCache();
+    return res;
+  },
+};
+
+export const venueService = {
+  getCachedVenues(): VolleyballVenue[] | null {
+    return venuesCache.get('public')?.data ?? null;
+  },
+
+  async getPublicVenues(opts: { forceRefresh?: boolean } = {}): Promise<VolleyballVenue[]> {
+    return venuesCache.fetch({
+      key: 'public',
+      fetcher: () => request<VolleyballVenue[]>('/venues'),
+      forceRefresh: opts.forceRefresh,
+    });
+  },
+
+  async getClubBySlug(
+    slug: string,
+    opts: { forceRefresh?: boolean } = {}
+  ): Promise<VenueClubDetailResponse> {
+    const clean = slug.trim().toLowerCase();
+    return venueClubDetailCache.fetch({
+      key: clean,
+      fetcher: () => request<VenueClubDetailResponse>(`/venues/teams/${encodeURIComponent(clean)}`),
+      forceRefresh: opts.forceRefresh,
+    });
+  },
+
+  async getAdminVenues(): Promise<VolleyballVenue[]> {
+    return request<VolleyballVenue[]>('/admin/venues');
+  },
+
+  async createVenue(payload: VenuePayload): Promise<VolleyballVenue> {
+    const created = await request<VolleyballVenue>('/admin/venues', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    venuesCache.invalidate();
+    venueClubDetailCache.invalidate();
+    return created;
+  },
+
+  async updateVenue(id: string, payload: Partial<VenuePayload>): Promise<VolleyballVenue> {
+    const updated = await request<VolleyballVenue>(`/admin/venues/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    venuesCache.invalidate();
+    venueClubDetailCache.invalidate();
+    return updated;
+  },
+
+  async deleteVenue(id: string): Promise<{ success: boolean; id: string }> {
+    const res = await request<{ success: boolean; id: string }>(`/admin/venues/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    venuesCache.invalidate();
+    venueClubDetailCache.invalidate();
+    return res;
+  },
+
+  async createClub(venueId: string, payload: VenueClubPayload): Promise<CourtClubProfile> {
+    const created = await request<CourtClubProfile>(
+      `/admin/venues/${encodeURIComponent(venueId)}/clubs`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    venuesCache.invalidate();
+    venueClubDetailCache.invalidate();
+    return created;
+  },
+
+  async updateClub(
+    venueId: string,
+    clubId: string,
+    payload: Partial<VenueClubPayload>
+  ): Promise<CourtClubProfile> {
+    const updated = await request<CourtClubProfile>(
+      `/admin/venues/${encodeURIComponent(venueId)}/clubs/${encodeURIComponent(clubId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    );
+    venuesCache.invalidate();
+    venueClubDetailCache.invalidate();
+    return updated;
+  },
+
+  async deleteClub(venueId: string, clubId: string): Promise<{ success: boolean; id: string }> {
+    const res = await request<{ success: boolean; id: string }>(
+      `/admin/venues/${encodeURIComponent(venueId)}/clubs/${encodeURIComponent(clubId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    venuesCache.invalidate();
+    venueClubDetailCache.invalidate();
+    return res;
+  },
+
+  async createSession(venueId: string, payload: VenueSessionPayload): Promise<VenueSessionSlot> {
+    const created = await request<VenueSessionSlot>(
+      `/admin/venues/${encodeURIComponent(venueId)}/sessions`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    venuesCache.invalidate();
+    venueClubDetailCache.invalidate();
+    return created;
+  },
+
+  async updateSession(
+    venueId: string,
+    sessionId: string,
+    payload: Partial<VenueSessionPayload>
+  ): Promise<VenueSessionSlot> {
+    const updated = await request<VenueSessionSlot>(
+      `/admin/venues/${encodeURIComponent(venueId)}/sessions/${encodeURIComponent(sessionId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    );
+    venuesCache.invalidate();
+    venueClubDetailCache.invalidate();
+    return updated;
+  },
+
+  async deleteSession(venueId: string, sessionId: string): Promise<{ success: boolean; id: string }> {
+    const res = await request<{ success: boolean; id: string }>(
+      `/admin/venues/${encodeURIComponent(venueId)}/sessions/${encodeURIComponent(sessionId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    venuesCache.invalidate();
+    venueClubDetailCache.invalidate();
     return res;
   },
 };

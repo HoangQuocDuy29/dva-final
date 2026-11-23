@@ -23,6 +23,7 @@ import { bookingsRouter } from './modules/bookings/bookings.routes';
 import { storeRouter } from './modules/store/store.routes';
 import { contentRouter } from './modules/content/content.routes';
 import { integrationsRouter } from './modules/integrations/sheets.routes';
+import { venuesRouter } from './modules/venues/venues.routes';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 assertSecurityConfig();
@@ -60,6 +61,7 @@ app.use('/api', bookingsRouter);
 app.use('/api', storeRouter);
 app.use('/api', contentRouter);
 app.use('/api', integrationsRouter);
+app.use('/api', venuesRouter);
 
 app.use('/api', notFoundApiHandler);
 app.use(globalErrorHandler);

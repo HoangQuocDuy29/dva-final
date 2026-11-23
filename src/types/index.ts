@@ -1,8 +1,8 @@
-export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'STAFF' | 'COACH' | 'PLAYER' | 'GUEST';
+export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER' | 'GUEST';
 
 /** Roles a SUPERADMIN may assign to managed accounts. */
-export type ManagedUserRole = 'ADMIN' | 'STAFF' | 'COACH' | 'PLAYER';
-export const MANAGED_USER_ROLES: ManagedUserRole[] = ['ADMIN', 'STAFF', 'COACH', 'PLAYER'];
+export type ManagedUserRole = 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER';
+export const MANAGED_USER_ROLES: ManagedUserRole[] = ['ADMIN', 'STAFF', 'COACH', 'CAPTAIN', 'PLAYER'];
 
 export interface User {
   id: string;
@@ -998,3 +998,165 @@ export interface TournamentPublicRegistrationPayload {
     isCaptain?: boolean;
   }>;
 }
+
+// ============================================================================
+// HANOI VOLLEYBALL COURT MAP & CLUB PROFILES MODULE
+// ============================================================================
+
+export type VenuePlayStyle = 'COMPETITIVE' | 'FUN_GAME' | 'TRAINING';
+
+export type VenueRecruitmentStatus = 'OPEN_RECRUIT' | 'CHECK_CAPTAIN' | 'FULL';
+
+export type VenueType = 'COMMERCIAL' | 'FREE_PUBLIC';
+
+export type VenueFeeType = 'PAID' | 'FREE';
+
+export type VenueCapacityMode = 'UNLIMITED' | 'LIMITED_SLOTS';
+
+export type VenueGenderRule = 'MALE_ONLY' | 'MIXED' | 'FEMALE_ONLY';
+
+export interface CourtClubProfile {
+  id: string;
+  venueId: string;
+  name: string;
+  slug: string;
+  logoUrl?: string | null;
+  coverUrl?: string | null;
+  galleryUrls: string[];
+  captainName: string;
+  captainPhone: string;
+  captainZalo?: string | null;
+  captainEmail?: string | null;
+  captainUserId?: string | null;
+  captainUser?: { id: string; email: string; fullName: string; role: UserRole; isActive?: boolean } | null;
+  playStyle: VenuePlayStyle;
+  tags: string[];
+  description?: string | null;
+  feeType: VenueFeeType;
+  feeAmount?: string | null;
+  isActive: boolean;
+  sessions?: VenueSessionSlot[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface VenueSessionSlot {
+  id: string;
+  venueId: string;
+  clubId: string;
+  daysOfWeek: number[]; // 1=T2, 2=T3, ..., 6=T7, 0=CN
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  subCourts: string[]; // e.g. ["Court A"], ["Court B"], ["Court A", "Court B"]
+  recruitmentStatus: VenueRecruitmentStatus;
+  isCancelled?: boolean;
+  cancelledDates?: string[];
+  cancelReason?: string | null;
+  capacityMode?: VenueCapacityMode;
+  currentPlayers?: number;
+  maxPlayers?: number;
+  neededPositions?: VolleyballPosition[];
+  genderRule?: VenueGenderRule;
+  club?: CourtClubProfile;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface VolleyballVenue {
+  id: string;
+  name: string;
+  slug: string;
+  address: string;
+  city?: string;
+  district: string;
+  latitude: number;
+  longitude: number;
+  surfaceType: string;
+  subCourtsCount: number;
+  venueType: VenueType;
+  rentalPriceInfo?: string | null;
+  entryNote?: string | null;
+  isDvaOfficial: boolean;
+  isFeatured: boolean;
+  isClosed: boolean;
+  closureReason?: string | null;
+  closedUntil?: string | null;
+  coverUrl?: string | null;
+  imageUrl?: string | null;
+  clubs: CourtClubProfile[];
+  sessions: VenueSessionSlot[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface VenueClubDetailResponse extends CourtClubProfile {
+  venue: Omit<VolleyballVenue, 'clubs' | 'sessions'>;
+  sessions: VenueSessionSlot[];
+}
+
+export interface SessionConflictDetail {
+  sessionId: string;
+  clubName: string;
+  days: number[];
+  startTime: string;
+  endTime: string;
+  subCourts: string[];
+}
+
+export type VenuePayload = {
+  name: string;
+  slug?: string;
+  address: string;
+  city?: string;
+  district: string;
+  latitude: number;
+  longitude: number;
+  surfaceType: string;
+  subCourtsCount: number;
+  venueType: VenueType;
+  rentalPriceInfo?: string | null;
+  entryNote?: string | null;
+  isDvaOfficial: boolean;
+  isFeatured: boolean;
+  isClosed?: boolean;
+  closureReason?: string | null;
+  closedUntil?: string | null;
+  coverUrl?: string | null;
+};
+
+export type VenueClubPayload = {
+  name: string;
+  slug?: string;
+  logoUrl?: string | null;
+  coverUrl?: string | null;
+  galleryUrls: string[];
+  captainName: string;
+  captainPhone: string;
+  captainZalo?: string | null;
+  captainEmail?: string | null;
+  captainUserId?: string | null;
+  playStyle: VenuePlayStyle;
+  tags: string[];
+  description?: string | null;
+  feeType: VenueFeeType;
+  feeAmount?: string | null;
+  isActive: boolean;
+};
+
+export type VenueSessionPayload = {
+  clubId: string;
+  daysOfWeek: number[];
+  startTime: string;
+  endTime: string;
+  subCourts: string[];
+  recruitmentStatus: VenueRecruitmentStatus;
+  isCancelled?: boolean;
+  cancelledDates?: string[];
+  cancelReason?: string | null;
+  capacityMode?: VenueCapacityMode;
+  currentPlayers?: number;
+  maxPlayers?: number;
+  neededPositions?: VolleyballPosition[];
+  genderRule?: VenueGenderRule;
+  forceOverride?: boolean;
+};

@@ -17,6 +17,7 @@ import {
   Tournament,
   TournamentFinanceSummary,
   AdminOverviewSummary,
+  VolleyballVenue,
 } from '../../types';
 
 export type AdminTabId =
@@ -31,7 +32,8 @@ export type AdminTabId =
   | 'USERS'
   | 'SHEETS'
   | 'STORE'
-  | 'TOURNAMENTS';
+  | 'TOURNAMENTS'
+  | 'VENUES';
 
 export type AdminNavGroupId = 'OVERVIEW' | 'ATHLETICS' | 'COMMERCE' | 'SYSTEM';
 
@@ -77,6 +79,7 @@ export interface AdminDataState {
   guestSessions: GuestSessionRecord[];
   tournamentsSummary: TournamentFinanceSummary[];
   tournamentsList: Tournament[];
+  venuesList: VolleyballVenue[];
   overviewSummary: AdminOverviewSummary | null;
   loadedScopes: ReadonlySet<AdminTabId>;
 }
@@ -97,6 +100,7 @@ export interface AdminDataSetters {
   setGuestSessions: React.Dispatch<React.SetStateAction<GuestSessionRecord[]>>;
   setTournamentsSummary: React.Dispatch<React.SetStateAction<TournamentFinanceSummary[]>>;
   setTournamentsList: React.Dispatch<React.SetStateAction<Tournament[]>>;
+  setVenuesList: React.Dispatch<React.SetStateAction<VolleyballVenue[]>>;
   setOverviewSummary: React.Dispatch<React.SetStateAction<AdminOverviewSummary | null>>;
 }
 
@@ -104,6 +108,7 @@ export interface AdminDashboardContextValue {
   currentUser: UserType;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isCaptain: boolean;
   onOpenSheets: () => void;
   onUserChange?: (user: UserType) => void;
   handleLogout: () => void;

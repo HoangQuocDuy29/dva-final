@@ -17,6 +17,7 @@ import {
   CreditCard,
   ShoppingBag,
   Trophy,
+  MapPin,
   Newspaper,
   Sheet,
   ShieldCheck,
@@ -37,6 +38,7 @@ export const VALID_TABS: readonly AdminTabId[] = [
   'USERS',
   'STORE',
   'TOURNAMENTS',
+  'VENUES',
 ] as const;
 
 /** Strict RBAC: ADMIN role only sees these exact 4 modules. All other modules are SUPERADMIN-only. */
@@ -116,6 +118,14 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         keywords: ['tournaments', 'leagues', 'brackets', 'competition', 'cups', 'matches'],
         status: 'NEW',
       },
+      {
+        id: 'VENUES',
+        label: 'Court Map & Venues',
+        icon: MapPin,
+        keywords: ['venues', 'map', 'court map', 'bản đồ', 'sân hà nội', 'teams', 'captains'],
+        superAdminOnly: true,
+        status: 'NEW',
+      },
     ],
   },
   {
@@ -135,8 +145,20 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
 ];
 
-/** Returns the nav groups visible to the current role (ADMIN sees strictly 4 modules; SUPERADMIN sees all). */
-export function getVisibleNavGroups(isSuperAdmin: boolean): AdminNavGroup[] {
+/** Returns the nav groups visible to the current role (CAPTAIN sees only own club; ADMIN sees 4 modules; SUPERADMIN sees all). */
+export function getVisibleNavGroups(isSuperAdmin: boolean, isCaptain = false): AdminNavGroup[] {
+  if (isCaptain) {
+    return [{
+      id: 'COMMERCE',
+      label: 'Đội Của Tôi',
+      items: [{
+        id: 'VENUES',
+        label: 'Đội & Lịch Chơi Của Tôi',
+        icon: MapPin,
+        keywords: ['club', 'team', 'schedule', 'captain'],
+      }],
+    }];
+  }
   return ADMIN_NAV_GROUPS.map((g) => ({
     ...g,
     items: g.items.filter((i) => (isSuperAdmin ? true : ADMIN_ALLOWED_SET.has(i.id))),
@@ -184,6 +206,7 @@ export const USER_ROLE_BADGE: Record<string, string> = {
   ADMIN: 'bg-orange-950/80 text-orange-300 border-orange-500/60',
   STAFF: 'bg-sky-950/80 text-sky-300 border-sky-500/60',
   COACH: 'bg-purple-950/80 text-purple-300 border-purple-500/60',
+  CAPTAIN: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/60',
   PLAYER: 'bg-emerald-950/80 text-emerald-300 border-emerald-500/60',
   GUEST: 'bg-slate-800 text-slate-300 border-slate-600',
 };

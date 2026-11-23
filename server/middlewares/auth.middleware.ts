@@ -227,6 +227,8 @@ const PUBLIC_RULES: Rule[] = [
   rule('GET', /^\/tournaments\/[^/]+\/?$/),
   rule('POST', /^\/tournaments\/[^/]+\/register\/?$/),
   rule('POST', /^\/tournaments\/[^/]+\/teams\/[^/]+\/confirm-payment\/?$/),
+  rule('GET', /^\/venues\/?$/),
+  rule('GET', /^\/venues\/teams\/[^/]+\/?$/),
 ];
 
 // Explicit allowlist for the restricted ADMIN role (default-deny for all other admin/finance/delete routes).
@@ -246,6 +248,15 @@ const ADMIN_ALLOWED_RULES: Rule[] = [
   rule('POST', /^\/admin\/tryouts\/[^/]+\/send-email\/?$/),
   rule('POST', /^\/news\/?$/),
   rule('PUT', /^\/news\/[^/]+\/?$/),
+  rule('POST', /^\/cloudinary\/sign-upload\/?$/),
+];
+
+const CAPTAIN_ALLOWED_RULES: Rule[] = [
+  rule('GET', /^\/admin\/venues\/?$/),
+  rule('PATCH', /^\/admin\/venues\/[^/]+\/clubs\/[^/]+\/?$/),
+  rule('PUT', /^\/admin\/venues\/[^/]+\/clubs\/[^/]+\/?$/),
+  rule('PATCH', /^\/admin\/venues\/[^/]+\/sessions\/[^/]+\/?$/),
+  rule('PUT', /^\/admin\/venues\/[^/]+\/sessions\/[^/]+\/?$/),
   rule('POST', /^\/cloudinary\/sign-upload\/?$/),
 ];
 
@@ -280,6 +291,13 @@ export const apiAccessPolicy: RequestHandler = (req, res, next) => {
     }
     if (!matches(ADMIN_ALLOWED_RULES, method, req.path)) {
       return void res.status(403).json({ error: 'You do not have permission to access this module.' });
+    }
+    return next();
+  }
+
+  if (role === 'CAPTAIN') {
+    if (!matches(CAPTAIN_ALLOWED_RULES, method, req.path)) {
+      return void res.status(403).json({ error: 'Bạn chỉ có quyền truy cập đội bóng và ca chơi của chính mình.' });
     }
     return next();
   }

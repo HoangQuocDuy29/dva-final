@@ -19,6 +19,10 @@ const TryoutPage = lazy(() => import('./pages/TryoutPage').then((m) => ({ defaul
 const NewsPage = lazy(() => import('./pages/NewsPage').then((m) => ({ default: m.NewsPage })));
 const NewsDetailPage = lazy(() => import('./pages/NewsDetailPage').then((m) => ({ default: m.NewsDetailPage })));
 const CourtBookingPage = lazy(() => import('./pages/CourtBookingPage').then((m) => ({ default: m.CourtBookingPage })));
+const CourtMapPage = lazy(() => import('./pages/CourtMapPage').then((m) => ({ default: m.CourtMapPage })));
+const CourtClubDetailPage = lazy(() =>
+  import('./pages/CourtClubDetailPage').then((m) => ({ default: m.CourtClubDetailPage }))
+);
 const TrainingPage = lazy(() => import('./pages/TrainingPage').then((m) => ({ default: m.TrainingPage })));
 const ShopPage = lazy(() => import('./pages/ShopPage').then((m) => ({ default: m.ShopPage })));
 const TournamentsPage = lazy(() => import('./pages/TournamentsPage').then((m) => ({ default: m.TournamentsPage })));
@@ -118,6 +122,8 @@ export default function App() {
 
               {/* Module 5: Services & DVA Shop */}
               <Route path="/services/court-booking" element={<CourtBookingPage />} />
+              <Route path="/services/court-map" element={<CourtMapPage />} />
+              <Route path="/services/court-map/teams/:slug" element={<CourtClubDetailPage />} />
               <Route path="/services/training-scrimmage" element={<TrainingPage />} />
               <Route path="/shop" element={<ShopPage />} />
               <Route path="/shop/:categorySlug/:productSlug" element={<ShopPage />} />
@@ -131,6 +137,7 @@ export default function App() {
               {/* Automatic Redirects for Legacy Service URLs */}
               <Route path="/booking" element={<RedirectPreserveQuery to="/services/court-booking" />} />
               <Route path="/court-booking" element={<RedirectPreserveQuery to="/services/court-booking" />} />
+              <Route path="/court-map" element={<RedirectPreserveQuery to="/services/court-map" />} />
               <Route path="/training" element={<RedirectPreserveQuery to="/services/training-scrimmage" />} />
               <Route path="/services/training" element={<RedirectPreserveQuery to="/services/training-scrimmage" />} />
               <Route path="/store" element={<RedirectPreserveQuery to="/shop" />} />

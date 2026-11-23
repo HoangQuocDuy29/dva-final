@@ -55,8 +55,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       onSuccess(res.user);
       onClose();
 
-      // If user is Admin or SuperAdmin, route immediately to dedicated admin dashboard
-      if (res.user.role === 'ADMIN' || res.user.role === 'SUPERADMIN') {
+      // If user is Admin, SuperAdmin, or Captain, route immediately to dedicated workspace
+      if (res.user.role === 'ADMIN' || res.user.role === 'SUPERADMIN' || res.user.role === 'CAPTAIN') {
         navigate('/admin/dashboard');
       }
     } catch (err: any) {

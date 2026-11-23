@@ -10,6 +10,7 @@ import {
   LogOut,
   LayoutDashboard,
   CalendarDays,
+  MapPin,
   Users,
   ShoppingBag,
   Info,
@@ -179,6 +180,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       icon: CalendarDays,
     },
     {
+      title: t('nav.courtMap', 'Hanoi Court Map'),
+      subtitle: t('nav.courtMapDesc', 'Interactive live map, teams & play styles'),
+      path: '/services/court-map',
+      icon: MapPin,
+    },
+    {
       title: t('nav.training', 'Training & Scrimmage'),
       subtitle: 'Coaching clinics & weekly open games',
       path: '/services/training-scrimmage',
@@ -203,7 +210,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     return location.pathname.startsWith(path);
   };
 
-  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
+  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN' || currentUser.role === 'CAPTAIN';
   const isAdminRoute = location.pathname.startsWith('/admin');
   const compactNav = isScrolled && !isAdminRoute;
 
@@ -514,6 +521,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? 'bg-red-900 text-red-200 border-red-700'
                     : currentUser.role === 'ADMIN'
                     ? 'bg-amber-900 text-amber-200 border-amber-700'
+                    : currentUser.role === 'CAPTAIN'
+                    ? 'bg-cyan-900 text-cyan-200 border-cyan-600'
                     : 'bg-blue-900 text-blue-200 border-blue-700'
                 }`}>
                   {currentUser.role}
@@ -546,7 +555,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       className="w-full text-left px-3 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold flex items-center gap-2 hover:brightness-110 shadow cursor-pointer"
                     >
                       <LayoutDashboard className="w-4 h-4" />
-                      <span>{t('nav.openAdminDashboard')}</span>
+                      <span>{currentUser.role === 'CAPTAIN' ? 'Quản lý Đội của tôi' : t('nav.openAdminDashboard')}</span>
                     </button>
                   </div>
                 )}

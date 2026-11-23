@@ -29,6 +29,7 @@ const UsersTab = lazy(() => import('./tabs/UsersTab').then((m) => ({ default: m.
 const SheetsTab = lazy(() => import('./tabs/SheetsTab').then((m) => ({ default: m.SheetsTab })));
 const StoreTab = lazy(() => import('./tabs/StoreTab').then((m) => ({ default: m.StoreTab })));
 const TournamentsTab = lazy(() => import('./tabs/TournamentsTab').then((m) => ({ default: m.TournamentsTab })));
+const VenuesTab = lazy(() => import('./tabs/VenuesTab').then((m) => ({ default: m.VenuesTab })));
 
 const AdminTabLoadingFallback: React.FC = () => (
   <div className="min-h-[320px] rounded-3xl bg-[#111827] border border-[#1E293B] flex flex-col items-center justify-center gap-3 text-slate-400">
@@ -44,7 +45,7 @@ export interface AdminDashboardPageProps {
 }
 
 const AdminDashboardShell: React.FC = () => {
-  const { isSuperAdmin, onOpenSheets, activeModule } =
+  const { isSuperAdmin, isCaptain, onOpenSheets, activeModule } =
     useAdminDashboard();
   const mainScrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -106,6 +107,9 @@ const AdminDashboardShell: React.FC = () => {
 
             {/* MODULE 12: TOURNAMENTS */}
             {activeModule === 'TOURNAMENTS' && <TournamentsTab />}
+
+            {/* MODULE 13: COURT MAP & VENUES (SUPERADMIN & CAPTAIN self-service) */}
+            {activeModule === 'VENUES' && (isSuperAdmin || isCaptain) && <VenuesTab />}
           </Suspense>
         </main>
       </div>
@@ -130,8 +134,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   onOpenSheets,
   onUserChange,
 }) => {
-  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
-  if (!isAdmin) {
+  const isHubAllowed = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN' || currentUser.role === 'CAPTAIN';
+  if (!isHubAllowed) {
     return (
       <div className="min-h-screen bg-[#0B0F19] text-white py-24 text-center space-y-4">
         <Shield className="w-12 h-12 text-red-500 mx-auto" />
