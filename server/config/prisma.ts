@@ -1120,24 +1120,6 @@ export async function bootstrapSuperAdminAndUsers(): Promise<void> {
 
   const superAdminEmail = 'quocduyhoang42@gmail.com';
   const superAdminPassword = process.env.SEED_SUPERADMIN_PASSWORD || 'dva@2025';
-  const defaultAccounts = [
-    {
-      id: 'user-admin',
-      email: 'admin.dva@gmail.com',
-      fullName: 'Tran Minh Tuan',
-      phoneNumber: '0987654321',
-      role: 'ADMIN' as const,
-      password: process.env.SEED_ADMIN_PASSWORD || 'dva@2025',
-    },
-    {
-      id: 'user-player',
-      email: 'player.hung@gmail.com',
-      fullName: 'Nguyen Van Hung',
-      phoneNumber: '0912345678',
-      role: 'PLAYER' as const,
-      password: process.env.SEED_PLAYER_PASSWORD || 'dva@123',
-    },
-  ];
 
   // Single findMany instead of N+1 per-account findUnique queries
   const allUsers = await prisma.user.findMany({
@@ -1175,35 +1157,9 @@ export async function bootstrapSuperAdminAndUsers(): Promise<void> {
     }
   }
 
-  for (const acc of defaultAccounts) {
-    const existing = byEmail.get(acc.email);
-    if (!existing) {
-      const passwordHash = await hashPassword(acc.password);
-      await prisma.user.create({
-        data: {
-          id: acc.id,
-          email: acc.email,
-          passwordHash,
-          fullName: acc.fullName,
-          phoneNumber: acc.phoneNumber,
-          role: acc.role,
-        },
-      });
-      console.log(`[Bootstrap] Created ${acc.role} (${acc.email}) with bcrypt password hash.`);
-    } else if (!isBcryptHash(existing.passwordHash)) {
-      const passwordHash = await hashPassword(acc.password);
-      await prisma.user.update({
-        where: { email: acc.email },
-        data: { passwordHash },
-      });
-      console.log(`[Bootstrap] Re-hashed ${acc.role} (${acc.email}) password with bcrypt in PostgreSQL.`);
-    }
-  }
-
   // Migrate any remaining legacy non-bcrypt user hashes
-  const defaultEmailSet = new Set([superAdminEmail, ...defaultAccounts.map((a) => a.email)]);
   for (const u of allUsers) {
-    if (defaultEmailSet.has(u.email) || isBcryptHash(u.passwordHash)) continue;
+    if (u.email === superAdminEmail || isBcryptHash(u.passwordHash)) continue;
     const rawPassword = u.passwordHash && !u.passwordHash.startsWith('scrypt$') ? u.passwordHash : 'dva@2025';
     const newHash = await hashPassword(rawPassword);
     await prisma.user.update({
