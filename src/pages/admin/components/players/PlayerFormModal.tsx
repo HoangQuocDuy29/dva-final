@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Loader2, Upload } from 'lucide-react';
-import { Player, PlayerLevel, VolleyballPosition } from '../../../../types';
+import { Player, PlayerLevel, SkillRank, VolleyballPosition } from '../../../../types';
+import { SKILL_RANK_LIST } from '../../../../shared/skillRanks';
 import { uploadToCloudinary } from '../../../../utils/cloudinary';
 import { CountrySelect } from '../../../../components/common/CountrySelect';
 
@@ -73,6 +74,44 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
             </select>
             <p className="text-[10px] text-slate-400">
               Sau khi lưu, VĐV sẽ xuất hiện ngay lập tức trong cột tương ứng ({playerForm.level}) trên danh sách Roster của CLB.
+            </p>
+          </div>
+
+          {/* USAV SKILL RANK SELECTION */}
+          <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-blue-900/60 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-slate-200 font-bold">
+                🇺🇸 Hạng Trình Độ USAV (Skill Rank)
+              </label>
+              <a
+                href="/information/skill-levels"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[10px] font-bold text-blue-300 hover:text-orange-400 transition-colors"
+              >
+                Xem bảng chuẩn USAV ↗
+              </a>
+            </div>
+            <select
+              value={playerForm.skillRank || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setPlayerForm({
+                  ...playerForm,
+                  skillRank: (val === '' ? null : val) as SkillRank | null,
+                });
+              }}
+              className="w-full px-3 py-2 bg-[#161F30] border border-slate-700 rounded-xl text-white font-semibold outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Chưa xếp hạng (Unranked)</option>
+              {SKILL_RANK_LIST.map((tier) => (
+                <option key={tier.code} value={tier.code}>
+                  {tier.code} — {tier.labelVi}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-400">
+              Hiển thị trực tiếp dưới dạng badge (VD: RANK: BB, RANK: A, RANK: OPEN) trên thẻ cầu thủ tại trang Players.
             </p>
           </div>
 

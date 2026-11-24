@@ -511,6 +511,19 @@ export const playerService = {
     return res;
   },
 
+  async updateSkillRank(id: string, skillRank: string | null): Promise<Player> {
+    const res = await request<Player>(`/players/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ skillRank }),
+    }, {
+      id,
+      skillRank,
+    } as Player);
+    playersCache.invalidate();
+    homeSummaryCache.invalidate();
+    return res;
+  },
+
   async updateLevel(id: string, level: PlayerLevel): Promise<Player> {
     const res = await request<Player>(`/players/${id}/level`, {
       method: 'PATCH',
@@ -1084,6 +1097,7 @@ export const memberService = {
     payload: {
       fullName?: string;
       level?: PlayerLevel;
+      skillRank?: string | null;
       status?: ApplicationStatus;
       reviewNotes?: string;
       coachNotes?: string;
@@ -1096,7 +1110,8 @@ export const memberService = {
     });
     if (
       payload.status === 'APPROVED' ||
-      (payload.fullName !== undefined && res.status === 'APPROVED')
+      ((payload.fullName !== undefined || payload.skillRank !== undefined || payload.level !== undefined) &&
+        res.status === 'APPROVED')
     ) {
       playersCache.invalidate();
       homeSummaryCache.invalidate();
@@ -1108,10 +1123,15 @@ export const memberService = {
     id: string,
     payload: TryoutEvaluatePayload
   ): Promise<MemberApplication> {
-    return request<MemberApplication>(`/admin/tryouts/${id}/evaluate`, {
+    const res = await request<MemberApplication>(`/admin/tryouts/${id}/evaluate`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
+    if (payload.status === 'APPROVED' || res.status === 'APPROVED') {
+      playersCache.invalidate();
+      homeSummaryCache.invalidate();
+    }
+    return res;
   },
 
   async sendTryoutEmail(
@@ -1124,7 +1144,7 @@ export const memberService = {
     message: string;
     application: MemberApplication;
   }> {
-    return request<{
+    const res = await request<{
       success: boolean;
       emailSent: boolean;
       emailError?: string;
@@ -1134,6 +1154,11 @@ export const memberService = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    if (payload.outcome === 'APPROVED' || res.application?.status === 'APPROVED') {
+      playersCache.invalidate();
+      homeSummaryCache.invalidate();
+    }
+    return res;
   },
 
   async scheduleTryout(

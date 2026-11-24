@@ -16,6 +16,7 @@ import {
   sendTryoutResultEmail,
 } from '../../utils/email.service';
 import { getTryoutDayInfo } from '../../../src/shared/tryoutEmail';
+import { normalizeSkillRank } from '../../../src/shared/skillRanks';
 import { dispatchGoogleSheetsWebhookAsync } from '../integrations/sheets.service';
 
 type AssignedPlayerLevel = 'SENIOR' | 'JUNIOR' | 'YOUTH';
@@ -72,6 +73,7 @@ async function promoteApplicationToPlayerIfNeeded(tx: any, existing: any): Promi
       countryFlag: '🇻🇳',
       bornYear: resolvedBornYear,
       level: existing.level || 'JUNIOR',
+      skillRank: normalizeSkillRank(existing.skillRank),
       position: existing.position || 'OH',
       avatarUrl: '',
       bio: `Tân binh DVA gia nhập qua đợt tuyển chọn thành viên 2026. Am hiểu sơ đồ ${fromRotationEnum(existing.rotationKnowledge)}.`,
@@ -82,14 +84,19 @@ async function promoteApplicationToPlayerIfNeeded(tx: any, existing: any): Promi
   return true;
 }
 
-async function syncApprovedPlayerNameIfNeeded(
+async function syncApprovedPlayerFieldsIfNeeded(
   tx: any,
   existing: any,
-  nextFullName: string
+  patch: { fullName?: string; level?: AssignedPlayerLevel; skillRank?: string | null }
 ): Promise<boolean> {
   if (existing.status !== 'APPROVED') return false;
   const oldName = String(existing.fullName || '').trim();
-  if (!oldName || oldName === nextFullName) return false;
+  if (!oldName) return false;
+  const updateData: Record<string, any> = {};
+  if (patch.fullName !== undefined && patch.fullName !== oldName) updateData.fullName = patch.fullName;
+  if (patch.level !== undefined) updateData.level = patch.level;
+  if (patch.skillRank !== undefined) updateData.skillRank = patch.skillRank;
+  if (Object.keys(updateData).length === 0) return false;
 
   const email = String(existing.gmail || '').trim().toLowerCase();
   const candidates: any[] = await tx.player.findMany({
@@ -125,7 +132,7 @@ async function syncApprovedPlayerNameIfNeeded(
 
   await tx.player.update({
     where: { id: target.id },
-    data: { fullName: nextFullName },
+    data: updateData,
   });
   return true;
 }
@@ -254,7 +261,7 @@ export async function registerApplication(data: Record<string, any>, isTryoutPag
 
 export async function updateApplicationStatus(
   id: string,
-  input: { status: string; reviewNotes?: string; entryFee?: number },
+  input: { status: string; reviewNotes?: string; entryFee?: number; skillRank?: string | null },
   isSuperAdminUser: boolean
 ) {
   assertCanRejectApplication(isSuperAdminUser, input.status);
@@ -266,6 +273,9 @@ export async function updateApplicationStatus(
   }
   const existing = await prisma.memberApplication.findUnique({ where: { id } });
   if (!existing) throw new HttpError(404, 'Application not found');
+
+  const resolvedSkillRank =
+    input.skillRank !== undefined ? normalizeSkillRank(input.skillRank) : normalizeSkillRank(existing.skillRank);
 
   const existingPay = String(existing.paymentStatus || 'PENDING').toUpperCase();
   const resolvedFee =
@@ -281,6 +291,7 @@ export async function updateApplicationStatus(
       where: { id },
       data: {
         status: input.status as any,
+        ...(input.skillRank !== undefined ? { skillRank: resolvedSkillRank } : {}),
         ...(input.reviewNotes ? { reviewNotes: input.reviewNotes } : {}),
         ...(input.status === 'APPROVED'
           ? { approvedAt: existing.approvedAt ?? new Date(), entryFee: resolvedFee }
@@ -288,7 +299,7 @@ export async function updateApplicationStatus(
       },
     });
     if (input.status === 'APPROVED') {
-      promoted = await promoteApplicationToPlayerIfNeeded(tx, existing);
+      promoted = await promoteApplicationToPlayerIfNeeded(tx, { ...existing, skillRank: resolvedSkillRank });
     }
     return appUpdated;
   });
@@ -309,6 +320,7 @@ export async function updateTryoutApplication(
     fullName?: string;
     name?: string;
     level?: string;
+    skillRank?: string | null;
     status?: string;
     conclusion?: string;
     outcome?: string;
@@ -347,6 +359,8 @@ export async function updateTryoutApplication(
 
   const nextLevel =
     input.level !== undefined ? resolveAssignedPlayerLevel(input.level, existing.level) : existing.level;
+  const nextSkillRank =
+    input.skillRank !== undefined ? normalizeSkillRank(input.skillRank) : normalizeSkillRank(existing.skillRank);
 
   const existingPay = String(existing.paymentStatus || 'PENDING').toUpperCase();
   const resolvedFee =
@@ -362,6 +376,7 @@ export async function updateTryoutApplication(
     const updateData: Record<string, any> = {};
     if (isSuperAdminUser && trimmedFullName !== undefined) updateData.fullName = trimmedFullName;
     if (input.level !== undefined) updateData.level = nextLevel;
+    if (input.skillRank !== undefined) updateData.skillRank = nextSkillRank;
     if (input.reviewNotes !== undefined) updateData.reviewNotes = input.reviewNotes;
     if (input.coachNotes !== undefined) updateData.coachNotes = input.coachNotes;
     if (isSuperAdminUser && input.entryFee !== undefined) updateData.entryFee = input.entryFee;
@@ -386,10 +401,15 @@ export async function updateTryoutApplication(
         ...existing,
         fullName: nextFullName,
         level: nextLevel,
+        skillRank: nextSkillRank,
       });
     }
-    if (!promoted && isSuperAdminUser && trimmedFullName !== undefined) {
-      playerSynced = await syncApprovedPlayerNameIfNeeded(tx, existing, nextFullName);
+    if (!promoted && (trimmedFullName !== undefined || input.level !== undefined || input.skillRank !== undefined)) {
+      playerSynced = await syncApprovedPlayerFieldsIfNeeded(tx, existing, {
+        ...(isSuperAdminUser && trimmedFullName !== undefined ? { fullName: nextFullName } : {}),
+        ...(input.level !== undefined ? { level: nextLevel } : {}),
+        ...(input.skillRank !== undefined ? { skillRank: nextSkillRank } : {}),
+      });
     }
     return appUpdated;
   });
@@ -439,7 +459,7 @@ export async function updateApplicationPaymentStatus(id: string, paymentStatus: 
 
 export async function evaluateApplication(
   id: string,
-  input: { scores: any; coachNotes?: string; status: 'APPROVED' | 'RETEST' | 'REJECTED'; level?: string },
+  input: { scores: any; coachNotes?: string; status: 'APPROVED' | 'RETEST' | 'REJECTED'; level?: string; skillRank?: string | null },
   actor: { fullName?: string; role?: string },
   isSuperAdminUser: boolean
 ) {
@@ -448,6 +468,8 @@ export async function evaluateApplication(
   if (!existing) throw new HttpError(404, 'Application not found');
 
   const resolvedLevel = resolveAssignedPlayerLevel(input.level, existing.level);
+  const resolvedSkillRank =
+    input.skillRank !== undefined ? normalizeSkillRank(input.skillRank) : normalizeSkillRank(existing.skillRank);
   const now = new Date();
   const scoresPayload = {
     ...input.scores,
@@ -456,11 +478,13 @@ export async function evaluateApplication(
   };
 
   let promoted = false;
+  let playerSynced = false;
   const updated = await prisma.$transaction(async (tx) => {
     const appUpdated = await tx.memberApplication.update({
       where: { id },
       data: {
         level: resolvedLevel,
+        ...(input.skillRank !== undefined ? { skillRank: resolvedSkillRank } : {}),
         evaluationScores: scoresPayload as any,
         coachNotes: input.coachNotes !== undefined ? input.coachNotes : existing.coachNotes,
         status: input.status,
@@ -468,12 +492,22 @@ export async function evaluateApplication(
       },
     });
     if (input.status === 'APPROVED') {
-      promoted = await promoteApplicationToPlayerIfNeeded(tx, { ...existing, level: resolvedLevel });
+      promoted = await promoteApplicationToPlayerIfNeeded(tx, {
+        ...existing,
+        level: resolvedLevel,
+        skillRank: resolvedSkillRank,
+      });
+      if (!promoted) {
+        playerSynced = await syncApprovedPlayerFieldsIfNeeded(tx, existing, {
+          level: resolvedLevel,
+          ...(input.skillRank !== undefined ? { skillRank: resolvedSkillRank } : {}),
+        });
+      }
     }
     return appUpdated;
   });
 
-  if (promoted) {
+  if (promoted || playerSynced) {
     invalidateCache(['players', 'home']);
   }
   return toApplicationDto(updated, isSuperAdminUser);
@@ -583,6 +617,8 @@ export async function sendTryoutEmail(
   }
 
   const resolvedLevel = resolveAssignedPlayerLevel(body.level, existing.level);
+  const resolvedSkillRank =
+    body.skillRank !== undefined ? normalizeSkillRank(body.skillRank) : normalizeSkillRank(existing.skillRank);
   const resolvedScores =
     body.scores ||
     (existing.evaluationScores && typeof existing.evaluationScores === 'object'
@@ -621,11 +657,13 @@ export async function sendTryoutEmail(
   };
 
   let promoted = false;
+  let playerSynced = false;
   const updated = await prisma.$transaction(async (tx) => {
     const appUpdated = await tx.memberApplication.update({
       where: { id },
       data: {
         level: resolvedLevel,
+        ...(body.skillRank !== undefined ? { skillRank: resolvedSkillRank } : {}),
         status: resolvedOutcome,
         ...(scoresWithMeta ? { evaluationScores: scoresWithMeta as any } : {}),
         ...(resolvedCoachNotes !== undefined ? { coachNotes: resolvedCoachNotes || null } : {}),
@@ -635,12 +673,22 @@ export async function sendTryoutEmail(
       },
     });
     if (resolvedOutcome === 'APPROVED') {
-      promoted = await promoteApplicationToPlayerIfNeeded(tx, { ...existing, level: resolvedLevel });
+      promoted = await promoteApplicationToPlayerIfNeeded(tx, {
+        ...existing,
+        level: resolvedLevel,
+        skillRank: resolvedSkillRank,
+      });
+      if (!promoted) {
+        playerSynced = await syncApprovedPlayerFieldsIfNeeded(tx, existing, {
+          level: resolvedLevel,
+          ...(body.skillRank !== undefined ? { skillRank: resolvedSkillRank } : {}),
+        });
+      }
     }
     return appUpdated;
   });
 
-  if (promoted) {
+  if (promoted || playerSynced) {
     invalidateCache(['players', 'home']);
   }
 

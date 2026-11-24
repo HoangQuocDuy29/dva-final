@@ -264,6 +264,7 @@ export function createDefaultPlayerForm(jerseyNumber: number = 1): Partial<Playe
     joined: 2025,
     joinedYear: 2025,
     level: 'SENIOR',
+    skillRank: null,
     position: 'OH',
     bio: '',
     captain: false,

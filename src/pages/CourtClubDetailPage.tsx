@@ -155,6 +155,15 @@ export const CourtClubDetailPage: React.FC = () => {
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${style.badgeClass}`}>{style.emoji} {style.shortLabel} • {(GENDER_RULE_META[s.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>
+                        {s.skillRankLabel && (
+                          <Link
+                            to="/information/skill-levels"
+                            title="Xem bảng phân cấp trình độ chuẩn USAV"
+                            className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-950/85 hover:bg-blue-900 text-blue-200 border border-blue-500/50 transition-colors"
+                          >
+                            🇺🇸 USAV: {s.skillRankLabel}
+                          </Link>
+                        )}
                         {!closed && !cancelled && rt.state === 'LIVE' && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/45">● ĐANG ĐÁNH</span>}
                         {!closed && !cancelled && rt.state === 'UPCOMING' && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/25 text-amber-200 border border-orange-400/60"><Timer className="w-3 h-3" />⏳ {rt.countdownText}</span>}
                         {!cancelled && <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${rec.badgeClass}`}>{rec.label}</span>}

@@ -728,6 +728,7 @@ export async function createTrainingCourse(data: Record<string, any>) {
       id: `tc-${crypto.randomUUID()}`,
       title: data.title,
       level: data.level || 'JUNIOR',
+      skillRankLabel: data.skillRankLabel ? String(data.skillRankLabel).trim() : null,
       tag: data.tag ?? null,
       targetAudience: data.targetAudience || '',
       price: Math.round(Number(data.price) || 0),
@@ -755,6 +756,9 @@ export async function updateTrainingCourse(id: string, data: Record<string, any>
     where: { id },
     data: {
       ...data,
+      ...(data.skillRankLabel !== undefined
+        ? { skillRankLabel: data.skillRankLabel ? String(data.skillRankLabel).trim() : null }
+        : {}),
       ...(data.price !== undefined ? { price: Math.round(Number(data.price)) } : {}),
     },
   });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { 
   Calendar, 
   Users, 
@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { TrainingCourse, CoachProfile } from '../types';
+import { deriveDefaultUsavRangeForLevel } from '../shared/skillRanks';
 import { trainingService, coachService, googleScriptSyncService } from '../services/api';
 import { CourseDetailModal } from '../components/training/CourseDetailModal';
 
@@ -603,10 +604,20 @@ export const TrainingPage: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Package Title */}
-                      <h3 className="font-heading font-black text-xl sm:text-2xl text-amber-400 tracking-tight leading-snug">
-                        {course.title}
-                      </h3>
+                      {/* Package Title & Recommended USAV Skill Rank Badge */}
+                      <div className="space-y-2">
+                        <h3 className="font-heading font-black text-xl sm:text-2xl text-amber-400 tracking-tight leading-snug">
+                          {course.title}
+                        </h3>
+                        <Link
+                          to="/information/skill-levels"
+                          title="Xem bảng phân cấp trình độ chuẩn USA Volleyball (USAV)"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-950/80 hover:bg-blue-900/80 border border-blue-500/50 text-blue-200 hover:text-white text-[10px] font-black uppercase tracking-wider transition-colors"
+                        >
+                          <span>🇺🇸</span>
+                          <span>USAV: {course.skillRankLabel || deriveDefaultUsavRangeForLevel(course.level)}</span>
+                        </Link>
+                      </div>
 
                       {/* Description */}
                       <p className="text-xs text-slate-300 leading-relaxed min-h-[44px]">

@@ -14,7 +14,8 @@ import {
   Users,
   ShoppingBag,
   Info,
-  Target
+  Target,
+  Award
 } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { authService } from '../../services/api';
@@ -166,6 +167,13 @@ export const Navbar: React.FC<NavbarProps> = ({
       subtitle: t('nav.tryoutDesc', 'Weekly test schedule, criteria & apply'),
       path: '/information/try-out',
       icon: Target,
+      exact: false,
+    },
+    {
+      title: t('nav.skillLevels', '🇺🇸 Bảng Phân Cấp Trình Độ (USAV)'),
+      subtitle: t('nav.skillLevelsDesc', 'Hệ thống phân hạng C → Open chuẩn USA Volleyball'),
+      path: '/information/skill-levels',
+      icon: Award,
       exact: false,
     },
   ];

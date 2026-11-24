@@ -1,6 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { TrainingCourse } from '../../../../types';
+import { RECOMMENDED_SKILL_RANK_PRESETS } from '../../../../shared/skillRanks';
 
 export interface CourseFormModalProps {
   isOpen: boolean;
@@ -103,6 +104,25 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono text-orange-400 font-bold"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-slate-300 font-semibold mb-1">
+              🇺🇸 Hạng Trình Độ USAV Khuyến Nghị (Tùy chọn)
+            </label>
+            <input
+              type="text"
+              list="usav-rank-presets"
+              value={courseForm.skillRankLabel || ''}
+              onChange={(e) => setCourseForm({ ...courseForm, skillRankLabel: e.target.value })}
+              placeholder="VD: C – B, B – BB, BB+, A+ (để trống = tự quy đổi theo Level)"
+              className="w-full px-3 py-2 bg-[#0B0F19] border border-blue-900/70 rounded-xl text-white outline-none"
+            />
+            <datalist id="usav-rank-presets">
+              {RECOMMENDED_SKILL_RANK_PRESETS.map((preset) => (
+                <option key={preset} value={preset} />
+              ))}
+            </datalist>
           </div>
 
           <div>

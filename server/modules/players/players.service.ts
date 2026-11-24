@@ -188,6 +188,7 @@ export async function createPlayer(data: Record<string, any>) {
       countryFlag: resolvedCountryFlag,
       bornYear: data.bornYear ?? null,
       level: data.level,
+      skillRank: data.skillRank ?? null,
       position: data.position,
       avatarUrl: data.avatarUrl || '',
       bio: data.bio || '',

@@ -63,6 +63,7 @@ import {
   countryCodeToFlagEmoji,
   isJerseyCategory,
 } from '../../src/types';
+import { normalizeSkillRank } from '../../src/shared/skillRanks';
 import { normalizeSetScores, normalizeTournamentCourtName } from '../../src/shared/tournaments';
 import {
   getDefaultWeeklyScheduleForCourt,
@@ -293,6 +294,7 @@ export function toPlayerDto(p: DbPlayer | any): Player {
     countryFlag: resolvedFlag,
     bornYear: resolvedBornYear,
     level: normalizedLevel,
+    skillRank: normalizeSkillRank(p.skillRank),
     position: p.position || 'OH',
     avatarUrl: p.avatarUrl ?? '',
     bio: p.bio ?? '',
@@ -403,6 +405,7 @@ export function toCourseDto(c: DbTrainingCourse): TrainingCourse {
     id: c.id,
     title: normalizedTitle,
     level: c.level,
+    skillRankLabel: c.skillRankLabel ?? undefined,
     coachName: c.coachName,
     coachTitle: c.coachTitle,
     schedule: c.schedule,
@@ -531,6 +534,7 @@ export function toApplicationDto(
     ...(includeSensitive ? { hometownCountry: a.hometownCountry } : {}),
     desiredJerseyNumber: a.desiredJerseyNumber,
     level: normalizedLevel,
+    skillRank: normalizeSkillRank(a.skillRank),
     height: a.height,
     weight: a.weight,
     spikeReach: a.spikeReach,

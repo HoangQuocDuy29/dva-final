@@ -25,6 +25,7 @@ import {
   VolleyballPosition,
 } from '../../../types';
 import { Pagination } from '../../../components/common/Pagination';
+import { getSkillRankMeta } from '../../../shared/skillRanks';
 import { getTryoutDayInfo } from '../../../shared/tryoutEmail';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { useApplicationActions } from '../hooks/useApplicationActions';
@@ -248,6 +249,7 @@ export const ApplicationsTab: React.FC = () => {
         (app.fullName || '').toLowerCase().includes(q) ||
         (app.position || '').toLowerCase().includes(q) ||
         (app.level || '').toLowerCase().includes(q) ||
+        (app.skillRank || '').toLowerCase().includes(q) ||
         (app.preferredDays || '').toLowerCase().includes(q) ||
         (isSuperAdmin && (app.gmail || '').toLowerCase().includes(q)) ||
         (isSuperAdmin && (app.zalo || '').toLowerCase().includes(q))
@@ -650,6 +652,20 @@ export const ApplicationsTab: React.FC = () => {
                             >
                               {currentLevel}
                             </span>
+                          );
+                        })()}
+                        {(() => {
+                          const rankMeta = getSkillRankMeta(app.skillRank);
+                          if (!rankMeta) return null;
+                          return (
+                            <div>
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${rankMeta.badgeClass}`}
+                                title={`USAV ${rankMeta.code} — ${rankMeta.labelVi}`}
+                              >
+                                🇺🇸 RANK: {rankMeta.code}
+                              </span>
+                            </div>
                           );
                         })()}
                         <div className="font-mono text-[11px] text-slate-300">

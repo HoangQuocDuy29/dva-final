@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { 
   UserPlus, 
   Check, 
@@ -13,13 +13,19 @@ import { VolleyballPosition, PlayerLevel, RotationKnowledge, MemberApplication }
 import { memberService, googleScriptSyncService } from '../services/api';
 
 export const MemberRegisterPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const initialLevel = (() => {
+    const raw = (searchParams.get('level') || '').trim().toUpperCase();
+    return raw === 'SENIOR' || raw === 'JUNIOR' || raw === 'YOUTH' ? (raw as PlayerLevel) : 'JUNIOR';
+  })();
+
   const [formData, setFormData] = useState({
     fullName: '',
     dob: '2005-01-01',
     position: 'OH' as VolleyballPosition,
     hometownCountry: '',
     desiredJerseyNumber: '' as string | number,
-    level: 'JUNIOR' as PlayerLevel,
+    level: initialLevel,
     height: '',
     weight: '',
     spikeReach: '',
@@ -236,6 +242,15 @@ export const MemberRegisterPage: React.FC = () => {
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
             Submit your athletic profile and jump reach metrics. Applications are reviewed directly by the DVA coaching staff within 24 hours.
           </p>
+          <div className="pt-1">
+            <Link
+              to="/information/skill-levels"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-950/60 hover:bg-blue-900/70 border border-blue-500/40 text-blue-200 text-xs font-bold transition-colors"
+            >
+              <span>🇺🇸</span>
+              <span>Xem Bảng Phân Cấp Trình Độ Chuẩn USAV (C → Open)</span>
+            </Link>
+          </div>
         </div>
 
         {/* Official DVA Athlete Membership Card Notification Modal */}
@@ -441,9 +456,17 @@ export const MemberRegisterPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
-                  Competitive Squad Level *
-                </label>
+                <div className="flex items-center justify-between gap-2 mb-1 sm:mb-1.5">
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300">
+                    Competitive Squad Level *
+                  </label>
+                  <Link
+                    to="/information/skill-levels"
+                    className="text-[11px] font-bold text-blue-300 hover:text-orange-400 transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>🇺🇸 Bảng phân cấp USAV</span>
+                  </Link>
+                </div>
                 <select
                   value={formData.level}
                   onChange={(e) => setFormData({ ...formData, level: e.target.value as PlayerLevel })}

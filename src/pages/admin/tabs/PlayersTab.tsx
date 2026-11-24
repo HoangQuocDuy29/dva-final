@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, X, Edit3, Trash2, Eye, EyeOff, ImageOff } from 'lucide-react';
-import { Player, countryCodeToFlagEmoji } from '../../../types';
+import { Player, SkillRank, countryCodeToFlagEmoji } from '../../../types';
+import { SKILL_RANKS, getSkillRankMeta, UNRANKED_BADGE_CLASS } from '../../../shared/skillRanks';
 import { PLAYER_COUNTRIES } from '../../../data/countries';
 import { playerService } from '../../../services/api';
 import { Pagination } from '../../../components/common/Pagination';
@@ -20,6 +21,7 @@ export const PlayersTab: React.FC = () => {
 
   const [playerSearchQuery, setPlayerSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'HIDDEN'>('ALL');
+  const [rankFilter, setRankFilter] = useState<'ALL' | SkillRank | 'UNRANKED'>('ALL');
   const [missingAvatarOnly, setMissingAvatarOnly] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
@@ -46,6 +48,32 @@ export const PlayersTab: React.FC = () => {
     }
   };
 
+  const handleQuickSkillRankChange = async (p: Player, rawValue: string) => {
+    const nextRank = (rawValue === '' ? null : rawValue) as SkillRank | null;
+    const prevRank = p.skillRank ?? null;
+    if (nextRank === prevRank) return;
+    try {
+      setPlayers((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, skillRank: nextRank } : item))
+      );
+      const updated = await playerService.updateSkillRank(p.id, nextRank);
+      setPlayers((prev) =>
+        prev.map((item) =>
+          item.id === p.id ? { ...item, skillRank: updated.skillRank ?? nextRank } : item
+        )
+      );
+      notify(
+        `Updated ${p.fullName} USAV Rank → ${nextRank ? `RANK: ${nextRank}` : 'Chưa xếp hạng'}.`,
+        2500
+      );
+    } catch {
+      setPlayers((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, skillRank: prevRank } : item))
+      );
+      notify('Error updating athlete USAV skill rank', 3000);
+    }
+  };
+
   const handleSavePlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -69,6 +97,7 @@ export const PlayersTab: React.FC = () => {
 
       const payload: Partial<Player> = {
         ...playerForm,
+        skillRank: (playerForm.skillRank || null) as SkillRank | null,
         ...(editingPlayer
           ? { bornYear: (resolvedBornYear ?? null) as unknown as number | undefined }
           : resolvedBornYear !== undefined
@@ -87,14 +116,14 @@ export const PlayersTab: React.FC = () => {
         setPlayers((prev) =>
           prev.map((p) =>
             p.id === editingPlayer.id
-              ? { ...p, ...payload, ...updated, bornYear: updated.bornYear }
+              ? { ...p, ...payload, ...updated, bornYear: updated.bornYear, skillRank: updated.skillRank ?? null }
               : p
           )
         );
         notify(`Player ${payload.fullName} updated successfully.`, 3000);
       } else {
         const created = await playerService.addPlayer(payload);
-        setPlayers((prev) => [{ ...payload, ...created, bornYear: created.bornYear } as Player, ...prev]);
+        setPlayers((prev) => [{ ...payload, ...created, bornYear: created.bornYear, skillRank: created.skillRank ?? null } as Player, ...prev]);
         notify(`Athlete ${payload.fullName} added to DVA roster.`, 3000);
       }
       setIsPlayerModalOpen(false);
@@ -126,12 +155,17 @@ export const PlayersTab: React.FC = () => {
     // Missing Avatar Filter
     if (missingAvatarOnly && p.avatarUrl && p.avatarUrl.trim() !== '') return false;
 
+    // USAV Skill Rank Filter
+    if (rankFilter === 'UNRANKED' && p.skillRank) return false;
+    if (rankFilter !== 'ALL' && rankFilter !== 'UNRANKED' && p.skillRank !== rankFilter) return false;
+
     if (!playerSearchQuery.trim()) return true;
     const q = playerSearchQuery.toLowerCase().trim();
     const matchName = p.fullName.toLowerCase().includes(q);
     const matchJersey = String(p.jerseyNumber).includes(q) || `#${p.jerseyNumber}`.includes(q);
     const matchPos = p.position.toLowerCase().includes(q);
     const matchLevel = p.level.toLowerCase().includes(q);
+    const matchRank = (p.skillRank || 'unranked').toLowerCase().includes(q);
     const matchHometown = (p.hometownCountry || '').toLowerCase().includes(q);
     const matchCountry =
       (p.country || p.countryName || '').toLowerCase().includes(q) ||
@@ -142,6 +176,7 @@ export const PlayersTab: React.FC = () => {
       matchJersey ||
       matchPos ||
       matchLevel ||
+      matchRank ||
       matchHometown ||
       matchCountry ||
       matchJoined
@@ -150,7 +185,7 @@ export const PlayersTab: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, missingAvatarOnly, playerSearchQuery]);
+  }, [statusFilter, rankFilter, missingAvatarOnly, playerSearchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPlayers.length / PLAYERS_PAGE_SIZE));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
@@ -250,6 +285,35 @@ export const PlayersTab: React.FC = () => {
             </button>
           </div>
 
+          {/* USAV Skill Rank Filter Chips */}
+          <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-slate-800/80">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">🇺🇸 USAV Rank:</span>
+            {(['ALL', ...SKILL_RANKS, 'UNRANKED'] as const).map((r) => {
+              const active = rankFilter === r;
+              const count =
+                r === 'ALL'
+                  ? players.length
+                  : r === 'UNRANKED'
+                    ? players.filter((p) => !p.skillRank).length
+                    : players.filter((p) => p.skillRank === r).length;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRankFilter(r)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 border ${
+                    active
+                      ? 'bg-blue-600 text-white border-blue-400 shadow-sm'
+                      : 'bg-[#161F30] text-slate-300 hover:text-white border-slate-700/60'
+                  }`}
+                >
+                  <span>{r === 'ALL' ? 'All' : r === 'UNRANKED' ? 'Unranked' : r}</span>
+                  <span className="px-1 py-0.2 text-[9px] rounded-full bg-black/30 font-mono">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* SEARCH INPUT BAR */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative flex-1">
@@ -301,20 +365,22 @@ export const PlayersTab: React.FC = () => {
               const flagEmoji = p.countryFlag || countryCodeToFlagEmoji(p.countryCode || 'VN');
               const countryLabel = p.country || p.countryName || 'Vietnam';
               const joinedLabel = p.joined ?? p.joinedYear ?? 2025;
+              const rankMeta = getSkillRankMeta(p.skillRank);
               return (
                 <div
                   key={p.id}
-                  className="p-4 rounded-2xl border border-slate-800 bg-[#0E1524] flex items-center justify-between"
+                  className="p-4 rounded-2xl border border-slate-800 bg-[#0E1524] flex flex-col gap-3 justify-between"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
                     <AthleteRosterAvatar
                       avatarUrl={p.avatarUrl || (p as any).avatar || (p as any).image}
                       fullName={p.fullName}
                       jerseyNumber={p.jerseyNumber}
                     />
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-bold text-white text-xs flex flex-wrap items-center gap-1.5">
-                        <span>{p.fullName}</span>
+                        <span className="truncate">{p.fullName}</span>
                         {(p.captain || p.isCaptain) && (
                           <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 shadow-sm border border-yellow-200">
                             CAPTAIN
@@ -345,7 +411,7 @@ export const PlayersTab: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
                       onClick={() => handleTogglePlayerVisibility(p)}
@@ -383,6 +449,7 @@ export const PlayersTab: React.FC = () => {
                         setEditingPlayer(p);
                         setPlayerForm({
                           ...p,
+                          skillRank: p.skillRank ?? null,
                           bornYear: initBornYear,
                           country: initCountry,
                           countryName: initCountry,
@@ -407,6 +474,31 @@ export const PlayersTab: React.FC = () => {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                  </div>
+                  </div>
+
+                  {/* Quick Inline USAV Skill Rank Selector */}
+                  <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                        rankMeta ? rankMeta.badgeClass : UNRANKED_BADGE_CLASS
+                      }`}
+                    >
+                      {rankMeta ? `🇺🇸 RANK: ${rankMeta.code}` : 'UNRANKED'}
+                    </span>
+                    <select
+                      aria-label={`USAV Skill Rank for ${p.fullName}`}
+                      value={p.skillRank || ''}
+                      onChange={(e) => handleQuickSkillRankChange(p, e.target.value)}
+                      className="px-2.5 py-1 rounded-lg bg-[#161F30] border border-slate-700 hover:border-blue-500/60 text-[11px] font-bold text-slate-200 outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="">Chưa xếp hạng</option>
+                      {SKILL_RANKS.map((rank) => (
+                        <option key={rank} value={rank}>
+                          Hạng {rank}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               );

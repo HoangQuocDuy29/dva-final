@@ -15,6 +15,16 @@ export const LEVEL_RULE: Rule = (v, k) => {
 };
 
 export const POSITIONS = ['OH', 'OP', 'MB', 'S', 'L'] as const;
+export const SKILL_RANKS = ['C', 'B', 'BB', 'A', 'AA', 'OPEN'] as const;
+export const OPTIONAL_SKILL_RANK: Rule = (v, k) => {
+  if (typeof v !== 'string') throw new HttpError(400, `${k} must be a string`);
+  const clean = v.trim().toUpperCase();
+  if (clean === '') return null;
+  if (!(SKILL_RANKS as readonly string[]).includes(clean)) {
+    throw new HttpError(400, `${k} must be one of: ${SKILL_RANKS.join(', ')}`);
+  }
+  return clean;
+};
 export const PAYMENT_STATUSES = ['PENDING', 'PAID', 'CANCELLED'] as const;
 export const REGISTRATION_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED'] as const;
 export const APPLICATION_STATUSES = ['PENDING', 'SCHEDULED', 'RETEST', 'APPROVED', 'REJECTED'] as const;
@@ -77,6 +87,7 @@ export const PLAYER_SCHEMA: Schema = {
   countryFlag: S(10),
   bornYear: I(1950, 2030),
   level: LEVEL_RULE,
+  skillRank: E(SKILL_RANKS),
   squad: S(50),
   category: S(50),
   team: S(50),
@@ -224,6 +235,7 @@ export const BOOKING_UPDATE_SCHEMA: Schema = {
 export const COURSE_SCHEMA: Schema = {
   title: S(150, 2),
   level: S(50),
+  skillRankLabel: S(40),
   coachName: S(100),
   coachTitle: S(100),
   schedule: S(200),
@@ -370,12 +382,14 @@ export const APPLICATION_STATUS_UPDATE_SCHEMA: Schema = {
   status: E(APPLICATION_STATUSES),
   reviewNotes: S(500),
   entryFee: I(0, 100_000_000),
+  skillRank: OPTIONAL_SKILL_RANK,
 };
 
 export const TRYOUT_PATCH_SCHEMA: Schema = {
   fullName: S(100, 1),
   name: S(100, 1),
   level: LEVEL_RULE,
+  skillRank: OPTIONAL_SKILL_RANK,
   status: E(APPLICATION_STATUSES),
   conclusion: E(APPLICATION_STATUSES),
   outcome: E(APPLICATION_STATUSES),
@@ -411,6 +425,7 @@ export const TRYOUT_EVALUATE_SCHEMA: Schema = {
   coachNotes: S(2000),
   status: E(['APPROVED', 'RETEST', 'REJECTED']),
   level: LEVEL_RULE,
+  skillRank: OPTIONAL_SKILL_RANK,
 };
 
 export const TRYOUT_SCHEDULE_EMAIL_SCHEMA: Schema = {
@@ -430,6 +445,7 @@ export const TRYOUT_UNIFIED_EMAIL_SCHEMA: Schema = {
   coachNotes: S(2000),
   scores: EVALUATION_SCORES_RULE,
   level: LEVEL_RULE,
+  skillRank: OPTIONAL_SKILL_RANK,
 };
 
 // ============================================================================
@@ -1022,5 +1038,6 @@ export const VENUE_SESSION_SCHEMA: Schema = {
   neededPositions: NEEDED_POSITIONS_RULE,
   dailyOverrides: DAILY_OVERRIDES_RULE,
   genderRule: E(VENUE_GENDER_RULES),
+  skillRankLabel: S(40),
   forceOverride: B,
 };

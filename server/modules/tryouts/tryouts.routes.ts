@@ -65,6 +65,9 @@ tryoutsRouter.patch(
     }
     assertCanRejectApplication(superAdmin, req.body?.status, req.body?.conclusion, req.body?.outcome);
     const data = sanitize(req.body, TRYOUT_PATCH_SCHEMA, { partial: true });
+    if (req.body?.skillRank === null || req.body?.skillRank === '') {
+      data.skillRank = null;
+    }
     if (Object.keys(data).length === 0) {
       throw new HttpError(400, 'No valid update fields provided.');
     }
@@ -111,6 +114,9 @@ const handleEvaluate = ah(async (req, res) => {
   const superAdmin = isSuperAdmin(req.user);
   assertCanRejectApplication(superAdmin, req.body?.status, req.body?.conclusion, req.body?.outcome);
   const data = sanitize(req.body, TRYOUT_EVALUATE_SCHEMA, { required: ['scores', 'status'] });
+  if (req.body?.skillRank === null || req.body?.skillRank === '') {
+    data.skillRank = null;
+  }
   const dto = await evaluateApplication(
     req.params.id,
     data as any,
@@ -146,6 +152,9 @@ tryoutsRouter.post(
     const superAdmin = isSuperAdmin(req.user);
     assertCanRejectApplication(superAdmin, req.body?.outcome, req.body?.status, req.body?.conclusion);
     const body = sanitize(req.body ?? {}, TRYOUT_UNIFIED_EMAIL_SCHEMA, { required: ['kind'] });
+    if (req.body?.skillRank === null || req.body?.skillRank === '') {
+      body.skillRank = null;
+    }
     const result = await sendTryoutEmail(
       req.params.id,
       body,

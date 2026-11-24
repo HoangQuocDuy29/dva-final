@@ -76,7 +76,7 @@ const handleSessionMutation = (isCreate: boolean) => ah(async (req: Request, res
   const rawData = isCreate
     ? sanitize(req.body, VENUE_SESSION_SCHEMA, { required: ['clubId', 'daysOfWeek', 'startTime', 'endTime', 'subCourts'] })
     : sanitize(req.body, VENUE_SESSION_SCHEMA, { partial: true });
-  const data = preserveNulls(req.body, rawData, ['cancelReason']);
+  const data = preserveNulls(req.body, rawData, ['cancelReason', 'skillRankLabel']);
   try {
     const out = await upsertSession(req.params.venueId, data, isCreate ? undefined : req.params.sessionId, req.user);
     res.status(isCreate ? 201 : 200).json(out);

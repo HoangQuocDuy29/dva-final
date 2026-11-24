@@ -209,7 +209,8 @@ export async function upsertSession(venueId: string, data: Record<string, any>, 
   const neededPositions = data.neededPositions !== undefined ? data.neededPositions : (existing?.neededPositions ?? []);
   const dailyOverrides = data.dailyOverrides !== undefined ? data.dailyOverrides : ((existing?.dailyOverrides as Record<string, any>) ?? {});
   const genderRule = data.genderRule ?? existing?.genderRule ?? 'MIXED';
-  const p = { clubId, daysOfWeek, startTime, endTime, subCourts, recruitmentStatus: data.recruitmentStatus ?? existing?.recruitmentStatus ?? 'CHECK_CAPTAIN', isCancelled, cancelledDates, cancelReason, capacityMode, currentPlayers, maxPlayers, neededPositions, dailyOverrides, genderRule };
+  const skillRankLabel = data.skillRankLabel !== undefined ? (data.skillRankLabel ? String(data.skillRankLabel).trim() : null) : (existing?.skillRankLabel ?? null);
+  const p = { clubId, daysOfWeek, startTime, endTime, subCourts, recruitmentStatus: data.recruitmentStatus ?? existing?.recruitmentStatus ?? 'CHECK_CAPTAIN', isCancelled, cancelledDates, cancelReason, capacityMode, currentPlayers, maxPlayers, neededPositions, dailyOverrides, genderRule, skillRankLabel };
   const out = sessionId ? await prisma.venueSessionSlot.update({ where: { id: sessionId }, data: p, include: { club: true } }) : await prisma.venueSessionSlot.create({ data: { venueId, ...p }, include: { club: true } });
   invalidateCache('venues');
   return out;

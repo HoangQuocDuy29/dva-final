@@ -18,7 +18,8 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { MemberApplication, PlayerLevel, TryoutEvaluationScores } from '../../../../types';
+import { MemberApplication, PlayerLevel, SkillRank, TryoutEvaluationScores } from '../../../../types';
+import { SKILL_RANK_LIST, normalizeSkillRank } from '../../../../shared/skillRanks';
 import { memberService } from '../../../../services/api';
 import {
   TRYOUT_CRITERIA_LABELS,
@@ -127,6 +128,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
   const [attitude, setAttitude] = useState(4);
   const [coachNotes, setCoachNotes] = useState('');
   const [assignedLevel, setAssignedLevel] = useState<PlayerLevel>('JUNIOR');
+  const [assignedSkillRank, setAssignedSkillRank] = useState<SkillRank | null>(null);
   const [conclusion, setConclusion] = useState<ConclusionChoice>('APPROVED');
   const [submitting, setSubmitting] = useState<'SAVE' | 'SEND' | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -141,6 +143,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
     setAttitude(Number(prev?.attitude) >= 1 && Number(prev?.attitude) <= 5 ? Number(prev?.attitude) : 4);
     setCoachNotes(application.coachNotes || '');
     setAssignedLevel(normalizeAssignedLevel(application.level));
+    setAssignedSkillRank(normalizeSkillRank(application.skillRank));
     setConclusion(resolveInitialConclusion(application, isSuperAdmin));
     setErrorMsg(null);
     setMobileView('SCORECARD');
@@ -217,15 +220,17 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
         coachNotes: coachNotes.trim(),
         status: conclusion,
         level: assignedLevel,
+        skillRank: assignedSkillRank,
       });
+      const rankSummary = assignedSkillRank ? ` · USAV ${assignedSkillRank}` : '';
       onUpdated(
         updated,
         conclusion === 'APPROVED'
-          ? `Đã lưu phiếu chấm (${totalScore}/20 · Level ${assignedLevel}) & chốt APPROVED cho ${application.fullName}.`
+          ? `Đã lưu phiếu chấm (${totalScore}/20 · Level ${assignedLevel}${rankSummary}) & chốt APPROVED cho ${application.fullName}.`
           : conclusion === 'RETEST'
-            ? `Đã lưu phiếu chấm (${totalScore}/20 · Level ${assignedLevel}) & chuyển ${application.fullName} sang Test lại buổi 2 (RETEST).`
-            : `Đã lưu phiếu chấm (${totalScore}/20 · Level ${assignedLevel}) & chốt REJECTED cho ${application.fullName}.`,
-        conclusion === 'APPROVED'
+            ? `Đã lưu phiếu chấm (${totalScore}/20 · Level ${assignedLevel}${rankSummary}) & chuyển ${application.fullName} sang Test lại buổi 2 (RETEST).`
+            : `Đã lưu phiếu chấm (${totalScore}/20 · Level ${assignedLevel}${rankSummary}) & chốt REJECTED cho ${application.fullName}.`,
+        conclusion === 'APPROVED' || application.status === 'APPROVED'
       );
       onClose();
     } catch (err: any) {
@@ -253,8 +258,9 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
         scores: scoresPayload,
         coachNotes: coachNotes.trim(),
         level: assignedLevel,
+        skillRank: assignedSkillRank,
       });
-      onUpdated(res.application, res.message, conclusion === 'APPROVED');
+      onUpdated(res.application, res.message, conclusion === 'APPROVED' || application.status === 'APPROVED');
       onClose();
     } catch (err: any) {
       setErrorMsg(err?.message || 'Không thể gửi email kết quả. Vui lòng thử lại.');
@@ -493,6 +499,59 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                       >
                         <div className="font-mono font-black text-xs">{lvl.label}</div>
                         <div className="text-[10px] opacity-80 truncate">{lvl.hint}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* USAV Skill Rank Selector (Auto-syncs to Player Roster upon APPROVED) */}
+              <div className="p-4 rounded-2xl bg-[#0B0F19] border border-blue-900/50 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-200">
+                      🇺🇸 Hạng Trình Độ USAV (Skill Rank)
+                    </label>
+                    <span className="text-[10px] text-slate-400">
+                      Tự động gắn lên thẻ cầu thủ trong Roster Squad ngay khi duyệt APPROVED.
+                    </span>
+                  </div>
+                  <a
+                    href="/information/skill-levels"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] font-bold text-blue-300 hover:text-orange-400"
+                  >
+                    Bảng chuẩn USAV ↗
+                  </a>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setAssignedSkillRank(null)}
+                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                      assignedSkillRank === null
+                        ? 'bg-slate-700 text-white border-slate-400'
+                        : 'bg-[#161F30] text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    Chưa xếp hạng
+                  </button>
+                  {SKILL_RANK_LIST.map((tier) => {
+                    const active = assignedSkillRank === tier.code;
+                    return (
+                      <button
+                        key={tier.code}
+                        type="button"
+                        onClick={() => setAssignedSkillRank(tier.code)}
+                        title={tier.labelVi}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                          active
+                            ? `${tier.pillBgClass} border-white/40 shadow scale-[1.03]`
+                            : `${tier.badgeClass} opacity-75 hover:opacity-100`
+                        }`}
+                      >
+                        {tier.code}
                       </button>
                     );
                   })}

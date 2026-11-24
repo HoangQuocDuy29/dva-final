@@ -89,6 +89,14 @@ export const InformationPage: React.FC = () => {
                 <span>{isVi ? 'Xem Chi Tiết & Đăng Ký Try-Out' : 'Try-Out Program & Register'}</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
+              <Link
+                to="/information/skill-levels"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-xs text-blue-200 bg-blue-950/60 hover:bg-blue-900/60 border border-blue-500/40 transition-all cursor-pointer whitespace-nowrap"
+              >
+                <span>🇺🇸</span>
+                <span>Bảng Phân Cấp Trình Độ (USAV)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
         </section>

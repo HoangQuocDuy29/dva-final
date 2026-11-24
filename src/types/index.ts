@@ -19,6 +19,9 @@ export interface User {
 
 export type PlayerLevel = 'SENIOR' | 'JUNIOR' | 'YOUTH';
 
+export type SkillRank = 'C' | 'B' | 'BB' | 'A' | 'AA' | 'OPEN';
+export const SKILL_RANKS: readonly SkillRank[] = ['C', 'B', 'BB', 'A', 'AA', 'OPEN'] as const;
+
 export type VolleyballPosition = 'OH' | 'OP' | 'MB' | 'S' | 'L';
 
 export type PlayerEligibilityStatus = 'PENDING_CHECK' | 'VERIFIED' | 'FLAGGED' | 'REJECTED';
@@ -56,6 +59,7 @@ export interface Player {
   countryFlag?: string; // e.g. "🇻🇳" or "🇦🇺"
   bornYear?: number; // e.g. 2006
   level: PlayerLevel;
+  skillRank?: SkillRank | null; // USAV standard skill rank: "C" | "B" | "BB" | "A" | "AA" | "OPEN" | null
   position: VolleyballPosition;
   avatarUrl?: string;
   bio?: string;
@@ -157,6 +161,7 @@ export interface TrainingCourse {
   id: string;
   title: string;
   level: string;
+  skillRankLabel?: string | null;
   coachName: string;
   coachTitle: string;
   schedule: string;
@@ -258,6 +263,7 @@ export interface MemberApplication {
   hometownCountry?: string;
   desiredJerseyNumber: number;
   level: PlayerLevel;
+  skillRank?: SkillRank | null;
   height: number;
   weight: number;
   spikeReach: number;
@@ -325,6 +331,7 @@ export interface TryoutEvaluatePayload {
   coachNotes?: string;
   status: 'APPROVED' | 'RETEST' | 'REJECTED';
   level?: PlayerLevel;
+  skillRank?: SkillRank | null;
 }
 
 export interface TryoutUnifiedSendEmailPayload {
@@ -337,6 +344,7 @@ export interface TryoutUnifiedSendEmailPayload {
   coachNotes?: string;
   scores?: TryoutEvaluationScores;
   level?: PlayerLevel;
+  skillRank?: SkillRank | null;
 }
 
 export interface AdminOverviewMonthlyPoint {
@@ -1067,6 +1075,7 @@ export interface VenueSessionSlot {
   neededPositions?: VolleyballPosition[];
   dailyOverrides?: SessionDailyOverridesMap;
   genderRule?: VenueGenderRule;
+  skillRankLabel?: string | null;
   club?: CourtClubProfile;
   createdAt?: string;
   updatedAt?: string;
@@ -1171,5 +1180,6 @@ export type VenueSessionPayload = {
   neededPositions?: VolleyballPosition[];
   dailyOverrides?: SessionDailyOverridesMap;
   genderRule?: VenueGenderRule;
+  skillRankLabel?: string | null;
   forceOverride?: boolean;
 };

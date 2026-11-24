@@ -12,6 +12,7 @@ import {
   getSubCourtNames, formatDaysOfWeek, formatShortVnDate, getMonthlyQuotaStatus, getVietnamNow, getSessionDailyState, getUpcomingSessionDates, isSessionCancelledOnDate, buildGoogleMapsUrl, getClubInitials, findClientSessionConflicts, isVenueClosedNow,
 } from '../../../utils/venueSchedule';
 import { SessionStatusBlock } from '../../../components/court-map/SessionStatusBlock';
+import { RECOMMENDED_SKILL_RANK_PRESETS } from '../../../shared/skillRanks';
 
 type ModalState =
   | { kind: 'venue'; item?: VolleyballVenue }
@@ -135,7 +136,8 @@ export const VenuesTab: React.FC = () => {
         clubId: cid, daysOfWeek: s ? [...s.daysOfWeek] : [1, 3, 5], startTime: s?.startTime || '19:00', endTime: s?.endTime || '21:30',
         subCourts: s ? [...s.subCourts] : [getSubCourtNames(next.venue.subCourtsCount)[0]], recruitmentStatus: s?.recruitmentStatus || 'CHECK_CAPTAIN',
         capacityMode: s?.capacityMode || 'UNLIMITED', maxPlayers: s?.maxPlayers ?? 14,
-        genderRule: s?.genderRule || suggestGenderRule(next.venue.clubs.find((c) => c.id === cid)?.playStyle), forceOverride: false,
+        genderRule: s?.genderRule || suggestGenderRule(next.venue.clubs.find((c) => c.id === cid)?.playStyle),
+        skillRankLabel: s?.skillRankLabel || '', forceOverride: false,
       });
     } else {
       const targetClub = next.club || allClubs[0]?.club; const targetVenue = next.venue || allClubs[0]?.venue;
@@ -215,7 +217,8 @@ export const VenuesTab: React.FC = () => {
         const p = {
           clubId: form.clubId, daysOfWeek: form.daysOfWeek, startTime: form.startTime, endTime: form.endTime, subCourts: form.subCourts,
           recruitmentStatus: form.recruitmentStatus as VenueRecruitmentStatus, capacityMode: (form.capacityMode || 'UNLIMITED') as VenueCapacityMode,
-          maxPlayers: Math.max(1, Number(form.maxPlayers) || 14), genderRule: (form.genderRule || 'MIXED') as VenueGenderRule, forceOverride: Boolean(form.forceOverride),
+          maxPlayers: Math.max(1, Number(form.maxPlayers) || 14), genderRule: (form.genderRule || 'MIXED') as VenueGenderRule,
+          skillRankLabel: form.skillRankLabel?.trim() || null, forceOverride: Boolean(form.forceOverride),
         };
         if (modal.item) await venueService.updateSession(modal.venue.id, modal.item.id, p); else await venueService.createSession(modal.venue.id, p);
       } else {
@@ -258,7 +261,20 @@ export const VenuesTab: React.FC = () => {
             {s.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/35 text-[10px] font-bold">{sc}</span>)}
             <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold border ${rec.badgeClass}`}>{rec.label}</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
+            <select
+              aria-label="Hạng USAV khuyến nghị"
+              disabled={busy}
+              value={s.skillRankLabel || ''}
+              onChange={(e) => void quickPatchSession(venue.id, s, { skillRankLabel: e.target.value || null })}
+              className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-blue-950/70 text-blue-200 border-blue-700/60 focus:outline-none cursor-pointer"
+              title="Gắn hạng trình độ USAV khuyến nghị cho ca chơi"
+            >
+              <option value="" className="bg-[#0B0F19] text-slate-300">🇺🇸 Chưa gắn hạng</option>
+              {RECOMMENDED_SKILL_RANK_PRESETS.map((preset) => (
+                <option key={preset} value={preset} className="bg-[#0B0F19] text-white">🇺🇸 USAV: {preset}</option>
+              ))}
+            </select>
             {(['MALE_ONLY', 'MIXED', 'FEMALE_ONLY'] as const).map((g) => (
               <button key={g} type="button" disabled={busy} onClick={() => void quickPatchSession(venue.id, s, { genderRule: g })} className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border cursor-pointer ${(s.genderRule || 'MIXED') === g ? 'bg-purple-600 text-white border-purple-400' : 'bg-[#111827] text-slate-400 border-slate-800'}`}>{GENDER_RULE_META[g].shortLabel}</button>
             ))}
@@ -494,6 +510,7 @@ export const VenuesTab: React.FC = () => {
             `📍 Sân: ${venue.name} (${venue.address})`,
             `🗓️ Lịch: ${previewDateObj?.label || formatShortVnDate(previewDate)} • ${activeSession.startTime} – ${activeSession.endTime} (${activeSession.subCourts.join(', ')})`,
             `⚡ Thể thức: ${styleMeta.emoji} ${styleMeta.shortLabel} • ${(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}`,
+            activeSession.skillRankLabel ? `🇺🇸 Trình độ USAV: ${activeSession.skillRankLabel}` : null,
             activeSession.capacityMode === 'LIMITED_SLOTS'
               ? `👥 Quân số: ${previewDaily.currentPlayers}/${activeSession.maxPlayers ?? 14} (Còn ${Math.max(0, (activeSession.maxPlayers ?? 14) - previewDaily.currentPlayers)} slot)`
               : `👥 Quân số: ∞ Không giới hạn người tham gia`,
@@ -543,7 +560,7 @@ export const VenuesTab: React.FC = () => {
                         <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-slate-700 bg-slate-900 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 96)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-xs text-orange-400">{getClubInitials(club.name)}</span>}</div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1.5"><span className="font-heading font-black text-xs text-white truncate">{club.name}</span><span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${club.feeType === 'FREE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-amber-300'}`}>{club.feeType === 'FREE' ? 'FREE' : club.feeAmount || 'Thu phí'}</span></div>
-                          <div className="flex flex-wrap gap-1 mt-1"><span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${styleMeta.badgeClass}`}>{styleMeta.emoji} {styleMeta.shortLabel} • {(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>{activeSession.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/35">{sc}</span>)}</div>
+                          <div className="flex flex-wrap gap-1 mt-1"><span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${styleMeta.badgeClass}`}>{styleMeta.emoji} {styleMeta.shortLabel} • {(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>{activeSession.skillRankLabel && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-950/85 text-blue-200 border border-blue-500/50">🇺🇸 USAV: {activeSession.skillRankLabel}</span>}{activeSession.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/35">{sc}</span>)}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0B0F19]/80 border border-slate-800 text-[11px]"><Clock className="w-3 h-3 text-orange-400 shrink-0" /><strong className="text-orange-300">{activeSession.startTime} – {activeSession.endTime}</strong><span className="text-slate-600">•</span><span className="text-slate-200 font-semibold">{formatDaysOfWeek(activeSession.daysOfWeek)}</span></div>
@@ -763,6 +780,12 @@ export const VenuesTab: React.FC = () => {
                   <F label="Sân con *"><div className="flex flex-wrap gap-2">{getSubCourtNames(modal.venue.subCourtsCount).map((sc) => <button key={sc} type="button" onClick={() => toggleArr('subCourts', sc)} className={`px-3 py-1.5 rounded-xl border font-bold cursor-pointer ${(form.subCourts || []).includes(sc) ? 'bg-sky-600 border-sky-400 text-white' : 'bg-[#0B0F19] border-slate-700 text-slate-300'}`}>{sc}</button>)}</div></F>
                   {liveConflicts.length > 0 && <div className="p-3 rounded-xl bg-amber-950/60 border border-amber-500/60 text-amber-200 space-y-1"><p className="font-bold flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-400" />Trùng sân con: {liveConflicts.map((c) => `${c.clubName} (${formatDaysOfWeek(c.days)} ${c.startTime}–${c.endTime} · ${c.subCourts.join(', ')})`).join('; ')}</p><label className="inline-flex items-center gap-1.5 font-bold cursor-pointer"><input type="checkbox" checked={Boolean(form.forceOverride)} onChange={(e) => set({ forceOverride: e.target.checked })} />Vẫn lưu đè cảnh báo</label></div>}
                   <F label="Đối tượng tham gia"><div className="grid grid-cols-3 gap-1.5">{(['MALE_ONLY', 'MIXED', 'FEMALE_ONLY'] as const).map((g) => <button key={g} type="button" onClick={() => set({ genderRule: g })} className={`py-2 px-2 rounded-xl border font-bold cursor-pointer ${(form.genderRule || 'MIXED') === g ? 'bg-purple-600 border-purple-400 text-white' : 'bg-[#0B0F19] border-slate-700 text-slate-300'}`}>{GENDER_RULE_META[g].label}</button>)}</div></F>
+                  <F label="🇺🇸 Hạng trình độ USAV khuyến nghị (Tùy chọn)">
+                    <select className={INP} value={form.skillRankLabel || ''} onChange={(e) => set({ skillRankLabel: e.target.value })}>
+                      <option value="">Chưa gắn hạng trình độ</option>
+                      {RECOMMENDED_SKILL_RANK_PRESETS.map((preset) => <option key={preset} value={preset}>USAV: {preset}</option>)}
+                    </select>
+                  </F>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <F label="Trạng thái tuyển"><select className={INP} value={form.recruitmentStatus} onChange={(e) => set({ recruitmentStatus: e.target.value })}><option value="OPEN_RECRUIT">Đang tuyển slot</option><option value="CHECK_CAPTAIN">Hỏi đội trưởng</option><option value="FULL">Đã đủ người</option></select></F>
                     <F label="Chế độ quân số"><select className={INP} value={form.capacityMode || 'UNLIMITED'} onChange={(e) => set({ capacityMode: e.target.value })}><option value="UNLIMITED">∞ Không giới hạn</option><option value="LIMITED_SLOTS">Giới hạn slot</option></select></F>

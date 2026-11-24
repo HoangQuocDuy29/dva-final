@@ -115,6 +115,7 @@ model Player {
   countryFlag     String?            @default("🇻🇳")
   bornYear        Int?
   level           PlayerLevel        @default(JUNIOR)
+  skillRank       String?            // Hạng trình độ chuẩn USAV: "C" | "B" | "BB" | "A" | "AA" | "OPEN" | null
   position        VolleyballPosition @default(OH)
   avatarUrl       String?
   bio             String?            @db.Text
@@ -270,6 +271,7 @@ model TrainingCourse {
   id             String                 @id @default(uuid())
   title          String
   level          String
+  skillRankLabel String?                // Hạng USAV khuyến nghị (VD: "C – B", "B – BB", "BB+", "A+")
   tag            String?
   targetAudience String                 @db.Text
   price          Int                    // Học phí / Phí tham gia (VND)
@@ -340,6 +342,7 @@ model MemberApplication {
   hometownCountry     String
   desiredJerseyNumber Int
   level               PlayerLevel
+  skillRank           String?            // Hạng USAV đánh giá khi Try-Out: "C" | "B" | "BB" | "A" | "AA" | "OPEN" | null
   height              Float              // Chiều cao (cm)
   weight              Float              // Cân nặng (kg)
   spikeReach          Float              // Tầm bật đà (cm)
@@ -911,6 +914,7 @@ model VenueSessionSlot {
   neededPositions   String[]         @default([]) // "OH" | "MB" | "OP" | "S" | "L"
   dailyOverrides    Json             @default("{}") // { "YYYY-MM-DD": { currentPlayers, neededPositions } }
   genderRule        String           @default("MIXED") // "MALE_ONLY" | "MIXED" | "FEMALE_ONLY"
+  skillRankLabel    String?          // Hạng USAV khuyến nghị cho ca chơi (VD: "C – B", "B – BB", "BB+", "A+")
 
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt

@@ -239,6 +239,15 @@ export const CourtMapPage: React.FC = () => {
                       <p className="text-[11px] text-slate-400">Đội trưởng: <strong className="text-slate-200">{club.captainName}</strong></p>
                       <div className="flex flex-wrap gap-1 mt-1">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${style.badgeClass}`}>{style.emoji} {style.shortLabel} • {(GENDER_RULE_META[s.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>
+                        {s.skillRankLabel && (
+                          <Link
+                            to="/information/skill-levels"
+                            title="Xem bảng phân cấp trình độ chuẩn USAV"
+                            className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-950/85 hover:bg-blue-900 text-blue-200 border border-blue-500/50 transition-colors"
+                          >
+                            🇺🇸 USAV: {s.skillRankLabel}
+                          </Link>
+                        )}
                         {s.subCourts.map((sc) => <span key={sc} className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/35">{sc}</span>)}
                       </div>
                     </div>

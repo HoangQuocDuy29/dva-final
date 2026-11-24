@@ -36,6 +36,13 @@ function normalizePlayerBody(raw: unknown): Record<string, any> {
   if (rawBody.bornYear === undefined && rawBody.birthYear !== undefined) {
     rawBody.bornYear = rawBody.birthYear;
   }
+  if (rawBody.skillRank !== undefined) {
+    if (rawBody.skillRank === null || (typeof rawBody.skillRank === 'string' && rawBody.skillRank.trim() === '')) {
+      rawBody.skillRank = null;
+    } else if (typeof rawBody.skillRank === 'string') {
+      rawBody.skillRank = rawBody.skillRank.trim().toUpperCase();
+    }
+  }
   return rawBody;
 }
 
@@ -73,6 +80,9 @@ const handleUpdatePlayer = ah(async (req, res) => {
   const data = sanitize(normalized, PLAYER_SCHEMA, { partial: true });
   if (normalized.bornYear === null || normalized.bornYear === '') {
     data.bornYear = null;
+  }
+  if (normalized.skillRank === null) {
+    data.skillRank = null;
   }
   const updated = await updatePlayer(req.params.id, data);
   res.json(updated);

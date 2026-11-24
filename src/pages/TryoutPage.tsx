@@ -80,6 +80,14 @@ export const TryoutPage: React.FC = () => {
                 </Link>
 
                 <Link
+                  to="/information/skill-levels"
+                  className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl font-bold text-xs sm:text-sm text-blue-200 bg-blue-950/60 hover:bg-blue-900/70 border border-blue-500/40 transition-colors"
+                >
+                  <span>🇺🇸</span>
+                  <span>Bảng Phân Cấp Trình Độ (USAV)</span>
+                </Link>
+
+                <Link
                   to="/information"
                   className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl font-bold text-xs sm:text-sm text-slate-200 bg-[#0E1524] hover:bg-slate-800 border border-slate-700 transition-colors"
                 >
