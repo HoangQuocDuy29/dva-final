@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft, MapPin, Navigation, Phone, MessageCircle, Clock, Tag, Wallet,
   CalendarDays, Timer, Layers, Image as ImageIcon, Check, X, Info, Sparkles, AlertTriangle,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { venueService } from '../services/api';
 import type { VenueClubDetailResponse, VenueSessionSlot } from '../types';
@@ -20,10 +21,27 @@ export const CourtClubDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nowVn, setNowVn] = useState(() => getVietnamNow());
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const gallery = (club?.galleryUrls || []).filter(Boolean).slice(0, 5);
+  const stepLightbox = useCallback(
+    (delta: number) => setLightboxIndex((i) => (i === null || gallery.length < 2 ? i : (i + delta + gallery.length) % gallery.length)),
+    [gallery.length]
+  );
 
   useEffect(() => { const t = setInterval(() => setNowVn(getVietnamNow()), 30_000); return () => clearInterval(t); }, []);
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIndex(null);
+      else if (e.key === 'ArrowLeft') stepLightbox(-1);
+      else if (e.key === 'ArrowRight') stepLightbox(1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxIndex, stepLightbox]);
 
   useEffect(() => {
     if (!slug) { setError('Không tìm thấy đội bóng.'); setLoading(false); return; }
@@ -56,7 +74,6 @@ export const CourtClubDetailPage: React.FC = () => {
   const closed = isVenueClosedNow(club.venue, nowVn.nowMs);
   const reopenStr = formatClosedUntilDate(club.venue.closedUntil);
   const heroCover = club.coverUrl || club.venue.coverUrl || club.venue.imageUrl;
-  const gallery = (club.galleryUrls || []).filter(Boolean).slice(0, 5);
   const telHref = `tel:${sanitizePhoneForLink(club.captainPhone)}`;
 
   return (
@@ -158,7 +175,7 @@ export const CourtClubDetailPage: React.FC = () => {
               {gallery.length === 0 ? <p className="text-xs text-slate-400">Chưa có ảnh sinh hoạt.</p> : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {gallery.map((u, i) => (
-                    <button key={`${u}-${i}`} type="button" onClick={() => setLightbox(u)} className="aspect-[4/3] rounded-2xl overflow-hidden border border-slate-800 hover:border-orange-500/60 cursor-pointer">
+                    <button key={`${u}-${i}`} type="button" onClick={() => setLightboxIndex(i)} className="aspect-[4/3] rounded-2xl overflow-hidden border border-slate-800 hover:border-orange-500/60 cursor-pointer">
                       <img src={optimizeCloudinaryUrl(u, 'card')} alt="" className="w-full h-full object-cover" loading="lazy" />
                     </button>
                   ))}
@@ -188,10 +205,20 @@ export const CourtClubDetailPage: React.FC = () => {
         </div>
       </section>
 
-      {lightbox && (
-        <div className="fixed inset-0 z-[120] bg-black/90 flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
-          <button type="button" aria-label="Đóng" onClick={() => setLightbox(null)} className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 text-white cursor-pointer"><X className="w-5 h-5" /></button>
-          <img src={optimizeCloudinaryUrl(lightbox, 'zoom')} alt="" className="max-w-full max-h-[88vh] rounded-2xl object-contain" onClick={(e) => e.stopPropagation()} />
+      {lightboxIndex !== null && gallery[lightboxIndex] && (
+        <div className="fixed inset-0 z-[120] bg-black/92 flex items-center justify-center p-4 select-none" role="dialog" aria-modal="true" onClick={() => setLightboxIndex(null)}
+          onTouchStart={(e) => { touchStartX.current = e.touches[0]?.clientX ?? null; }}
+          onTouchEnd={(e) => { const s = touchStartX.current, x = e.changedTouches[0]?.clientX; touchStartX.current = null; if (s !== null && x !== undefined && Math.abs(x - s) > 40) stepLightbox(x < s ? 1 : -1); }}
+        >
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <span className="px-3 py-1 rounded-full bg-slate-900/90 border border-slate-700 text-xs font-bold text-white">{lightboxIndex + 1} / {gallery.length}</span>
+            <button type="button" aria-label="Đóng" onClick={() => setLightboxIndex(null)} className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-white cursor-pointer"><X className="w-5 h-5" /></button>
+          </div>
+          {gallery.length > 1 && (<>
+            <button type="button" aria-label="Ảnh trước" onClick={(e) => { e.stopPropagation(); stepLightbox(-1); }} className="absolute left-3 sm:left-6 z-10 w-11 h-11 rounded-full bg-slate-900/85 hover:bg-orange-500 border border-white/20 text-white flex items-center justify-center shadow-xl cursor-pointer transition-colors"><ChevronLeft className="w-6 h-6" /></button>
+            <button type="button" aria-label="Ảnh tiếp theo" onClick={(e) => { e.stopPropagation(); stepLightbox(1); }} className="absolute right-3 sm:right-6 z-10 w-11 h-11 rounded-full bg-slate-900/85 hover:bg-orange-500 border border-white/20 text-white flex items-center justify-center shadow-xl cursor-pointer transition-colors"><ChevronRight className="w-6 h-6" /></button>
+          </>)}
+          <img src={optimizeCloudinaryUrl(gallery[lightboxIndex], 'zoom')} alt="" className="max-w-full max-h-[88vh] rounded-2xl object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
       {toast && <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[130] px-4 py-2.5 rounded-2xl bg-slate-900 border border-emerald-500/50 text-xs text-emerald-200 flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" />{toast}</div>}

@@ -76,6 +76,7 @@ model User {
   id           String     @id @default(uuid())
   email        String     @unique
   passwordHash String
+  issuedPassword String?
   fullName     String
   phoneNumber  String?
   avatarUrl    String?

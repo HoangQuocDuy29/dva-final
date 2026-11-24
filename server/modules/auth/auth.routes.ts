@@ -72,8 +72,8 @@ authRouter.post('/auth/verify-otp', (_req, res) => {
 authRouter.get(
   '/users',
   requireSuperAdmin,
-  ah(async (_req, res) => {
-    const users = await listAllUsers();
+  ah(async (req, res) => {
+    const users = await listAllUsers(req.user!.role);
     res.json(users);
   })
 );
@@ -85,7 +85,7 @@ authRouter.post(
     const data = sanitize(normalizeProfilePayload(req.body), USER_CREATE_SCHEMA, {
       required: ['email', 'password', 'fullName'],
     });
-    const created = await createManagedUser(data as any);
+    const created = await createManagedUser(data as any, req.user!.role);
     res.status(201).json(created);
   })
 );
@@ -95,7 +95,7 @@ authRouter.patch(
   requireSuperAdmin,
   ah(async (req, res) => {
     const { role } = sanitize(req.body, USER_ROLE_UPDATE_SCHEMA, { required: ['role'] });
-    const updated = await updateManagedUserRole(req.params.id, role, req.user!.id);
+    const updated = await updateManagedUserRole(req.params.id, role, req.user!.id, req.user!.role);
     res.json(updated);
   })
 );
@@ -155,7 +155,7 @@ authRouter.patch(
     const data = sanitize(normalizeProfilePayload(req.body), STAFF_UPDATE_SCHEMA, {
       partial: true,
     });
-    const result = await updateManagedStaff(req.params.id, data as any, req.user!.id);
+    const result = await updateManagedStaff(req.params.id, data as any, req.user!.id, req.user!.role);
     return res.json(result);
   })
 );
@@ -176,7 +176,8 @@ authRouter.patch(
     const result = await resetStaffPassword(
       req.params.id,
       sanitized.newPassword,
-      req.user!.id
+      req.user!.id,
+      req.user!.role
     );
     return res.json(result);
   })

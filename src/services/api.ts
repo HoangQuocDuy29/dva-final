@@ -380,6 +380,7 @@ export const userService = {
   async updateStaff(
     id: string,
     data: {
+      email?: string;
       name?: string;
       fullName?: string;
       avatarUrl?: string | null;

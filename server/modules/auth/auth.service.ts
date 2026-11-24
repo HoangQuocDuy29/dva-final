@@ -32,7 +32,14 @@ export async function authenticateUser(email: string, password: string) {
   return { token: signToken(user), user: publicUser(user) };
 }
 
-export async function listAllUsers() {
+function toManagedUserDto(u: any, actorRole?: string) {
+  const base = publicUser(toStoredUser(u));
+  return actorRole === 'SUPERADMIN' && u.role !== 'SUPERADMIN'
+    ? { ...base, issuedPassword: u.issuedPassword ?? undefined }
+    : base;
+}
+
+export async function listAllUsers(actorRole?: string) {
   const dbUsers = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
     select: {
@@ -45,9 +52,10 @@ export async function listAllUsers() {
       isActive: true,
       lastLoginAt: true,
       createdAt: true,
+      issuedPassword: true,
     },
   });
-  return dbUsers.map((u) => publicUser(toStoredUser(u)));
+  return dbUsers.map((u) => toManagedUserDto(u, actorRole));
 }
 
 export async function createManagedUser(data: {
@@ -57,7 +65,7 @@ export async function createManagedUser(data: {
   phoneNumber?: string;
   avatarUrl?: string;
   role?: 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER';
-}) {
+}, actorRole?: string) {
   const existing = await prisma.user.findUnique({
     where: { email: data.email },
     select: { id: true },
@@ -66,25 +74,28 @@ export async function createManagedUser(data: {
     throw new HttpError(409, 'An account with this email already exists.');
   }
   const passwordHash = await hashPassword(data.password);
+  const role = data.role || 'PLAYER';
   const created = await prisma.user.create({
     data: {
       email: data.email,
       passwordHash,
+      issuedPassword: role !== ('SUPERADMIN' as string) ? data.password : null,
       fullName: data.fullName,
       phoneNumber: data.phoneNumber ?? null,
       avatarUrl: data.avatarUrl ?? null,
-      role: data.role || 'PLAYER',
+      role,
     },
   });
-  return publicUser(toStoredUser(created));
+  return toManagedUserDto(created, actorRole);
 }
 
 export async function updateManagedUserRole(
   id: string,
   role: 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER',
-  actorId: string
+  actorId: string,
+  actorRole?: string
 ) {
-  const { user } = await updateManagedStaff(id, { role }, actorId);
+  const { user } = await updateManagedStaff(id, { role }, actorId, actorRole);
   return user;
 }
 
@@ -142,7 +153,8 @@ export async function changeOwnPassword(
 export async function resetStaffPassword(
   targetUserId: string,
   newPassword: string,
-  actorId: string
+  actorId: string,
+  actorRole?: string
 ) {
   const target = await prisma.user.findUnique({
     where: { id: targetUserId },
@@ -163,6 +175,7 @@ export async function resetStaffPassword(
     where: { id: targetUserId },
     data: {
       passwordHash,
+      issuedPassword: newPassword,
       tokenVersion: { increment: 1 },
     },
   });
@@ -171,7 +184,7 @@ export async function resetStaffPassword(
   return {
     success: true,
     message: `Password reset for ${updated.email}. Active sessions have been invalidated.`,
-    user: publicUser(toStoredUser(updated)),
+    user: toManagedUserDto(updated, actorRole),
   };
 }
 
@@ -202,13 +215,15 @@ export async function updateOwnProfile(
 export async function updateManagedStaff(
   targetUserId: string,
   data: {
+    email?: string;
     fullName?: string;
     avatarUrl?: string;
     role?: 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER';
     isActive?: boolean;
     forceLogout?: boolean;
   },
-  actorId: string
+  actorId: string,
+  actorRole?: string
 ) {
   const target = await prisma.user.findUnique({
     where: { id: targetUserId },
@@ -235,6 +250,7 @@ export async function updateManagedStaff(
   const shouldRevokeSessions = isSuspending || data.forceLogout === true;
 
   const updateData: {
+    email?: string;
     fullName?: string;
     avatarUrl?: string | null;
     role?: 'ADMIN' | 'STAFF' | 'COACH' | 'CAPTAIN' | 'PLAYER';
@@ -242,6 +258,15 @@ export async function updateManagedStaff(
     tokenVersion?: { increment: number };
   } = {};
 
+  if (data.email !== undefined) {
+    if (isTargetSuperAdmin) throw new HttpError(403, 'Không thể sửa email tài khoản SUPERADMIN tại đây.');
+    const nextEmail = data.email.trim().toLowerCase();
+    if (nextEmail !== target.email.toLowerCase()) {
+      const dup = await prisma.user.findUnique({ where: { email: nextEmail }, select: { id: true } });
+      if (dup && dup.id !== targetUserId) throw new HttpError(409, 'Email này đã tồn tại trong hệ thống. Vui lòng chọn email khác.');
+      updateData.email = nextEmail;
+    }
+  }
   if (data.fullName !== undefined) updateData.fullName = data.fullName;
   if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl || null;
   if (data.role !== undefined) updateData.role = data.role;
@@ -261,6 +286,6 @@ export async function updateManagedStaff(
   return {
     success: true,
     sessionRevoked: shouldRevokeSessions,
-    user: publicUser(toStoredUser(updated)),
+    user: toManagedUserDto(updated, actorRole),
   };
 }

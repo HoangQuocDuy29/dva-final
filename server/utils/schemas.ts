@@ -55,6 +55,7 @@ export const SELF_PROFILE_UPDATE_SCHEMA: Schema = {
 };
 
 export const STAFF_UPDATE_SCHEMA: Schema = {
+  email: EM,
   fullName: S(100, 2),
   avatarUrl: U,
   role: E(MANAGED_ROLES),

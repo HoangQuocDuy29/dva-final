@@ -154,12 +154,12 @@ export function useUsersTab() {
     setEditingProfileUser(null);
   };
 
-  const handleSaveStaffProfile = async (payload: { fullName: string; avatarUrl: string }) => {
+  const handleSaveStaffProfile = async (payload: { fullName: string; avatarUrl: string; email?: string }) => {
     if (!editingProfileUser) return;
     const target = editingProfileUser;
     const res =
       target.id === currentUser.id
-        ? await authService.updateProfile(payload)
+        ? await authService.updateProfile({ fullName: payload.fullName, avatarUrl: payload.avatarUrl })
         : await userService.updateStaff(target.id, payload);
 
     if (res.user) {
@@ -168,7 +168,7 @@ export function useUsersTab() {
         onUserChange(res.user);
       }
     }
-    notify(`Đã cập nhật hồ sơ & avatar cho ${target.email}.`, 3500);
+    notify(`Đã cập nhật tài khoản cho ${res.user?.email || target.email}.`, 3500);
   };
 
   const handleDeleteUser = async (user: UserType) => {
@@ -200,7 +200,10 @@ export function useUsersTab() {
     setResetPasswordError(null);
     setIsResettingPassword(true);
     try {
-      await userService.resetPassword(targetUser.id, newPassword);
+      const res = await userService.resetPassword(targetUser.id, newPassword);
+      if (res.user) {
+        setUsersList((prev) => prev.map((u) => (u.id === targetUser.id ? { ...u, ...res.user } : u)));
+      }
       notify(
         `Đã đặt lại mật khẩu cho ${targetUser.email} và đăng xuất toàn bộ phiên cũ.`,
         4500

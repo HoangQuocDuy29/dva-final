@@ -14,6 +14,7 @@ export interface User {
   isActive?: boolean;
   lastLoginAt?: string;
   createdAt: string;
+  issuedPassword?: string;
 }
 
 export type PlayerLevel = 'SENIOR' | 'JUNIOR' | 'YOUTH';

@@ -10,7 +10,7 @@ export interface StaffProfileModalProps {
   mode: 'self' | 'staff';
   targetUser: UserType | null;
   onClose: () => void;
-  onSave: (payload: { fullName: string; avatarUrl: string }) => Promise<void>;
+  onSave: (payload: { fullName: string; avatarUrl: string; email?: string }) => Promise<void>;
   notify: (message: string, durationMs?: number) => void;
 }
 
@@ -23,6 +23,7 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
   notify,
 }) => {
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -33,11 +34,12 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
   useEffect(() => {
     if (!isOpen || !targetUser) return;
     setFullName(targetUser.fullName || '');
+    setEmail(targetUser.email || '');
     setAvatarUrl(targetUser.avatarUrl || '');
     setError(null);
     setIsUploading(false);
     setIsSaving(false);
-  }, [isOpen, targetId, targetUser?.fullName, targetUser?.avatarUrl]);
+  }, [isOpen, targetId, targetUser?.fullName, targetUser?.email, targetUser?.avatarUrl]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -86,9 +88,11 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
       setError('Tên hiển thị phải có ít nhất 2 ký tự.');
       return;
     }
+    const trimmedEmail = email.trim().toLowerCase();
+    if (mode === 'staff' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) return setError('Email đăng nhập không hợp lệ.');
     setIsSaving(true);
     try {
-      await onSave({ fullName: trimmedName, avatarUrl: avatarUrl.trim() });
+      await onSave({ fullName: trimmedName, avatarUrl: avatarUrl.trim(), ...(mode === 'staff' ? { email: trimmedEmail } : {}) });
       onClose();
     } catch (err: any) {
       setError(err?.message || 'Không thể lưu thông tin hồ sơ.');
@@ -217,6 +221,13 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
             className="w-full bg-[#0F1727] border border-slate-700 focus:border-orange-500 focus:outline-none rounded-xl px-3 py-2 text-[11px] font-mono text-white transition-colors"
           />
         </div>
+
+        {mode === 'staff' && (
+          <div className="space-y-1">
+            <label htmlFor="staff-profile-email" className="block text-[11px] font-bold text-slate-400">Email đăng nhập</label>
+            <input id="staff-profile-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="captain@gmail.com" className="w-full bg-[#0B1220] border border-slate-700 focus:border-orange-500 focus:outline-none rounded-xl px-3 py-2.5 text-xs text-white transition-colors" />
+          </div>
+        )}
 
         {/* Display Name */}
         <div className="space-y-1">

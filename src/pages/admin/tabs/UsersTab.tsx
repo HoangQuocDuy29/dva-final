@@ -8,6 +8,9 @@ import {
   Unlock,
   LogOut,
   Clock,
+  Eye,
+  EyeOff,
+  Copy,
 } from 'lucide-react';
 import { ManagedUserRole, MANAGED_USER_ROLES } from '../../../types';
 import { Pagination } from '../../../components/common/Pagination';
@@ -65,7 +68,13 @@ export const UsersTab: React.FC = () => {
   } = useUsersTab();
 
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [revealedIds, setRevealedIds] = useState<Record<string, boolean>>({});
   if (!isSuperAdmin) return null;
+
+  const copyCredentials = async (u: (typeof usersList)[number]) => {
+    const text = `Tài khoản quản lý DVA Volleyball:\n- Link đăng nhập: https://dva-volleyball-hanoi.com\n- Email: ${u.email}\n- Mật khẩu: ${u.issuedPassword || '(Chưa lưu — Đặt lại MK để lưu)'}`;
+    try { await navigator.clipboard.writeText(text); notify('Đã copy tài khoản & mật khẩu', 3000); } catch { notify('Không thể copy vào bộ nhớ tạm.', 3000); }
+  };
 
   const safePage = Math.min(
     Math.max(1, currentPage),
@@ -110,7 +119,7 @@ export const UsersTab: React.FC = () => {
           <thead className="text-slate-400 uppercase text-[10px] border-b border-slate-800">
             <tr>
               <th className="py-3 pr-4">Nhân sự</th>
-              <th className="py-3 pr-4">Email &amp; Hoạt động</th>
+              <th className="py-3 pr-4">Email, Mật khẩu &amp; Hoạt động</th>
               <th className="py-3 pr-4">Role &amp; Trạng thái</th>
               <th className="py-3 text-right">Thao tác</th>
             </tr>
@@ -151,6 +160,19 @@ export const UsersTab: React.FC = () => {
 
                   <td className="py-3.5 pr-4">
                     <p className="text-slate-300 font-medium truncate max-w-[230px]">{u.email}</p>
+                    {u.role !== 'SUPERADMIN' && (
+                      <div className="flex items-center gap-1.5 mt-0.5 text-[11px]">
+                        {u.issuedPassword ? (
+                          <>
+                            <span className="text-slate-500">MK:</span>
+                            <span className="font-mono text-amber-200">{revealedIds[u.id] ? u.issuedPassword : '••••••••'}</span>
+                            <button type="button" onClick={() => setRevealedIds((p) => ({ ...p, [u.id]: !p[u.id] }))} className="p-0.5 text-slate-400 hover:text-white cursor-pointer" title={revealedIds[u.id] ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-label={revealedIds[u.id] ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+                              {revealedIds[u.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </>
+                        ) : <span className="text-[10px] italic text-slate-500">Chưa lưu — Đặt lại MK để lưu</span>}
+                      </div>
+                    )}
                     <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
                       <Clock className="w-3 h-3 shrink-0" />
                       <span>Last login: {formatLastLogin(u.lastLoginAt)}</span>
@@ -214,13 +236,17 @@ export const UsersTab: React.FC = () => {
                           ))}
                         </select>
 
+                        <button type="button" onClick={() => void copyCredentials(u)} className="h-9 px-2.5 flex items-center justify-center gap-1 rounded-xl bg-teal-950/60 text-teal-300 hover:bg-teal-900/70 border border-teal-500/40 text-[11px] font-bold cursor-pointer transition-colors whitespace-nowrap" title="Copy Email & Mật khẩu gửi Zalo">
+                          <Copy className="w-3.5 h-3.5 shrink-0" /><span>Copy TK &amp; MK</span>
+                        </button>
+
                         <button
                           type="button"
                           disabled={isRowBusy}
                           onClick={() => openEditProfileModal(u)}
                           className="w-9 h-9 min-w-[36px] flex items-center justify-center rounded-xl bg-sky-950/60 text-sky-300 hover:bg-sky-900/70 border border-sky-500/40 cursor-pointer transition-colors disabled:opacity-50"
-                          title="Sửa Hồ Sơ & Avatar"
-                          aria-label={`Sửa Hồ Sơ & Avatar của ${u.fullName}`}
+                          title="Sửa tài khoản (Tên, Email & Avatar)"
+                          aria-label={`Sửa tài khoản của ${u.fullName}`}
                         >
                           <UserCog className="w-4 h-4" />
                         </button>
