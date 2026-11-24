@@ -46,6 +46,21 @@ function normalizePlayerLevel(raw?: string): PlayerLevel {
   return 'JUNIOR';
 }
 
+const VN_TIME_FMT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  hourCycle: 'h23',
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+  day: '2-digit', month: '2-digit', year: 'numeric',
+});
+
+function formatSubmittedAtVN(iso?: string): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const p = Object.fromEntries(VN_TIME_FMT.formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.hour}:${p.minute}:${p.second} · ${p.day}/${p.month}/${p.year}`;
+}
+
 type StatusFilter = 'ALL' | ApplicationStatus;
 type PaymentFilter = 'ALL' | TryoutPaymentStatus;
 
@@ -494,6 +509,7 @@ export const ApplicationsTab: React.FC = () => {
                     Boolean(app.resultEmailSentAt) ||
                     (Array.isArray(app.resultEmailHistory) && app.resultEmailHistory.length > 0);
                   const isApproved = app.status === 'APPROVED';
+                  const submittedAtVN = formatSubmittedAtVN(app.createdAt);
 
                   return (
                     <tr key={app.id} className="hover:bg-slate-800/40 align-top">
@@ -582,6 +598,11 @@ export const ApplicationsTab: React.FC = () => {
                             )}
                           </span>
                         </div>
+                        {submittedAtVN && (
+                          <div className="text-xs tabular-nums text-amber-300/90">
+                            🕒 Gửi đơn: {submittedAtVN}
+                          </div>
+                        )}
                         {app.experience && (
                           <div className="text-[11px] text-slate-300">
                             <span className="text-slate-500">Exp:</span> {app.experience}

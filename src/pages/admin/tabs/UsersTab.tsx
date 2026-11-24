@@ -11,6 +11,8 @@ import {
   Eye,
   EyeOff,
   Copy,
+  Search,
+  X,
 } from 'lucide-react';
 import { ManagedUserRole, MANAGED_USER_ROLES } from '../../../types';
 import { Pagination } from '../../../components/common/Pagination';
@@ -23,6 +25,16 @@ import { RoleAvatarRing } from '../components/RoleAvatarRing';
 import { StaffProfileModal } from '../components/StaffProfileModal';
 
 const USERS_PAGE_SIZE = 10;
+const ROLE_GROUPS = [
+  { id: 'SUPERADMIN', roles: ['SUPERADMIN'], badge: 'SUPERADMIN', badgeKey: 'SUPERADMIN', label: '👑 SUPERADMIN · Chủ Tịch & Điều Hành Tối Cao' },
+  { id: 'ADMIN', roles: ['ADMIN'], badge: 'ADMIN', badgeKey: 'ADMIN', label: '🛡️ ADMIN · Quản Trị Viên Hệ Thống' },
+  { id: 'STAFF_COACH', roles: ['COACH', 'STAFF'], badge: 'COACH / STAFF', badgeKey: 'COACH', label: '📋 BAN HUẤN LUYỆN & ĐIỀU PHỐI (COACH / STAFF)' },
+  { id: 'CAPTAIN', roles: ['CAPTAIN'], badge: 'CAPTAIN', badgeKey: 'CAPTAIN', label: '🏐 ĐỘI TRƯỞNG CÁC CLB / SÂN (CAPTAIN)' },
+  { id: 'PLAYER', roles: ['PLAYER', 'GUEST'], badge: 'PLAYER', badgeKey: 'PLAYER', label: '🏃 THÀNH VIÊN (PLAYER)' },
+] as const;
+const ROLE_FILTERS = [['ALL', 'Tất cả'], ['SUPERADMIN', 'Superadmin'], ['ADMIN', 'Admin'], ['CAPTAIN', 'Captain'], ['OTHER', 'Khác']] as const;
+const normVi = (s?: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
+const getRoleGroup = (role?: string) => ROLE_GROUPS.find((g) => (g.roles as readonly string[]).includes(role || '')) || ROLE_GROUPS[4];
 
 function formatLastLogin(iso?: string): string {
   if (!iso) return 'Chưa đăng nhập';
@@ -69,21 +81,30 @@ export const UsersTab: React.FC = () => {
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [revealedIds, setRevealedIds] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<(typeof ROLE_FILTERS)[number][0]>('ALL');
   if (!isSuperAdmin) return null;
 
   const copyCredentials = async (u: (typeof usersList)[number]) => {
-    const text = `Tài khoản quản lý DVA Volleyball:\n- Link đăng nhập: https://dva-volleyball-hanoi.com\n- Email: ${u.email}\n- Mật khẩu: ${u.issuedPassword || '(Chưa lưu — Đặt lại MK để lưu)'}`;
+    const text = `Tài khoản quản lý DVA Volleyball:\n- Link đăng nhập: https://dva-volleyball-hanoi.com/login\n- Email: ${u.email}\n- Mật khẩu: ${u.issuedPassword || '(Chưa lưu — Đặt lại MK để lưu)'}`;
     try { await navigator.clipboard.writeText(text); notify('Đã copy tài khoản & mật khẩu', 3000); } catch { notify('Không thể copy vào bộ nhớ tạm.', 3000); }
   };
 
-  const safePage = Math.min(
-    Math.max(1, currentPage),
-    Math.max(1, Math.ceil(usersList.length / USERS_PAGE_SIZE))
-  );
-  const paginatedUsers = usersList.slice(
-    (safePage - 1) * USERS_PAGE_SIZE,
-    safePage * USERS_PAGE_SIZE
-  );
+  const q = normVi(searchQuery.trim());
+  const filteredUsers = usersList
+    .filter((u) => {
+      const gid = getRoleGroup(u.role).id;
+      if (roleFilter === 'OTHER' ? gid !== 'STAFF_COACH' && gid !== 'PLAYER' : roleFilter !== 'ALL' && gid !== roleFilter) return false;
+      return !q || normVi(`${u.fullName} ${u.email} ${u.role}`).includes(q);
+    })
+    .sort((a, b) => ROLE_GROUPS.indexOf(getRoleGroup(a.role)) - ROLE_GROUPS.indexOf(getRoleGroup(b.role)));
+  const groupCounts = filteredUsers.reduce<Record<string, number>>((acc, u) => {
+    const id = getRoleGroup(u.role).id;
+    acc[id] = (acc[id] || 0) + 1;
+    return acc;
+  }, {});
+  const safePage = Math.min(Math.max(1, currentPage), Math.max(1, Math.ceil(filteredUsers.length / USERS_PAGE_SIZE)));
+  const paginatedUsers = filteredUsers.slice((safePage - 1) * USERS_PAGE_SIZE, safePage * USERS_PAGE_SIZE);
 
   return (
     <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
@@ -114,6 +135,25 @@ export const UsersTab: React.FC = () => {
         </div>
       </div>
 
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} placeholder="Tìm theo tên, email, tên đội..." className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#0E1524] border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-orange-500" />
+          {searchQuery && (
+            <button type="button" onClick={() => { setSearchQuery(''); setCurrentPage(1); }} aria-label="Xóa từ khóa" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#0E1524] border border-slate-800 w-fit">
+          {ROLE_FILTERS.map(([id, label]) => (
+            <button key={id} type="button" onClick={() => { setRoleFilter(id); setCurrentPage(1); }} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${roleFilter === id ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow' : 'text-slate-400 hover:text-white'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="overflow-x-auto no-scrollbar">
         <table className="w-full min-w-[820px] text-xs text-left">
           <thead className="text-slate-400 uppercase text-[10px] border-b border-slate-800">
@@ -125,14 +165,27 @@ export const UsersTab: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/70">
-            {paginatedUsers.map((u) => {
+            {paginatedUsers.map((u, idx) => {
+              const group = getRoleGroup(u.role);
+              const showHeader = idx === 0 || getRoleGroup(paginatedUsers[idx - 1].role).id !== group.id;
               const isSelf = u.id === currentUser.id;
               const isProtected = u.role === 'SUPERADMIN' || isSelf;
               const isActive = u.isActive !== false;
               const isRowBusy = busyUserId === u.id;
 
               return (
-                <tr key={u.id} className={isActive ? 'text-slate-200' : 'text-slate-400 bg-red-950/10'}>
+                <React.Fragment key={u.id}>
+                  {showHeader && (
+                    <tr className="bg-[#0E1524]/90">
+                      <td colSpan={4} className="py-2 px-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-black tracking-wide text-slate-200">{group.label}</span>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-black border ${USER_ROLE_BADGE[group.badgeKey]}`}>{group.badge} ({groupCounts[group.id] || 0})</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                <tr className={isActive ? 'text-slate-200' : 'text-slate-400 bg-red-950/10'}>
                   <td className="py-3.5 pr-4">
                     <div className="flex items-center gap-3">
                       <RoleAvatarRing
@@ -315,12 +368,13 @@ export const UsersTab: React.FC = () => {
                     )}
                   </td>
                 </tr>
+                </React.Fragment>
               );
             })}
-            {usersList.length === 0 && (
+            {filteredUsers.length === 0 && (
               <tr>
                 <td colSpan={4} className="py-8 text-center text-slate-500">
-                  Chưa có tài khoản nào.
+                  {usersList.length === 0 ? 'Chưa có tài khoản nào.' : 'Không tìm thấy tài khoản phù hợp.'}
                 </td>
               </tr>
             )}
@@ -330,7 +384,7 @@ export const UsersTab: React.FC = () => {
 
       <Pagination
         currentPage={safePage}
-        totalItems={usersList.length}
+        totalItems={filteredUsers.length}
         pageSize={USERS_PAGE_SIZE}
         onPageChange={setCurrentPage}
         itemLabel="accounts"

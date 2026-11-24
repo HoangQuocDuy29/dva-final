@@ -1,9 +1,9 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
-import { AuthModal } from './components/auth/AuthModal';
+import { AuthModal, getPostLoginPath } from './components/auth/AuthModal';
 import { HomePage } from './pages/HomePage';
 
 const GoogleSheetsViewerModal = lazy(() =>
@@ -57,15 +57,20 @@ const RedirectPreserveQuery: React.FC<{ to: string }> = ({ to }) => {
   return <Navigate to={{ pathname: to, search: location.search }} replace />;
 };
 
+const PublicNavbarGuard: React.FC<{ currentUser: User; onUserChange: (u: User) => void }> = (props) => {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  return pathname === '/login' ? null : <Navbar {...props} onOpenAuth={() => navigate('/login')} />;
+};
+
 const PublicFooterGuard: React.FC = () => {
   const { pathname } = useLocation();
-  if (pathname.startsWith('/admin')) return null;
+  if (pathname.startsWith('/admin') || pathname === '/login') return null;
   return <Footer />;
 };
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User>(() => authService.getCurrentUser());
-  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [sheetsModalOpen, setSheetsModalOpen] = useState(false);
 
   const handleUserChange = (user: User) => {
@@ -93,10 +98,9 @@ export default function App() {
       <div className="min-h-screen flex flex-col bg-[#0B0F19] text-white font-sans selection:bg-red-600 selection:text-white overflow-x-clip w-full max-w-full">
         
         {/* Navbar (Clean international sports club navigation, no internal scripts/sheets buttons) */}
-        <Navbar
+        <PublicNavbarGuard
           currentUser={currentUser}
           onUserChange={handleUserChange}
-          onOpenAuth={() => setAuthModalOpen(true)}
         />
 
         {/* Main Routes */}
@@ -146,16 +150,18 @@ export default function App() {
               {/* Module 6: Member Registration */}
               <Route path="/register" element={<MemberRegisterPage />} />
 
-              {/* Module 8: Admin Dedicated Dashboard */}
+              {/* Dedicated Login & Admin Routes */}
+              <Route path="/login" element={currentUser.role !== 'GUEST' ? <Navigate to={getPostLoginPath(currentUser.role)} replace /> : <AuthModal isOpen mode="page" onClose={() => {}} onSuccess={handleUserChange} />} />
+              <Route path="/admin" element={<Navigate to={currentUser.role === 'GUEST' ? '/login' : getPostLoginPath(currentUser.role)} replace />} />
               <Route
                 path="/admin/dashboard"
-                element={
+                element={currentUser.role === 'GUEST' ? <Navigate to="/login" replace /> : (
                   <AdminDashboardPage
                     currentUser={currentUser}
                     onOpenSheets={() => setSheetsModalOpen(true)}
                     onUserChange={handleUserChange}
                   />
-                }
+                )}
               />
 
               {/* Catch-all */}
@@ -166,13 +172,6 @@ export default function App() {
 
         {/* Professional Footer with Embedded Arena Map (Hidden on /admin/* routes) */}
         <PublicFooterGuard />
-
-        {/* Authentication Modal */}
-        <AuthModal
-          isOpen={authModalOpen}
-          onClose={() => setAuthModalOpen(false)}
-          onSuccess={handleUserChange}
-        />
 
         {/* Google Sheets Live Multi-Tab Viewer (Lazy-loaded on demand) */}
         {sheetsModalOpen && (

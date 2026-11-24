@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { X, Lock, Mail, Eye, EyeOff, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { authService } from '../../services/api';
+
+const HUB_ROLES = new Set(['SUPERADMIN', 'ADMIN', 'CAPTAIN', 'COACH', 'STAFF']);
+export const getPostLoginPath = (role?: string) => (HUB_ROLES.has(role || '') ? '/admin/dashboard' : '/');
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (user: UserType) => void;
+  mode?: 'modal' | 'page';
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess, mode = 'modal' }) => {
+  const isPage = mode === 'page';
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,8 +26,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) {
-      setShowPassword(false);
+    if (!isOpen || isPage) {
+      if (!isOpen) setShowPassword(false);
       return undefined;
     }
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -32,9 +37,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isLoading, onClose]);
+  }, [isOpen, isPage, isLoading, onClose]);
 
-  if (!isOpen) return null;
+  if (!isPage && !isOpen) return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,12 +58,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       const res = await authService.login(email.trim(), password);
       authService.setCurrentUser(res.user);
       onSuccess(res.user);
-      onClose();
-
-      // If user is Admin, SuperAdmin, or Captain, route immediately to dedicated workspace
-      if (res.user.role === 'ADMIN' || res.user.role === 'SUPERADMIN' || res.user.role === 'CAPTAIN') {
-        navigate('/admin/dashboard');
-      }
+      const target = getPostLoginPath(res.user.role);
+      if (isPage) navigate(target, { replace: true });
+      else { onClose(); if (target !== '/') navigate(target); }
     } catch (err: any) {
       setMessage(err?.message || 'Authentication failed. Please verify your credentials.');
     } finally {
@@ -68,14 +70,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
+      role={isPage ? undefined : 'dialog'}
+      aria-modal={isPage ? undefined : true}
       aria-labelledby="auth-modal-title"
-      onClick={(e) => {
+      onClick={isPage ? undefined : (e) => {
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
+      className={isPage
+        ? 'min-h-screen -mt-20 flex flex-col items-center justify-center px-4 py-10 bg-[#0B0F19]'
+        : 'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md overflow-hidden animate-in fade-in duration-200'}
     >
+      {isPage && (
+        <div className="flex flex-col items-center gap-2 mb-6">
+          <img src="/logo.png" alt="DVA Volleyball Club" className="w-16 h-16 object-contain drop-shadow-[0_0_24px_rgba(249,115,22,0.35)]" />
+          <span className="font-heading font-black text-sm tracking-[0.2em] uppercase text-white/90">DVA VOLLEYBALL</span>
+        </div>
+      )}
       <div className="relative w-full max-w-md">
         {/* Ambient Brand Glow behind Frosted Glass Card */}
         <div
@@ -122,15 +132,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isLoading}
-              aria-label="Close"
-              className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition shrink-0 disabled:opacity-50"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {!isPage && (
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                aria-label="Close"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-white/5 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition shrink-0 disabled:opacity-50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Message notification */}
@@ -229,6 +241,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           </div>
         </div>
       </div>
+      {isPage && (
+        <Link to="/" className="mt-5 inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white transition-colors">← Về trang chủ</Link>
+      )}
     </div>
   );
 };
