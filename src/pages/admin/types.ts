@@ -28,6 +28,7 @@ export type AdminTabId =
   | 'PLAYERS'
   | 'TRAINING'
   | 'COACHES'
+  | 'LEADERSHIP'
   | 'NEWS'
   | 'USERS'
   | 'SHEETS'

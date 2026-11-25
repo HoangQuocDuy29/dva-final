@@ -42,6 +42,8 @@ import {
   VenuePayload,
   VenueClubPayload,
   VenueSessionPayload,
+  LeadershipMember,
+  LeadershipMemberPayload,
   getShopCategoryCode
 } from '../types';
 import { 
@@ -137,6 +139,13 @@ const venueClubDetailCache = createSwrCache<VenueClubDetailResponse>({
   storagePrefix: 'dva_venue_club_detail_v1:',
   freshMs: 60_000,
   staleMs: 300_000,
+});
+
+const leadershipCache = createSwrCache<LeadershipMember[]>({
+  storagePrefix: 'dva_leadership_public_v1:',
+  freshMs: 30_000,
+  staleMs: 300_000,
+  validate: Array.isArray,
 });
 
 const TOKEN_KEY = 'dva_token';
@@ -2352,6 +2361,50 @@ export const venueService = {
     );
     venuesCache.invalidate();
     venueClubDetailCache.invalidate();
+    return res;
+  },
+};
+
+export const leadershipService = {
+  getCachedPublic(): LeadershipMember[] | null {
+    return leadershipCache.get('public')?.data ?? null;
+  },
+
+  async getPublic(opts: { forceRefresh?: boolean } = {}): Promise<LeadershipMember[]> {
+    return leadershipCache.fetch({
+      key: 'public',
+      fetcher: () => request<LeadershipMember[]>('/leadership'),
+      forceRefresh: opts.forceRefresh,
+    });
+  },
+
+  async getAdminList(): Promise<LeadershipMember[]> {
+    return request<LeadershipMember[]>('/leadership/admin');
+  },
+
+  async create(payload: LeadershipMemberPayload): Promise<LeadershipMember> {
+    const created = await request<LeadershipMember>('/leadership', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    leadershipCache.invalidate();
+    return created;
+  },
+
+  async update(id: string, payload: Partial<LeadershipMemberPayload>): Promise<LeadershipMember> {
+    const updated = await request<LeadershipMember>(`/leadership/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    leadershipCache.invalidate();
+    return updated;
+  },
+
+  async remove(id: string): Promise<{ success: boolean; id: string }> {
+    const res = await request<{ success: boolean; id: string }>(`/leadership/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    leadershipCache.invalidate();
     return res;
   },
 };

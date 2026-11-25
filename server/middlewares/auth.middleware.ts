@@ -229,6 +229,7 @@ const PUBLIC_RULES: Rule[] = [
   rule('POST', /^\/tournaments\/[^/]+\/teams\/[^/]+\/confirm-payment\/?$/),
   rule('GET', /^\/venues\/?$/),
   rule('GET', /^\/venues\/teams\/[^/]+\/?$/),
+  rule('GET', /^\/leadership\/?$/),
 ];
 
 // Explicit allowlist for the restricted ADMIN role (default-deny for all other admin/finance/delete routes).

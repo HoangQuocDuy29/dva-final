@@ -15,10 +15,16 @@ const DAY_SHORT: Record<number, string> = { 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 
 const DAY_FULL: Record<number, string> = { 1: 'Thứ 2', 2: 'Thứ 3', 3: 'Thứ 4', 4: 'Thứ 5', 5: 'Thứ 6', 6: 'Thứ 7', 0: 'Chủ Nhật' };
 const WEEKDAY_EN: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
+export const PLAY_STYLE_OPTIONS: readonly VenuePlayStyle[] = ['COMPETITIVE', 'FUN_GAME', 'TRAINING'];
 export const PLAY_STYLE_META: Record<VenuePlayStyle, { emoji: string; shortLabel: string; label: string; badgeClass: string; activeClass: string }> = {
   COMPETITIVE: { emoji: '🔥', shortLabel: 'Đấu căng', label: 'Đấu căng / Kèo trình độ', badgeClass: 'bg-orange-500/20 text-orange-300 border border-orange-500/45', activeClass: 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400' },
   FUN_GAME: { emoji: '😊', shortLabel: 'Chơi vui', label: 'Chơi vui vẻ / Giao lưu', badgeClass: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40', activeClass: 'bg-emerald-600 text-white border-emerald-400' },
   TRAINING: { emoji: '🎯', shortLabel: 'Tập luyện', label: 'Thiên về tập luyện', badgeClass: 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/40', activeClass: 'bg-indigo-600 text-white border-indigo-400' },
+};
+export const parsePlayStyles = (raw?: string | readonly string[] | null): VenuePlayStyle[] => {
+  const items = (Array.isArray(raw) ? raw : String(raw || '').split(',')).map((s) => s.trim().toUpperCase());
+  const valid = PLAY_STYLE_OPTIONS.filter((k) => items.includes(k));
+  return valid.length ? valid : ['FUN_GAME'];
 };
 
 export const SESSION_POSITION_OPTIONS = [
@@ -34,7 +40,7 @@ export const GENDER_RULE_META: Record<VenueGenderRule, { label: string; shortLab
   MIXED: { label: '⚥ Nam & Nữ (Mixed)', shortLabel: '⚥ Nam & Nữ', badgeClass: 'bg-purple-500/15 text-purple-300 border border-purple-500/40' },
   FEMALE_ONLY: { label: '♀️ Chỉ Nữ', shortLabel: '♀️ Chỉ Nữ', badgeClass: 'bg-pink-500/15 text-pink-300 border border-pink-500/40' },
 };
-export const suggestGenderRule = (style?: VenuePlayStyle): VenueGenderRule => (style === 'COMPETITIVE' ? 'MALE_ONLY' : 'MIXED');
+export const suggestGenderRule = (style?: string): VenueGenderRule => (parsePlayStyles(style).includes('COMPETITIVE') ? 'MALE_ONLY' : 'MIXED');
 
 export const RECRUITMENT_META: Record<VenueRecruitmentStatus, { label: string; badgeClass: string }> = {
   OPEN_RECRUIT: { label: 'Đang tuyển slot', badgeClass: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/35' },

@@ -8,7 +8,7 @@ import {
 import { venueService } from '../services/api';
 import type { VenueClubDetailResponse, VenueSessionSlot } from '../types';
 import {
-  PLAY_STYLE_META, GENDER_RULE_META, RECRUITMENT_META, VENUE_TYPE_META, getVietnamNow, getSessionRealtimeInfo, isSessionCancelledOnDate,
+  PLAY_STYLE_META, parsePlayStyles, GENDER_RULE_META, RECRUITMENT_META, VENUE_TYPE_META, getVietnamNow, getSessionRealtimeInfo, isSessionCancelledOnDate,
   isVenueClosedNow, formatClosedUntilDate, formatDaysOfWeek, buildGoogleMapsUrl, buildZaloContact,
   sanitizePhoneForLink, getClubInitials,
 } from '../utils/venueSchedule';
@@ -69,7 +69,7 @@ export const CourtClubDetailPage: React.FC = () => {
     </div>
   );
 
-  const style = PLAY_STYLE_META[club.playStyle] || PLAY_STYLE_META.FUN_GAME;
+  const styles = parsePlayStyles(club.playStyle).map((k) => PLAY_STYLE_META[k]);
   const vt = VENUE_TYPE_META[club.venue.venueType] || VENUE_TYPE_META.COMMERCIAL;
   const closed = isVenueClosedNow(club.venue, nowVn.nowMs);
   const reopenStr = formatClosedUntilDate(club.venue.closedUntil);
@@ -111,7 +111,7 @@ export const CourtClubDetailPage: React.FC = () => {
                 </div>
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex flex-wrap gap-2">
-                    <span className={`px-3 py-0.5 rounded-full text-xs font-extrabold ${style.badgeClass}`}>{style.emoji} {style.label}</span>
+                    {styles.map((st) => <span key={st.shortLabel} className={`px-3 py-0.5 rounded-full text-xs font-extrabold ${st.badgeClass}`}>{st.emoji} {st.label}</span>)}
                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${club.feeType === 'FREE' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/45' : 'bg-amber-500/15 text-amber-300 border-amber-500/35'}`}>
                       <Wallet className="w-3.5 h-3.5" />{club.feeType === 'FREE' ? 'FREE · Miễn phí' : club.feeAmount || 'Thu phí'}
                     </span>
@@ -154,7 +154,8 @@ export const CourtClubDetailPage: React.FC = () => {
                         <span className="inline-flex items-center gap-1 font-bold text-white"><Clock className="w-3.5 h-3.5 text-orange-400" />{s.startTime} – {s.endTime}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${style.badgeClass}`}>{style.emoji} {style.shortLabel} • {(GENDER_RULE_META[s.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>
+                        {styles.map((st) => <span key={st.shortLabel} className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${st.badgeClass}`}>{st.emoji} {st.shortLabel}</span>)}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${(GENDER_RULE_META[s.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).badgeClass}`}>{(GENDER_RULE_META[s.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>
                         {s.skillRankLabel && (
                           <Link
                             to="/information/skill-levels"

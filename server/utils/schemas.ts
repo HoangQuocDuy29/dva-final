@@ -921,6 +921,14 @@ export const TOURNAMENT_OFFICIAL_SCHEMA: Schema = {
 const VENUE_TYPES = ['COMMERCIAL', 'FREE_PUBLIC'] as const;
 const VENUE_FEE_TYPES = ['PAID', 'FREE'] as const;
 const VENUE_PLAY_STYLES = ['COMPETITIVE', 'FUN_GAME', 'TRAINING'] as const;
+const PLAY_STYLE_RULE: Rule = (v, k) => {
+  const raw = Array.isArray(v) ? v : typeof v === 'string' ? v.split(',') : null;
+  if (!raw) throw new HttpError(400, `${k} must be a play style string or array`);
+  const items = raw.map((x) => String(x).trim().toUpperCase()).filter(Boolean);
+  if (!items.length) throw new HttpError(400, 'Chọn ít nhất 1 mục đích chơi');
+  for (const s of items) E(VENUE_PLAY_STYLES)(s, k);
+  return VENUE_PLAY_STYLES.filter((s) => items.includes(s)).join(',');
+};
 const VENUE_RECRUITMENT_STATUSES = ['OPEN_RECRUIT', 'CHECK_CAPTAIN', 'FULL'] as const;
 const VENUE_CAPACITY_MODES = ['UNLIMITED', 'LIMITED_SLOTS'] as const;
 const VENUE_GENDER_RULES = ['MALE_ONLY', 'MIXED', 'FEMALE_ONLY'] as const;
@@ -1014,7 +1022,7 @@ export const VENUE_CLUB_SCHEMA: Schema = {
   captainZalo: S(120),
   captainEmail: OPTIONAL_EMAIL,
   captainUserId: S(80),
-  playStyle: E(VENUE_PLAY_STYLES),
+  playStyle: PLAY_STYLE_RULE,
   tags: SA(15, 60),
   description: S(3000),
   feeType: E(VENUE_FEE_TYPES),
@@ -1040,4 +1048,18 @@ export const VENUE_SESSION_SCHEMA: Schema = {
   genderRule: E(VENUE_GENDER_RULES),
   skillRankLabel: S(40),
   forceOverride: B,
+};
+
+const LEADERSHIP_ACCENT_COLORS = ['emerald', 'orange', 'red', 'blue'] as const;
+
+export const LEADERSHIP_MEMBER_SCHEMA: Schema = {
+  name: S(120, 2),
+  badgeRole: S(120, 2),
+  subtitle: S(160, 2),
+  bio: S(1500, 5),
+  footerRole: S(120, 2),
+  avatarUrl: U,
+  accentColor: E(LEADERSHIP_ACCENT_COLORS),
+  displayOrder: I(0, 999),
+  isActive: B,
 };

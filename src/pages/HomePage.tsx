@@ -14,139 +14,65 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { Court, Player, NewsPost } from '../types';
-import { homeService } from '../services/api';
+import { Court, Player, NewsPost, LeadershipMember } from '../types';
+import { homeService, leadershipService } from '../services/api';
 import { formatEnglishDate } from '../utils/date';
+import { optimizeCloudinaryUrl } from '../utils/cloudinary';
+import { DEFAULT_LEADERSHIP_FALLBACK, getLeadershipInitials, getLeadershipTheme } from '../utils/leadership';
 
-interface LeadershipMember {
-  name: string;
-  badge: string;
-  badgeColor: string;
-  specialty: string;
-  specialtyColor: string;
-  description: string;
-  roleFooter: string;
-  fallbackInitials: string;
-  avatarGradient: string;
-  hoverBorder: string;
-  image?: string;
-}
+const LeadershipCard: React.FC<{ member: LeadershipMember }> = ({ member }) => {
+  const theme = getLeadershipTheme(member.accentColor);
+  return (
+    <div
+      className={`w-[280px] sm:w-[320px] min-h-[390px] shrink-0 bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between transition-all duration-300 shadow-xl group hover:shadow-2xl hover:-translate-y-1 ${theme.hoverBorder} select-none`}
+    >
+      <div className="space-y-4">
+        <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${theme.avatarGradient} overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto`}>
+          {member.avatarUrl ? (
+            <img
+              src={optimizeCloudinaryUrl(member.avatarUrl, 'thumb')}
+              alt={member.name}
+              className="w-full h-full object-cover relative z-10"
+              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+            />
+          ) : null}
+          <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">
+            {getLeadershipInitials(member.name)}
+          </span>
+        </div>
 
-const LEADERSHIP_MEMBERS: LeadershipMember[] = [
-  {
-    name: 'Hoang Quoc Duy',
-    badge: 'Founder & Club Manager',
-    badgeColor: 'bg-red-950 text-red-400 border-red-800',
-    specialty: 'Operations & Community Lead',
-    specialtyColor: 'text-orange-400',
-    description: 'Founder and manager of DVA Volleyball Club. Oversees match scheduling, court coordination, and community activities to maintain an accessible, organized playing environment for all members.',
-    roleFooter: 'Role : Senior Squad Captain',
-    fallbackInitials: 'DUY',
-    avatarGradient: 'from-red-600 to-orange-500',
-    hoverBorder: 'hover:border-red-500/50',
-    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792859772/88fd036d-168d-4c9b-b74d-48448e5808da.png',
-  },
-  {
-    name: 'Hoang Manh Kien',
-    badge: 'Technical & System Manager',
-    badgeColor: 'bg-blue-950 text-blue-300 border-blue-800',
-    specialty: 'Information Technology',
-    specialtyColor: 'text-blue-400',
-    description: 'Manages the technical infrastructure and digital platforms of DVA. Responsible for system stability, match data tracking, and coordinating technical support during events.',
-    roleFooter: 'Role : System Technical',
-    fallbackInitials: 'KIEN',
-    avatarGradient: 'from-blue-700 to-cyan-600',
-    hoverBorder: 'hover:border-blue-500/50',
-    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792859693/dedfed66-f2fc-44ad-b4d8-e8b4bb66ef24.png',
-  },
-  {
-    name: 'Luong The Phong',
-    badge: 'Junior Team Captain',
-    badgeColor: 'bg-amber-950 text-amber-300 border-amber-800',
-    specialty: 'Squad Leader & Match Support',
-    specialtyColor: 'text-amber-400',
-    description: 'Captain of the DVA Junior Team. Leads training drills on the court, supports match organization, and helps connect younger members with club activities.',
-    roleFooter: 'Role: Junior Squad Captain',
-    fallbackInitials: 'PHONG',
-    avatarGradient: 'from-amber-600 to-yellow-500',
-    hoverBorder: 'hover:border-amber-500/50',
-    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792864125/46219df4-39ee-4418-a31d-3c0d69cbf589.png',
-  },
-  {
-    name: 'Tran Cong Huy',
-    badge: 'Youth Squad Captain',
-    badgeColor: 'bg-emerald-950 text-emerald-300 border-emerald-800',
-    specialty: 'Squad Leader & Youth Development',
-    specialtyColor: 'text-emerald-400',
-    description: 'Captain of the DVA Youth Team, responsible for leading training sessions, instructing youth athletes on fundamental skills, and fostering team cohesion.',
-    roleFooter: 'Role : Youth Squad Captain',
-    fallbackInitials: 'HUY',
-    avatarGradient: 'from-emerald-600 to-teal-500',
-    hoverBorder: 'hover:border-emerald-500/50',
-    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1793037457/dva_club/players/youth/mb/z9ttorct7lcif5wnvehe.png',
-  },
-  {
-    name: 'Hoang Minh Hieu',
-    badge: 'Social Media & Communications',
-    badgeColor: 'bg-orange-950 text-orange-300 border-orange-800',
-    specialty: 'Media & Community Channels',
-    specialtyColor: 'text-orange-400',
-    description: 'Manages social media channels and communications for DVA. Captures match photos, posts game schedules, and keeps members updated across club platforms.',
-    roleFooter: 'Role: Social Media & Communications',
-    fallbackInitials: 'HIEU',
-    avatarGradient: 'from-red-600 to-pink-600',
-    hoverBorder: 'hover:border-orange-500/50',
-    image: 'https://res.cloudinary.com/dsezvx7xf/image/upload/v1792919620/6d3b1902-b8d9-4097-b65e-fca87ecff4aa.png',
-  },
-];
+        <div className="text-center space-y-1">
+          <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border inline-block ${theme.badgeColor}`}>
+            {member.badgeRole}
+          </span>
+          <h3 className="font-heading font-black text-lg text-white">
+            {member.name}
+          </h3>
+          <p className={`text-[11px] font-semibold ${theme.subtitleColor}`}>
+            {member.subtitle}
+          </p>
+        </div>
 
-const LeadershipCard: React.FC<{ member: LeadershipMember }> = ({ member }) => (
-  <div
-    className={`w-[280px] sm:w-[320px] min-h-[390px] shrink-0 bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between transition-all duration-300 shadow-xl group hover:shadow-2xl hover:-translate-y-1 ${member.hoverBorder} select-none`}
-  >
-    <div className="space-y-4">
-      <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${member.avatarGradient} overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto`}>
-        {member.image ? (
-          <img
-            src={member.image}
-            alt={member.name}
-            className="w-full h-full object-cover relative z-10"
-            onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-          />
-        ) : null}
-        <span className="absolute inset-0 flex items-center justify-center font-athletic font-black text-2xl text-white">
-          {member.fallbackInitials}
-        </span>
-      </div>
-
-      <div className="text-center space-y-1">
-        <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border inline-block ${member.badgeColor}`}>
-          {member.badge}
-        </span>
-        <h3 className="font-heading font-black text-lg text-white">
-          {member.name}
-        </h3>
-        <p className={`text-[11px] font-semibold ${member.specialtyColor}`}>
-          {member.specialty}
+        <p className="text-xs text-slate-400 leading-relaxed text-center">
+          {member.bio}
         </p>
       </div>
 
-      <p className="text-xs text-slate-400 leading-relaxed text-center">
-        {member.description}
-      </p>
+      <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
+        {member.footerRole}
+      </div>
     </div>
-
-    <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-center text-slate-500 font-mono">
-      {member.roleFooter}
-    </div>
-  </div>
-);
+  );
+};
 
 export const HomePage: React.FC = () => {
   const [initialCache] = useState(() => homeService.getCachedSummary());
   const [courts, setCourts] = useState<Court[]>(() => initialCache?.data.courts ?? []);
   const [players, setPlayers] = useState<Player[]>(() => initialCache?.data.players ?? []);
   const [news, setNews] = useState<NewsPost[]>(() => initialCache?.data.news ?? []);
+  const [leadershipMembers, setLeadershipMembers] = useState<LeadershipMember[]>(
+    () => leadershipService.getCachedPublic() || DEFAULT_LEADERSHIP_FALLBACK
+  );
   const [isLoading, setIsLoading] = useState<boolean>(() => !initialCache);
 
   // Leadership slider refs & state
@@ -186,7 +112,7 @@ export const HomePage: React.FC = () => {
       clearTimeout(timer);
       window.removeEventListener('resize', updateWidth);
     };
-  }, []);
+  }, [leadershipMembers.length]);
 
   // Smooth continuous auto-sliding loop (moving left to right)
   useEffect(() => {
@@ -327,6 +253,23 @@ export const HomePage: React.FC = () => {
     const stepOffset = direction === 'left' ? -344 : 344;
     container.scrollBy({ left: stepOffset, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    leadershipService
+      .getPublic({ forceRefresh: true })
+      .then((rows) => {
+        if (!cancelled && Array.isArray(rows) && rows.length > 0) {
+          setLeadershipMembers(rows);
+        }
+      })
+      .catch((err) => {
+        console.error('[HomePage] Error loading leadership team:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (initialCache && !initialCache.isStale) return;
@@ -786,22 +729,22 @@ export const HomePage: React.FC = () => {
               <div className="flex">
                 {/* Set 0 (Buffer Set for seamless backward wrap) */}
                 <div ref={setMeasureRef} className="flex gap-6 shrink-0 pr-6">
-                  {LEADERSHIP_MEMBERS.map((member, idx) => (
-                    <LeadershipCard key={`set0-${idx}`} member={member} />
+                  {leadershipMembers.map((member, idx) => (
+                    <LeadershipCard key={`set0-${member.id}-${idx}`} member={member} />
                   ))}
                 </div>
 
                 {/* Set 1 (Main Set) */}
                 <div className="flex gap-6 shrink-0 pr-6">
-                  {LEADERSHIP_MEMBERS.map((member, idx) => (
-                    <LeadershipCard key={`set1-${idx}`} member={member} />
+                  {leadershipMembers.map((member, idx) => (
+                    <LeadershipCard key={`set1-${member.id}-${idx}`} member={member} />
                   ))}
                 </div>
 
                 {/* Set 2 (Buffer Set for seamless forward wrap) */}
                 <div className="flex gap-6 shrink-0 pr-6">
-                  {LEADERSHIP_MEMBERS.map((member, idx) => (
-                    <LeadershipCard key={`set2-${idx}`} member={member} />
+                  {leadershipMembers.map((member, idx) => (
+                    <LeadershipCard key={`set2-${member.id}-${idx}`} member={member} />
                   ))}
                 </div>
               </div>

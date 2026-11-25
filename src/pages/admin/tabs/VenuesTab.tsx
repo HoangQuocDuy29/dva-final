@@ -8,7 +8,7 @@ import { userService, venueService } from '../../../services/api';
 import { optimizeCloudinaryLogoUrl, optimizeCloudinaryUrl, uploadToCloudinary } from '../../../utils/cloudinary';
 import type { CourtClubProfile, SessionDailyOverridesMap, User, VenueCapacityMode, VenueFeeType, VenueGenderRule, VenuePlayStyle, VenueRecruitmentStatus, VenueSessionSlot, VenueType, VolleyballPosition, VolleyballVenue } from '../../../types';
 import {
-  VN_DAY_OPTIONS, PLAY_STYLE_META, GENDER_RULE_META, suggestGenderRule, RECRUITMENT_META, VENUE_TYPE_META, SESSION_POSITION_OPTIONS, HANOI_DISTRICTS, VIETNAM_CITIES, SURFACE_TYPES,
+  VN_DAY_OPTIONS, PLAY_STYLE_OPTIONS, PLAY_STYLE_META, parsePlayStyles, GENDER_RULE_META, suggestGenderRule, RECRUITMENT_META, VENUE_TYPE_META, SESSION_POSITION_OPTIONS, HANOI_DISTRICTS, VIETNAM_CITIES, SURFACE_TYPES,
   getSubCourtNames, formatDaysOfWeek, formatShortVnDate, getMonthlyQuotaStatus, getVietnamNow, getSessionDailyState, getUpcomingSessionDates, isSessionCancelledOnDate, buildGoogleMapsUrl, getClubInitials, findClientSessionConflicts, isVenueClosedNow,
 } from '../../../utils/venueSchedule';
 import { SessionStatusBlock } from '../../../components/court-map/SessionStatusBlock';
@@ -105,7 +105,7 @@ export const VenuesTab: React.FC = () => {
       name: c?.name || '', slug: c?.slug || '', logoUrl: c?.logoUrl || '', coverUrl: c?.coverUrl || '', galleryUrls: [...(c?.galleryUrls || [])],
       captainName: c?.captainName || '', captainPhone: c?.captainPhone || '', captainZalo: c?.captainZalo || '', captainEmail: c?.captainEmail || '',
       captainUserId: c?.captainUserId || '', createCaptainAccount: false, newCaptainEmail: c?.captainEmail || '', newCaptainPassword: '',
-      playStyle: c?.playStyle || 'FUN_GAME', tagsInput: c ? (c.tags || []).join(', ') : 'Giao lưu, Tuyển vãng lai', description: c?.description || '',
+      playStyles: parsePlayStyles(c?.playStyle), tagsInput: c ? (c.tags || []).join(', ') : 'Giao lưu, Tuyển vãng lai', description: c?.description || '',
       feeType: c?.feeType || (isFree ? 'FREE' : 'PAID'), feeAmount: c?.feeAmount ?? (isFree ? 'Miễn phí' : '70k/buổi'), isActive: c ? c.isActive !== false : true,
     };
   };
@@ -186,7 +186,7 @@ export const VenuesTab: React.FC = () => {
     const galLocked = isCaptain && getMonthlyQuotaStatus(existing?.galleryUpdatedAt).locked;
     const p: Record<string, any> = {
       name: form.name.trim(), logoUrl: form.logoUrl?.trim() || null, captainName: form.captainName.trim(),
-      playStyle: form.playStyle as VenuePlayStyle, tags: String(form.tagsInput || '').split(',').map((s) => s.trim()).filter(Boolean),
+      playStyle: parsePlayStyles(form.playStyles).join(','), tags: String(form.tagsInput || '').split(',').map((s) => s.trim()).filter(Boolean),
       description: form.description?.trim() || null, feeType: form.feeType as VenueFeeType,
       feeAmount: form.feeType === 'FREE' ? (form.feeAmount?.trim() || 'Miễn phí') : (form.feeAmount?.trim() || null),
       ...(!coverLocked ? { coverUrl: form.coverUrl?.trim() || null } : {}),
@@ -393,7 +393,17 @@ export const VenuesTab: React.FC = () => {
           </p>
         )}
         {renderCaptainAccountSection(club?.id)}
-        <F label="Mục đích chơi" full><select className={INP} value={form.playStyle} onChange={(e) => set({ playStyle: e.target.value })}><option value="COMPETITIVE">🔥 Đấu căng</option><option value="FUN_GAME">😊 Chơi vui</option><option value="TRAINING">🎯 Tập luyện</option></select></F>
+        <F label="Mục đích chơi (chọn 1 hoặc nhiều)" full>
+          <div className="flex flex-wrap gap-2">
+            {PLAY_STYLE_OPTIONS.map((id) => {
+              const cur = parsePlayStyles(form.playStyles);
+              const active = cur.includes(id);
+              const m = PLAY_STYLE_META[id];
+              const onToggle = () => active ? (cur.length <= 1 ? notify('Chọn ít nhất 1 mục đích chơi', 2200) : set({ playStyles: cur.filter((x) => x !== id) })) : set({ playStyles: PLAY_STYLE_OPTIONS.filter((x) => x === id || cur.includes(x)) });
+              return <button key={id} type="button" onClick={onToggle} aria-pressed={active} className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${active ? 'bg-gradient-to-r from-red-600/90 to-orange-500/90 border-orange-400 text-white shadow-sm' : 'bg-[#0B0F19] border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'}`}>{m.emoji} {m.shortLabel}</button>;
+            })}
+          </div>
+        </F>
         <F label="Hình thức phí"><select className={INP} value={form.feeType} onChange={(e) => set({ feeType: e.target.value })}><option value="PAID">Thu phí</option><option value="FREE">Miễn phí (FREE)</option></select></F>
         <F label="Mức phí"><input className={INP} value={form.feeAmount || ''} onChange={(e) => set({ feeAmount: e.target.value })} /></F>
         <F label="Tags (dấu phẩy)" full><input className={INP} value={form.tagsInput || ''} onChange={(e) => set({ tagsInput: e.target.value })} /></F>
@@ -503,13 +513,13 @@ export const VenuesTab: React.FC = () => {
           const previewDateObj = activeDates.find((d) => d.dateStr === previewDate);
           const previewDaily = activeSession ? getSessionDailyState(activeSession, previewDate) : { currentPlayers: 0, neededPositions: [] };
           const venueClosed = isVenueClosedNow(venue);
-          const styleMeta = PLAY_STYLE_META[club.playStyle] || PLAY_STYLE_META.FUN_GAME;
+          const clubStyles = parsePlayStyles(club.playStyle).map((k) => PLAY_STYLE_META[k]);
           const teamUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/services/court-map/teams/${club.slug}`;
           const postText = activeSession ? [
             `🏐 ${club.name} — TUYỂN QUÂN GIAO LƯU`,
             `📍 Sân: ${venue.name} (${venue.address})`,
             `🗓️ Lịch: ${previewDateObj?.label || formatShortVnDate(previewDate)} • ${activeSession.startTime} – ${activeSession.endTime} (${activeSession.subCourts.join(', ')})`,
-            `⚡ Thể thức: ${styleMeta.emoji} ${styleMeta.shortLabel} • ${(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}`,
+            `⚡ Thể thức: ${clubStyles.map((m) => `${m.emoji} ${m.shortLabel}`).join(' / ')} • ${(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}`,
             activeSession.skillRankLabel ? `🇺🇸 Trình độ USAV: ${activeSession.skillRankLabel}` : null,
             activeSession.capacityMode === 'LIMITED_SLOTS'
               ? `👥 Quân số: ${previewDaily.currentPlayers}/${activeSession.maxPlayers ?? 14} (Còn ${Math.max(0, (activeSession.maxPlayers ?? 14) - previewDaily.currentPlayers)} slot)`
@@ -560,7 +570,7 @@ export const VenuesTab: React.FC = () => {
                         <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-slate-700 bg-slate-900 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 96)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-xs text-orange-400">{getClubInitials(club.name)}</span>}</div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1.5"><span className="font-heading font-black text-xs text-white truncate">{club.name}</span><span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${club.feeType === 'FREE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-amber-300'}`}>{club.feeType === 'FREE' ? 'FREE' : club.feeAmount || 'Thu phí'}</span></div>
-                          <div className="flex flex-wrap gap-1 mt-1"><span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${styleMeta.badgeClass}`}>{styleMeta.emoji} {styleMeta.shortLabel} • {(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>{activeSession.skillRankLabel && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-950/85 text-blue-200 border border-blue-500/50">🇺🇸 USAV: {activeSession.skillRankLabel}</span>}{activeSession.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/35">{sc}</span>)}</div>
+                          <div className="flex flex-wrap gap-1 mt-1">{clubStyles.map((m) => <span key={m.shortLabel} className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${m.badgeClass}`}>{m.emoji} {m.shortLabel}</span>)}<span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).badgeClass}`}>{(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>{activeSession.skillRankLabel && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-950/85 text-blue-200 border border-blue-500/50">🇺🇸 USAV: {activeSession.skillRankLabel}</span>}{activeSession.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/35">{sc}</span>)}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0B0F19]/80 border border-slate-800 text-[11px]"><Clock className="w-3 h-3 text-orange-400 shrink-0" /><strong className="text-orange-300">{activeSession.startTime} – {activeSession.endTime}</strong><span className="text-slate-600">•</span><span className="text-slate-200 font-semibold">{formatDaysOfWeek(activeSession.daysOfWeek)}</span></div>
@@ -664,7 +674,6 @@ export const VenuesTab: React.FC = () => {
                         {(v.clubs || []).map((club) => {
                           const open = Boolean(expandedClubs[club.id]);
                           const clubSessions = (v.sessions || []).filter((s) => s.clubId === club.id);
-                          const st = PLAY_STYLE_META[club.playStyle] || PLAY_STYLE_META.FUN_GAME;
                           return (
                             <div key={club.id} className={`rounded-2xl border border-slate-800 bg-[#0F172A] overflow-hidden ${club.isActive === false ? 'opacity-55' : ''}`}>
                               <div className="px-3.5 py-2.5 flex items-center justify-between gap-2 hover:bg-slate-800/40">
@@ -672,7 +681,7 @@ export const VenuesTab: React.FC = () => {
                                   {open ? <ChevronDown className="w-4 h-4 text-orange-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />}
                                   <div className="w-8 h-8 rounded-xl overflow-hidden bg-slate-800 shrink-0 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 80)} alt="" className="w-full h-full object-cover" /> : <span className="font-heading font-black text-[11px] text-orange-400">{getClubInitials(club.name)}</span>}</div>
                                   <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5"><span className="font-bold text-xs text-white truncate">{club.name}</span><span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${st.badgeClass}`}>{st.emoji}</span>{club.captainUser && <span title={`CAPTAIN: ${club.captainUser.email}`} className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">🔑</span>}<span className="text-[10px] text-slate-400">({clubSessions.length} ca)</span></div>
+                                    <div className="flex items-center gap-1.5"><span className="font-bold text-xs text-white truncate">{club.name}</span>{parsePlayStyles(club.playStyle).map((k) => <span key={k} className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${PLAY_STYLE_META[k].badgeClass}`}>{PLAY_STYLE_META[k].emoji}</span>)}{club.captainUser && <span title={`CAPTAIN: ${club.captainUser.email}`} className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">🔑</span>}<span className="text-[10px] text-slate-400">({clubSessions.length} ca)</span></div>
                                     <p className="text-[10px] text-slate-400 truncate">{club.captainName} · {club.captainPhone}</p>
                                   </div>
                                 </button>

@@ -1046,7 +1046,7 @@ export interface CourtClubProfile {
   captainEmail?: string | null;
   captainUserId?: string | null;
   captainUser?: { id: string; email: string; fullName: string; role: UserRole; isActive?: boolean } | null;
-  playStyle: VenuePlayStyle;
+  playStyle: string;
   tags: string[];
   description?: string | null;
   feeType: VenueFeeType;
@@ -1156,7 +1156,7 @@ export type VenueClubPayload = {
   captainZalo?: string | null;
   captainEmail?: string | null;
   captainUserId?: string | null;
-  playStyle: VenuePlayStyle;
+  playStyle: string;
   tags: string[];
   description?: string | null;
   feeType: VenueFeeType;
@@ -1182,4 +1182,33 @@ export type VenueSessionPayload = {
   genderRule?: VenueGenderRule;
   skillRankLabel?: string | null;
   forceOverride?: boolean;
+};
+
+export type LeadershipAccentColor = 'emerald' | 'orange' | 'red' | 'blue';
+
+export interface LeadershipMember {
+  id: string;
+  name: string;
+  badgeRole: string;
+  subtitle: string;
+  bio: string;
+  footerRole: string;
+  avatarUrl?: string | null;
+  accentColor: LeadershipAccentColor;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type LeadershipMemberPayload = {
+  name: string;
+  badgeRole: string;
+  subtitle: string;
+  bio: string;
+  footerRole: string;
+  avatarUrl?: string | null;
+  accentColor?: LeadershipAccentColor;
+  displayOrder?: number;
+  isActive?: boolean;
 };

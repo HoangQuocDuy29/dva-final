@@ -949,3 +949,22 @@ model VenueTeamSchedule {
   @@index([playStyle])
   @@map("venue_team_schedules")
 }
+
+/// Club Leadership, Technical & Media Team showcase on HomePage
+model LeadershipMember {
+  id           String   @id @default(cuid())
+  name         String
+  badgeRole    String
+  subtitle     String
+  bio          String   @db.Text
+  footerRole   String
+  avatarUrl    String?
+  accentColor  String   @default("orange") // "emerald" | "orange" | "red" | "blue"
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive, displayOrder])
+  @@map("leadership_members")
+}

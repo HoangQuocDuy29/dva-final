@@ -99,7 +99,7 @@ export function useAdminData(
   const fetchScopeData = useCallback(
     async (scope: AdminTabId, force: boolean = false) => {
       if ((!isAdmin && !isCaptain) || !authService.hasToken()) return;
-      if (scope === 'OVERVIEW' || scope === 'USERS') return;
+      if (scope === 'OVERVIEW' || scope === 'USERS' || scope === 'LEADERSHIP') return;
       if (isCaptain && scope !== 'VENUES' && scope !== 'CAPTAIN_PROFILE') return;
       const effectiveScope: AdminTabId = scope === 'CAPTAIN_PROFILE' ? 'VENUES' : scope;
       if (!isSuperAdmin && !isCaptain && !ADMIN_PERMITTED_DATA_TABS.has(effectiveScope)) return;
@@ -298,7 +298,7 @@ export function useAdminData(
   // Lazy-fetch exact dataset whenever the user switches to a new tab
   useEffect(() => {
     if ((!isAdmin && !isCaptain) || !authService.hasToken()) return;
-    if (activeModule === 'OVERVIEW' || activeModule === 'USERS') return;
+    if (activeModule === 'OVERVIEW' || activeModule === 'USERS' || activeModule === 'LEADERSHIP') return;
     if (isCaptain && activeModule !== 'VENUES') return;
     if (!isSuperAdmin && !isCaptain && !ADMIN_PERMITTED_DATA_TABS.has(activeModule)) return;
     if (loadedScopesRef.current.has(activeModule)) return;

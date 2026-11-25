@@ -24,6 +24,7 @@ const ApplicationsTab = lazy(() => import('./tabs/ApplicationsTab').then((m) => 
 const PlayersTab = lazy(() => import('./tabs/PlayersTab').then((m) => ({ default: m.PlayersTab })));
 const TrainingTab = lazy(() => import('./tabs/TrainingTab').then((m) => ({ default: m.TrainingTab })));
 const CoachesTab = lazy(() => import('./tabs/CoachesTab').then((m) => ({ default: m.CoachesTab })));
+const LeadershipTab = lazy(() => import('./tabs/LeadershipTab').then((m) => ({ default: m.LeadershipTab })));
 const NewsTab = lazy(() => import('./tabs/NewsTab').then((m) => ({ default: m.NewsTab })));
 const UsersTab = lazy(() => import('./tabs/UsersTab').then((m) => ({ default: m.UsersTab })));
 const SheetsTab = lazy(() => import('./tabs/SheetsTab').then((m) => ({ default: m.SheetsTab })));
@@ -92,6 +93,9 @@ const AdminDashboardShell: React.FC = () => {
 
             {/* MODULE 7: COACHING STAFF MANAGEMENT */}
             {activeModule === 'COACHES' && isSuperAdmin && <CoachesTab />}
+
+            {/* MODULE 7B: HOME LEADERSHIP & OPERATIONS TEAM (SUPERADMIN only) */}
+            {activeModule === 'LEADERSHIP' && isSuperAdmin && <LeadershipTab />}
 
             {/* MODULE 8: NEWS & STORY PUBLISHING */}
             {activeModule === 'NEWS' && <NewsTab />}

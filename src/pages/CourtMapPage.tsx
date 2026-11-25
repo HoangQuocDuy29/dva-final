@@ -7,7 +7,7 @@ import {
 import { venueService } from '../services/api';
 import type { CourtClubProfile, VenueGenderRule, VenuePlayStyle, VenueSessionSlot, VenueType, VolleyballVenue } from '../types';
 import {
-  VN_DAY_OPTIONS, PLAY_STYLE_META, GENDER_RULE_META, RECRUITMENT_META, VENUE_TYPE_META, VIETNAM_CITIES, VIETNAM_OVERVIEW, getVietnamNow, getDateForWeekdayInCurrentWeek, isSessionCancelledOnDate, getSubCourtNames,
+  VN_DAY_OPTIONS, PLAY_STYLE_META, parsePlayStyles, GENDER_RULE_META, RECRUITMENT_META, VENUE_TYPE_META, VIETNAM_CITIES, VIETNAM_OVERVIEW, getVietnamNow, getDateForWeekdayInCurrentWeek, isSessionCancelledOnDate, getSubCourtNames,
   getSessionRealtimeInfo, isVenueClosedNow, formatClosedUntilDate, isVenueLiveNow, isVenueUpcomingToday,
   formatDaysOfWeek, formatDayFull, formatShortVnDate, buildGoogleMapsUrl, buildZaloContact, sanitizePhoneForLink, getClubInitials, parseTimeToMinutes, calcDistanceKm,
 } from '../utils/venueSchedule';
@@ -86,13 +86,13 @@ export const CourtMapPage: React.FC = () => {
         return rk(a) - rk(b) || parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime);
       });
       const matchingSessions = activeSessions.filter((s) => {
-        if (!s.club || (playStyle !== 'ALL' && s.club.playStyle !== playStyle) || (genderFilter !== 'ALL' && (s.genderRule || 'MIXED') !== genderFilter)) return false;
+        if (!s.club || (playStyle !== 'ALL' && !parsePlayStyles(s.club.playStyle).includes(playStyle)) || (genderFilter !== 'ALL' && (s.genderRule || 'MIXED') !== genderFilter)) return false;
         if (timeMode === 'LIVE') return !closed && getSessionRealtimeInfo(s, nowVn, closed).state === 'LIVE';
         if (timeMode === 'UPCOMING_TODAY') return !closed && getSessionRealtimeInfo(s, nowVn, closed).state === 'UPCOMING';
         return timeMode === 'DAY' ? s.daysOfWeek.includes(selectedDay) : true;
       });
-      const hasDaySessions = activeSessions.some((s) => !isSessionCancelledOnDate(s, viewedDate) && s.daysOfWeek.includes(viewedDay) && (playStyle === 'ALL' || s.club?.playStyle === playStyle) && (genderFilter === 'ALL' || (s.genderRule || 'MIXED') === genderFilter));
-      const hasActivity = !closed && (timeMode === 'ALL' && genderFilter === 'ALL' ? hasDaySessions : matchingSessions.length > 0);
+      const hasDaySessions = activeSessions.some((s) => !isSessionCancelledOnDate(s, viewedDate) && s.daysOfWeek.includes(viewedDay) && (playStyle === 'ALL' || parsePlayStyles(s.club?.playStyle).includes(playStyle)) && (genderFilter === 'ALL' || (s.genderRule || 'MIXED') === genderFilter));
+      const hasActivity = !closed && (timeMode === 'ALL' && playStyle === 'ALL' && genderFilter === 'ALL' ? hasDaySessions : matchingSessions.length > 0);
       const venueCity = venue.city || 'Hà Nội';
       const matchesMeta = (cityFilter === 'ALL' || venueCity === cityFilter) && (venueType === 'ALL' || venue.venueType === venueType) && (
         !q || [venue.name, venue.address, venueCity, venue.district, venue.surfaceType, ...(venue.clubs || []).flatMap((c) => [c.name, c.captainName, c.description || '', ...(c.tags || [])])].some((f) => f.toLowerCase().includes(q))
@@ -215,7 +215,8 @@ export const CourtMapPage: React.FC = () => {
             {list.map((s) => {
               const club = s.club;
               if (!club) return null;
-              const style = PLAY_STYLE_META[club.playStyle] || PLAY_STYLE_META.FUN_GAME;
+              const styles = parsePlayStyles(club.playStyle).map((k) => PLAY_STYLE_META[k]);
+              const genderMeta = GENDER_RULE_META[s.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED;
               const rec = RECRUITMENT_META[s.recruitmentStatus] || RECRUITMENT_META.CHECK_CAPTAIN;
               const rt = getSessionRealtimeInfo(s, nowVn, closed, activeSelectedDay);
               const cancelled = !closed && isSessionCancelledOnDate(s, viewedDate);
@@ -238,7 +239,8 @@ export const CourtMapPage: React.FC = () => {
                       </div>
                       <p className="text-[11px] text-slate-400">Đội trưởng: <strong className="text-slate-200">{club.captainName}</strong></p>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${style.badgeClass}`}>{style.emoji} {style.shortLabel} • {(GENDER_RULE_META[s.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>
+                        {styles.map((st) => <span key={st.shortLabel} className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${st.badgeClass}`}>{st.emoji} {st.shortLabel}</span>)}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${genderMeta.badgeClass}`}>{genderMeta.shortLabel}</span>
                         {s.skillRankLabel && (
                           <Link
                             to="/information/skill-levels"
