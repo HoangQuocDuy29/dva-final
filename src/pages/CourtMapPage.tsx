@@ -1018,7 +1018,7 @@ export const CourtMapPage: React.FC = () => {
           <div className="dva-glass-panel backdrop-blur-2xl rounded-3xl p-4 sm:p-5 space-y-3.5 relative">
             {/* Title + Search & Area Row */}
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
-              <div className="min-w-0">
+              <div className="min-w-0 lg:shrink-0">
                 <div className="flex flex-wrap items-center gap-2 text-[11px]">
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-black uppercase bg-orange-500/15 text-orange-400 border border-orange-500/35">
                     <MapPin className="w-3 h-3" />Hanoi Volleyball Radar
@@ -1027,12 +1027,12 @@ export const CourtMapPage: React.FC = () => {
                     <Clock className="w-3 h-3 text-emerald-400" />Hà Nội: <strong className="text-white">{nowVn.timeLabel}</strong> ({nowVn.dayLabel})
                   </span>
                 </div>
-                <h1 className="font-heading font-black text-xl sm:text-2xl lg:text-3xl mt-1">
+                <h1 className="font-heading font-black text-xl sm:text-2xl xl:text-[26px] lg:whitespace-nowrap mt-1">
                   Bản Đồ Sân Bóng Chuyền <span className="text-orange-500">Hà Nội</span>
                 </h1>
               </div>
 
-              {/* Desktop Search / City / Locate / Refresh */}
+              {/* Desktop Search / City / Locate / Copy / Refresh */}
               <div className="hidden md:flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
                 <div className="relative flex-1 min-w-[170px] sm:w-52 xl:w-60">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1049,18 +1049,11 @@ export const CourtMapPage: React.FC = () => {
                   onChange={(e) => handleCityChange(e.target.value)}
                   className="px-3 py-2 dva-glass-pill text-xs font-bold text-slate-100 focus:outline-none focus:border-orange-500 cursor-pointer shrink-0"
                 >
-                  <option value="ALL" className="bg-[#0B0D12]">Toàn Việt Nam</option>
+                  <option value="ALL" className="bg-[#0B0D12]">🇻🇳 Toàn Việt Nam</option>
                   {VIETNAM_CITIES.map((c) => (
                     <option key={c.name} value={c.name} className="bg-[#0B0D12]">{c.name}</option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  onClick={handleViewAllVietnam}
-                  className="px-3 py-2 dva-glass-pill hover:border-orange-400 text-xs font-bold text-slate-100 cursor-pointer shrink-0"
-                >
-                  🇻🇳 Toàn Việt Nam
-                </button>
                 <button
                   type="button"
                   onClick={handleLocateMe}
