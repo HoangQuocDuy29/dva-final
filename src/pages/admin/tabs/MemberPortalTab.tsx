@@ -206,14 +206,14 @@ export const MemberPortalTab: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Link
               to="/information/skill-levels"
-              className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-xs font-bold text-white inline-flex items-center gap-1.5 transition-colors"
+              className="min-h-[42px] px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-xs font-bold text-white inline-flex items-center gap-1.5 transition-colors"
             >
               <Award className="w-3.5 h-3.5 text-orange-400" />
               Bảng hạng USAV
             </Link>
             <Link
               to="/services/court-map"
-              className="px-4 py-2 rounded-full bg-white text-slate-950 hover:bg-orange-400 hover:text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors shadow-lg"
+              className="min-h-[42px] px-4 py-2 rounded-full bg-white text-slate-950 hover:bg-orange-400 hover:text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors shadow-lg"
             >
               <MapPin className="w-3.5 h-3.5" />
               Bản đồ sân Hà Nội

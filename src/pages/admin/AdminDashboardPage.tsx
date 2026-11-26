@@ -58,7 +58,7 @@ const AdminDashboardShell: React.FC = () => {
   }, [activeModule]);
 
   return (
-    <div className="relative h-screen bg-[#0B0D12] text-white flex overflow-hidden">
+    <div className="dva-dashboard-shell relative h-[100dvh] bg-[#0B0D12] text-white flex overflow-hidden">
       {/* Warm Dark Ambient Mesh Lighting Layer (DVA Orange + Cherry Rose + Deep Amber) */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden z-0" aria-hidden="true">
         <div className="absolute -top-24 -left-16 w-[440px] h-[440px] rounded-full bg-orange-500/15 blur-[130px]" />
@@ -71,13 +71,13 @@ const AdminDashboardShell: React.FC = () => {
 
       <div
         ref={mainScrollRef}
-        className="relative z-10 flex-1 min-w-0 h-screen overflow-y-auto no-scrollbar flex flex-col"
+        className="relative z-10 flex-1 min-w-0 h-[100dvh] overflow-y-auto overflow-x-hidden no-scrollbar flex flex-col"
       >
         {/* Top Floating Glass Bar */}
         <AdminHeader />
 
         {/* Main Workspace Body */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-5 pb-24 lg:pb-16 space-y-6">
+        <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 pb-28 md:pb-10 space-y-6">
           {/* Notification feedback */}
           <FeedbackBanner />
 

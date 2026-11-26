@@ -210,7 +210,7 @@ export const LeadershipTab: React.FC = () => {
             <p>Chưa có thành viên Leadership nào.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {members.map((m, idx) => {
               const theme = getLeadershipTheme(m.accentColor);
               const isBusy = busyId === m.id;
@@ -322,7 +322,7 @@ export const LeadershipTab: React.FC = () => {
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="w-full max-w-2xl bg-[#161F30] rounded-3xl border border-slate-700 shadow-2xl text-white max-h-[92vh] overflow-y-auto no-scrollbar">
+          <div className="w-full max-w-full sm:max-w-2xl bg-[#0B0D12]/90 backdrop-blur-2xl rounded-3xl border border-white/15 shadow-2xl text-white max-h-[90dvh] overflow-y-auto no-scrollbar">
             <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-[#161F30]/95 backdrop-blur border-b border-slate-800">
               <div>
                 <h3 className="font-heading font-black text-base text-white">

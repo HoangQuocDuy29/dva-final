@@ -64,7 +64,7 @@ export const RevenueKpiCards: React.FC<RevenueKpiCardsProps> = ({ onJumpToGuestS
   const displayedTotal = includeEstTuition ? totalClubRevenue : verifiedClubRevenue;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 sm:gap-5">
       {/* Row 1, Card 1: Total Revenue — Hero card with Verified Cash vs Include Est. Tuition toggle */}
       <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-[#8B0000] via-[#7A1A0A] to-[#F97316] shadow-lg shadow-orange-950/30 flex flex-col justify-between">
         <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10" aria-hidden="true" />

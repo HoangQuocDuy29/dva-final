@@ -292,7 +292,7 @@ export const VenuesTab: React.FC = () => {
         </div>
 
         {/* Quick Date Selector Bar (T2 23/11, T4 25/11, T7 28/11...) */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2.5 border-t border-white/10">
+        <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t border-white/10">
           <span className="text-[10px] font-bold uppercase text-slate-400 mr-0.5">Ngày:</span>
           {upcomingDates.map((d) => {
             const active = selDate === d.dateStr;
@@ -305,7 +305,7 @@ export const VenuesTab: React.FC = () => {
               </button>
             );
           })}
-          <input type="date" aria-label="Chọn ngày khác" value={selDate} onChange={(e) => { if (e.target.value) setSelectedDateBySession((p) => ({ ...p, [s.id]: e.target.value })); }} className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] text-slate-200 focus:outline-none focus:border-orange-500/50 ml-auto" />
+          <input type="date" aria-label="Chọn ngày khác" value={selDate} onChange={(e) => { if (e.target.value) setSelectedDateBySession((p) => ({ ...p, [s.id]: e.target.value })); }} className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] text-slate-200 focus:outline-none focus:border-orange-500/50 sm:ml-auto min-w-0 max-w-full" />
         </div>
 
         {/* 1-Tap Controls for Selected Date: Capacity, -/+ Players, OH-MB-OP-S-L, Off Toggle */}
@@ -630,9 +630,9 @@ export const VenuesTab: React.FC = () => {
                 />
               )}
 
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
                 {/* LEFT COLUMN (8/12): CLUB HEADER + SESSION CONTROLS */}
-                <div className="xl:col-span-8 space-y-4 min-w-0">
+                <div className="lg:col-span-8 space-y-4 min-w-0">
                   {venueClosed && <div className="p-3.5 rounded-2xl bg-red-950/70 border border-red-500/60 text-xs text-red-100 flex items-start gap-2"><AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" /><div><strong className="uppercase">Sân {venue.name} đang tạm nghỉ:</strong> {venue.closureReason || 'Tạm đóng cửa'}</div></div>}
                   <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
                     <div className="flex items-center gap-3.5 min-w-0">
@@ -650,7 +650,7 @@ export const VenuesTab: React.FC = () => {
 
                 {/* RIGHT COLUMN (4/12): RECRUITMENT POST GENERATOR + PUBLIC CARD PREVIEW */}
                 {activeSession && (
-                  <aside className="xl:col-span-4 space-y-4 xl:sticky xl:top-20">
+                  <aside className="lg:col-span-4 space-y-4 lg:sticky lg:top-20 min-w-0">
                     <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 space-y-3 shadow-xl">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="font-heading font-black text-xs text-white">📋 Tạo Tin Tuyển Quân Nhanh</h3>
@@ -861,7 +861,7 @@ export const VenuesTab: React.FC = () => {
                 <span className="font-bold text-slate-300">Danh bạ Đội trưởng ({filteredCaptains.length} · Gmail ẩn khỏi Public API)</span>
                 <div className="relative w-full sm:w-64"><Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm đội trưởng, SĐT, Gmail..." className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#0F172A] border border-slate-700 text-xs text-white" /></div>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
                 <table className="w-full text-left text-xs min-w-[740px]">
                   <thead><tr className="border-b border-slate-800 text-[10px] uppercase text-slate-400 bg-[#111827]"><th className="py-2.5 px-4">Đội trưởng</th><th className="py-2.5 px-3">Đội / CLB</th><th className="py-2.5 px-3">Sân & Lịch hoạt động</th><th className="py-2.5 px-3">Liên hệ & Tài khoản</th><th className="py-2.5 px-4 text-right">Thao tác</th></tr></thead>
                   <tbody className="divide-y divide-slate-800/70">
@@ -892,7 +892,7 @@ export const VenuesTab: React.FC = () => {
       {/* SINGLE SHARED DRY MODAL (VENUE / CLUB / SESSION / CAPTAIN) */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs" role="dialog" aria-modal="true">
-          <div className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#111827] border border-slate-700 shadow-2xl">
+          <div className="w-full max-w-full sm:max-w-xl max-h-[90dvh] overflow-y-auto rounded-3xl bg-[#0B0D12]/90 backdrop-blur-2xl border border-white/15 shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 bg-[#111827]/95 backdrop-blur border-b border-slate-800">
               <h3 className="font-heading font-black text-base text-white">
                 {modal.kind === 'venue' ? (modal.item ? 'Sửa Địa Điểm Sân' : 'Thêm Sân Mới')

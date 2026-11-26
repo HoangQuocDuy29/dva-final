@@ -241,7 +241,7 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
-      <div className="w-full max-w-3xl bg-[#111827] border border-[#1E293B] rounded-3xl shadow-2xl text-white max-h-[92vh] overflow-y-auto no-scrollbar">
+      <div className="w-full max-w-full sm:max-w-3xl bg-[#0B0D12]/90 backdrop-blur-2xl border border-white/15 rounded-3xl shadow-2xl text-white max-h-[90dvh] overflow-y-auto no-scrollbar">
         <div className="sticky top-0 z-10 bg-[#111827]/95 backdrop-blur px-6 py-4 border-b border-[#1E293B] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Trophy className="w-5 h-5 text-[#F97316]" />

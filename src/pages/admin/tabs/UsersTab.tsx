@@ -154,7 +154,7 @@ export const UsersTab: React.FC = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto no-scrollbar">
+      <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
         <table className="w-full min-w-[820px] text-xs text-left">
           <thead className="text-slate-400 uppercase text-[10px] border-b border-slate-800">
             <tr>

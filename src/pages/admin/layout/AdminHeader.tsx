@@ -4,7 +4,6 @@ import {
   Send,
   RefreshCw,
   ArrowLeft,
-  Menu,
   Search,
   X,
   ChevronDown,
@@ -59,7 +58,6 @@ export const AdminHeader: React.FC = () => {
     setActiveModule,
     storeSubView,
     setStoreSubView,
-    setIsMobileNavOpen,
     data: { venuesList },
   } = useAdminDashboard();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -194,20 +192,11 @@ export const AdminHeader: React.FC = () => {
 
   return (
     <>
-      <div className="sticky top-3 z-20 px-3 sm:px-6 lg:px-8 pt-3 shrink-0">
-        <header className="w-full max-w-7xl mx-auto h-14 px-2.5 sm:px-4 rounded-full bg-white/[0.05] backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/40 flex items-center gap-2 sm:gap-3">
-          {/* Mobile menu drawer button */}
-          <button
-            type="button"
-            aria-label="Open navigation"
-            onClick={() => setIsMobileNavOpen(true)}
-            className="lg:hidden w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center shrink-0 cursor-pointer transition-colors"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-
+      <div className="sticky top-0 z-40 pt-3 pb-2 px-3 sm:px-6 lg:px-8 shrink-0 bg-gradient-to-b from-[#0B0D12] via-[#0B0D12]/90 to-transparent">
+        <div ref={profileDropdownRef} className="relative w-full max-w-7xl mx-auto">
+        <header className="w-full max-w-full overflow-hidden min-h-[52px] sm:h-14 px-3 py-2 sm:px-4 rounded-full bg-white/[0.05] backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/40 flex items-center gap-1.5 sm:gap-3">
           {/* Compact active module badge + Vietnam time-of-day greeting (all 5 roles) */}
-          <div className="min-w-0 flex flex-col pl-1 pr-2 shrink-0 max-w-[175px] sm:max-w-[235px]">
+          <div className="min-w-0 flex-1 lg:flex-none lg:max-w-[235px] flex flex-col pl-0.5 pr-1">
             <span className="text-[10px] font-semibold text-orange-300/95 leading-none truncate" title={greetingText}>
               {greetingText}
             </span>
@@ -238,17 +227,15 @@ export const AdminHeader: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex-1 lg:hidden" />
-
           {/* Right Action Cluster + User & Role Badge */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {!isCaptain && (
               <button
                 type="button"
                 aria-label="Quick search (⌘K)"
                 title="Tìm kiếm nhanh (⌘K)"
                 onClick={() => setIsSearchOpen(true)}
-                className="h-9 px-2.5 sm:px-3 rounded-full bg-white/[0.06] hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="w-8 h-8 sm:w-auto sm:h-9 sm:px-3 rounded-full bg-white/[0.06] hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white inline-flex items-center justify-center gap-1.5 shrink-0 transition-colors cursor-pointer"
               >
                 <Search className="w-3.5 h-3.5" />
                 <kbd className="hidden md:inline text-[10px] font-mono text-slate-400">⌘K</kbd>
@@ -261,7 +248,7 @@ export const AdminHeader: React.FC = () => {
                 onClick={openGuestModal}
                 title="Guest Session Email"
                 aria-label="Guest Session Email"
-                className="relative w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/10 text-slate-200 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/10 text-slate-200 hover:text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
                 {hasUnreadAlert && (
@@ -276,7 +263,7 @@ export const AdminHeader: React.FC = () => {
               disabled={loading}
               title="Refresh data"
               aria-label="Refresh data"
-              className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-300 hover:text-white flex items-center justify-center shrink-0 transition-colors cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -285,13 +272,13 @@ export const AdminHeader: React.FC = () => {
               to="/"
               title="Về trang chủ DVA"
               aria-label="Về trang chủ DVA"
-              className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 hover:text-white flex items-center justify-center transition-colors"
+              className="hidden sm:flex w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 hover:text-white items-center justify-center shrink-0 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
             </Link>
 
-            {/* User Avatar + Role Badge Dropdown */}
-            <div ref={profileDropdownRef} className="relative pl-1.5 ml-0.5 border-l border-white/10">
+            {/* User Avatar + Role Badge Trigger */}
+            <div className="pl-1 sm:pl-1.5 ml-0.5 border-l border-white/10 shrink-0">
               <input
                 ref={quickAvatarInputRef}
                 type="file"
@@ -300,7 +287,7 @@ export const AdminHeader: React.FC = () => {
                 disabled={isUploadingQuickAvatar}
                 onChange={handleQuickAvatarUpload}
               />
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 <button
                   type="button"
                   onClick={() => quickAvatarInputRef.current?.click()}
@@ -335,7 +322,7 @@ export const AdminHeader: React.FC = () => {
                   aria-expanded={isProfileMenuOpen}
                   aria-haspopup="menu"
                   title="Account menu"
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-full hover:bg-white/[0.08] transition-colors cursor-pointer text-left"
+                  className="flex items-center gap-1 sm:gap-1.5 p-1 sm:px-2 sm:py-1 rounded-full hover:bg-white/[0.08] transition-colors cursor-pointer text-left shrink-0"
                 >
                   <div className="hidden sm:flex items-center gap-1.5 min-w-0 max-w-[175px]">
                     <span className="text-xs font-bold text-white truncate max-w-[95px]">
@@ -352,13 +339,16 @@ export const AdminHeader: React.FC = () => {
                   />
                 </button>
               </div>
+            </div>
+          </div>
+        </header>
 
-              {isProfileMenuOpen && (
-                <div
-                  role="menu"
-                  aria-label="Profile options"
-                  className="absolute right-0 mt-3 w-64 rounded-3xl bg-[#111520]/95 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/80 py-2 z-50 text-xs"
-                >
+        {isProfileMenuOpen && (
+          <div
+            role="menu"
+            aria-label="Profile options"
+            className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-3xl bg-[#111520]/95 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/80 py-2 z-50 text-xs"
+          >
                   <div className="px-4 py-2.5 border-b border-white/10 flex items-center gap-3">
                     <RoleAvatarRing
                       name={currentUser.fullName}
@@ -433,9 +423,7 @@ export const AdminHeader: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </header>
+        </div>
       </div>
 
       {/* Quick Search Modal Overlay (Desktop ⌘K & Mobile) */}

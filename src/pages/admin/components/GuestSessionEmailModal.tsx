@@ -109,7 +109,7 @@ export const GuestSessionEmailModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto no-scrollbar animate-in fade-in">
-      <div className="bg-[#111827] border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative my-8 text-white max-h-[90vh] overflow-y-auto no-scrollbar">
+      <div className="bg-[#0B0D12]/90 backdrop-blur-2xl border border-white/15 rounded-3xl w-full max-w-full sm:max-w-2xl p-4 sm:p-6 shadow-2xl relative my-4 text-white max-h-[90dvh] overflow-y-auto no-scrollbar">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
           <div className="flex items-center gap-3">

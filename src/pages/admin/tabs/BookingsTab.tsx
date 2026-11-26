@@ -187,7 +187,7 @@ export const BookingsTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto no-scrollbar">
+        <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
           <table className="w-full min-w-[720px] text-xs text-left border-collapse">
             <thead>
               <tr className="bg-[#0E1524] text-slate-400 font-bold border-b border-slate-800">

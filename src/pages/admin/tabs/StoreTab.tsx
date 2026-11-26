@@ -695,7 +695,7 @@ export const StoreTab: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto no-scrollbar">
+              <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
                 <table className="w-full min-w-[960px] text-xs text-left border-collapse">
                   <thead>
                     <tr className="bg-[#0B0F19] text-slate-400 font-bold border-b border-[#1E293B]">
@@ -995,7 +995,7 @@ export const StoreTab: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto no-scrollbar">
+              <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
                 <table className="w-full min-w-[760px] text-xs text-left border-collapse">
                   <thead>
                     <tr className="bg-[#0B0F19] text-slate-400 font-bold border-b border-[#1E293B]">
@@ -1182,7 +1182,7 @@ export const StoreTab: React.FC = () => {
       {/* =================================================================== */}
       {isProductModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-2xl bg-[#111827] border border-slate-700 rounded-3xl shadow-2xl overflow-hidden text-white flex flex-col max-h-[90vh]">
+          <div className="w-full max-w-full sm:max-w-2xl bg-[#0B0D12]/90 backdrop-blur-2xl border border-white/15 rounded-3xl shadow-2xl overflow-hidden text-white flex flex-col max-h-[90dvh]">
             <div className="px-6 py-4 bg-[#161F30] border-b border-slate-800 flex items-center justify-between">
               <h3 className="font-heading font-black text-base text-white">
                 {productForm.id ? 'Edit Store Product' : 'Add New Store Product'}
@@ -1545,7 +1545,7 @@ export const StoreTab: React.FC = () => {
       {/* Stage 2 Dedicated Dispatch Email Preview Modal */}
       {dispatchModalOrder && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto no-scrollbar">
-          <div className="bg-[#0B111E] border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-6 relative max-h-[92vh] overflow-y-auto no-scrollbar my-auto">
+          <div className="bg-[#0B0D12]/90 backdrop-blur-2xl border border-white/15 rounded-3xl w-full max-w-full sm:max-w-2xl p-4 sm:p-6 shadow-2xl space-y-6 relative max-h-[90dvh] overflow-y-auto no-scrollbar my-auto">
             {/* Header */}
             <div className="flex items-start justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">

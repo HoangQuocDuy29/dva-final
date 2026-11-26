@@ -98,8 +98,8 @@ export const SpatialBentoGrid: React.FC<SpatialBentoGridProps> = ({
           {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10">
+        <div className="flex flex-wrap items-center gap-2 max-w-full">
+          <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl sm:rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 max-w-full">
             {FILTER_PILLS.map((pill) => {
               const active = filter === pill.key;
               return (
@@ -135,14 +135,14 @@ export const SpatialBentoGrid: React.FC<SpatialBentoGridProps> = ({
           {emptyMessage}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 sm:gap-5">
           {visibleItems.map((item, idx) => {
             const tone = item.tone ?? TONE_CYCLE[idx % TONE_CYCLE.length];
             const theme = GRADIENT_THEMES[tone];
             return (
               <article
                 key={item.id}
-                className={`group relative overflow-hidden rounded-3xl bg-gradient-to-b ${theme.card} backdrop-blur-xl border border-white/15 p-5 flex flex-col justify-between min-h-[268px] shadow-xl shadow-black/30 hover:border-white/25 hover:-translate-y-0.5 transition-all duration-300`}
+                className={`group relative overflow-hidden rounded-3xl bg-gradient-to-b ${theme.card} backdrop-blur-xl border border-white/15 p-4 sm:p-5 flex flex-col justify-between min-h-[252px] sm:min-h-[268px] shadow-xl shadow-black/30 hover:border-white/25 hover:-translate-y-0.5 transition-all duration-300`}
               >
                 {/* Top meta strip */}
                 <div className="flex items-center justify-between gap-2">

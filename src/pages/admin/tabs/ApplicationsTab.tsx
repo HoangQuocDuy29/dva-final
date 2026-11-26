@@ -358,7 +358,7 @@ export const ApplicationsTab: React.FC = () => {
       </div>
 
       {/* Main Card */}
-      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
+      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 sm:p-6 shadow-xl space-y-5">
         {/* Top Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div className="space-y-1">
@@ -378,7 +378,7 @@ export const ApplicationsTab: React.FC = () => {
           </div>
 
           {/* Search Input */}
-          <div className="relative w-full lg:w-72 shrink-0">
+          <div className="relative w-full sm:w-72 shrink-0">
             <Search className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
@@ -399,7 +399,7 @@ export const ApplicationsTab: React.FC = () => {
 
         {/* Filter Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 w-fit">
+          <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl sm:rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 max-w-full w-fit">
             {statusTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -419,7 +419,7 @@ export const ApplicationsTab: React.FC = () => {
             ))}
           </div>
 
-          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 w-fit">
+          <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl sm:rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 max-w-full w-fit">
             {(
               [
                 { id: 'ALL', label: 'All Fees' },
@@ -448,7 +448,7 @@ export const ApplicationsTab: React.FC = () => {
         </div>
 
         {/* Applications Table */}
-        <div className="overflow-x-auto no-scrollbar">
+        <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
           <table
             className={`w-full table-fixed text-xs text-left border-collapse ${
               isSuperAdmin ? 'min-w-[1080px]' : 'min-w-[880px]'

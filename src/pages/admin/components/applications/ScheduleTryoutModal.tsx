@@ -150,12 +150,12 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/70 backdrop-blur-md animate-in fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="schedule-tryout-modal-title"
     >
-      <div className="rounded-3xl bg-[#0B0D12]/85 backdrop-blur-2xl border border-white/15 shadow-[0_24px_64px_rgba(0,0,0,0.65)] max-w-6xl w-full relative text-white flex flex-col max-h-[88vh] overflow-hidden">
+      <div className="rounded-3xl bg-[#0B0D12]/85 backdrop-blur-2xl border border-white/15 shadow-[0_24px_64px_rgba(0,0,0,0.65)] w-full max-w-full sm:max-w-6xl relative text-white flex flex-col max-h-[90dvh] sm:max-h-[88dvh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-5 sm:px-6 py-3.5 shrink-0 bg-white/[0.03]">
           <div className="flex items-center gap-3 min-w-0">

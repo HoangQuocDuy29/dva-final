@@ -38,7 +38,7 @@ const BADGE_TONE: Record<NonNullable<SpatialKpiItem['badgeTone']>, string> = {
 };
 
 export const SpatialKpiRow: React.FC<{ items: SpatialKpiItem[] }> = ({ items }) => (
-  <section aria-label="Key Performance Indicators" className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  <section aria-label="Key Performance Indicators" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-5">
     {items.slice(0, 3).map((item) => {
       const Icon = item.icon;
       const interactive = Boolean(item.onClick);
@@ -58,7 +58,7 @@ export const SpatialKpiRow: React.FC<{ items: SpatialKpiItem[] }> = ({ items }) 
                 }
               : undefined
           }
-          className={`relative overflow-hidden rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-5 flex items-center justify-between gap-4 shadow-xl shadow-black/25 transition-all duration-200 ${
+          className={`relative overflow-hidden rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 sm:p-5 flex items-center justify-between gap-3 sm:gap-4 shadow-xl shadow-black/25 transition-all duration-200 ${
             interactive ? 'hover:bg-white/[0.07] hover:border-white/20 cursor-pointer' : ''
           }`}
         >
@@ -69,7 +69,7 @@ export const SpatialKpiRow: React.FC<{ items: SpatialKpiItem[] }> = ({ items }) 
               </span>
               <span className="text-xs font-semibold text-slate-300 truncate">{item.label}</span>
             </div>
-            <div className="font-mono font-black text-2xl text-white tracking-tight tabular-nums truncate pt-0.5">
+            <div className="font-mono font-black text-xl sm:text-2xl text-white tracking-tight tabular-nums truncate pt-0.5">
               {item.value}
             </div>
             <div className="flex items-center flex-wrap gap-1.5">

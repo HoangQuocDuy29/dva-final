@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, X, LogOut, Phone, LayoutGrid } from 'lucide-react';
+import { Shield, X, LogOut, Phone, LayoutGrid, Home } from 'lucide-react';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
-import { getAdminNavBadges, getVisibleNavGroups } from '../constants';
+import { getAdminNavBadges, getVisibleNavGroups, USER_ROLE_BADGE } from '../constants';
 import { useAdminMetrics } from '../hooks/useAdminMetrics';
 import { AdminNavItem } from '../types';
+import { RoleAvatarRing } from '../components/RoleAvatarRing';
 import { getMonthlyQuotaStatus, isVenueClosedNow } from '../../../utils/venueSchedule';
 
 interface HoverTooltip {
@@ -52,9 +53,9 @@ export const AdminSidebar: React.FC = () => {
           .filter((cluster) => cluster.length > 0)
       : [allItems];
 
-  // Mobile bottom dock shows up to 4 primary items + "More" trigger when role has >5 modules
-  const mobileHasMore = allItems.length > 5;
-  const mobileDockItems = mobileHasMore ? allItems.slice(0, 4) : allItems;
+  // Mobile bottom dock shows up to 4 primary items + "More" sheet trigger for every role
+  const mobileDockItems = allItems.slice(0, 4);
+  const roleBadgeClass = USER_ROLE_BADGE[currentUser.role] || USER_ROLE_BADGE.GUEST;
 
   useEffect(() => {
     if (!isMobileNavOpen) return undefined;
@@ -180,45 +181,45 @@ export const AdminSidebar: React.FC = () => {
       )}
 
       {/* Mobile Floating Horizontal Bottom Pill Dock (< lg) */}
-      <nav
-        aria-label="Mobile quick dock"
-        className="lg:hidden fixed bottom-3 left-3 right-3 z-40 mx-auto max-w-md rounded-full bg-[#0E1118]/90 backdrop-blur-2xl border border-white/15 px-2 py-1.5 shadow-2xl shadow-black/70 flex items-center justify-around gap-1"
-      >
-        {mobileDockItems.map((item) => {
-          const Icon = item.icon;
-          const active = activeModule === item.id;
-          const badge = badges[item.id];
-          const hasAlert = Boolean(badge && badge.value > 0 && badge.tone === 'alert');
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveModule(item.id)}
-              aria-label={item.label}
-              aria-current={active ? 'page' : undefined}
-              className={`relative flex-1 max-w-[74px] h-11 rounded-full flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
-                active
-                  ? 'bg-white text-slate-950 shadow-lg'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.08]'
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span className="text-[9px] font-bold leading-none truncate max-w-[58px]">
-                {item.label.split(' ')[0]}
-              </span>
-              {hasAlert && (
-                <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-orange-500" aria-hidden="true" />
-              )}
-            </button>
-          );
-        })}
+      <div className="lg:hidden fixed bottom-3 left-3 right-3 z-40 pb-[env(safe-area-inset-bottom)] pointer-events-none flex justify-center">
+        <nav
+          aria-label="Mobile quick dock"
+          className="pointer-events-auto w-full max-w-md rounded-full bg-[#0E1118]/90 backdrop-blur-2xl border border-white/15 px-2 py-1.5 shadow-2xl shadow-black/70 flex items-center justify-around gap-1"
+        >
+          {mobileDockItems.map((item) => {
+            const Icon = item.icon;
+            const active = activeModule === item.id;
+            const badge = badges[item.id];
+            const hasAlert = Boolean(badge && badge.value > 0 && badge.tone === 'alert');
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveModule(item.id)}
+                aria-label={item.label}
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex-1 max-w-[74px] min-h-[44px] h-11 rounded-full flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                  active
+                    ? 'bg-white text-slate-950 shadow-lg'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.08]'
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="text-[9px] font-bold leading-none truncate max-w-[58px]">
+                  {item.label.split(' ')[0]}
+                </span>
+                {hasAlert && (
+                  <span className="absolute top-1.5 right-3 w-1.5 h-1.5 rounded-full bg-orange-500" aria-hidden="true" />
+                )}
+              </button>
+            );
+          })}
 
-        {mobileHasMore && (
           <button
             type="button"
             onClick={() => setIsMobileNavOpen(true)}
-            aria-label="All modules"
-            className={`flex-1 max-w-[74px] h-11 rounded-full flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+            aria-label="More modules & account"
+            className={`flex-1 max-w-[74px] min-h-[44px] h-11 rounded-full flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
               isMobileNavOpen
                 ? 'bg-orange-500 text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-white/[0.08]'
@@ -227,42 +228,66 @@ export const AdminSidebar: React.FC = () => {
             <LayoutGrid className="w-4 h-4 shrink-0" />
             <span className="text-[9px] font-bold leading-none">More</span>
           </button>
-        )}
-      </nav>
+        </nav>
+      </div>
 
-      {/* Mobile Glass Drawer (All Modules + Captain Support Card + Sign Out) */}
+      {/* Mobile Bottom Glass Sheet Drawer (User Card + Home Link + All Modules + Sign Out) */}
       {isMobileNavOpen && (
-        <div className="lg:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Workspace navigation">
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="Workspace navigation">
           <button
             type="button"
             aria-label="Close navigation"
             className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-default"
             onClick={() => setIsMobileNavOpen(false)}
           />
-          <aside className="relative flex flex-col w-72 max-w-[85vw] h-full bg-[#0E1118]/95 backdrop-blur-2xl border-r border-white/15 shadow-2xl">
-            <div className="flex items-center justify-between gap-3 h-16 px-5 border-b border-white/10">
+          <aside className="relative w-full rounded-t-3xl bg-[#0B0D12]/95 backdrop-blur-2xl border-t border-white/15 max-h-[82dvh] flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] shadow-2xl animate-in slide-in-from-bottom duration-200">
+            <div className="flex justify-center pt-2.5 pb-1 shrink-0" aria-hidden="true">
+              <div className="w-10 h-1 rounded-full bg-white/20" />
+            </div>
+
+            {/* User Info + Role Badge + Close */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/10 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-rose-600 to-orange-500 flex items-center justify-center text-white shadow">
-                  <Shield className="w-4 h-4" />
-                </div>
+                <RoleAvatarRing
+                  name={currentUser.fullName}
+                  avatarUrl={currentUser.avatarUrl}
+                  role={currentUser.role}
+                  email={currentUser.email}
+                  size="sm"
+                />
                 <div className="min-w-0">
-                  <p className="font-heading font-black text-sm text-white leading-tight truncate">DVA Spatial Hub</p>
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{currentUser.role}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-heading font-black text-sm text-white leading-tight truncate">{currentUser.fullName}</p>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border font-mono shrink-0 ${roleBadgeClass}`}>
+                      {currentUser.role}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 truncate mt-0.5">{currentUser.email}</p>
                 </div>
               </div>
               <button
                 type="button"
                 aria-label="Close navigation"
                 onClick={() => setIsMobileNavOpen(false)}
-                className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                className="w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 text-slate-300 hover:text-white hover:bg-white/15 flex items-center justify-center shrink-0 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <nav className="flex-1 overflow-y-auto py-4 space-y-5 no-scrollbar">
+            <nav className="flex-1 overflow-y-auto px-4 py-3 space-y-4 no-scrollbar">
+              {/* Public Website Shortcut */}
+              <Link
+                to="/"
+                onClick={() => setIsMobileNavOpen(false)}
+                className="w-full min-h-[42px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-xs font-bold text-white transition-colors"
+              >
+                <Home className="w-4 h-4 text-orange-400 shrink-0" />
+                <span>Về Trang Chủ DVA</span>
+              </Link>
+
               {groups.map((group) => (
-                <div key={group.id} className="px-3">
+                <div key={group.id}>
                   <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                     {group.label}
                   </p>
@@ -285,9 +310,9 @@ export const AdminSidebar: React.FC = () => {
               ))}
 
               {isCaptain && (
-                <div className="px-3 pt-2">
+                <div className="pt-1">
                   <div className="rounded-3xl p-3.5 bg-white/[0.04] border border-white/10 space-y-2.5 text-[11px]">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Trạng thái & Hỗ trợ</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Trạng thái &amp; Hỗ trợ</p>
                     {captainVenue && (
                       <div className={`px-2.5 py-1.5 rounded-2xl border font-bold ${isVenueClosedNow(captainVenue) ? 'bg-red-950/60 border-red-500/45 text-red-200' : 'bg-emerald-950/40 border-emerald-500/35 text-emerald-300'}`}>
                         {isVenueClosedNow(captainVenue) ? '🔴 Sân tạm nghỉ' : '🟢 Sân đang mở cửa'}
@@ -304,7 +329,7 @@ export const AdminSidebar: React.FC = () => {
                       href="https://zalo.me/0768299329"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full py-2 px-2.5 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/35 text-cyan-200 font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      className="w-full min-h-[42px] py-2 px-2.5 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/35 text-cyan-200 font-bold flex items-center justify-center gap-1.5 transition-colors"
                     >
                       <Phone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                       <span className="truncate">Hỗ trợ Quốc Duy · 0768299329</span>
@@ -314,14 +339,14 @@ export const AdminSidebar: React.FC = () => {
               )}
             </nav>
 
-            <div className="p-3 border-t border-white/10">
+            <div className="p-3.5 border-t border-white/10 shrink-0">
               <button
                 type="button"
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 transition-colors cursor-pointer"
+                className="w-full min-h-[42px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 transition-colors cursor-pointer"
               >
                 <LogOut className="w-4 h-4 shrink-0" />
-                <span className="truncate">Sign Out / Đăng xuất</span>
+                <span className="truncate">Đăng xuất</span>
               </button>
             </div>
           </aside>
