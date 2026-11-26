@@ -1,9 +1,10 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { AuthModal, getPostLoginPath } from './components/auth/AuthModal';
+import { WaterRippleReveal, RippleOrigin } from './components/WaterRippleReveal';
 import { HomePage } from './pages/HomePage';
 
 const GoogleSheetsViewerModal = lazy(() =>
@@ -34,7 +35,7 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then((m) => ({ de
 
 // Fallback loader chuẩn phong cách Dark Theme DVA (tránh giật trắng màn hình khi tải trang)
 const PageLoadingFallback: React.FC = () => (
-  <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-[#0B0F19] text-white">
+  <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-transparent text-white">
     <div className="relative flex items-center justify-center">
       <div className="w-12 h-12 rounded-full border-2 border-slate-800 border-t-orange-500 animate-spin" />
       <div className="absolute w-6 h-6 rounded-full bg-orange-500/20 animate-pulse" />
@@ -82,8 +83,11 @@ const MainShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User>(() => authService.getCurrentUser());
   const [sheetsModalOpen, setSheetsModalOpen] = useState(false);
+  const [rippleOrigin, setRippleOrigin] = useState<RippleOrigin | null>(null);
+  const handleRippleComplete = useCallback(() => setRippleOrigin(null), []);
 
-  const handleUserChange = (user: User) => {
+  const handleUserChange = (user: User, origin?: RippleOrigin) => {
+    if (origin) setRippleOrigin(origin);
     setCurrentUser(user);
     authService.setCurrentUser(user);
   };
@@ -201,6 +205,9 @@ export default function App() {
 
         {/* Floating Back to Top Button */}
         <BackToTop />
+
+        {/* WebGL 3D Water Ripple & Circular Reveal Login Transition */}
+        <WaterRippleReveal origin={rippleOrigin} onComplete={handleRippleComplete} />
 
       </div>
       <Analytics />

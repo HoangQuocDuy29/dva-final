@@ -16,7 +16,7 @@ export async function authenticateUser(email: string, password: string) {
   const dbUser = await prisma.user.findUnique({ where: { email } });
   const valid = await verifyPassword(password, dbUser?.passwordHash || DUMMY_HASH);
   if (!dbUser || !dbUser.passwordHash || !valid) {
-    throw new HttpError(401, 'Invalid email or password.');
+    throw new HttpError(401, 'You have entered an incorrect username or password.');
   }
   if (dbUser.isActive === false) {
     throw new HttpError(403, 'Tài khoản đã bị tạm khóa. Vui lòng liên hệ Superadmin.');
