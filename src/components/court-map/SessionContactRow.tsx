@@ -2,11 +2,36 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, EyeOff, MessageCircle, Phone, Copy, Check, Loader2, ChevronRight } from 'lucide-react';
 import { authService, venueService } from '../../services/api';
-import type { CourtClubProfile, RevealedSessionContact, VenueSessionSlot, VolleyballVenue } from '../../types';
+import type { CourtClubProfile, RevealedSessionContact, RevealedVenueContact, VenueSessionSlot, VolleyballVenue } from '../../types';
 import { buildZaloContact, sanitizePhoneForLink } from '../../utils/venueSchedule';
 import type { ContactRevealTarget } from './ContactRevealModal';
 
 const REVEAL_STORAGE_KEY = 'dva_revealed_contacts_v1';
+const VENUE_REVEAL_STORAGE_KEY = 'dva_revealed_venue_contacts_v1';
+
+export function readRevealedVenueContactCache(venueId: string): RevealedVenueContact | null {
+  if (typeof window === 'undefined' || !venueId) return null;
+  try {
+    const raw = window.sessionStorage.getItem(VENUE_REVEAL_STORAGE_KEY);
+    if (!raw) return null;
+    const map = JSON.parse(raw) as Record<string, RevealedVenueContact>;
+    return map && map[venueId] ? map[venueId] : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeRevealedVenueContactCache(contact: RevealedVenueContact): void {
+  if (typeof window === 'undefined' || !contact?.venueId) return;
+  try {
+    const raw = window.sessionStorage.getItem(VENUE_REVEAL_STORAGE_KEY);
+    const map = raw ? (JSON.parse(raw) as Record<string, RevealedVenueContact>) : {};
+    map[contact.venueId] = contact;
+    window.sessionStorage.setItem(VENUE_REVEAL_STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    // ignore storage quota errors
+  }
+}
 
 export function readRevealedContactCache(sessionId: string): RevealedSessionContact | null {
   if (typeof window === 'undefined' || !sessionId) return null;
@@ -208,6 +233,148 @@ export const SessionContactRow: React.FC<SessionContactRowProps> = ({
             <span>{copied ? 'Đã copy' : 'Copy'}</span>
           </button>
         </div>
+      )}
+    </div>
+  );
+};
+
+interface VenueRentalContactBlockProps {
+  venue: Pick<VolleyballVenue, 'id' | 'name' | 'rentalPhone' | 'rentalContactName' | 'hasRentalContact'>;
+  revealedContact: RevealedVenueContact | null;
+  isVisible: boolean;
+  onRevealSuccess: (contact: RevealedVenueContact) => void;
+  onToggleVisibility: (venueId: string, visible: boolean) => void;
+  onRequireVerify: (target: ContactRevealTarget) => void;
+  onNotify: (msg: string) => void;
+}
+
+export const VenueRentalContactBlock: React.FC<VenueRentalContactBlockProps> = ({
+  venue,
+  revealedContact,
+  isVisible,
+  onRevealSuccess,
+  onToggleVisibility,
+  onRequireVerify,
+  onNotify,
+}) => {
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleEyeClick = async () => {
+    if (isVisible && revealedContact) {
+      onToggleVisibility(venue.id, false);
+      return;
+    }
+    if (revealedContact) {
+      onToggleVisibility(venue.id, true);
+      return;
+    }
+    const cached = readRevealedVenueContactCache(venue.id);
+    if (cached) {
+      onRevealSuccess(cached);
+      return;
+    }
+    const isLoggedIn = authService.hasToken() && authService.getCurrentUser().role !== 'GUEST';
+    if (isLoggedIn) {
+      setLoading(true);
+      try {
+        const res = await venueService.revealVenueContact(venue.id);
+        writeRevealedVenueContactCache(res);
+        onRevealSuccess(res);
+      } catch (err: any) {
+        onNotify(err?.message || 'Không thể mở SĐT thuê sân lúc này.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    onRequireVerify({
+      kind: 'venue',
+      venueId: venue.id,
+      clubName: venue.name,
+      captainName: venue.rentalContactName || undefined,
+    });
+  };
+
+  const showingReal = Boolean(isVisible && revealedContact);
+  const realPhone = showingReal && revealedContact ? revealedContact.rentalPhone : '';
+  const cleanDigits = realPhone ? sanitizePhoneForLink(realPhone) : '';
+  const displayPhone = showingReal && realPhone ? formatDisplayPhone(realPhone) : venue.rentalPhone || '*** ***';
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">LIÊN HỆ THUÊ SÂN</p>
+          {(revealedContact?.rentalContactName || venue.rentalContactName) && (
+            <p className="text-xs font-bold text-white truncate mt-0.5">
+              {revealedContact?.rentalContactName || venue.rentalContactName}
+            </p>
+          )}
+          <p className={`font-mono text-xs font-black tracking-wide mt-0.5 ${showingReal ? 'text-emerald-300' : 'text-amber-300'}`}>
+            {displayPhone}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => void handleEyeClick()}
+          title={showingReal ? 'Ẩn SĐT thuê sân' : 'Xác thực để xem SĐT thuê sân'}
+          aria-label={showingReal ? 'Ẩn SĐT thuê sân' : 'Xem SĐT thuê sân'}
+          className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-colors cursor-pointer disabled:opacity-60 ${
+            showingReal
+              ? 'bg-orange-500/15 border-orange-500/50 text-orange-300 hover:bg-orange-500/25'
+              : 'bg-white/[0.06] border-white/15 text-slate-200 hover:border-orange-500/50 hover:bg-orange-500/10 hover:text-orange-300'
+          }`}
+        >
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-orange-400" />
+          ) : showingReal ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+
+      {showingReal && realPhone ? (
+        <div className="grid grid-cols-3 gap-1.5">
+          <a
+            href={`tel:${cleanDigits}`}
+            className="min-h-[34px] py-1.5 px-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/45 text-emerald-300 font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap"
+          >
+            <Phone className="w-3 h-3 shrink-0" /><span>Gọi điện</span>
+          </a>
+          <a
+            href={`https://zalo.me/${cleanDigits.replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-h-[34px] py-1.5 px-2 rounded-xl bg-[#0068FF] hover:bg-[#0058D9] text-white font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap"
+          >
+            <MessageCircle className="w-3 h-3 shrink-0" /><span>Nhắn Zalo</span>
+          </a>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(realPhone);
+                setCopied(true);
+                onNotify(`Đã sao chép SĐT thuê sân: ${formatDisplayPhone(realPhone)}`);
+                window.setTimeout(() => setCopied(false), 1800);
+              } catch {
+                onNotify('Không thể sao chép SĐT.');
+              }
+            }}
+            className="min-h-[34px] py-1.5 px-2 rounded-xl bg-white/[0.06] hover:bg-white/12 border border-white/15 text-slate-100 font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer"
+          >
+            {copied ? <Check className="w-3 h-3 text-emerald-400 shrink-0" /> : <Copy className="w-3 h-3 shrink-0" />}
+            <span>{copied ? 'Đã copy' : 'Copy'}</span>
+          </button>
+        </div>
+      ) : (
+        <p className="text-[10px] text-slate-400">
+          Bấm biểu tượng con mắt để xác thực và xem SĐT thuê sân.
+        </p>
       )}
     </div>
   );

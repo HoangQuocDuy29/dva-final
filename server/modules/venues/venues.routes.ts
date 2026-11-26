@@ -15,6 +15,7 @@ import {
   listPublicSessions,
   listPublicVenues,
   revealSessionContact,
+  revealVenueContact,
   upsertClub,
   upsertSession,
   upsertVenue,
@@ -59,6 +60,20 @@ venuesRouter.post('/sessions/:id/reveal-contact', ah(async (req, res) => {
   const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
   const out = await revealSessionContact({
     sessionId: req.params.id,
+    actor: req.user,
+    clientIp: getClientIp(req),
+    turnstileToken: typeof body.turnstileToken === 'string' ? body.turnstileToken.trim() : undefined,
+    humanVerified: body.humanVerified === true,
+  });
+  res.json(out);
+}));
+
+// Verified Venue Rental Contact Reveal (shares JWT/Turnstile auth & daily rate limit)
+venuesRouter.post('/venues/:id/reveal-contact', ah(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+  const out = await revealVenueContact({
+    venueId: req.params.id,
     actor: req.user,
     clientIp: getClientIp(req),
     turnstileToken: typeof body.turnstileToken === 'string' ? body.turnstileToken.trim() : undefined,

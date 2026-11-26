@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShieldCheck, X, Loader2, AlertCircle, LogIn, Eye } from 'lucide-react';
 import { venueService } from '../../services/api';
-import type { RevealedSessionContact } from '../../types';
+import type { RevealedSessionContact, RevealedVenueContact } from '../../types';
 
 declare global {
   interface Window {
@@ -15,15 +15,18 @@ declare global {
 }
 
 export interface ContactRevealTarget {
-  sessionId: string;
+  kind?: 'session' | 'venue';
+  sessionId?: string;
+  venueId?: string;
   clubName: string;
-  captainName: string;
+  captainName?: string;
 }
 
 interface ContactRevealModalProps {
   target: ContactRevealTarget | null;
   onClose: () => void;
   onRevealed: (contact: RevealedSessionContact) => void;
+  onVenueRevealed?: (contact: RevealedVenueContact) => void;
 }
 
 const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script';
@@ -49,7 +52,7 @@ function loadTurnstileScript(): Promise<void> {
   });
 }
 
-export const ContactRevealModal: React.FC<ContactRevealModalProps> = ({ target, onClose, onRevealed }) => {
+export const ContactRevealModal: React.FC<ContactRevealModalProps> = ({ target, onClose, onRevealed, onVenueRevealed }) => {
   const siteKey = ((import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined) || '').trim();
   const widgetRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
@@ -57,16 +60,24 @@ export const ContactRevealModal: React.FC<ContactRevealModalProps> = ({ target, 
   const [error, setError] = useState<string | null>(null);
   const [widgetLoading, setWidgetLoading] = useState(false);
 
+  const isVenueTarget = target?.kind === 'venue';
+  const targetKey = isVenueTarget ? `venue:${target?.venueId || ''}` : `session:${target?.sessionId || ''}`;
+
   const submitReveal = async (payload: { turnstileToken?: string; humanVerified?: boolean }) => {
     if (!target || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
-      const revealed = await venueService.revealSessionContact(target.sessionId, payload);
-      onRevealed(revealed);
+      if (target.kind === 'venue' && target.venueId) {
+        const revealed = await venueService.revealVenueContact(target.venueId, payload);
+        onVenueRevealed?.(revealed);
+      } else if (target.sessionId) {
+        const revealed = await venueService.revealSessionContact(target.sessionId, payload);
+        onRevealed(revealed);
+      }
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Không thể mở SĐT đội trưởng lúc này. Vui lòng thử lại.');
+      setError(err?.message || 'Không thể mở SĐT liên hệ lúc này. Vui lòng thử lại.');
       if (widgetIdRef.current && window.turnstile) {
         try { window.turnstile.reset(widgetIdRef.current); } catch { /* ignore */ }
       }
@@ -125,7 +136,7 @@ export const ContactRevealModal: React.FC<ContactRevealModalProps> = ({ target, 
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target?.sessionId, siteKey]);
+  }, [targetKey, siteKey]);
 
   if (!target) return null;
 
@@ -145,10 +156,10 @@ export const ContactRevealModal: React.FC<ContactRevealModalProps> = ({ target, 
             </div>
             <div className="min-w-0">
               <h3 id="reveal-modal-title" className="font-heading font-black text-sm leading-tight text-white">
-                Xác thực xem SĐT / Zalo
+                {isVenueTarget ? 'Xác thực xem SĐT thuê sân' : 'Xác thực xem SĐT / Zalo'}
               </h3>
               <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                {target.clubName} · ĐT {target.captainName}
+                {target.clubName}{target.captainName ? ` · ${isVenueTarget ? target.captainName : `ĐT ${target.captainName}`}` : ''}
               </p>
             </div>
           </div>
@@ -165,7 +176,9 @@ export const ContactRevealModal: React.FC<ContactRevealModalProps> = ({ target, 
 
         <div className="p-5 space-y-4 text-xs">
           <p className="text-slate-300 leading-relaxed">
-            Để bảo vệ thông tin Đội trưởng khỏi bot quét số tự động, vui lòng xác thực nhanh để xem SĐT &amp; Zalo thật.
+            {isVenueTarget
+              ? 'Để bảo vệ thông tin chủ sân khỏi bot quét số tự động, vui lòng xác thực nhanh để xem SĐT & Zalo thuê sân.'
+              : 'Để bảo vệ thông tin Đội trưởng khỏi bot quét số tự động, vui lòng xác thực nhanh để xem SĐT & Zalo thật.'}
           </p>
 
           {siteKey ? (

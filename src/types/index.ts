@@ -1093,6 +1093,14 @@ export interface RevealedSessionContact {
   dailyLimit?: number;
 }
 
+export interface RevealedVenueContact {
+  venueId: string;
+  rentalPhone: string;
+  rentalContactName?: string | null;
+  remainingToday?: number;
+  dailyLimit?: number;
+}
+
 export interface VolleyballVenue {
   id: string;
   name: string;
@@ -1108,6 +1116,7 @@ export interface VolleyballVenue {
   rentalPriceInfo?: string | null;
   rentalPhone?: string | null;
   rentalContactName?: string | null;
+  hasRentalContact?: boolean;
   entryNote?: string | null;
   isDvaOfficial: boolean;
   isFeatured: boolean;
@@ -1152,6 +1161,7 @@ export type VenuePayload = {
   rentalPriceInfo?: string | null;
   rentalPhone?: string | null;
   rentalContactName?: string | null;
+  hasRentalContact?: boolean;
   entryNote?: string | null;
   isDvaOfficial: boolean;
   isFeatured: boolean;

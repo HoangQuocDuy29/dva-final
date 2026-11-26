@@ -96,6 +96,16 @@ const resolveMapLogoUrl = (v: {
   return fallback?.logoUrl?.trim() || null;
 };
 
+const sanitizePublicVenueRental = (v: { venueType: string; rentalPhone?: string | null; rentalContactName?: string | null }) => {
+  const raw = v.venueType === 'COMMERCIAL' ? (v.rentalPhone || '').trim() : '';
+  const hasRentalContact = Boolean(raw);
+  return {
+    rentalPhone: hasRentalContact ? maskCaptainPhone(raw) : null,
+    rentalContactName: hasRentalContact ? (v.rentalContactName || null) : null,
+    hasRentalContact,
+  };
+};
+
 export async function listPublicVenues() {
   return getOrSetCache('venues:public', PUBLIC_TTL_MS, async () => {
     const rows = await prisma.volleyballVenue.findMany({
@@ -107,8 +117,7 @@ export async function listPublicVenues() {
       slug: v.slug || slugify(v.name),
       coverUrl: v.coverUrl || v.imageUrl || null,
       mapLogoUrl: resolveMapLogoUrl(v),
-      rentalPhone: v.venueType === 'COMMERCIAL' ? (v.rentalPhone || null) : null,
-      rentalContactName: v.venueType === 'COMMERCIAL' ? (v.rentalContactName || null) : null,
+      ...sanitizePublicVenueRental(v),
       clubs: v.clubs.map(sanitizePublicClub),
       sessions: v.sessions.map((s) => ({ ...s, club: s.club ? sanitizePublicClub(s.club) : undefined })),
     }));
@@ -140,8 +149,7 @@ export async function getPublicClubBySlug(slug: string) {
         ...club.venue,
         slug: club.venue.slug || slugify(club.venue.name),
         coverUrl: club.venue.coverUrl || club.venue.imageUrl || null,
-        rentalPhone: club.venue.venueType === 'COMMERCIAL' ? (club.venue.rentalPhone || null) : null,
-        rentalContactName: club.venue.venueType === 'COMMERCIAL' ? (club.venue.rentalContactName || null) : null,
+        ...sanitizePublicVenueRental(club.venue),
       },
     };
   });
@@ -165,6 +173,73 @@ async function verifyTurnstileToken(token: string, clientIp: string): Promise<bo
   }
 }
 
+async function enforceRevealAuthAndQuota(params: {
+  actor?: Actor;
+  clientIp: string;
+  turnstileToken?: string;
+  humanVerified?: boolean;
+  sessionIdToLog?: string;
+}): Promise<{ remainingToday: number; dailyLimit: number }> {
+  const isAuthenticated = Boolean(params.actor?.id);
+  if (!isAuthenticated) {
+    if (env.turnstileSecretKey) {
+      if (!params.turnstileToken) {
+        throw new HttpError(403, 'Vui lòng hoàn thành xác thực Cloudflare Turnstile để xem SĐT liên hệ.');
+      }
+      const ok = await verifyTurnstileToken(params.turnstileToken, params.clientIp);
+      if (!ok) {
+        throw new HttpError(403, 'Xác thực chống bot không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
+      }
+    } else if (!params.humanVerified && !params.turnstileToken) {
+      throw new HttpError(403, 'Vui lòng xác nhận qua hộp thoại xác thực để hiện SĐT liên hệ.');
+    }
+  }
+
+  const dailyLimit = isAuthenticated ? REVEAL_LIMIT_USER : REVEAL_LIMIT_GUEST;
+  const ipHash = hashClientIp(params.clientIp);
+  const vnDayKey = getVnDayKey();
+  const startOfVnDay = new Date(`${vnDayKey}T00:00:00+07:00`);
+  const memKey = `${vnDayKey}:${isAuthenticated ? `u:${params.actor!.id}` : `ip:${ipHash}`}`;
+  const limitMessage = isAuthenticated
+    ? `Bạn đã đạt giới hạn ${REVEAL_LIMIT_USER} lượt xem SĐT trong hôm nay. Vui lòng quay lại vào ngày mai.`
+    : `Bạn đã đạt giới hạn ${REVEAL_LIMIT_GUEST} lượt xem SĐT/ngày dành cho khách. Đăng nhập tài khoản DVA để mở tới ${REVEAL_LIMIT_USER} lượt/ngày hoặc quay lại vào ngày mai.`;
+
+  const memUsed = fallbackRevealCounts.get(memKey) ?? 0;
+  let dbUsed = 0;
+  try {
+    dbUsed = await prisma.contactRevealLog.count({
+      where: isAuthenticated
+        ? { viewerUserId: params.actor!.id, createdAt: { gte: startOfVnDay } }
+        : { viewerUserId: null, ipHash, createdAt: { gte: startOfVnDay } },
+    });
+  } catch {
+    dbUsed = 0;
+  }
+
+  const usedToday = dbUsed + memUsed;
+  if (usedToday >= dailyLimit) {
+    throw new HttpError(429, limitMessage);
+  }
+
+  if (params.sessionIdToLog) {
+    try {
+      await prisma.contactRevealLog.create({
+        data: {
+          sessionId: params.sessionIdToLog,
+          viewerUserId: params.actor?.id ?? null,
+          ipHash,
+        },
+      });
+    } catch {
+      fallbackRevealCounts.set(memKey, memUsed + 1);
+    }
+  } else {
+    fallbackRevealCounts.set(memKey, memUsed + 1);
+  }
+
+  return { remainingToday: Math.max(0, dailyLimit - (usedToday + 1)), dailyLimit };
+}
+
 export async function revealSessionContact(params: {
   sessionId: string;
   actor?: Actor;
@@ -180,56 +255,13 @@ export async function revealSessionContact(params: {
     throw new HttpError(404, 'Không tìm thấy ca sinh hoạt.');
   }
 
-  const isAuthenticated = Boolean(params.actor?.id);
-  if (!isAuthenticated) {
-    if (env.turnstileSecretKey) {
-      if (!params.turnstileToken) {
-        throw new HttpError(403, 'Vui lòng hoàn thành xác thực Cloudflare Turnstile để xem SĐT đội trưởng.');
-      }
-      const ok = await verifyTurnstileToken(params.turnstileToken, params.clientIp);
-      if (!ok) {
-        throw new HttpError(403, 'Xác thực chống bot không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
-      }
-    } else if (!params.humanVerified && !params.turnstileToken) {
-      throw new HttpError(403, 'Vui lòng xác nhận qua hộp thoại xác thực để hiện SĐT đội trưởng.');
-    }
-  }
-
-  const dailyLimit = isAuthenticated ? REVEAL_LIMIT_USER : REVEAL_LIMIT_GUEST;
-  const ipHash = hashClientIp(params.clientIp);
-  const vnDayKey = getVnDayKey();
-  const startOfVnDay = new Date(`${vnDayKey}T00:00:00+07:00`);
-  const limitMessage = isAuthenticated
-    ? `Bạn đã đạt giới hạn ${REVEAL_LIMIT_USER} lượt xem SĐT đội trưởng trong hôm nay. Vui lòng quay lại vào ngày mai.`
-    : `Bạn đã đạt giới hạn ${REVEAL_LIMIT_GUEST} lượt xem SĐT/ngày dành cho khách. Đăng nhập tài khoản DVA để mở tới ${REVEAL_LIMIT_USER} lượt/ngày hoặc quay lại vào ngày mai.`;
-
-  let usedToday = 0;
-  try {
-    usedToday = await prisma.contactRevealLog.count({
-      where: isAuthenticated
-        ? { viewerUserId: params.actor!.id, createdAt: { gte: startOfVnDay } }
-        : { viewerUserId: null, ipHash, createdAt: { gte: startOfVnDay } },
-    });
-    if (usedToday >= dailyLimit) {
-      throw new HttpError(429, limitMessage);
-    }
-    await prisma.contactRevealLog.create({
-      data: {
-        sessionId: session.id,
-        viewerUserId: params.actor?.id ?? null,
-        ipHash,
-      },
-    });
-  } catch (err) {
-    if (err instanceof HttpError) throw err;
-    // Fallback in-memory counter if ContactRevealLog table has not been pushed to DB yet
-    const memKey = `${vnDayKey}:${isAuthenticated ? `u:${params.actor!.id}` : `ip:${ipHash}`}`;
-    usedToday = fallbackRevealCounts.get(memKey) ?? 0;
-    if (usedToday >= dailyLimit) {
-      throw new HttpError(429, limitMessage);
-    }
-    fallbackRevealCounts.set(memKey, usedToday + 1);
-  }
+  const quota = await enforceRevealAuthAndQuota({
+    actor: params.actor,
+    clientIp: params.clientIp,
+    turnstileToken: params.turnstileToken,
+    humanVerified: params.humanVerified,
+    sessionIdToLog: session.id,
+  });
 
   return {
     sessionId: session.id,
@@ -237,8 +269,35 @@ export async function revealSessionContact(params: {
     captainName: session.club.captainName,
     captainPhone: session.club.captainPhone,
     captainZalo: session.club.captainZalo || session.club.captainPhone,
-    remainingToday: Math.max(0, dailyLimit - (usedToday + 1)),
-    dailyLimit,
+    ...quota,
+  };
+}
+
+export async function revealVenueContact(params: {
+  venueId: string;
+  actor?: Actor;
+  clientIp: string;
+  turnstileToken?: string;
+  humanVerified?: boolean;
+}) {
+  const venue = await prisma.volleyballVenue.findUnique({ where: { id: params.venueId } });
+  const rawPhone = venue && venue.venueType === 'COMMERCIAL' ? (venue.rentalPhone || '').trim() : '';
+  if (!venue || !rawPhone) {
+    throw new HttpError(404, 'Sân này không có thông tin SĐT cho thuê.');
+  }
+
+  const quota = await enforceRevealAuthAndQuota({
+    actor: params.actor,
+    clientIp: params.clientIp,
+    turnstileToken: params.turnstileToken,
+    humanVerified: params.humanVerified,
+  });
+
+  return {
+    venueId: venue.id,
+    rentalPhone: rawPhone,
+    rentalContactName: venue.rentalContactName || null,
+    ...quota,
   };
 }
 

@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  MapPin, Navigation, Phone, MessageCircle, Copy, Clock, Search, Sparkles, X, ChevronLeft, ChevronDown,
+  MapPin, Navigation, Clock, Search, Sparkles, X, ChevronLeft, ChevronDown,
   Check, List, Map as MapIcon, Wallet, Layers, Info, RefreshCw, Timer, Tag, LocateFixed,
   AlertTriangle, Maximize2, Minimize2, SlidersHorizontal, RotateCcw, Link2,
 } from 'lucide-react';
 import { venueService } from '../services/api';
 import type {
   RevealedSessionContact,
+  RevealedVenueContact,
   VenueGenderRule,
   VenuePlayStyle,
   VenueSessionSlot,
@@ -37,7 +38,6 @@ import {
   formatDayFull,
   formatShortVnDate,
   buildGoogleMapsUrl,
-  sanitizePhoneForLink,
   getClubInitials,
   parseTimeToMinutes,
   calcDistanceKm,
@@ -48,9 +48,11 @@ import { SessionStatusBlock } from '../components/court-map/SessionStatusBlock';
 import { ContactRevealModal, type ContactRevealTarget } from '../components/court-map/ContactRevealModal';
 import {
   SessionContactRow,
-  formatDisplayPhone,
+  VenueRentalContactBlock,
   readRevealedContactCache,
+  readRevealedVenueContactCache,
   writeRevealedContactCache,
+  writeRevealedVenueContactCache,
 } from '../components/court-map/SessionContactRow';
 
 type TimeFilter = 'ALL' | 'LIVE' | 'UPCOMING_TODAY' | 'DAY';
@@ -138,6 +140,8 @@ export const CourtMapPage: React.FC = () => {
 
   const [revealedBySession, setRevealedBySession] = useState<Record<string, RevealedSessionContact>>({});
   const [visibleBySession, setVisibleBySession] = useState<Record<string, boolean>>({});
+  const [revealedByVenue, setRevealedByVenue] = useState<Record<string, RevealedVenueContact>>({});
+  const [visibleByVenue, setVisibleByVenue] = useState<Record<string, boolean>>({});
   const [revealTarget, setRevealTarget] = useState<ContactRevealTarget | null>(null);
 
   useEffect(() => {
@@ -509,6 +513,16 @@ export const CourtMapPage: React.FC = () => {
     setVisibleBySession((prev) => ({ ...prev, [sessionId]: visible }));
   }, []);
 
+  const handleVenueRevealSuccess = useCallback((contact: RevealedVenueContact) => {
+    writeRevealedVenueContactCache(contact);
+    setRevealedByVenue((prev) => ({ ...prev, [contact.venueId]: contact }));
+    setVisibleByVenue((prev) => ({ ...prev, [contact.venueId]: true }));
+  }, []);
+
+  const handleToggleVenueVisibility = useCallback((venueId: string, visible: boolean) => {
+    setVisibleByVenue((prev) => ({ ...prev, [venueId]: visible }));
+  }, []);
+
   // Labels for Dropdown triggers
   const dayTriggerLabel = useMemo(() => {
     if (timeMode === 'LIVE') return `🟢 Đang đánh (${liveCount})`;
@@ -811,8 +825,7 @@ export const CourtMapPage: React.FC = () => {
                 <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-orange-300 font-semibold">{venue.subCourtsCount} sân: {getSubCourtNames(venue.subCourtsCount).join(', ')}</span>
               </div>
               {(() => {
-                const rentalPhone = venue.venueType === 'COMMERCIAL' ? (venue.rentalPhone || '').trim() : '';
-                const rentalDigits = rentalPhone ? sanitizePhoneForLink(rentalPhone) : '';
+                const hasRental = venue.venueType === 'COMMERCIAL' && Boolean(venue.hasRentalContact || venue.rentalPhone?.trim());
                 if (venue.venueType === 'FREE_PUBLIC') {
                   return (
                     <div className="p-2.5 rounded-xl border text-xs space-y-1.5 bg-emerald-950/30 border-emerald-500/35">
@@ -824,44 +837,19 @@ export const CourtMapPage: React.FC = () => {
                     </div>
                   );
                 }
-                if (!rentalPhone && !venue.entryNote) return null;
+                if (!hasRental && !venue.entryNote) return null;
                 return (
                   <div className="p-3 rounded-xl border text-xs space-y-2 bg-[#0B0F19]/80 border-white/10">
-                    {rentalPhone && (
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">Liên hệ chủ sân (Đặt / Thuê sân)</p>
-                            {venue.rentalContactName && <p className="text-xs font-bold text-white truncate mt-0.5">{venue.rentalContactName}</p>}
-                            <p className="font-mono text-xs font-black text-amber-300 mt-0.5">{formatDisplayPhone(rentalPhone)}</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          <a
-                            href={`tel:${rentalDigits}`}
-                            className="min-h-[34px] py-1.5 px-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/45 text-emerald-300 font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap"
-                          >
-                            <Phone className="w-3 h-3 shrink-0" /><span>Gọi điện</span>
-                          </a>
-                          <a
-                            href={`https://zalo.me/${rentalDigits.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="min-h-[34px] py-1.5 px-2 rounded-xl bg-[#0068FF] hover:bg-[#0058D9] text-white font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap"
-                          >
-                            <MessageCircle className="w-3 h-3 shrink-0" /><span>Nhắn Zalo</span>
-                          </a>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try { await navigator.clipboard.writeText(rentalPhone); showToast(`Đã sao chép SĐT chủ sân: ${formatDisplayPhone(rentalPhone)}`); } catch { showToast('Không thể sao chép SĐT.'); }
-                            }}
-                            className="min-h-[34px] py-1.5 px-2 rounded-xl bg-white/[0.06] hover:bg-white/12 border border-white/15 text-slate-100 font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer"
-                          >
-                            <Copy className="w-3 h-3 shrink-0" /><span>Copy</span>
-                          </button>
-                        </div>
-                      </div>
+                    {hasRental && (
+                      <VenueRentalContactBlock
+                        venue={venue}
+                        revealedContact={revealedByVenue[venue.id] || readRevealedVenueContactCache(venue.id)}
+                        isVisible={Boolean(visibleByVenue[venue.id] ?? false)}
+                        onRevealSuccess={handleVenueRevealSuccess}
+                        onToggleVisibility={handleToggleVenueVisibility}
+                        onRequireVerify={setRevealTarget}
+                        onNotify={showToast}
+                      />
                     )}
                     {venue.entryNote && <p className="text-[11px] text-slate-300 flex items-start gap-1"><Info className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />{venue.entryNote}</p>}
                   </div>
@@ -1663,6 +1651,7 @@ export const CourtMapPage: React.FC = () => {
         target={revealTarget}
         onClose={() => setRevealTarget(null)}
         onRevealed={handleRevealSuccess}
+        onVenueRevealed={handleVenueRevealSuccess}
       />
 
       {/* Toast */}
