@@ -229,6 +229,9 @@ const PUBLIC_RULES: Rule[] = [
   rule('POST', /^\/tournaments\/[^/]+\/teams\/[^/]+\/confirm-payment\/?$/),
   rule('GET', /^\/venues\/?$/),
   rule('GET', /^\/venues\/teams\/[^/]+\/?$/),
+  rule('GET', /^\/teams\/[^/]+\/?$/),
+  rule('GET', /^\/sessions\/?$/),
+  rule('POST', /^\/sessions\/[^/]+\/reveal-contact\/?$/),
   rule('GET', /^\/leadership\/?$/),
 ];
 

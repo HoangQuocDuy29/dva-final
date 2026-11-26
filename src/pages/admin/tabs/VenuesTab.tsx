@@ -264,6 +264,13 @@ export const VenuesTab: React.FC = () => {
             <span className="font-mono font-bold text-white"><Clock className="w-3 h-3 inline mr-1 text-orange-400" />{s.startTime}–{s.endTime}</span>
             {s.subCourts.map((sc) => <span key={sc} className="px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/35 text-[10px] font-bold">{sc}</span>)}
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${rec.badgeClass}`}>{rec.label}</span>
+            <span
+              title="Tổng lượt người chơi đã xác thực mở xem SĐT/Zalo cho ca này"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+            >
+              <Eye className="w-3 h-3" />
+              <span>{s.contactRevealCount ?? 0} lượt mở SĐT</span>
+            </span>
           </div>
           <div className="flex flex-wrap items-center gap-1">
             <select

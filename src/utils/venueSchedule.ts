@@ -19,7 +19,7 @@ export const PLAY_STYLE_OPTIONS: readonly VenuePlayStyle[] = ['COMPETITIVE', 'FU
 export const PLAY_STYLE_META: Record<VenuePlayStyle, { emoji: string; shortLabel: string; label: string; badgeClass: string; activeClass: string }> = {
   COMPETITIVE: { emoji: '🔥', shortLabel: 'Đấu căng', label: 'Đấu căng / Kèo trình độ', badgeClass: 'bg-orange-500/20 text-orange-300 border border-orange-500/45', activeClass: 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400' },
   FUN_GAME: { emoji: '😊', shortLabel: 'Chơi vui', label: 'Chơi vui vẻ / Giao lưu', badgeClass: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40', activeClass: 'bg-emerald-600 text-white border-emerald-400' },
-  TRAINING: { emoji: '🎯', shortLabel: 'Tập luyện', label: 'Thiên về tập luyện', badgeClass: 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/40', activeClass: 'bg-indigo-600 text-white border-indigo-400' },
+  TRAINING: { emoji: '🏐', shortLabel: 'Tập luyện', label: 'Thiên về tập luyện', badgeClass: 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/40', activeClass: 'bg-indigo-600 text-white border-indigo-400' },
 };
 export const parsePlayStyles = (raw?: string | readonly string[] | null): VenuePlayStyle[] => {
   const items = (Array.isArray(raw) ? raw : String(raw || '').split(',')).map((s) => s.trim().toUpperCase());
@@ -102,6 +102,28 @@ export function getSessionDailyState(s: Pick<VenueSessionSlot, 'dailyOverrides'>
     neededPositions: Array.isArray(ov?.neededPositions) ? ov.neededPositions : [],
   };
 }
+
+export function getSessionAvailableSlots(
+  s: Pick<VenueSessionSlot, 'capacityMode' | 'maxPlayers' | 'dailyOverrides' | 'recruitmentStatus' | 'isCancelled' | 'cancelledDates'>,
+  targetDateStr: string,
+  venueClosed = false
+): number {
+  if (venueClosed || isSessionCancelledOnDate(s, targetDateStr) || s.recruitmentStatus === 'FULL') {
+    return 0;
+  }
+  if (s.capacityMode === 'LIMITED_SLOTS') {
+    const max = Math.max(1, s.maxPlayers ?? 14);
+    const cur = getSessionDailyState(s, targetDateStr).currentPlayers;
+    return Math.max(0, max - cur);
+  }
+  return Number.POSITIVE_INFINITY;
+}
+
+export const hasAvailableSlots = (
+  s: Pick<VenueSessionSlot, 'capacityMode' | 'maxPlayers' | 'dailyOverrides' | 'recruitmentStatus' | 'isCancelled' | 'cancelledDates'>,
+  targetDateStr: string,
+  venueClosed = false
+): boolean => getSessionAvailableSlots(s, targetDateStr, venueClosed) > 0;
 
 export function getUpcomingSessionDates(daysOfWeek: number[], nowVn: VietnamNow): { day: number; dateStr: string; label: string }[] {
   const [y, m, d] = nowVn.dateStr.split('-').map(Number);

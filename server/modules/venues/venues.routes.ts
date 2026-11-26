@@ -12,7 +12,9 @@ import {
   deleteVenue,
   getPublicClubBySlug,
   listAdminVenues,
+  listPublicSessions,
   listPublicVenues,
+  revealSessionContact,
   upsertClub,
   upsertSession,
   upsertVenue,
@@ -27,15 +29,42 @@ const preserveNulls = (raw: unknown, data: Record<string, any>, keys: string[]) 
   return data;
 };
 
-// Public API (5-min TTL Cache, strips captainEmail)
+const getClientIp = (req: Request): string => {
+  const xff = req.headers['x-forwarded-for'];
+  const firstHop = Array.isArray(xff) ? xff[0] : typeof xff === 'string' ? xff.split(',')[0] : '';
+  return (firstHop || req.ip || req.socket.remoteAddress || 'unknown').trim();
+};
+
+// Public API (5-min TTL Cache, masks captainPhone & strips captainZalo / captainEmail)
 venuesRouter.get('/venues', ah(async (req, res) => {
   applyPublicCacheHeaders(res, isStaff(req.user), { maxAgeSec: 120, swrSec: 300 });
   res.json(await listPublicVenues());
 }));
 
-venuesRouter.get('/venues/teams/:slug', ah(async (req, res) => {
+venuesRouter.get('/sessions', ah(async (req, res) => {
+  applyPublicCacheHeaders(res, isStaff(req.user), { maxAgeSec: 120, swrSec: 300 });
+  res.json(await listPublicSessions());
+}));
+
+const publicTeamHandler = ah(async (req, res) => {
   applyPublicCacheHeaders(res, isStaff(req.user), { maxAgeSec: 120, swrSec: 300 });
   res.json(await getPublicClubBySlug(req.params.slug));
+});
+venuesRouter.get('/venues/teams/:slug', publicTeamHandler);
+venuesRouter.get('/teams/:slug', publicTeamHandler);
+
+// Verified Captain Contact Reveal (JWT or Cloudflare Turnstile + daily rate limit + ContactRevealLog)
+venuesRouter.post('/sessions/:id/reveal-contact', ah(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+  const out = await revealSessionContact({
+    sessionId: req.params.id,
+    actor: req.user,
+    clientIp: getClientIp(req),
+    turnstileToken: typeof body.turnstileToken === 'string' ? body.turnstileToken.trim() : undefined,
+    humanVerified: body.humanVerified === true,
+  });
+  res.json(out);
 }));
 
 // Admin / Captain Read: Venues (SUPERADMIN sees all; CAPTAIN sees strictly their own club & venue)

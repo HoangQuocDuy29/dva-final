@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { Navbar } from './components/layout/Navbar';
@@ -49,7 +49,11 @@ const PageLoadingFallback: React.FC = () => (
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
+  const prevPathRef = useRef<string | null>(null);
   useEffect(() => {
+    const sameCourtMap = pathname === '/services/court-map' && prevPathRef.current === '/services/court-map';
+    prevPathRef.current = pathname;
+    if (sameCourtMap) return;
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   }, [pathname, search]);
   return null;
@@ -77,7 +81,7 @@ const PublicFooterGuard: React.FC = () => {
 const MainShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { pathname } = useLocation();
   const dash = isDashboardPath(pathname);
-  return <main className={`relative z-10 flex-1 ${dash ? '' : 'pt-20 dva-public-canvas'}`}>{children}</main>;
+  return <main className={`relative flex-1 ${dash ? '' : 'pt-20 dva-public-canvas'}`}>{children}</main>;
 };
 
 export default function App() {

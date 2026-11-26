@@ -81,6 +81,9 @@ export const env = {
     if (!cloudName || !apiKey || !apiSecret) return null;
     return { cloudName, apiKey, apiSecret };
   },
+  get turnstileSecretKey(): string {
+    return (process.env.TURNSTILE_SECRET_KEY || '').trim();
+  },
 };
 
 export const BANK_BENEFICIARY_LABEL = `${env.bank.id} Bank - ${env.bank.accountNo} (${env.bank.accountName})`;

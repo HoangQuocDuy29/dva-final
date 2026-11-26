@@ -13,7 +13,7 @@ export interface MapViewportTarget { lat: number; lng: number; zoom: number; tic
 
 interface HanoiLeafletMapProps {
   items: MapVenueItem[]; selectedVenueId: string | null; onSelectVenue: (venueId: string) => void;
-  focusTrigger: number; isVisible?: boolean; userLocation?: UserGeoPoint | null; userFocusTrigger?: number;
+  focusTrigger: number; isVisible?: boolean; isFullscreen?: boolean; userLocation?: UserGeoPoint | null; userFocusTrigger?: number;
   viewportTarget?: MapViewportTarget | null;
 }
 
@@ -59,7 +59,7 @@ function createUserLocationIcon(): L.DivIcon {
 }
 
 export const HanoiLeafletMap: React.FC<HanoiLeafletMapProps> = ({
-  items, selectedVenueId, onSelectVenue, focusTrigger, isVisible = true, userLocation, userFocusTrigger = 0, viewportTarget,
+  items, selectedVenueId, onSelectVenue, focusTrigger, isVisible = true, isFullscreen = false, userLocation, userFocusTrigger = 0, viewportTarget,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -101,6 +101,17 @@ export const HanoiLeafletMap: React.FC<HanoiLeafletMapProps> = ({
     });
     return () => cancelAnimationFrame(raf);
   }, [isVisible]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const raf = requestAnimationFrame(() => {
+      if (containerRef.current && containerRef.current.clientWidth > 0) mapRef.current?.invalidateSize({ animate: false });
+    });
+    const timer = window.setTimeout(() => {
+      if (containerRef.current && containerRef.current.clientWidth > 0) mapRef.current?.invalidateSize({ animate: true });
+    }, 220);
+    return () => { cancelAnimationFrame(raf); window.clearTimeout(timer); };
+  }, [isFullscreen]);
 
   useEffect(() => {
     const layer = venueLayerRef.current;

@@ -1044,6 +1044,7 @@ export interface CourtClubProfile {
   captainPhone: string;
   captainZalo?: string | null;
   captainEmail?: string | null;
+  hasContact?: boolean;
   captainUserId?: string | null;
   captainUser?: { id: string; email: string; fullName: string; role: UserRole; isActive?: boolean } | null;
   playStyle: string;
@@ -1076,9 +1077,20 @@ export interface VenueSessionSlot {
   dailyOverrides?: SessionDailyOverridesMap;
   genderRule?: VenueGenderRule;
   skillRankLabel?: string | null;
+  contactRevealCount?: number;
   club?: CourtClubProfile;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface RevealedSessionContact {
+  sessionId: string;
+  clubId: string;
+  captainName: string;
+  captainPhone: string;
+  captainZalo?: string | null;
+  remainingToday?: number;
+  dailyLimit?: number;
 }
 
 export interface VolleyballVenue {

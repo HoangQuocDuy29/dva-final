@@ -39,6 +39,7 @@ import {
   CourtClubProfile,
   VenueSessionSlot,
   VenueClubDetailResponse,
+  RevealedSessionContact,
   VenuePayload,
   VenueClubPayload,
   VenueSessionPayload,
@@ -129,14 +130,14 @@ const tournamentDetailCache = createSwrCache<Tournament>({
 });
 
 const venuesCache = createSwrCache<VolleyballVenue[]>({
-  storagePrefix: 'dva_venues_public_v2:',
+  storagePrefix: 'dva_venues_public_v3:',
   freshMs: 60_000,
   staleMs: 300_000,
   validate: Array.isArray,
 });
 
 const venueClubDetailCache = createSwrCache<VenueClubDetailResponse>({
-  storagePrefix: 'dva_venue_club_detail_v1:',
+  storagePrefix: 'dva_venue_club_detail_v2:',
   freshMs: 60_000,
   staleMs: 300_000,
 });
@@ -2249,6 +2250,16 @@ export const venueService = {
 
   async getAdminVenues(): Promise<VolleyballVenue[]> {
     return request<VolleyballVenue[]>('/admin/venues');
+  },
+
+  async revealSessionContact(
+    sessionId: string,
+    payload: { turnstileToken?: string; humanVerified?: boolean } = {}
+  ): Promise<RevealedSessionContact> {
+    return request<RevealedSessionContact>(`/sessions/${encodeURIComponent(sessionId)}/reveal-contact`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   async createVenue(payload: VenuePayload): Promise<VolleyballVenue> {

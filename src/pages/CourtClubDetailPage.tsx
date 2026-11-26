@@ -1,19 +1,24 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, MapPin, Navigation, Phone, MessageCircle, Clock, Tag, Wallet,
+  ArrowLeft, MapPin, Navigation, Clock, Tag, Wallet,
   CalendarDays, Timer, Layers, Image as ImageIcon, Check, X, Info, Sparkles, AlertTriangle,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { venueService } from '../services/api';
-import type { VenueClubDetailResponse, VenueSessionSlot } from '../types';
+import type { RevealedSessionContact, VenueClubDetailResponse } from '../types';
 import {
   PLAY_STYLE_META, parsePlayStyles, GENDER_RULE_META, RECRUITMENT_META, VENUE_TYPE_META, getVietnamNow, getSessionRealtimeInfo, isSessionCancelledOnDate,
-  isVenueClosedNow, formatClosedUntilDate, formatDaysOfWeek, buildGoogleMapsUrl, buildZaloContact,
-  sanitizePhoneForLink, getClubInitials,
+  isVenueClosedNow, formatClosedUntilDate, formatDaysOfWeek, buildGoogleMapsUrl, getClubInitials,
 } from '../utils/venueSchedule';
 import { optimizeCloudinaryLogoUrl, optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { SessionStatusBlock } from '../components/court-map/SessionStatusBlock';
+import { ContactRevealModal, type ContactRevealTarget } from '../components/court-map/ContactRevealModal';
+import {
+  SessionContactRow,
+  readRevealedContactCache,
+  writeRevealedContactCache,
+} from '../components/court-map/SessionContactRow';
 
 export const CourtClubDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -24,11 +29,20 @@ export const CourtClubDetailPage: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const touchStartX = useRef<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [revealedBySession, setRevealedBySession] = useState<Record<string, RevealedSessionContact>>({});
+  const [visibleBySession, setVisibleBySession] = useState<Record<string, boolean>>({});
+  const [revealTarget, setRevealTarget] = useState<ContactRevealTarget | null>(null);
+
   const gallery = (club?.galleryUrls || []).filter(Boolean).slice(0, 5);
   const stepLightbox = useCallback(
     (delta: number) => setLightboxIndex((i) => (i === null || gallery.length < 2 ? i : (i + delta + gallery.length) % gallery.length)),
     [gallery.length]
   );
+
+  const showToast = useCallback((m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast((p) => (p === m ? null : p)), 3500);
+  }, []);
 
   useEffect(() => { const t = setInterval(() => setNowVn(getVietnamNow()), 30_000); return () => clearInterval(t); }, []);
 
@@ -54,12 +68,15 @@ export const CourtClubDetailPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [slug]);
 
-  const openZalo = useCallback(async (session?: VenueSessionSlot) => {
-    if (!club) return;
-    const { zaloUrl, messageTemplate } = buildZaloContact(club, club.venue, session);
-    try { await navigator.clipboard.writeText(messageTemplate); setToast('Đã sao chép tin nhắn mẫu — dán vào Zalo để gửi đội trưởng!'); setTimeout(() => setToast(null), 3500); } catch { /* ignore */ }
-    window.open(zaloUrl, '_blank', 'noopener,noreferrer');
-  }, [club]);
+  const handleRevealSuccess = useCallback((contact: RevealedSessionContact) => {
+    writeRevealedContactCache(contact);
+    setRevealedBySession((prev) => ({ ...prev, [contact.sessionId]: contact }));
+    setVisibleBySession((prev) => ({ ...prev, [contact.sessionId]: true }));
+  }, []);
+
+  const handleToggleVisibility = useCallback((sessionId: string, visible: boolean) => {
+    setVisibleBySession((prev) => ({ ...prev, [sessionId]: visible }));
+  }, []);
 
   if (loading) return <div className="min-h-[60vh] bg-[#0B0F19] flex items-center justify-center"><div className="w-9 h-9 rounded-full border-2 border-slate-800 border-t-orange-500 animate-spin" /></div>;
   if (error || !club) return (
@@ -74,7 +91,9 @@ export const CourtClubDetailPage: React.FC = () => {
   const closed = isVenueClosedNow(club.venue, nowVn.nowMs);
   const reopenStr = formatClosedUntilDate(club.venue.closedUntil);
   const heroCover = club.coverUrl || club.venue.coverUrl || club.venue.imageUrl;
-  const telHref = `tel:${sanitizePhoneForLink(club.captainPhone)}`;
+  const primarySession = club.sessions[0] || null;
+  const primaryRevealed = primarySession ? (revealedBySession[primarySession.id] || readRevealedContactCache(primarySession.id)) : null;
+  const primaryVisible = primarySession ? Boolean(visibleBySession[primarySession.id] ?? false) : false;
 
   return (
     <div className="min-h-screen bg-transparent text-white pb-16">
@@ -120,10 +139,6 @@ export const CourtClubDetailPage: React.FC = () => {
                   <p className="text-xs text-slate-300 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-orange-400 shrink-0" />{club.venue.name} · {club.venue.address}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button type="button" onClick={() => void openZalo()} className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#0068FF] hover:bg-[#0058D9] text-white font-bold text-xs inline-flex items-center justify-center gap-1.5 cursor-pointer"><MessageCircle className="w-4 h-4" />Nhắn Zalo Đội Trưởng</button>
-                <a href={telHref} className="px-4 py-2.5 rounded-xl bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs inline-flex items-center gap-1.5"><Phone className="w-4 h-4" />Gọi điện</a>
-              </div>
             </div>
             {club.tags?.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pt-3 border-t border-white/10">
@@ -136,7 +151,7 @@ export const CourtClubDetailPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-5">
             <div className="dva-glass-panel rounded-3xl p-5 space-y-2">
-              <h2 className="font-heading font-black text-base flex items-center gap-2"><Info className="w-4 h-4 text-orange-400" />Giới Thiệu & Phong Cách Chơi</h2>
+              <h2 className="font-heading font-black text-base flex items-center gap-2"><Info className="w-4 h-4 text-orange-400" />Giới Thiệu &amp; Phong Cách Chơi</h2>
               <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">{club.description || `${club.name} sinh hoạt định kỳ tại ${club.venue.name}.`}</p>
             </div>
 
@@ -146,8 +161,11 @@ export const CourtClubDetailPage: React.FC = () => {
                 const rt = getSessionRealtimeInfo(s, nowVn, closed);
                 const rec = RECRUITMENT_META[s.recruitmentStatus] || RECRUITMENT_META.CHECK_CAPTAIN;
                 const cancelled = !closed && isSessionCancelledOnDate(s, nowVn.dateStr);
+                const revealed = revealedBySession[s.id] || readRevealedContactCache(s.id);
+                const isContactVisible = Boolean(visibleBySession[s.id] ?? false);
+
                 return (
-                  <div key={s.id} className={`p-3.5 rounded-2xl border space-y-2 ${cancelled ? 'opacity-50 bg-white/[0.03] border-amber-500/40' : rt.state === 'LIVE' ? 'opacity-75 dva-glass-card border-emerald-500/40' : rt.state === 'UPCOMING' ? 'bg-gradient-to-r from-orange-500/15 to-white/[0.04] backdrop-blur-xl border-orange-400/75' : 'dva-glass-card rounded-2xl'}`}>
+                  <div key={s.id} className={`p-3.5 rounded-2xl border space-y-2.5 ${cancelled ? 'opacity-50 bg-white/[0.03] border-amber-500/40' : rt.state === 'LIVE' ? 'opacity-80 dva-glass-card border-emerald-500/40' : rt.state === 'UPCOMING' ? 'bg-gradient-to-r from-orange-500/15 to-white/[0.04] backdrop-blur-xl border-orange-400/75' : 'dva-glass-card rounded-2xl'}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-xs">
                         <span className="px-2.5 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/40 text-orange-300 font-extrabold">{formatDaysOfWeek(s.daysOfWeek)}</span>
@@ -171,10 +189,22 @@ export const CourtClubDetailPage: React.FC = () => {
                       </div>
                     </div>
                     <SessionStatusBlock session={s} venueClosed={closed} targetDate={nowVn.dateStr} todayDate={nowVn.dateStr} />
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-1.5">{s.subCourts.map((sc) => <span key={sc} className="px-2 py-0.5 rounded bg-sky-500/15 border border-sky-500/35 text-sky-300 font-bold text-[10px]">{sc}</span>)}<span className="text-slate-400">tại {club.venue.name}</span></div>
-                      <button type="button" onClick={() => void openZalo(s)} className="font-bold text-sky-400 hover:text-sky-300 cursor-pointer">Hỏi slot ca này →</button>
+                    <div className="flex items-center gap-1.5 text-xs">
+                      {s.subCourts.map((sc) => <span key={sc} className="px-2 py-0.5 rounded bg-sky-500/15 border border-sky-500/35 text-sky-300 font-bold text-[10px]">{sc}</span>)}
+                      <span className="text-slate-400">tại {club.venue.name}</span>
                     </div>
+                    <SessionContactRow
+                      sessionId={s.id}
+                      club={club}
+                      venue={club.venue}
+                      session={s}
+                      revealedContact={revealed}
+                      isVisible={isContactVisible}
+                      onRevealSuccess={handleRevealSuccess}
+                      onToggleVisibility={handleToggleVisibility}
+                      onRequireVerify={setRevealTarget}
+                      onNotify={showToast}
+                    />
                   </div>
                 );
               })}
@@ -197,10 +227,28 @@ export const CourtClubDetailPage: React.FC = () => {
           <aside className="space-y-4">
             <div className="dva-glass-card rounded-3xl p-5 space-y-3">
               <p className="text-[10px] font-black uppercase text-orange-400">Liên Hệ Đội Trưởng</p>
-              <div><h3 className="font-heading font-black text-base">{club.captainName}</h3><p className="text-xs text-slate-400 font-mono">{club.captainPhone}</p></div>
-              <button type="button" onClick={() => void openZalo()} className="w-full py-2.5 rounded-full bg-[#0068FF] hover:bg-[#0058D9] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"><MessageCircle className="w-4 h-4" />Nhắn Zalo Hỏi Slot</button>
-              <a href={telHref} className="w-full py-2.5 rounded-full bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2"><Phone className="w-4 h-4" />Gọi Điện: {club.captainPhone}</a>
+              <div>
+                <h3 className="font-heading font-black text-base">{club.captainName}</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Bấm biểu tượng con mắt để xác thực &amp; hiện SĐT/Zalo</p>
+              </div>
+              {primarySession ? (
+                <SessionContactRow
+                  sessionId={primarySession.id}
+                  club={club}
+                  venue={club.venue}
+                  session={primarySession}
+                  revealedContact={primaryRevealed}
+                  isVisible={primaryVisible}
+                  onRevealSuccess={handleRevealSuccess}
+                  onToggleVisibility={handleToggleVisibility}
+                  onRequireVerify={setRevealTarget}
+                  onNotify={showToast}
+                />
+              ) : (
+                <p className="text-xs text-slate-400 font-mono">{club.captainPhone}</p>
+              )}
             </div>
+
             <div className="dva-glass-card rounded-3xl p-5 space-y-3 text-xs">
               <div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase text-slate-400">Địa Điểm</span><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${vt.badgeClass}`}>{vt.shortLabel}</span></div>
               <h3 className="font-heading font-black text-base">{club.venue.name}</h3>
@@ -214,6 +262,12 @@ export const CourtClubDetailPage: React.FC = () => {
           </aside>
         </div>
       </section>
+
+      <ContactRevealModal
+        target={revealTarget}
+        onClose={() => setRevealTarget(null)}
+        onRevealed={handleRevealSuccess}
+      />
 
       {lightboxIndex !== null && gallery[lightboxIndex] && (
         <div className="fixed inset-0 z-[120] bg-black/92 flex items-center justify-center p-4 select-none" role="dialog" aria-modal="true" onClick={() => setLightboxIndex(null)}
@@ -231,7 +285,7 @@ export const CourtClubDetailPage: React.FC = () => {
           <img src={optimizeCloudinaryUrl(gallery[lightboxIndex], 'zoom')} alt="" className="max-w-full max-h-[88vh] rounded-2xl object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
-      {toast && <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[130] px-4 py-2.5 rounded-2xl bg-slate-900 border border-emerald-500/50 text-xs text-emerald-200 flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" />{toast}</div>}
+      {toast && <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[990] max-w-[92vw] px-4 py-2.5 rounded-2xl bg-slate-900/95 border border-emerald-500/50 text-xs font-semibold text-emerald-200 shadow-2xl flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /><span>{toast}</span></div>}
     </div>
   );
 };

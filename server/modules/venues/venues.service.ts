@@ -1,9 +1,14 @@
+import crypto from 'crypto';
+import { env } from '../../config/env';
 import { prisma } from '../../config/prisma';
 import { getOrSetCache, invalidateCache } from '../../utils/cache';
 import { HttpError } from '../../utils/validation';
 
 const PUBLIC_TTL_MS = 5 * 60 * 1000;
 const DAY_SHORT: Record<number, string> = { 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 0: 'CN' };
+const REVEAL_LIMIT_USER = 15;
+const REVEAL_LIMIT_GUEST = 5;
+const fallbackRevealCounts = new Map<string, number>();
 
 export interface SessionConflictDetail {
   sessionId: string; clubName: string; days: number[]; startTime: string; endTime: string; subCourts: string[];
@@ -20,7 +25,38 @@ const parseDate = (v: unknown) => { if (!v) return null; const s = String(v).tri
 const CAPTAIN_USER_SELECT = { id: true, email: true, fullName: true, role: true, isActive: true } as const;
 const QUOTA_30D_MS = 30 * 24 * 60 * 60 * 1000;
 const formatVnDate = (ms: number) => new Date(ms).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-const stripEmail = <T extends Record<string, any>>(c: T) => { const { captainEmail: _e, captainUserId: _u, captainUser: _cu, coverUpdatedAt: _c, galleryUpdatedAt: _g, ...rest } = c; return rest; };
+
+export function maskCaptainPhone(raw?: string | null): string {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length >= 4) return `${digits.slice(0, 4)} *** ***`;
+  if (digits.length > 0) return `${digits.slice(0, 2)}** *** ***`;
+  return '*** ***';
+}
+
+const sanitizePublicClub = <T extends Record<string, any>>(c: T) => {
+  const {
+    captainEmail: _e,
+    captainUserId: _u,
+    captainUser: _cu,
+    coverUpdatedAt: _c,
+    galleryUpdatedAt: _g,
+    captainPhone,
+    captainZalo,
+    ...rest
+  } = c;
+  const hasContact = Boolean((captainPhone && String(captainPhone).trim()) || (captainZalo && String(captainZalo).trim()));
+  return {
+    ...rest,
+    captainPhone: maskCaptainPhone(captainPhone),
+    captainZalo: null as string | null,
+    hasContact,
+  };
+};
+
+const getVnDayKey = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+const hashClientIp = (ip: string) =>
+  crypto.createHash('sha256').update(`${ip || 'unknown'}:${process.env.JWT_SECRET || 'dva-reveal-salt'}`).digest('hex');
+
 type Actor = { id: string; role: string };
 
 async function uniqueSlug(model: 'venue' | 'club', raw: string, excludeId?: string): Promise<string> {
@@ -53,7 +89,21 @@ export async function listPublicVenues() {
       orderBy: [{ isDvaOfficial: 'desc' }, { isFeatured: 'desc' }, { name: 'asc' }],
       include: { clubs: { where: { isActive: true }, orderBy: { createdAt: 'asc' } }, sessions: { where: { club: { isActive: true } }, orderBy: [{ startTime: 'asc' }, { createdAt: 'asc' }], include: { club: true } } },
     });
-    return rows.map((v) => ({ ...v, slug: v.slug || slugify(v.name), coverUrl: v.coverUrl || v.imageUrl || null, clubs: v.clubs.map(stripEmail), sessions: v.sessions.map((s) => ({ ...s, club: s.club ? stripEmail(s.club) : undefined })) }));
+    return rows.map((v) => ({ ...v, slug: v.slug || slugify(v.name), coverUrl: v.coverUrl || v.imageUrl || null, clubs: v.clubs.map(sanitizePublicClub), sessions: v.sessions.map((s) => ({ ...s, club: s.club ? sanitizePublicClub(s.club) : undefined })) }));
+  });
+}
+
+export async function listPublicSessions() {
+  return getOrSetCache('venues:sessions:public', PUBLIC_TTL_MS, async () => {
+    const rows = await prisma.venueSessionSlot.findMany({
+      where: { club: { isActive: true } },
+      orderBy: [{ startTime: 'asc' }, { createdAt: 'asc' }],
+      include: {
+        club: true,
+        venue: { select: { id: true, name: true, slug: true, address: true, city: true, district: true, venueType: true, isClosed: true, closedUntil: true } },
+      },
+    });
+    return rows.map((s) => ({ ...s, club: s.club ? sanitizePublicClub(s.club) : undefined }));
   });
 }
 
@@ -62,8 +112,103 @@ export async function getPublicClubBySlug(slug: string) {
   return getOrSetCache(`venues:team:${key}`, PUBLIC_TTL_MS, async () => {
     const club = await prisma.courtClubProfile.findFirst({ where: { slug: key, isActive: true }, include: { venue: true, sessions: { orderBy: [{ startTime: 'asc' }, { createdAt: 'asc' }] } } });
     if (!club) throw new HttpError(404, 'Không tìm thấy hồ sơ đội bóng chuyền.');
-    return { ...stripEmail(club), venue: { ...club.venue, slug: club.venue.slug || slugify(club.venue.name), coverUrl: club.venue.coverUrl || club.venue.imageUrl || null } };
+    return { ...sanitizePublicClub(club), venue: { ...club.venue, slug: club.venue.slug || slugify(club.venue.name), coverUrl: club.venue.coverUrl || club.venue.imageUrl || null } };
   });
+}
+
+async function verifyTurnstileToken(token: string, clientIp: string): Promise<boolean> {
+  const secret = env.turnstileSecretKey;
+  if (!secret) return true;
+  if (!token) return false;
+  try {
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret, response: token, ...(clientIp && clientIp !== 'unknown' ? { remoteip: clientIp } : {}) }),
+    });
+    if (!res.ok) return false;
+    const json = (await res.json()) as { success?: boolean };
+    return json?.success === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function revealSessionContact(params: {
+  sessionId: string;
+  actor?: Actor;
+  clientIp: string;
+  turnstileToken?: string;
+  humanVerified?: boolean;
+}) {
+  const session = await prisma.venueSessionSlot.findUnique({
+    where: { id: params.sessionId },
+    include: { club: true },
+  });
+  if (!session || !session.club || !session.club.isActive) {
+    throw new HttpError(404, 'Không tìm thấy ca sinh hoạt.');
+  }
+
+  const isAuthenticated = Boolean(params.actor?.id);
+  if (!isAuthenticated) {
+    if (env.turnstileSecretKey) {
+      if (!params.turnstileToken) {
+        throw new HttpError(403, 'Vui lòng hoàn thành xác thực Cloudflare Turnstile để xem SĐT đội trưởng.');
+      }
+      const ok = await verifyTurnstileToken(params.turnstileToken, params.clientIp);
+      if (!ok) {
+        throw new HttpError(403, 'Xác thực chống bot không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
+      }
+    } else if (!params.humanVerified && !params.turnstileToken) {
+      throw new HttpError(403, 'Vui lòng xác nhận qua hộp thoại xác thực để hiện SĐT đội trưởng.');
+    }
+  }
+
+  const dailyLimit = isAuthenticated ? REVEAL_LIMIT_USER : REVEAL_LIMIT_GUEST;
+  const ipHash = hashClientIp(params.clientIp);
+  const vnDayKey = getVnDayKey();
+  const startOfVnDay = new Date(`${vnDayKey}T00:00:00+07:00`);
+  const limitMessage = isAuthenticated
+    ? `Bạn đã đạt giới hạn ${REVEAL_LIMIT_USER} lượt xem SĐT đội trưởng trong hôm nay. Vui lòng quay lại vào ngày mai.`
+    : `Bạn đã đạt giới hạn ${REVEAL_LIMIT_GUEST} lượt xem SĐT/ngày dành cho khách. Đăng nhập tài khoản DVA để mở tới ${REVEAL_LIMIT_USER} lượt/ngày hoặc quay lại vào ngày mai.`;
+
+  let usedToday = 0;
+  try {
+    usedToday = await prisma.contactRevealLog.count({
+      where: isAuthenticated
+        ? { viewerUserId: params.actor!.id, createdAt: { gte: startOfVnDay } }
+        : { viewerUserId: null, ipHash, createdAt: { gte: startOfVnDay } },
+    });
+    if (usedToday >= dailyLimit) {
+      throw new HttpError(429, limitMessage);
+    }
+    await prisma.contactRevealLog.create({
+      data: {
+        sessionId: session.id,
+        viewerUserId: params.actor?.id ?? null,
+        ipHash,
+      },
+    });
+  } catch (err) {
+    if (err instanceof HttpError) throw err;
+    // Fallback in-memory counter if ContactRevealLog table has not been pushed to DB yet
+    const memKey = `${vnDayKey}:${isAuthenticated ? `u:${params.actor!.id}` : `ip:${ipHash}`}`;
+    usedToday = fallbackRevealCounts.get(memKey) ?? 0;
+    if (usedToday >= dailyLimit) {
+      throw new HttpError(429, limitMessage);
+    }
+    fallbackRevealCounts.set(memKey, usedToday + 1);
+  }
+
+  return {
+    sessionId: session.id,
+    clubId: session.club.id,
+    captainName: session.club.captainName,
+    captainPhone: session.club.captainPhone,
+    captainZalo: session.club.captainZalo || session.club.captainPhone,
+    remainingToday: Math.max(0, dailyLimit - (usedToday + 1)),
+    dailyLimit,
+  };
 }
 
 export async function listAdminVenues(actor?: Actor) {
@@ -84,7 +229,32 @@ export async function listAdminVenues(actor?: Actor) {
       },
     },
   });
-  return rows.map((v) => ({ ...v, slug: v.slug || slugify(v.name), coverUrl: v.coverUrl || v.imageUrl || null }));
+
+  const sessionIds = Array.from(new Set(rows.flatMap((v) => v.sessions.map((s) => s.id))));
+  const revealCountMap = new Map<string, number>();
+  if (sessionIds.length > 0) {
+    try {
+      const grouped = await prisma.contactRevealLog.groupBy({
+        by: ['sessionId'],
+        where: { sessionId: { in: sessionIds } },
+        _count: { _all: true },
+      });
+      for (const g of grouped) revealCountMap.set(g.sessionId, g._count._all);
+    } catch {
+      // Table not yet migrated — default counts to 0
+    }
+  }
+
+  return rows.map((v) => ({
+    ...v,
+    slug: v.slug || slugify(v.name),
+    coverUrl: v.coverUrl || v.imageUrl || null,
+    clubs: v.clubs.map((c) => ({
+      ...c,
+      sessions: c.sessions.map((s) => ({ ...s, contactRevealCount: revealCountMap.get(s.id) ?? 0 })),
+    })),
+    sessions: v.sessions.map((s) => ({ ...s, contactRevealCount: revealCountMap.get(s.id) ?? 0 })),
+  }));
 }
 
 export async function upsertVenue(data: Record<string, any>, id?: string) {
