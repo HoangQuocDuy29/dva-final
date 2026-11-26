@@ -5,6 +5,7 @@ import { bookingService } from '../../../services/api';
 import { Pagination } from '../../../components/common/Pagination';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { BookingFormModal } from '../components/bookings/BookingFormModal';
+import { SlowServerPill } from '../../../components/common/GlassLoading';
 
 const BOOKINGS_PAGE_SIZE = 10;
 
@@ -12,7 +13,7 @@ export const BookingsTab: React.FC = () => {
   const {
     setActiveModule,
     setFeedback,
-    data: { bookings, courtsList },
+    data: { bookings, courtsList, loadedScopes },
     setData: { setBookings },
     courtSelection: {
       selectedManageCourtId,
@@ -132,9 +133,35 @@ export const BookingsTab: React.FC = () => {
     safePage * BOOKINGS_PAGE_SIZE
   );
 
+  if (!loadedScopes.has('BOOKINGS')) {
+    return (
+      <div className="dva-glass-panel rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="space-y-2">
+            <div className="dva-skeleton-bar h-5 w-64 max-w-full" />
+            <div className="dva-skeleton-bar h-3 w-80 max-w-full" />
+          </div>
+          <div className="dva-skeleton h-9 w-36 rounded-full" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <div key={idx} className="dva-skeleton p-4 rounded-2xl h-16 flex items-center justify-between gap-4">
+              <div className="space-y-2 flex-1">
+                <div className="dva-skeleton-bar h-3.5 w-44" />
+                <div className="dva-skeleton-bar h-2.5 w-56 max-w-full" />
+              </div>
+              <div className="dva-skeleton-bar h-7 w-24 rounded-full shrink-0" />
+            </div>
+          ))}
+        </div>
+        <SlowServerPill active />
+      </div>
+    );
+  }
+
   return (
     <>
-      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-4">
+      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-4 dva-content-reveal">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div>
             <h3 className="font-bold text-base text-white">

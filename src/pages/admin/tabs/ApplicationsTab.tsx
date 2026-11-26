@@ -32,6 +32,7 @@ import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { useApplicationActions } from '../hooks/useApplicationActions';
 import { ScheduleTryoutModal } from '../components/applications/ScheduleTryoutModal';
 import { EvaluationScorecardModal } from '../components/applications/EvaluationScorecardModal';
+import { SlowServerPill } from '../../../components/common/GlassLoading';
 
 const APPS_PAGE_SIZE = 10;
 const POSITIONS_ORDER: VolleyballPosition[] = ['OH', 'MB', 'OP', 'S', 'L'];
@@ -69,7 +70,7 @@ type PaymentFilter = 'ALL' | TryoutPaymentStatus;
 export const ApplicationsTab: React.FC = () => {
   const {
     isSuperAdmin,
-    data: { applications },
+    data: { applications, loadedScopes },
   } = useAdminDashboard();
   const {
     handleApproveApplication,
@@ -287,8 +288,36 @@ export const ApplicationsTab: React.FC = () => {
     { id: 'REJECTED', label: 'Rejected', count: analytics.REJECTED },
   ];
 
+  if (!loadedScopes.has('APPLICATIONS')) {
+    return (
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="dva-skeleton p-4 rounded-3xl h-24 space-y-2.5">
+              <div className="dva-skeleton-bar h-3 w-28" />
+              <div className="dva-skeleton-bar h-7 w-16" />
+            </div>
+          ))}
+        </div>
+        <div className="dva-glass-panel rounded-3xl p-5 space-y-3">
+          <div className="dva-skeleton h-10 w-full rounded-2xl" />
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <div key={idx} className="dva-skeleton p-4 rounded-2xl h-20 flex items-center justify-between gap-4">
+              <div className="space-y-2 flex-1">
+                <div className="dva-skeleton-bar h-4 w-44" />
+                <div className="dva-skeleton-bar h-3 w-64 max-w-full" />
+              </div>
+              <div className="dva-skeleton-bar h-8 w-24 rounded-full shrink-0" />
+            </div>
+          ))}
+        </div>
+        <SlowServerPill active />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 dva-content-reveal">
       {/* 1. Try-Out Analytics Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 space-y-1">

@@ -192,6 +192,24 @@ function clearSession() {
   invalidateAllSwrCaches();
 }
 
+// Global lightweight pub/sub for active API requests (drives `.dva-top-loader`)
+let inflightApiRequests = 0;
+const apiLoadingListeners = new Set<(count: number) => void>();
+
+function notifyApiLoading() {
+  for (const listener of apiLoadingListeners) {
+    listener(inflightApiRequests);
+  }
+}
+
+export function subscribeApiLoading(listener: (count: number) => void): () => void {
+  apiLoadingListeners.add(listener);
+  listener(inflightApiRequests);
+  return () => {
+    apiLoadingListeners.delete(listener);
+  };
+}
+
 /**
  * Request wrapper.
  * - Attaches the JWT.
@@ -201,52 +219,59 @@ function clearSession() {
 async function request<T>(endpoint: string, options?: RequestInit, fallbackData?: T): Promise<T> {
   const token = localStorage.getItem(TOKEN_KEY);
   const url = getApiUrl(endpoint);
+  inflightApiRequests += 1;
+  notifyApiLoading();
 
-  let res: Response;
   try {
-    res = await fetch(url, {
-      ...options,
-      credentials: options?.credentials || 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options?.headers,
-      },
-    });
-  } catch (err) {
-    if (fallbackData !== undefined) {
-      console.warn(`[API] Server unreachable for ${endpoint}, showing offline fallback.`, err);
-      return fallbackData;
-    }
-    throw new ApiError(0, 'Cannot reach the server. Please check your connection and try again.');
-  }
-
-  if (!res.ok) {
-    let message = `Request failed (HTTP ${res.status})`;
+    let res: Response;
     try {
-      const body = await res.json();
-      if (body?.message) message = body.message;
-      else if (body?.error) message = body.error;
-    } catch {
-      // non-JSON error body
+      res = await fetch(url, {
+        ...options,
+        credentials: options?.credentials || 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...options?.headers,
+        },
+      });
+    } catch (err) {
+      if (fallbackData !== undefined) {
+        console.warn(`[API] Server unreachable for ${endpoint}, showing offline fallback.`, err);
+        return fallbackData;
+      }
+      throw new ApiError(0, 'Cannot reach the server. Please check your connection and try again.');
     }
-    const currentToken = localStorage.getItem(TOKEN_KEY);
-    if (
-      res.status === 401 &&
-      token &&
-      endpoint !== '/auth/login' &&
-      currentToken === token
-    ) {
-      clearSession();
-      window.dispatchEvent(new Event('dva:session-expired'));
+
+    if (!res.ok) {
+      let message = `Request failed (HTTP ${res.status})`;
+      try {
+        const body = await res.json();
+        if (body?.message) message = body.message;
+        else if (body?.error) message = body.error;
+      } catch {
+        // non-JSON error body
+      }
+      const currentToken = localStorage.getItem(TOKEN_KEY);
+      if (
+        res.status === 401 &&
+        token &&
+        endpoint !== '/auth/login' &&
+        currentToken === token
+      ) {
+        clearSession();
+        window.dispatchEvent(new Event('dva:session-expired'));
+      }
+      if ((res.status === 404 || res.status >= 500) && fallbackData !== undefined) {
+        console.warn(`[API] ${endpoint} failed with ${res.status}, showing offline fallback.`);
+        return fallbackData;
+      }
+      throw new ApiError(res.status, message);
     }
-    if ((res.status === 404 || res.status >= 500) && fallbackData !== undefined) {
-      console.warn(`[API] ${endpoint} failed with ${res.status}, showing offline fallback.`);
-      return fallbackData;
-    }
-    throw new ApiError(res.status, message);
+    return await res.json();
+  } finally {
+    inflightApiRequests = Math.max(0, inflightApiRequests - 1);
+    notifyApiLoading();
   }
-  return await res.json();
 }
 
 export const authService = {

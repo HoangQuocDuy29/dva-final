@@ -338,7 +338,7 @@ export const SkillLevelsPage: React.FC = () => {
         </div>
 
         {/* HERO & INTERNATIONAL ORIGIN BOX */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#161F30] via-[#1B1528] to-[#0E1524] border border-blue-500/30 p-6 sm:p-10 shadow-2xl">
+        <section className="relative overflow-hidden dva-glass-panel rounded-3xl border-blue-500/25 p-6 sm:p-10 shadow-2xl">
           <div className="absolute -top-24 -right-24 w-80 h-80 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-red-600/15 rounded-full blur-3xl pointer-events-none" />
 

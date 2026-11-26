@@ -19,6 +19,7 @@ import { homeService, leadershipService, playerService } from '../services/api';
 import { formatEnglishDate } from '../utils/date';
 import { optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { DEFAULT_LEADERSHIP_FALLBACK, getLeadershipInitials, getLeadershipTheme } from '../utils/leadership';
+import { SlowServerPill } from '../components/common/GlassLoading';
 
 const LeadershipCard: React.FC<{ member: LeadershipMember }> = ({ member }) => {
   const theme = getLeadershipTheme(member.accentColor);
@@ -795,20 +796,26 @@ export const HomePage: React.FC = () => {
           </div>
 
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={`skeleton-court-${i}`} className="bg-[#161F30] rounded-3xl border border-slate-800 overflow-hidden shadow-xl animate-pulse min-h-[360px]">
-                  <div className="h-44 w-full bg-slate-800/80" />
-                  <div className="p-6 space-y-3">
-                    <div className="h-4 w-3/4 bg-slate-700/60 rounded" />
-                    <div className="h-3 w-full bg-slate-800 rounded" />
-                    <div className="h-3 w-5/6 bg-slate-800 rounded" />
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={`skeleton-court-${i}`} className="dva-skeleton rounded-3xl overflow-hidden min-h-[360px]">
+                    <div className="dva-skeleton-bar h-44 w-full rounded-none" />
+                    <div className="p-6 space-y-3">
+                      <div className="dva-skeleton-bar h-4 w-3/4" />
+                      <div className="dva-skeleton-bar h-3 w-full" />
+                      <div className="dva-skeleton-bar h-3 w-5/6" />
+                      <div className="pt-4">
+                        <div className="dva-skeleton-bar h-10 w-full rounded-xl" />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <SlowServerPill active />
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 dva-content-reveal">
               {courts.map((court) => (
                 <div
                   key={court.id}
@@ -890,23 +897,23 @@ export const HomePage: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${isLoading ? '' : 'dva-content-reveal'}`}>
           {isLoading ? (
             Array.from({ length: 3 }).map((_, idx) => (
               <div
                 key={`news-skel-${idx}`}
-                className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between shadow-xl space-y-4 animate-pulse"
+                className="dva-skeleton rounded-3xl p-6 flex flex-col justify-between space-y-4 min-h-[240px]"
               >
                 <div className="space-y-3">
-                  <div className="w-20 h-4 bg-slate-800 rounded"></div>
-                  <div className="w-full h-6 bg-slate-800 rounded"></div>
-                  <div className="w-3/4 h-6 bg-slate-800 rounded"></div>
-                  <div className="w-full h-4 bg-slate-800/60 rounded"></div>
-                  <div className="w-5/6 h-4 bg-slate-800/60 rounded"></div>
+                  <div className="dva-skeleton-bar w-20 h-4 rounded-full" />
+                  <div className="dva-skeleton-bar w-full h-5" />
+                  <div className="dva-skeleton-bar w-3/4 h-5" />
+                  <div className="dva-skeleton-bar w-full h-3.5" />
+                  <div className="dva-skeleton-bar w-5/6 h-3.5" />
                 </div>
-                <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
-                  <div className="w-24 h-4 bg-slate-800 rounded"></div>
-                  <div className="w-20 h-4 bg-slate-800 rounded"></div>
+                <div className="pt-3 border-t border-white/[0.07] flex justify-between items-center">
+                  <div className="dva-skeleton-bar w-24 h-3.5" />
+                  <div className="dva-skeleton-bar w-20 h-3.5" />
                 </div>
               </div>
             ))

@@ -10,6 +10,7 @@ import { AdminHeader } from './layout/AdminHeader';
 import { AdminSidebar } from './layout/AdminSidebar';
 import { FeedbackBanner } from './layout/FeedbackBanner';
 import { OverviewTab } from './tabs/OverviewTab';
+import { SlowServerPill } from '../../components/common/GlassLoading';
 
 // Code-split heavy Admin Hub tabs & modals so initial Overview bundle stays lightweight
 const GuestSessionEmailModal = lazy(() =>
@@ -36,9 +37,35 @@ const MemberPortalTab = lazy(() => import('./tabs/MemberPortalTab').then((m) => 
 const HUB_ALLOWED_ROLES = new Set(['SUPERADMIN', 'ADMIN', 'CAPTAIN', 'COACH', 'PLAYER', 'STAFF']);
 
 const AdminTabLoadingFallback: React.FC = () => (
-  <div className="min-h-[320px] rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center gap-3 text-slate-400">
-    <div className="w-8 h-8 rounded-full border-2 border-white/15 border-t-orange-500 animate-spin" />
-    <span className="text-xs font-semibold tracking-wide">Loading workspace module...</span>
+  <div className="space-y-6">
+    <div className="dva-glass-panel rounded-3xl p-5 sm:p-6 space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="space-y-2">
+          <div className="dva-skeleton-bar h-5 w-48" />
+          <div className="dva-skeleton-bar h-3 w-72 max-w-full" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="dva-skeleton h-9 w-32 rounded-full" />
+          <div className="dva-skeleton h-9 w-36 rounded-full" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, idx) => (
+          <div key={idx} className="dva-skeleton p-4 h-36 rounded-2xl space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="dva-skeleton-bar w-10 h-10 rounded-full shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="dva-skeleton-bar h-3.5 w-32" />
+                <div className="dva-skeleton-bar h-2.5 w-24" />
+              </div>
+            </div>
+            <div className="dva-skeleton-bar h-3 w-full" />
+            <div className="dva-skeleton-bar h-3 w-2/3" />
+          </div>
+        ))}
+      </div>
+    </div>
+    <SlowServerPill active />
   </div>
 );
 

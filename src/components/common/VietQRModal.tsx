@@ -108,11 +108,10 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({ booking, onClose, onPa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
-      <div className="w-[95%] sm:w-full max-w-xl md:max-w-2xl bg-[#121826] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-700 overflow-hidden text-white flex flex-col max-h-[90vh]">
-        
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in">
+      <div className="w-[95%] sm:w-full max-w-xl md:max-w-2xl dva-glass-modal overflow-hidden text-white flex flex-col max-h-[90dvh]">
         {/* Modal Header */}
-        <div className="bg-[#0B0F19] px-4 sm:px-6 py-3.5 sm:py-5 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="bg-white/[0.03] px-4 sm:px-6 py-3.5 sm:py-5 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center font-black text-white text-sm shadow shrink-0">
               QR

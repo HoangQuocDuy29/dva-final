@@ -4,10 +4,15 @@ import { authService, userService } from '../../../services/api';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { createDefaultUserForm } from '../constants';
 
+// Lightweight in-memory SWR cache so revisiting Staff & Roles tab renders immediately without flashing
+let cachedUsersList: UserType[] | null = null;
+
 export function useUsersTab() {
   const { currentUser, isSuperAdmin, onUserChange, notify } = useAdminDashboard();
 
-  const [usersList, setUsersList] = useState<UserType[]>([]);
+  const [usersList, setUsersList] = useState<UserType[]>(() => cachedUsersList ?? []);
+  const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(() => cachedUsersList === null);
+  const [hasLoadedUsers, setHasLoadedUsers] = useState<boolean>(() => cachedUsersList !== null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [userFormError, setUserFormError] = useState<string | null>(null);
@@ -28,10 +33,17 @@ export function useUsersTab() {
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
+    setIsLoadingUsers(true);
     try {
-      setUsersList(await userService.getUsers());
+      const rows = await userService.getUsers();
+      cachedUsersList = rows;
+      setUsersList(rows);
+      setHasLoadedUsers(true);
     } catch (err: any) {
       notify(err?.message || 'Không tải được danh sách tài khoản.', 3500);
+      setHasLoadedUsers(true);
+    } finally {
+      setIsLoadingUsers(false);
     }
   }, [notify]);
 
@@ -219,6 +231,8 @@ export function useUsersTab() {
 
   return {
     usersList,
+    isLoadingUsers,
+    hasLoadedUsers,
     busyUserId,
     isUserModalOpen,
     setIsUserModalOpen,

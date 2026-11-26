@@ -13,6 +13,7 @@ const GoogleSheetsViewerModal = lazy(() =>
 import { authService } from './services/api';
 import { User } from './types';
 import { BackToTop } from './components/common/BackToTop';
+import { GlobalTopLoader, SlowServerPill } from './components/common/GlassLoading';
 
 // Code Splitting / Lazy Loading cho các trang thứ cấp và module quản trị
 const PlayersPage = lazy(() => import('./pages/PlayersPage').then((m) => ({ default: m.PlayersPage })));
@@ -33,19 +34,61 @@ const MemberRegisterPage = lazy(() => import('./pages/MemberRegisterPage').then(
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 
-// Fallback loader chuẩn phong cách Dark Theme DVA (tránh giật trắng màn hình khi tải trang)
-const PageLoadingFallback: React.FC = () => (
-  <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 bg-transparent text-white">
-    <div className="relative flex items-center justify-center">
-      <div className="w-12 h-12 rounded-full border-2 border-slate-800 border-t-orange-500 animate-spin" />
-      <div className="absolute w-6 h-6 rounded-full bg-orange-500/20 animate-pulse" />
+// Spatial Glassmorphism Fallback Loader (keeps Sidebar + Header + KPI skeleton on Dashboard routes to eliminate CLS)
+const PageLoadingFallback: React.FC = () => {
+  const { pathname } = useLocation();
+  if (isDashboardPath(pathname)) {
+    return (
+      <div className="min-h-[100dvh] bg-[#0B0D12] text-white flex overflow-hidden">
+        {/* Desktop Floating Glass Sidebar Skeleton */}
+        <aside className="hidden md:flex flex-col w-[220px] shrink-0 p-4 gap-3 border-r border-white/[0.06]">
+          <div className="dva-skeleton h-12 rounded-2xl" />
+          <div className="space-y-2 pt-2">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="dva-skeleton h-9 rounded-xl" />
+            ))}
+          </div>
+        </aside>
+        <div className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* Top Header Skeleton */}
+          <div className="dva-skeleton h-16 rounded-full" />
+          {/* 4 KPI Skeleton Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="dva-skeleton p-5 h-32 rounded-3xl space-y-3">
+                <div className="dva-skeleton-bar h-3 w-24" />
+                <div className="dva-skeleton-bar h-7 w-36" />
+                <div className="dva-skeleton-bar h-2.5 w-28" />
+              </div>
+            ))}
+          </div>
+          {/* Bento Workspace Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="dva-skeleton h-64 rounded-3xl lg:col-span-2" />
+            <div className="dva-skeleton h-64 rounded-3xl" />
+          </div>
+          <SlowServerPill active />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-[65vh] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+      <div className="flex flex-col items-center gap-3">
+        <div className="dva-skeleton h-6 w-40 rounded-full" />
+        <div className="dva-skeleton h-10 w-72 sm:w-96 rounded-2xl" />
+        <div className="dva-skeleton h-4 w-64 sm:w-80 rounded-xl" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="dva-skeleton h-64 rounded-3xl" />
+        ))}
+      </div>
+      <SlowServerPill active />
     </div>
-    <div className="flex flex-col items-center gap-1">
-      <p className="text-sm font-semibold tracking-wide text-slate-300">Loading page...</p>
-      <p className="text-xs text-slate-500 font-medium">DVA Sports Club</p>
-    </div>
-  </div>
-);
+  );
+};
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -112,6 +155,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <GlobalTopLoader />
       <ScrollToTop />
       <div className="relative min-h-screen flex flex-col bg-[#0B0D12] text-white font-sans selection:bg-red-600 selection:text-white overflow-x-clip w-full max-w-full">
         {/* Global Public Spatial Ambient Mesh (DVA Orange + Cherry Red) */}

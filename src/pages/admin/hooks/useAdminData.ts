@@ -90,10 +90,12 @@ export function useAdminData(
 
   const [loadedScopes, setLoadedScopes] = useState<Set<AdminTabId>>(() => new Set());
   const loadedScopesRef = useRef<Set<AdminTabId>>(new Set());
+  const scopeLoadedAtRef = useRef<Map<AdminTabId, number>>(new Map());
   const inflightScopesRef = useRef<Set<AdminTabId>>(new Set());
 
   const markScopeLoaded = useCallback((scope: AdminTabId) => {
     loadedScopesRef.current.add(scope);
+    scopeLoadedAtRef.current.set(scope, Date.now());
     setLoadedScopes(new Set(loadedScopesRef.current));
   }, []);
 
@@ -327,19 +329,36 @@ export function useAdminData(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, isSuperAdmin, isCaptain, isMemberPortal]);
 
-  // Lazy-fetch exact dataset whenever the user switches to a new tab
+  // Lazy-fetch exact dataset whenever the user switches to a new tab (with silent SWR revalidation on revisit)
   useEffect(() => {
     if ((!isAdmin && !isCaptain) || !authService.hasToken()) return;
-    if (activeModule === 'OVERVIEW' || activeModule === 'USERS' || activeModule === 'LEADERSHIP') return;
-    if (isCaptain && activeModule !== 'VENUES') return;
-    if (!isSuperAdmin && !isCaptain && !ADMIN_PERMITTED_DATA_TABS.has(activeModule)) return;
-    if (loadedScopesRef.current.has(activeModule)) return;
+    if (activeModule === 'USERS' || activeModule === 'LEADERSHIP') return;
+    if (isCaptain && activeModule !== 'VENUES' && activeModule !== 'CAPTAIN_PROFILE') return;
+    const effectiveScope: AdminTabId = activeModule === 'CAPTAIN_PROFILE' ? 'VENUES' : activeModule;
+    if (effectiveScope === 'OVERVIEW') {
+      const lastLoaded = scopeLoadedAtRef.current.get('OVERVIEW') || 0;
+      if (loadedScopesRef.current.has('OVERVIEW') && Date.now() - lastLoaded > 15_000) {
+        void loadOverviewOnly();
+      }
+      return;
+    }
+    if (!isSuperAdmin && !isCaptain && !ADMIN_PERMITTED_DATA_TABS.has(effectiveScope)) return;
+
+    const alreadyLoaded = loadedScopesRef.current.has(effectiveScope);
+    if (alreadyLoaded) {
+      const lastLoaded = scopeLoadedAtRef.current.get(effectiveScope) || 0;
+      if (Date.now() - lastLoaded > 15_000) {
+        // Stale-while-revalidate: keep existing data visible while `.dva-top-loader` refreshes silently
+        void fetchScopeData(effectiveScope, true);
+      }
+      return;
+    }
 
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        await fetchScopeData(activeModule, false);
+        await fetchScopeData(effectiveScope, false);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -348,7 +367,7 @@ export function useAdminData(
     return () => {
       cancelled = true;
     };
-  }, [activeModule, fetchScopeData, isSuperAdmin]);
+  }, [activeModule, fetchScopeData, isAdmin, isCaptain, isSuperAdmin, loadOverviewOnly]);
 
   return {
     loading,

@@ -258,10 +258,10 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md">
-      <div className="w-full max-w-3xl bg-[#111827] border border-[#1E293B] rounded-3xl shadow-2xl text-white flex flex-col max-h-[92vh] overflow-hidden">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md">
+      <div className="w-full max-w-3xl dva-glass-modal text-white flex flex-col max-h-[90dvh] overflow-hidden">
         {/* Header */}
-        <div className="bg-[#0B0F19] px-5 sm:px-6 py-4 border-b border-[#1E293B] flex items-center justify-between shrink-0">
+        <div className="bg-white/[0.03] px-5 sm:px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8B0000] to-[#F97316] flex items-center justify-center text-white shrink-0">
               {step === 'VIETQR' ? <QrCode className="w-5 h-5" /> : <Users className="w-5 h-5" />}

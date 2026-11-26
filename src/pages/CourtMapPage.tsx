@@ -45,6 +45,7 @@ import {
 import { optimizeCloudinaryLogoUrl, optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { HanoiLeafletMap, type MapVenueItem, type MapViewportTarget, type UserGeoPoint } from '../components/court-map/HanoiLeafletMap';
 import { SessionStatusBlock } from '../components/court-map/SessionStatusBlock';
+import { SlowServerPill } from '../components/common/GlassLoading';
 import { ContactRevealModal, type ContactRevealTarget } from '../components/court-map/ContactRevealModal';
 import {
   SessionContactRow,
@@ -1002,9 +1003,27 @@ export const CourtMapPage: React.FC = () => {
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
         {loading && !venues.length ? (
-          <div className="py-16 flex justify-center"><div className="w-7 h-7 rounded-full border-2 border-white/15 border-t-orange-500 animate-spin" /></div>
+          <div className="space-y-2.5">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={`venue-skel-${idx}`} className="dva-skeleton p-3.5 rounded-2xl space-y-2.5">
+                <div className="flex items-start gap-3">
+                  <div className="dva-skeleton-bar w-11 h-11 rounded-xl shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <div className="dva-skeleton-bar h-3.5 w-36" />
+                    <div className="dva-skeleton-bar h-2.5 w-48 max-w-full" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="dva-skeleton-bar h-5 w-20 rounded-full" />
+                  <div className="dva-skeleton-bar h-5 w-16 rounded-full" />
+                </div>
+              </div>
+            ))}
+            <SlowServerPill active className="pt-1 pb-2" />
+          </div>
         ) : (
-          entries.map(({ venue, closed, hasActivity, isLive, distanceKm, activeSessions, matchingSessions }) => {
+          <div className="space-y-2.5 dva-content-reveal">
+            {entries.map(({ venue, closed, hasActivity, isLive, distanceKm, activeSessions, matchingSessions }) => {
             const vt = VENUE_TYPE_META[venue.venueType] || VENUE_TYPE_META.COMMERCIAL;
             const venueLogo =
               venue.mapLogoUrl ??
@@ -1073,7 +1092,8 @@ export const CourtMapPage: React.FC = () => {
                 </div>
               </button>
             );
-          })
+          })}
+          </div>
         )}
       </div>
     </div>
@@ -1301,6 +1321,17 @@ export const CourtMapPage: React.FC = () => {
               userFocusTrigger={geoTick}
               viewportTarget={viewportTarget}
             />
+
+            {/* Radar Sync Status Glass Pill while venues load */}
+            {loading && (
+              <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-[420] inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0B0D12]/85 backdrop-blur-xl border border-orange-500/35 shadow-xl text-[11px] font-bold text-orange-200 dva-content-reveal">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+                </span>
+                <span>Đang đồng bộ radar sân...</span>
+              </div>
+            )}
 
             {/* Embedded Expand Button (Top-Right of map frame) */}
             {!isFullscreen && (

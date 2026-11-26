@@ -34,6 +34,14 @@
 
   input[type="date"] {
     color-scheme: dark;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+    min-height: 1.5em;
+    display: flex;
+    align-items: center;
   }
   input[type="date"]::-webkit-calendar-picker-indicator {
     filter: brightness(1.15);
@@ -47,16 +55,89 @@
 
 @layer components {
   .dva-glass-panel {
-    @apply bg-white/[0.04] backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.35)];
+    @apply bg-white/[0.035] backdrop-blur-xl border border-white/10 shadow-[0_16px_44px_rgba(0,0,0,0.4)];
   }
   .dva-glass-card {
-    @apply bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl transition-all duration-300 hover:bg-white/[0.07] hover:border-white/20;
+    @apply bg-white/[0.035] backdrop-blur-xl border border-white/10 rounded-3xl transition-all duration-300 hover:bg-white/[0.065] hover:border-white/20;
   }
   .dva-glass-pill {
     @apply bg-white/[0.06] backdrop-blur-lg border border-white/15 rounded-full;
   }
+  .dva-glass-modal {
+    @apply rounded-3xl bg-[#0B0D12]/85 backdrop-blur-2xl border border-white/15 shadow-[0_24px_64px_rgba(0,0,0,0.75)];
+  }
   .dva-glass-input {
     @apply rounded-2xl bg-white/[0.035] border border-white/10 text-white placeholder:text-slate-500 shadow-[inset_0_2px_4px_rgba(0,0,0,0.35)] transition-all duration-200 hover:border-white/20 hover:bg-white/[0.05] focus:border-orange-500/60 focus:bg-white/[0.07] focus:ring-4 focus:ring-orange-500/10 focus:outline-none;
+  }
+  .dva-skeleton {
+    @apply relative overflow-hidden bg-white/[0.04] border border-white/[0.07] rounded-2xl;
+  }
+  .dva-skeleton::after,
+  .dva-skeleton-bar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.065) 50%, transparent 100%);
+    animation: dva-shimmer 1.6s infinite linear;
+    pointer-events: none;
+  }
+  .dva-skeleton-bar {
+    @apply relative overflow-hidden bg-white/[0.06] rounded-xl;
+  }
+  .dva-content-reveal {
+    animation: dva-reveal 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .dva-top-loader {
+    @apply fixed top-0 left-0 right-0 h-[2px] z-[9999] pointer-events-none overflow-hidden bg-white/[0.04];
+  }
+  .dva-top-loader-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 42%;
+    background: linear-gradient(90deg, transparent 0%, #B91C1C 18%, #EA580C 52%, #FB923C 78%, transparent 100%);
+    box-shadow: 0 0 12px rgba(249, 115, 22, 0.75);
+    animation: dva-top-progress 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+}
+
+@keyframes dva-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes dva-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dva-top-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dva-skeleton::after,
+  .dva-skeleton-bar::after,
+  .dva-content-reveal,
+  .dva-top-loader-bar {
+    animation: none;
   }
 }
 

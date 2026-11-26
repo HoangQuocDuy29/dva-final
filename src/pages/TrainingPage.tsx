@@ -560,8 +560,8 @@ export const TrainingPage: React.FC = () => {
               ))}
             </div>
           ) : courses.filter((c) => matchesLevelFilter(c, levelFilter)).length === 0 ? (
-            <div className="p-14 rounded-3xl bg-[#0E1524] border border-dashed border-slate-800 text-center space-y-2">
-              <Calendar className="w-10 h-10 text-slate-600 mx-auto" />
+            <div className="p-14 dva-glass-panel rounded-3xl border-dashed text-center space-y-2">
+              <Calendar className="w-10 h-10 text-slate-500 mx-auto" />
               <h3 className="font-heading font-bold text-white text-base">No Training Packages Available</h3>
               <p className="text-xs text-slate-400">Training programs and scrimmage schedules for this level will be announced soon by the coaching staff.</p>
             </div>
@@ -577,7 +577,7 @@ export const TrainingPage: React.FC = () => {
                     key={course.id}
                     className={`dva-glass-card p-6 sm:p-7 shadow-2xl flex flex-col justify-between relative group hover:scale-[1.01] ${
                       isPrivate1on1 
-                        ? 'border-amber-500/70 shadow-amber-950/30 ring-1 ring-amber-500/40 bg-gradient-to-b from-[#141b2b] to-[#0E1524]' 
+                        ? 'border-amber-500/60 shadow-amber-950/30 ring-1 ring-amber-500/35' 
                         : 'border-[#1e2738] hover:border-amber-500/50'
                     }`}
                   >
@@ -835,13 +835,18 @@ export const TrainingPage: React.FC = () => {
 
       {/* REGISTRATION & VIETQR PAYMENT MODAL (No Login Required) */}
       {isModalOpen && selectedCourse && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-[95%] sm:w-full max-w-xl md:max-w-2xl bg-[#121826] rounded-2xl sm:rounded-3xl border border-slate-700 shadow-2xl text-white overflow-hidden max-h-[90vh] flex flex-col">
-            
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
+          onClick={handleCloseModal}
+        >
+          <div
+            className="w-full max-w-xl md:max-w-2xl dva-glass-modal text-white overflow-hidden max-h-[90dvh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
-            <div className="bg-[#0B0F19] px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
+            <div className="bg-white/[0.03] px-4 sm:px-6 py-3.5 sm:py-4 border-b border-white/10 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center font-black text-black text-sm shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center font-black text-white text-sm shadow-md shrink-0">
                   DVA
                 </div>
                 <div className="truncate">
@@ -850,7 +855,7 @@ export const TrainingPage: React.FC = () => {
                     {modalStep === 'PAYMENT_QR' && 'Scan VietQR to Complete Enrollment'}
                     {modalStep === 'RECEIPT' && 'Official Enrollment Confirmed!'}
                   </h3>
-                  <p className="text-[11px] sm:text-xs text-amber-400 font-mono truncate">
+                  <p className="text-[11px] sm:text-xs text-amber-400 font-sans tabular-nums truncate">
                     {selectedCourse.price.toLocaleString('en-US')} VND {getPriceUnitLabel(selectedCourse)}
                   </p>
                 </div>
@@ -859,23 +864,23 @@ export const TrainingPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCloseModal}
-                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
+                aria-label="Close enrollment modal"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-white/[0.06] hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-4 sm:p-6 overflow-y-auto no-scrollbar space-y-4 sm:space-y-5 text-xs">
-              
+            <div className="p-4 sm:p-6 overflow-y-auto no-scrollbar space-y-4 sm:space-y-5 text-xs pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
               {/* STEP 1: ATHLETE REGISTRATION FORM */}
               {modalStep === 'FORM' && (
                 <form onSubmit={handleProceedToPayment} className="space-y-4">
-                  <div className="bg-[#0B0F19] p-4 rounded-2xl border border-slate-800 space-y-1">
+                  <div className="bg-white/[0.035] p-4 rounded-2xl border border-white/10 space-y-1">
                     <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Selected Course</span>
                     <h4 className="font-heading font-black text-base text-amber-400">{selectedCourse.title}</h4>
                     <p className="text-[11px] text-slate-300">{selectedCourse.description}</p>
-                    <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                    <div className="pt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 font-sans tabular-nums">
                       <span>Schedule: {selectedCourse.schedule}</span>
                       <strong className="text-white">{selectedCourse.price.toLocaleString('en-US')} VND</strong>
                     </div>
@@ -889,7 +894,7 @@ export const TrainingPage: React.FC = () => {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="e.g., Marcus Tran / Alex Nguyen"
-                      className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
+                      className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs"
                     />
                   </div>
 
@@ -902,7 +907,7 @@ export const TrainingPage: React.FC = () => {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="0912 345 678"
-                        className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs font-sans tabular-nums"
                       />
                     </div>
 
@@ -913,7 +918,7 @@ export const TrainingPage: React.FC = () => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="athlete@gmail.com (Optional)"
-                        className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs"
                       />
                     </div>
                   </div>
@@ -923,52 +928,52 @@ export const TrainingPage: React.FC = () => {
                     <select
                       value={teamLevel}
                       onChange={(e) => setTeamLevel(e.target.value as 'Junior' | 'Senior' | 'Youth')}
-                      className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
+                      className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs cursor-pointer"
                     >
-                      <option value="Junior">Intermediate (Junior / Development Squad)</option>
-                      <option value="Senior">Senior / Advanced & Tactics (First Team)</option>
-                      <option value="Youth">Beginner / Fundamentals (Youth U14 - U18)</option>
+                      <option value="Junior" className="bg-[#0B0D12] text-white">Intermediate (Junior / Development Squad)</option>
+                      <option value="Senior" className="bg-[#0B0D12] text-white">Senior / Advanced & Tactics (First Team)</option>
+                      <option value="Youth" className="bg-[#0B0D12] text-white">Beginner / Fundamentals (Youth U14 - U18)</option>
                     </select>
                   </div>
 
                   {/* Playing Position (for Position Specialist packages) */}
                   {isPositionCourse && (
-                    <div className="p-3 bg-amber-950/20 border border-amber-600/50 rounded-xl space-y-1">
-                      <label className="block text-amber-300 font-semibold mb-1 flex items-center justify-between">
+                    <div className="p-3.5 bg-orange-500/[0.07] border border-orange-500/35 rounded-2xl space-y-1.5">
+                      <label className="block text-amber-300 font-semibold flex items-center justify-between">
                         <span>Preferred Playing Position *</span>
                         <span className="text-[10px] text-amber-400 font-normal">Fixed throughout session</span>
                       </label>
                       <select
                         value={position}
                         onChange={(e) => setPosition(e.target.value)}
-                        className="w-full px-3 py-2 bg-[#0B0F19] border border-amber-600/60 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs cursor-pointer"
                       >
-                        <option value="Outside Hitter (OH)">Outside Hitter (OH)</option>
-                        <option value="Opposite Spiker (OP)">Opposite Spiker (OP)</option>
-                        <option value="Setter (S)">Setter (S)</option>
-                        <option value="Middle Blocker (MB)">Middle Blocker (MB)</option>
-                        <option value="Libero (L)">Libero (L)</option>
+                        <option value="Outside Hitter (OH)" className="bg-[#0B0D12] text-white">Outside Hitter (OH)</option>
+                        <option value="Opposite Spiker (OP)" className="bg-[#0B0D12] text-white">Opposite Spiker (OP)</option>
+                        <option value="Setter (S)" className="bg-[#0B0D12] text-white">Setter (S)</option>
+                        <option value="Middle Blocker (MB)" className="bg-[#0B0D12] text-white">Middle Blocker (MB)</option>
+                        <option value="Libero (L)" className="bg-[#0B0D12] text-white">Libero (L)</option>
                       </select>
                     </div>
                   )}
 
                   {/* Primary Training Focus (for 1-on-1 / Skill Coaching) */}
                   {isSkillCourse && (
-                    <div className="p-3 bg-amber-950/20 border border-amber-600/50 rounded-xl space-y-1">
-                      <label className="block text-amber-300 font-semibold mb-1 flex items-center justify-between">
+                    <div className="p-3.5 bg-orange-500/[0.07] border border-orange-500/35 rounded-2xl space-y-1.5">
+                      <label className="block text-amber-300 font-semibold flex items-center justify-between">
                         <span>Primary Training Focus *</span>
                         <span className="text-[10px] text-amber-400 font-normal">Custom coach curriculum</span>
                       </label>
                       <select
                         value={targetSkill}
                         onChange={(e) => setTargetSkill(e.target.value)}
-                        className="w-full px-3 py-2 bg-[#0B0F19] border border-amber-600/60 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs cursor-pointer"
                       >
-                        <option value="Spike Timing & Arm Swing">Spike Timing & Arm Swing</option>
-                        <option value="Serve Receive & Digging">Serve Receive & Digging</option>
-                        <option value="Setting Tempo & 5-1 Distribution">Setting Tempo & 5-1 Distribution</option>
-                        <option value="Jump Float & Topspin Serve">Jump Float & Topspin Serve</option>
-                        <option value="Foundational Fundamentals">Foundational Fundamentals</option>
+                        <option value="Spike Timing & Arm Swing" className="bg-[#0B0D12] text-white">Spike Timing & Arm Swing</option>
+                        <option value="Serve Receive & Digging" className="bg-[#0B0D12] text-white">Serve Receive & Digging</option>
+                        <option value="Setting Tempo & 5-1 Distribution" className="bg-[#0B0D12] text-white">Setting Tempo & 5-1 Distribution</option>
+                        <option value="Jump Float & Topspin Serve" className="bg-[#0B0D12] text-white">Jump Float & Topspin Serve</option>
+                        <option value="Foundational Fundamentals" className="bg-[#0B0D12] text-white">Foundational Fundamentals</option>
                       </select>
                     </div>
                   )}
@@ -984,7 +989,7 @@ export const TrainingPage: React.FC = () => {
                         value={customSkillOrPos}
                         onChange={(e) => setCustomSkillOrPos(e.target.value)}
                         placeholder="e.g., Outside Hitter / Improve serve receive & block timing"
-                        className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs"
                       />
                     </div>
                   )}
@@ -995,14 +1000,14 @@ export const TrainingPage: React.FC = () => {
                     <select
                       value={preferredTime}
                       onChange={(e) => setPreferredTime(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
+                      className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs cursor-pointer"
                     >
-                      <option value="Monday Evening (19:00 - 21:30)">Monday Evening (19:00 - 21:30)</option>
-                      <option value="Wednesday Evening (19:00 - 21:30)">Wednesday Evening (19:00 - 21:30)</option>
-                      <option value="Friday Evening (19:00 - 21:30)">Friday Evening (19:00 - 21:30)</option>
-                      <option value="Saturday Evening (19:00 - 21:30)">Saturday Evening (19:00 - 21:30)</option>
-                      <option value="Sunday Afternoon (14:00 - 16:30)">Sunday Afternoon (14:00 - 16:30)</option>
-                      <option value="Coordinate Flexible Schedule with Coach">Coordinate Flexible Schedule with Coach</option>
+                      <option value="Monday Evening (19:00 - 21:30)" className="bg-[#0B0D12] text-white">Monday Evening (19:00 - 21:30)</option>
+                      <option value="Wednesday Evening (19:00 - 21:30)" className="bg-[#0B0D12] text-white">Wednesday Evening (19:00 - 21:30)</option>
+                      <option value="Friday Evening (19:00 - 21:30)" className="bg-[#0B0D12] text-white">Friday Evening (19:00 - 21:30)</option>
+                      <option value="Saturday Evening (19:00 - 21:30)" className="bg-[#0B0D12] text-white">Saturday Evening (19:00 - 21:30)</option>
+                      <option value="Sunday Afternoon (14:00 - 16:30)" className="bg-[#0B0D12] text-white">Sunday Afternoon (14:00 - 16:30)</option>
+                      <option value="Coordinate Flexible Schedule with Coach" className="bg-[#0B0D12] text-white">Coordinate Flexible Schedule with Coach</option>
                     </select>
                   </div>
 
@@ -1013,19 +1018,19 @@ export const TrainingPage: React.FC = () => {
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="e.g., Height 182cm, looking to refine wrist snap and 3-step spike approach"
-                      className="w-full px-3.5 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none focus:ring-2 focus:ring-amber-500"
+                      className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs"
                     />
                   </div>
 
                   {/* PREVIEW STANDARD TRANSFER MEMO */}
-                  <div className="bg-[#0B0F19] p-3 rounded-xl border border-slate-800 flex items-center justify-between text-[11px]">
+                  <div className="bg-white/[0.035] p-3.5 rounded-2xl border border-white/10 flex flex-wrap items-center justify-between gap-2 text-[11px]">
                     <div className="space-y-0.5">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase block">Standard Transfer Memo:</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Standard Transfer Memo:</span>
                       <span className="font-mono font-bold text-amber-400">
                         {phone ? previewTransferMemo : `DVA ${currentPackageCode} [PHONE_NUMBER]`}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 bg-amber-950/60 text-amber-300 border border-amber-800/80 rounded font-mono text-[10px]">
+                    <span className="px-2.5 py-0.5 bg-amber-500/15 text-amber-300 border border-amber-500/35 rounded-full font-mono text-[10px]">
                       Code: {currentPackageCode}
                     </span>
                   </div>
@@ -1033,7 +1038,7 @@ export const TrainingPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-3.5 px-6 bg-gradient-to-r from-[#B91C1C] via-red-600 to-orange-500 hover:brightness-110 text-white font-bold rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_10px_28px_rgba(249,115,22,0.35)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>{isSubmitting ? 'Creating Registration...' : 'Proceed to VietQR Payment'}</span>
                     <ChevronRight className="w-4 h-4" />

@@ -9,12 +9,13 @@ import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { createDefaultPlayerForm } from '../constants';
 import { AthleteRosterAvatar } from '../components/AthleteRosterAvatar';
 import { PlayerFormModal } from '../components/players/PlayerFormModal';
+import { SlowServerPill } from '../../../components/common/GlassLoading';
 
 const PLAYERS_PAGE_SIZE = 12;
 
 export const PlayersTab: React.FC = () => {
   const {
-    data: { players },
+    data: { players, loadedScopes },
     setData: { setPlayers },
     notify,
   } = useAdminDashboard();
@@ -247,9 +248,43 @@ export const PlayersTab: React.FC = () => {
     safePage * PLAYERS_PAGE_SIZE
   );
 
+  if (!loadedScopes.has('PLAYERS')) {
+    return (
+      <div className="dva-glass-panel rounded-3xl p-6 shadow-xl space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="space-y-2">
+            <div className="dva-skeleton-bar h-5 w-52" />
+            <div className="dva-skeleton-bar h-3 w-72 max-w-full" />
+          </div>
+          <div className="dva-skeleton h-9 w-36 rounded-full" />
+        </div>
+        <div className="dva-skeleton h-11 w-full rounded-2xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} className="dva-skeleton p-4 rounded-2xl space-y-3 h-40">
+              <div className="flex items-center gap-3">
+                <div className="dva-skeleton-bar w-12 h-12 rounded-2xl shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <div className="dva-skeleton-bar h-4 w-32" />
+                  <div className="dva-skeleton-bar h-3 w-24" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="dva-skeleton-bar h-6 w-16 rounded-full" />
+                <div className="dva-skeleton-bar h-6 w-20 rounded-full" />
+              </div>
+              <div className="dva-skeleton-bar h-3 w-full" />
+            </div>
+          ))}
+        </div>
+        <SlowServerPill active />
+      </div>
+    );
+  }
+
   return (
     <>
-      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
+      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5 dva-content-reveal">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div>
             <h3 className="font-bold text-base text-white">Player Roster Management</h3>

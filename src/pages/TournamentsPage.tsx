@@ -10,6 +10,7 @@ import {
   resolveDefaultTournament,
 } from '../shared/tournaments';
 import { ShareButton } from '../components/common/ShareButton';
+import { SlowServerPill } from '../components/common/GlassLoading';
 import { TournamentOverviewView } from '../components/tournaments/TournamentOverviewView';
 import { TournamentBracketView } from '../components/tournaments/TournamentBracketView';
 import { TournamentScheduleView } from '../components/tournaments/TournamentScheduleView';
@@ -104,14 +105,29 @@ export const TournamentsPage: React.FC = () => {
   if (loading && tournaments.length === 0) {
     return (
       <div className="min-h-screen bg-[#0B0F19] text-white py-14 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto space-y-6 animate-pulse">
-          <div className="h-10 w-72 rounded-xl bg-slate-800/80" />
-          <div className="h-64 w-full rounded-3xl bg-slate-800/60" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="h-32 rounded-2xl bg-slate-800/60" />
-            <div className="h-32 rounded-2xl bg-slate-800/60" />
-            <div className="h-32 rounded-2xl bg-slate-800/60" />
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="dva-skeleton h-10 w-72 max-w-full rounded-2xl" />
+          <div className="dva-skeleton h-64 w-full rounded-3xl p-6 flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="dva-skeleton-bar h-5 w-32 rounded-full" />
+              <div className="dva-skeleton-bar h-8 w-80 max-w-full" />
+              <div className="dva-skeleton-bar h-4 w-96 max-w-full" />
+            </div>
+            <div className="flex gap-2">
+              <div className="dva-skeleton-bar h-9 w-28 rounded-full" />
+              <div className="dva-skeleton-bar h-9 w-28 rounded-full" />
+            </div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="dva-skeleton h-32 rounded-2xl p-5 space-y-3">
+                <div className="dva-skeleton-bar h-3.5 w-24" />
+                <div className="dva-skeleton-bar h-6 w-36" />
+                <div className="dva-skeleton-bar h-3 w-44 max-w-full" />
+              </div>
+            ))}
+          </div>
+          <SlowServerPill active />
         </div>
       </div>
     );

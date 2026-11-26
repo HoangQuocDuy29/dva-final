@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { SlowServerPill } from '../components/common/GlassLoading';
 import {
   ShoppingBag,
   Sparkles,
@@ -142,32 +143,35 @@ const ShopFadeImage: React.FC<ShopFadeImageProps> = ({
 };
 
 const ShopProductGridSkeleton: React.FC = () => (
-  <div
-    aria-label="Loading store catalog"
-    className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4.5"
-  >
-    {Array.from({ length: 8 }).map((_, idx) => (
-      <div
-        key={`shop-skeleton-${idx}`}
-        className="bg-[#0E1524] border border-slate-800/80 rounded-2xl overflow-hidden flex flex-col justify-between animate-pulse"
-      >
-        <div>
-          <div className="relative aspect-[4/5] w-full bg-gradient-to-br from-slate-800/70 via-slate-900 to-slate-800/60">
-            <div className="absolute top-2.5 left-2.5 h-4 w-12 rounded bg-slate-700/60" />
-            <div className="absolute top-2.5 right-2.5 h-4 w-14 rounded bg-slate-700/60" />
+  <div className="space-y-4">
+    <div
+      aria-label="Loading store catalog"
+      className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4.5"
+    >
+      {Array.from({ length: 8 }).map((_, idx) => (
+        <div
+          key={`shop-skeleton-${idx}`}
+          className="dva-skeleton rounded-2xl overflow-hidden flex flex-col justify-between"
+        >
+          <div>
+            <div className="relative aspect-[4/5] w-full dva-skeleton-bar rounded-none">
+              <div className="absolute top-2.5 left-2.5 h-4 w-12 rounded-full bg-white/[0.08]" />
+              <div className="absolute top-2.5 right-2.5 h-4 w-14 rounded-full bg-white/[0.08]" />
+            </div>
+            <div className="p-2.5 sm:p-3.5 space-y-2">
+              <div className="dva-skeleton-bar h-3.5 w-11/12" />
+              <div className="dva-skeleton-bar h-3.5 w-2/3" />
+              <div className="dva-skeleton-bar h-5 w-28 mt-1 rounded-full" />
+            </div>
           </div>
-          <div className="p-2.5 sm:p-3.5 space-y-2">
-            <div className="h-3.5 w-11/12 rounded bg-slate-700/60" />
-            <div className="h-3.5 w-2/3 rounded bg-slate-700/50" />
-            <div className="h-5 w-28 rounded bg-slate-800/90 mt-1" />
+          <div className="px-2.5 pb-2.5 sm:px-3.5 sm:pb-3.5 pt-2 border-t border-white/[0.07] flex items-center justify-between gap-2">
+            <div className="dva-skeleton-bar h-4 w-20" />
+            <div className="dva-skeleton-bar h-7 w-14 rounded-full" />
           </div>
         </div>
-        <div className="px-2.5 pb-2.5 sm:px-3.5 sm:pb-3.5 pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
-          <div className="h-4 w-20 rounded bg-slate-700/60" />
-          <div className="h-7 w-14 rounded-lg bg-slate-700/60" />
-        </div>
-      </div>
-    ))}
+      ))}
+    </div>
+    <SlowServerPill active />
   </div>
 );
 
@@ -1312,8 +1316,8 @@ export const ShopPage: React.FC = () => {
             {loading ? (
               <ShopProductGridSkeleton />
             ) : products.length === 0 ? (
-              <div className="bg-[#0E1524] border border-slate-800 rounded-3xl p-12 text-center space-y-4 max-w-xl mx-auto my-12 shadow-2xl animate-in fade-in">
-                <div className="w-16 h-16 rounded-2xl bg-red-950/40 border border-red-800/60 text-red-400 flex items-center justify-center mx-auto shadow-inner">
+              <div className="dva-glass-panel rounded-3xl p-10 sm:p-12 text-center space-y-4 max-w-xl mx-auto my-12 shadow-2xl animate-in fade-in">
+                <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/35 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
                   <ShoppingBag className="w-8 h-8" />
                 </div>
                 <h3 className="text-xl font-black text-white font-heading tracking-tight">DVA Official Gear Restocking Soon</h3>
@@ -1322,21 +1326,21 @@ export const ShopPage: React.FC = () => {
                 </p>
                 <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Link
-                    to="/booking"
-                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg transition-all"
+                    to="/services/court-booking"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#B91C1C] via-red-600 to-orange-500 hover:brightness-110 text-white font-heading font-black text-xs uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_22px_rgba(249,115,22,0.3)] transition-all"
                   >
                     Reserve Practice Court
                   </Link>
                   <Link
-                    to="/courses"
-                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-colors"
+                    to="/services/training-scrimmage"
+                    className="dva-glass-pill inline-flex items-center justify-center gap-2 px-5 py-2.5 hover:bg-white/10 text-slate-200 hover:text-white text-xs font-bold transition-all"
                   >
                     Explore Training Courses
                   </Link>
                 </div>
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="bg-[#0E1524] border border-slate-800 rounded-3xl p-12 text-center space-y-3">
+              <div className="dva-glass-panel rounded-3xl p-12 text-center space-y-3">
                 <ShoppingBag className="w-10 h-10 text-slate-500 mx-auto" />
                 <h3 className="text-lg font-bold text-white">No matching products found</h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
@@ -1354,7 +1358,7 @@ export const ShopPage: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4.5">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4.5 dva-content-reveal">
                 {filteredProducts.map((product, index) => (
                   <ShopProductCard
                     key={product.id}
@@ -1376,29 +1380,36 @@ export const ShopPage: React.FC = () => {
       {/* 3. QUICK VIEW MODAL                                                   */}
       {/* ===================================================================== */}
       {quickViewProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-3xl bg-[#121A2A] border border-slate-700 rounded-3xl shadow-2xl overflow-hidden text-white flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 bg-[#161F30] border-b border-slate-800 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider bg-red-950 text-red-400 border border-red-800">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
+          onClick={() => setQuickViewProduct(null)}
+        >
+          <div
+            className="w-full max-w-3xl dva-glass-modal overflow-hidden text-white flex flex-col max-h-[90dvh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 sm:px-6 py-4 bg-white/[0.03] border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-red-500/15 text-red-300 border border-red-500/35">
                   Quick View · {getShopCategoryLabel(quickViewProduct.category)}
                 </span>
-                <span className="text-xs text-slate-400 font-mono">SKU: {quickViewProduct.sku || 'DVA'}</span>
+                <span className="text-xs text-slate-400 font-sans tabular-nums">SKU: {quickViewProduct.sku || 'DVA'}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setQuickViewProduct(null)}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer"
+                aria-label="Close quick view"
+                className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
+            <div className="p-5 sm:p-6 overflow-y-auto no-scrollbar space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Images */}
                 <div className="space-y-3">
-                  <div className="w-full aspect-[4/5] relative overflow-hidden rounded-2xl bg-slate-900/40 border border-slate-800 shadow-inner">
+                  <div className="w-full aspect-[4/5] relative overflow-hidden rounded-2xl bg-white/[0.03] border border-white/10 shadow-inner">
                     <ShopFadeImage
                       src={
                         quickViewActiveImage === 'BACK' && quickViewProduct.backImage
@@ -1418,7 +1429,7 @@ export const ShopPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenZoom(quickViewProduct, quickViewActiveImage)}
-                      className="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-black/80 hover:bg-black text-white text-xs font-bold border border-slate-700 backdrop-blur-md flex items-center gap-1.5 shadow-xl cursor-pointer"
+                      className="absolute bottom-3 right-3 px-3.5 py-1.5 rounded-full bg-black/70 hover:bg-black/90 text-white text-xs font-bold border border-white/15 backdrop-blur-md flex items-center gap-1.5 shadow-xl cursor-pointer transition-all"
                     >
                       <ZoomIn className="w-3.5 h-3.5 text-orange-400" />
                       <span>Zoom</span>
@@ -1429,10 +1440,10 @@ export const ShopPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setQuickViewActiveImage('FRONT')}
-                      className={`p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         quickViewActiveImage === 'FRONT'
-                          ? 'bg-red-950 border-red-500 text-white'
-                          : 'bg-[#0E1524] border-slate-800 text-slate-400 hover:text-white'
+                          ? 'border-orange-500/60 bg-orange-500/15 text-white shadow-[0_0_18px_rgba(249,115,22,0.18)]'
+                          : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:text-white'
                       }`}
                     >
                       <span>Front Photo</span>
@@ -1441,10 +1452,10 @@ export const ShopPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setQuickViewActiveImage('BACK')}
-                        className={`p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                           quickViewActiveImage === 'BACK'
-                            ? 'bg-red-950 border-red-500 text-white'
-                            : 'bg-[#0E1524] border-slate-800 text-slate-400 hover:text-white'
+                            ? 'border-orange-500/60 bg-orange-500/15 text-white shadow-[0_0_18px_rgba(249,115,22,0.18)]'
+                            : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:text-white'
                         }`}
                       >
                         <span>Back Photo</span>
@@ -1458,16 +1469,16 @@ export const ShopPage: React.FC = () => {
                   <div>
                     <h3 className="font-heading font-black text-xl text-white">{quickViewProduct.name}</h3>
                     <div className="flex items-baseline gap-2.5 mt-2 flex-wrap">
-                      <span className="font-heading font-black text-2xl text-emerald-400 whitespace-nowrap">
+                      <span className="font-heading font-black text-2xl text-emerald-400 font-sans tabular-nums whitespace-nowrap">
                         {Number(quickViewProduct.price || 0).toLocaleString('vi-VN')} đ
                       </span>
                       {quickViewProduct.originalPrice && quickViewProduct.originalPrice > quickViewProduct.price && (
-                        <span className="text-sm text-slate-500 line-through font-mono whitespace-nowrap">
+                        <span className="text-sm text-slate-500 line-through font-sans tabular-nums whitespace-nowrap">
                           {Number(quickViewProduct.originalPrice).toLocaleString('vi-VN')} đ
                         </span>
                       )}
                       {getDiscountPercent(quickViewProduct.originalPrice, quickViewProduct.price) && (
-                        <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap">
+                        <span className="bg-rose-500/20 text-rose-300 border border-rose-500/35 px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap">
                           -{getDiscountPercent(quickViewProduct.originalPrice, quickViewProduct.price)}% OFF
                         </span>
                       )}
@@ -1481,7 +1492,7 @@ export const ShopPage: React.FC = () => {
                   {isBallProduct(quickViewProduct) ? (
                     <div className="space-y-1">
                       <span className="text-xs font-bold uppercase text-slate-300 block">Specification</span>
-                      <span className="inline-block px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/60 text-xs font-bold text-emerald-300">
+                      <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-xs font-bold text-emerald-300">
                         Official Size 5 · 18-Panel Double-Dimple Microfiber Match Ball
                       </span>
                     </div>
@@ -1493,7 +1504,7 @@ export const ShopPage: React.FC = () => {
                           ? quickViewProduct.sizes
                           : ['S', 'M', 'L', 'XL', '2XL']
                         ).map((sz) => (
-                          <span key={sz} className="px-2.5 py-1 rounded-lg bg-[#0E1524] border border-slate-700 text-xs font-bold text-slate-200">
+                          <span key={sz} className="px-3 py-1 rounded-xl bg-white/[0.05] border border-white/10 text-xs font-bold text-slate-200">
                             {sz}
                           </span>
                         ))}
@@ -1502,13 +1513,13 @@ export const ShopPage: React.FC = () => {
                   ) : null}
 
                   {quickViewProduct.isPaused && (
-                    <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-700 text-amber-200 text-xs flex items-center gap-2">
+                    <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/35 text-amber-200 text-xs flex items-center gap-2">
                       <Clock className="w-4 h-4 text-amber-400 shrink-0" />
                       <span>Temporarily Out of Stock / Coming Back Soon</span>
                     </div>
                   )}
 
-                  <div className="pt-4 border-t border-slate-800 flex items-center gap-3">
+                  <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                     <button
                       type="button"
                       disabled={Boolean(quickViewProduct.isPaused)}
@@ -1517,10 +1528,10 @@ export const ShopPage: React.FC = () => {
                         setQuickViewProduct(null);
                         handleOpenBuyNow(prod);
                       }}
-                      className={`flex-1 py-3 px-4 rounded-xl font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${
+                      className={`flex-1 py-3 px-5 rounded-full font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98] ${
                         quickViewProduct.isPaused
-                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                          : 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white'
+                          ? 'bg-white/[0.05] text-slate-500 cursor-not-allowed border border-white/10'
+                          : 'bg-gradient-to-r from-[#B91C1C] via-red-600 to-orange-500 hover:brightness-110 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_10px_24px_rgba(249,115,22,0.3)]'
                       }`}
                     >
                       <ShoppingBag className="w-4 h-4" />
@@ -1534,7 +1545,7 @@ export const ShopPage: React.FC = () => {
                         setQuickViewProduct(null);
                         navigate(path);
                       }}
-                      className="px-4 py-3 rounded-xl bg-[#0E1524] hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                      className="px-4 py-3 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-slate-200 hover:text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <span>Full Specs</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -1664,9 +1675,15 @@ export const ShopPage: React.FC = () => {
       {/* 5. SIZE GUIDE MODAL (STRICTLY STARTING FROM S - NO XS)               */}
       {/* ===================================================================== */}
       {isSizeGuideOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-2xl bg-[#121A2A] border border-slate-700 rounded-3xl shadow-2xl overflow-hidden text-white flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 bg-[#161F30] border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
+          onClick={() => setIsSizeGuideOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl dva-glass-modal overflow-hidden text-white flex flex-col max-h-[90dvh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 sm:px-6 py-4 bg-white/[0.03] border-b border-white/10 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <Ruler className="w-5 h-5 text-orange-400" />
                 <div>
@@ -1677,16 +1694,16 @@ export const ShopPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsSizeGuideOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer"
+                className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
-              <div className="rounded-2xl border border-slate-800 overflow-hidden">
+            <div className="p-5 sm:p-6 overflow-y-auto no-scrollbar space-y-6">
+              <div className="rounded-2xl border border-white/10 overflow-hidden bg-white/[0.02]">
                 <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-[#161F30] text-slate-200 uppercase font-black tracking-wider text-[11px] border-b border-slate-800">
+                  <thead className="bg-white/[0.04] text-slate-200 uppercase font-black tracking-wider text-[11px] border-b border-white/10">
                     <tr>
                       <th className="py-3 px-4">Size</th>
                       <th className="py-3 px-4">Height</th>
@@ -1695,14 +1712,14 @@ export const ShopPage: React.FC = () => {
                       <th className="py-3 px-4">Length</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800 bg-[#0E1524]">
+                  <tbody className="divide-y divide-white/[0.07]">
                     {JERSEY_SIZE_GUIDE_ROWS.map((row) => (
-                      <tr key={row.size} className="hover:bg-slate-800/40 transition-colors">
-                        <td className="py-2.5 px-4 font-black text-red-400">{row.size}</td>
-                        <td className="py-2.5 px-4 font-mono">{row.height}</td>
-                        <td className="py-2.5 px-4 font-mono">{row.weight}</td>
-                        <td className="py-2.5 px-4 font-mono">{row.chest}</td>
-                        <td className="py-2.5 px-4 font-mono">{row.length}</td>
+                      <tr key={row.size} className="hover:bg-white/[0.04] transition-colors">
+                        <td className="py-2.5 px-4 font-black text-orange-400">{row.size}</td>
+                        <td className="py-2.5 px-4 font-sans tabular-nums">{row.height}</td>
+                        <td className="py-2.5 px-4 font-sans tabular-nums">{row.weight}</td>
+                        <td className="py-2.5 px-4 font-sans tabular-nums">{row.chest}</td>
+                        <td className="py-2.5 px-4 font-sans tabular-nums">{row.length}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1710,7 +1727,7 @@ export const ShopPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-2xl bg-[#0E1524] border border-slate-800">
+                <div className="p-3.5 rounded-2xl bg-white/[0.035] border border-white/10">
                   <span className="font-bold text-white block mb-1">Knee Pads Sizing</span>
                   <p className="text-slate-400 text-[11px]">
                     <strong>S/M:</strong> Athletes 45–68 kg (Knee circumference 32–37 cm)
@@ -1718,7 +1735,7 @@ export const ShopPage: React.FC = () => {
                     <strong>L/XL:</strong> Athletes 68–95 kg (Knee circumference 37–44 cm)
                   </p>
                 </div>
-                <div className="p-3.5 rounded-2xl bg-[#0E1524] border border-slate-800">
+                <div className="p-3.5 rounded-2xl bg-white/[0.035] border border-white/10">
                   <span className="font-bold text-white block mb-1">Compression Crew Socks</span>
                   <p className="text-slate-400 text-[11px]">
                     <strong>Size M:</strong> EU 36–40 (Women & Youth)
@@ -1736,24 +1753,30 @@ export const ShopPage: React.FC = () => {
       {/* 6. GUEST BUY-NOW & VIETQR CHECKOUT MODAL                              */}
       {/* ===================================================================== */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-2xl bg-[#121A2A] border border-slate-700 rounded-3xl shadow-2xl overflow-hidden text-white flex flex-col max-h-[92vh]">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
+          onClick={handleCloseBuyNow}
+        >
+          <div
+            className="w-full max-w-2xl dva-glass-modal overflow-hidden text-white flex flex-col max-h-[90dvh]"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-[#161F30] border-b border-slate-800 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-400">
+            <div className="px-5 sm:px-6 py-4 bg-white/[0.03] border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-600/25 to-orange-500/20 border border-orange-500/35 flex items-center justify-center text-orange-400 shrink-0">
                   <ShoppingBag className="w-5 h-5" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-heading font-black text-base text-white">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-heading font-black text-sm sm:text-base text-white">
                       {checkoutStep === 'FORM'
                         ? 'Express Guest Checkout'
                         : checkoutStep === 'PAYMENT'
                         ? 'Dynamic VietQR Payment'
                         : 'Order Confirmed'}
                     </h3>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-950 text-emerald-400 border border-emerald-800">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/35">
                       No Login Required
                     </span>
                   </div>
@@ -1764,18 +1787,19 @@ export const ShopPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCloseBuyNow}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer"
+                aria-label="Close checkout"
+                className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
+            <div className="p-4 sm:p-6 overflow-y-auto no-scrollbar space-y-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
               {checkoutStep === 'FORM' && (
                 <form onSubmit={handleCreateOrderSubmit} className="space-y-6">
                   {/* Product Summary Strip */}
-                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#0B101B] border border-slate-800">
+                  <div className="flex items-center gap-3.5 sm:gap-4 p-4 rounded-2xl bg-white/[0.035] border border-white/10">
                     <img
                       src={optimizeCloudinaryUrl(
                         selectedProduct.frontImage || selectedProduct.imageUrl || FALLBACK_PRODUCT_IMAGE,
@@ -1785,7 +1809,7 @@ export const ShopPage: React.FC = () => {
                       width={64}
                       height={64}
                       decoding="async"
-                      className="w-16 h-16 rounded-xl object-cover border border-slate-700 shrink-0"
+                      className="w-16 h-16 rounded-xl object-cover border border-white/15 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <span className="text-[10px] font-black uppercase tracking-wider text-orange-400">
@@ -1793,20 +1817,20 @@ export const ShopPage: React.FC = () => {
                         {getShopCategoryCode(selectedProduct.category)}
                       </span>
                       <h4 className="font-bold text-sm text-white truncate">{selectedProduct.name}</h4>
-                      <p className="text-xs text-emerald-400 font-black mt-0.5 whitespace-nowrap">
+                      <p className="text-xs text-emerald-400 font-black font-sans tabular-nums mt-0.5 whitespace-nowrap">
                         {Number(selectedProduct.price).toLocaleString('vi-VN')} đ × {quantity}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <span className="block text-[10px] text-slate-400 uppercase font-bold">Total</span>
-                      <span className="font-heading font-black text-lg text-emerald-400 whitespace-nowrap">
+                      <span className="font-heading font-black text-base sm:text-lg text-emerald-400 font-sans tabular-nums whitespace-nowrap">
                         {totalAmount.toLocaleString('vi-VN')} đ
                       </span>
                     </div>
                   </div>
 
                   {formError && (
-                    <div className="p-3.5 rounded-xl bg-red-950/70 border border-red-700 text-red-200 text-xs flex items-center gap-2">
+                    <div className="p-3.5 rounded-2xl bg-red-500/15 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
                       <span>{formError}</span>
                     </div>
@@ -1823,7 +1847,7 @@ export const ShopPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setIsSizeGuideOpen(true)}
-                            className="text-xs font-bold text-orange-400 hover:text-orange-300 flex items-center gap-1 cursor-pointer"
+                            className="rounded-full bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 px-3 py-1 text-xs font-medium text-orange-200 hover:text-white flex items-center gap-1 cursor-pointer transition-all"
                           >
                             <Ruler className="w-3.5 h-3.5" />
                             <span>Size Guide</span>
@@ -1841,10 +1865,10 @@ export const ShopPage: React.FC = () => {
                               key={sz}
                               type="button"
                               onClick={() => setSelectedSize(sz)}
-                              className={`px-4 py-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
+                              className={`px-4 py-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer active:scale-[0.98] ${
                                 selectedSize === sz
-                                  ? 'bg-red-600 border-red-500 text-white shadow-md shadow-red-900/30'
-                                  : 'bg-[#0B101B] border-slate-700 text-slate-300 hover:border-slate-500'
+                                  ? 'border-orange-500/60 bg-orange-500/15 text-white shadow-[0_0_18px_rgba(249,115,22,0.2)]'
+                                  : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:border-white/20 hover:text-white'
                               }`}
                             >
                               {sz}
@@ -1852,20 +1876,20 @@ export const ShopPage: React.FC = () => {
                           ))}
 
                           {/* Quantity Selector */}
-                          <div className="ml-auto flex items-center gap-2 bg-[#0B101B] border border-slate-700 rounded-xl px-2.5 py-1">
+                          <div className="ml-auto flex items-center gap-2 bg-white/[0.04] border border-white/10 rounded-xl px-2.5 py-1">
                             <span className="text-[11px] text-slate-400 font-bold">Qty:</span>
                             <button
                               type="button"
                               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                              className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer flex items-center justify-center"
+                              className="w-6 h-6 rounded-lg bg-white/[0.08] hover:bg-white/15 text-white font-bold text-xs cursor-pointer flex items-center justify-center transition-colors"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <span className="w-6 text-center text-xs font-black text-white">{quantity}</span>
+                            <span className="w-6 text-center text-xs font-black font-sans tabular-nums text-white">{quantity}</span>
                             <button
                               type="button"
                               onClick={() => setQuantity((q) => Math.min(50, q + 1))}
-                              className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer flex items-center justify-center"
+                              className="w-6 h-6 rounded-lg bg-white/[0.08] hover:bg-white/15 text-white font-bold text-xs cursor-pointer flex items-center justify-center transition-colors"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -1874,13 +1898,13 @@ export const ShopPage: React.FC = () => {
 
                         {/* Notice for orders with quantity > 1 */}
                         {quantity > 1 && (
-                          <p className="text-[11px] text-blue-300 bg-blue-950/40 border border-blue-800/60 p-2.5 rounded-xl">
+                          <p className="text-[11px] text-sky-200 bg-sky-500/10 border border-sky-500/30 p-2.5 rounded-xl">
                             Note: Quantity is <strong>{quantity}</strong>. All items will share size <strong>{selectedSize}</strong> and player print name. To purchase different sizes or names, please place separate orders.
                           </p>
                         )}
                       </>
                     ) : (
-                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#0B101B] border border-slate-800">
+                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.035] border border-white/10">
                         <div>
                           <label className="text-xs font-extrabold uppercase tracking-wider text-slate-200 block">
                             1. Select Order Quantity
@@ -1890,20 +1914,20 @@ export const ShopPage: React.FC = () => {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 bg-[#121A2A] border border-slate-700 rounded-xl px-3 py-1.5">
+                        <div className="flex items-center gap-2 bg-white/[0.05] border border-white/10 rounded-xl px-3 py-1.5">
                           <span className="text-xs text-slate-400 font-bold">Qty:</span>
                           <button
                             type="button"
                             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm cursor-pointer flex items-center justify-center"
+                            className="w-7 h-7 rounded-lg bg-white/[0.08] hover:bg-white/15 text-white font-bold text-sm cursor-pointer flex items-center justify-center"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="w-8 text-center text-sm font-black text-white">{quantity}</span>
+                          <span className="w-8 text-center text-sm font-black font-sans tabular-nums text-white">{quantity}</span>
                           <button
                             type="button"
                             onClick={() => setQuantity((q) => Math.min(50, q + 1))}
-                            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm cursor-pointer flex items-center justify-center"
+                            className="w-7 h-7 rounded-lg bg-white/[0.08] hover:bg-white/15 text-white font-bold text-sm cursor-pointer flex items-center justify-center"
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
@@ -1914,8 +1938,8 @@ export const ShopPage: React.FC = () => {
 
                   {/* 2. DYNAMIC JERSEY CUSTOMIZATION: ONLY "PLAYER NAME" */}
                   {isJersey && (
-                    <div className="p-4 rounded-2xl bg-[#0B101B] border border-slate-800 space-y-4">
-                      <div className="flex items-center justify-between">
+                    <div className="p-4 rounded-2xl bg-white/[0.035] border border-white/10 space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <Shirt className="w-4 h-4 text-orange-400" />
                           <span className="text-xs font-extrabold uppercase tracking-wider text-white">
@@ -1927,7 +1951,7 @@ export const ShopPage: React.FC = () => {
                             type="checkbox"
                             checked={enableCustomPrint}
                             onChange={(e) => setEnableCustomPrint(e.target.checked)}
-                            className="rounded border-slate-600 text-red-600 focus:ring-red-500"
+                            className="rounded border-slate-600 text-orange-500 focus:ring-orange-500"
                           />
                           <span>Add Player Name Print</span>
                         </label>
@@ -1945,7 +1969,7 @@ export const ShopPage: React.FC = () => {
                             placeholder="e.g. 178"
                             value={heightCm}
                             onChange={(e) => setHeightCm(e.target.value)}
-                            className="w-full px-3.5 py-2 bg-[#121A2A] border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-red-500"
+                            className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs font-sans tabular-nums"
                           />
                         </div>
                         <div>
@@ -1959,7 +1983,7 @@ export const ShopPage: React.FC = () => {
                             placeholder="e.g. 72"
                             value={weightKg}
                             onChange={(e) => setWeightKg(e.target.value)}
-                            className="w-full px-3.5 py-2 bg-[#121A2A] border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-red-500"
+                            className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs font-sans tabular-nums"
                           />
                         </div>
                       </div>
@@ -1975,7 +1999,7 @@ export const ShopPage: React.FC = () => {
                             placeholder="e.g. HOANG DUY, NATHAN, VAN A..."
                             value={customName}
                             onChange={(e) => setCustomName(e.target.value.toUpperCase())}
-                            className="w-full px-3.5 py-2.5 bg-[#121A2A] border border-orange-500/40 rounded-xl text-xs text-white font-mono uppercase tracking-wider focus:outline-none focus:border-orange-400"
+                            className="dva-glass-input w-full px-3.5 py-2.5 !border-orange-500/40 text-[16px] sm:text-xs font-sans uppercase tracking-wider"
                           />
                           <span className="text-[10px] text-slate-500 mt-1 block">
                             Competition back-name only. Jersey number input has been removed per official club guidelines.
@@ -2010,14 +2034,14 @@ export const ShopPage: React.FC = () => {
                           Full Name *
                         </label>
                         <div className="relative">
-                          <UserIcon className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <UserIcon className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
                           <input
                             type="text"
                             required
                             placeholder="Nguyen Van A"
                             value={customerName}
                             onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full pl-9 pr-3.5 py-2.5 bg-[#0B101B] border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-red-500"
+                            className="dva-glass-input w-full pl-9 pr-3.5 py-2.5 text-[16px] sm:text-xs"
                           />
                         </div>
                       </div>
@@ -2026,14 +2050,14 @@ export const ShopPage: React.FC = () => {
                           Phone / Zalo Number *
                         </label>
                         <div className="relative">
-                          <Phone className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <Phone className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
                           <input
                             type="tel"
                             required
                             placeholder="0912345678"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            className="w-full pl-9 pr-3.5 py-2.5 bg-[#0B101B] border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-red-500"
+                            className="dva-glass-input w-full pl-9 pr-3.5 py-2.5 text-[16px] sm:text-xs font-sans tabular-nums"
                           />
                         </div>
                       </div>
@@ -2042,14 +2066,14 @@ export const ShopPage: React.FC = () => {
                           Email Address (for Invoice & Status Updates) *
                         </label>
                         <div className="relative">
-                          <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <Mail className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
                           <input
                             type="email"
                             required
                             placeholder="athlete@gmail.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full pl-9 pr-3.5 py-2.5 bg-[#0B101B] border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-red-500"
+                            className="dva-glass-input w-full pl-9 pr-3.5 py-2.5 text-[16px] sm:text-xs"
                           />
                         </div>
                       </div>
@@ -2058,13 +2082,13 @@ export const ShopPage: React.FC = () => {
                           Instagram / Facebook Profile (Optional)
                         </label>
                         <div className="relative">
-                          <Instagram className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <Instagram className="w-3.5 h-3.5 text-slate-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
                           <input
                             type="text"
                             placeholder="@your.ig (or enter 'None' if not applicable)"
                             value={socialLink}
                             onChange={(e) => setSocialLink(e.target.value)}
-                            className="w-full pl-9 pr-3.5 py-2.5 bg-[#0B101B] border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-red-500"
+                            className="dva-glass-input w-full pl-9 pr-3.5 py-2.5 text-[16px] sm:text-xs"
                           />
                         </div>
                       </div>
@@ -2083,8 +2107,8 @@ export const ShopPage: React.FC = () => {
                         onClick={() => setDeliveryMethod('COURT_PICKUP')}
                         className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
                           deliveryMethod === 'COURT_PICKUP'
-                            ? 'bg-emerald-950/40 border-emerald-500 text-white shadow-lg ring-1 ring-emerald-500'
-                            : 'bg-[#0B101B] border-slate-800 text-slate-400 hover:border-slate-700'
+                            ? 'bg-emerald-500/15 border-emerald-500/60 text-white shadow-[0_0_20px_rgba(16,185,129,0.18)]'
+                            : 'bg-white/[0.035] border-white/10 text-slate-400 hover:bg-white/[0.06] hover:border-white/20'
                         }`}
                       >
                         <MapPin
@@ -2107,8 +2131,8 @@ export const ShopPage: React.FC = () => {
                         onClick={() => setDeliveryMethod('HOME_DELIVERY')}
                         className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
                           deliveryMethod === 'HOME_DELIVERY'
-                            ? 'bg-orange-950/40 border-orange-500 text-white shadow-lg ring-1 ring-orange-500'
-                            : 'bg-[#0B101B] border-slate-800 text-slate-400 hover:border-slate-700'
+                            ? 'bg-orange-500/15 border-orange-500/60 text-white shadow-[0_0_20px_rgba(249,115,22,0.18)]'
+                            : 'bg-white/[0.035] border-white/10 text-slate-400 hover:bg-white/[0.06] hover:border-white/20'
                         }`}
                       >
                         <Truck
@@ -2128,7 +2152,7 @@ export const ShopPage: React.FC = () => {
                     </div>
 
                     {deliveryMethod === 'COURT_PICKUP' ? (
-                      <div className="p-3.5 rounded-2xl bg-emerald-950/20 border border-emerald-800/60 text-[11px] text-emerald-300 flex items-start gap-2.5">
+                      <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-200 flex items-start gap-2.5">
                         <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                         <div>
                           <strong className="block text-white font-bold">Fixed Pickup Location:</strong>
@@ -2136,8 +2160,8 @@ export const ShopPage: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="p-4 rounded-2xl bg-orange-950/20 border border-orange-800/60 space-y-3.5 animate-in fade-in">
-                        <div className="flex items-start gap-2 text-[11px] text-orange-300 font-semibold">
+                      <div className="p-4 rounded-2xl bg-orange-500/[0.07] border border-orange-500/30 space-y-3.5 animate-in fade-in">
+                        <div className="flex items-start gap-2 text-[11px] text-orange-200 font-semibold">
                           <Info className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
                           <span>
                             Courier shipping fee (COD) is paid directly by recipient to delivery driver upon arrival.
@@ -2153,15 +2177,15 @@ export const ShopPage: React.FC = () => {
                             <select
                               value={selectedProvince}
                               onChange={(e) => handleProvinceChange(e.target.value)}
-                              className="w-full px-3 py-2 bg-[#0B101B] border border-orange-500/50 rounded-xl text-xs text-white focus:outline-none focus:border-orange-400"
+                              className="dva-glass-input w-full px-3 py-2.5 text-[16px] sm:text-xs"
                             >
                               {provinces.length === 0 ? (
-                                <option value={selectedProvince} className="bg-[#0B101B] text-white">
+                                <option value={selectedProvince} className="bg-[#0B0D12] text-white">
                                   {selectedProvince}
                                 </option>
                               ) : (
                                 provinces.map((prov) => (
-                                  <option key={prov.name} value={prov.name} className="bg-[#0B101B] text-white">
+                                  <option key={prov.name} value={prov.name} className="bg-[#0B0D12] text-white">
                                     {prov.name}
                                   </option>
                                 ))
@@ -2176,15 +2200,15 @@ export const ShopPage: React.FC = () => {
                             <select
                               value={selectedDistrict}
                               onChange={(e) => handleDistrictChange(e.target.value)}
-                              className="w-full px-3 py-2 bg-[#0B101B] border border-orange-500/50 rounded-xl text-xs text-white focus:outline-none focus:border-orange-400"
+                              className="dva-glass-input w-full px-3 py-2.5 text-[16px] sm:text-xs"
                             >
                               {availableDistricts.length === 0 ? (
-                                <option value={selectedDistrict} className="bg-[#0B101B] text-white">
+                                <option value={selectedDistrict} className="bg-[#0B0D12] text-white">
                                   {selectedDistrict}
                                 </option>
                               ) : (
                                 availableDistricts.map((dist) => (
-                                  <option key={dist.name} value={dist.name} className="bg-[#0B101B] text-white">
+                                  <option key={dist.name} value={dist.name} className="bg-[#0B0D12] text-white">
                                     {dist.name}
                                   </option>
                                 ))
@@ -2199,20 +2223,20 @@ export const ShopPage: React.FC = () => {
                             <select
                               value={selectedWard}
                               onChange={(e) => setSelectedWard(e.target.value)}
-                              className="w-full px-3 py-2 bg-[#0B101B] border border-orange-500/50 rounded-xl text-xs text-white focus:outline-none focus:border-orange-400"
+                              className="dva-glass-input w-full px-3 py-2.5 text-[16px] sm:text-xs"
                             >
                               {availableWards.length === 0 ? (
-                                <option value={selectedWard} className="bg-[#0B101B] text-white">
+                                <option value={selectedWard} className="bg-[#0B0D12] text-white">
                                   {selectedWard}
                                 </option>
                               ) : (
                                 availableWards.map((w) => (
-                                  <option key={w} value={w} className="bg-[#0B101B] text-white">
+                                  <option key={w} value={w} className="bg-[#0B0D12] text-white">
                                     {w}
                                   </option>
                                 ))
                               )}
-                              <option value="Other (Specify in street address)" className="bg-[#0B101B] text-slate-400">
+                              <option value="Other (Specify in street address)" className="bg-[#0B0D12] text-slate-400">
                                 Other (Specify in street address)
                               </option>
                             </select>
@@ -2230,13 +2254,13 @@ export const ShopPage: React.FC = () => {
                             placeholder="e.g. No. 15, Alley 29, 155 Truong Chinh Street..."
                             value={specificAddress}
                             onChange={(e) => setSpecificAddress(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-[#0B101B] border border-orange-500/50 rounded-xl text-xs text-white focus:outline-none focus:border-orange-400 placeholder-slate-500"
+                            className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs"
                           />
                         </div>
 
                         {/* Complete address preview */}
                         {shippingAddress && (
-                          <div className="p-2.5 rounded-xl bg-black/40 border border-orange-500/20 text-[11px] text-slate-300">
+                          <div className="p-2.5 rounded-xl bg-white/[0.04] border border-orange-500/25 text-[11px] text-slate-300">
                             <span className="text-slate-400">Shipping Label Destination: </span>
                             <strong className="text-orange-300 font-medium">{shippingAddress}</strong>
                           </div>
@@ -2255,7 +2279,7 @@ export const ShopPage: React.FC = () => {
                       placeholder="Special instructions or pickup requests..."
                       value={orderNotes}
                       onChange={(e) => setOrderNotes(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-[#0B101B] border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-red-500"
+                      className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs"
                     />
                   </div>
 
@@ -2264,7 +2288,7 @@ export const ShopPage: React.FC = () => {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-500 hover:from-red-500 hover:to-orange-500 text-white font-heading font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-red-950/50 transition-all cursor-pointer disabled:opacity-50"
+                      className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#B91C1C] via-red-600 to-orange-500 hover:brightness-110 text-white font-heading font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_10px_28px_rgba(249,115,22,0.35)] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
                     >
                       {submitting ? (
                         <>

@@ -15,6 +15,7 @@ import { SessionStatusBlock } from '../../../components/court-map/SessionStatusB
 import { RECOMMENDED_SKILL_RANK_PRESETS } from '../../../shared/skillRanks';
 import { SpatialKpiRow, SpatialKpiItem } from '../components/spatial/SpatialKpiRow';
 import { SpatialBentoGrid, SpatialBentoItem, BentoFilterKey } from '../components/spatial/SpatialBentoGrid';
+import { SlowServerPill } from '../../../components/common/GlassLoading';
 
 type ModalState =
   | { kind: 'venue'; item?: VolleyballVenue }
@@ -29,7 +30,7 @@ const F: React.FC<{ label: string; full?: boolean; tone?: string; children: Reac
 );
 
 export const VenuesTab: React.FC = () => {
-  const { isSuperAdmin, isCaptain, activeModule, setActiveModule, data: { venuesList }, setData: { setVenuesList }, notify } = useAdminDashboard();
+  const { isSuperAdmin, isCaptain, activeModule, setActiveModule, data: { venuesList, loadedScopes }, setData: { setVenuesList }, notify } = useAdminDashboard();
   const [subTab, setSubTab] = useState<'VENUES' | 'CAPTAINS'>('VENUES');
   const [showBentoOverview, setShowBentoOverview] = useState(true);
   const detailWorkspaceRef = React.useRef<HTMLDivElement>(null);
@@ -498,8 +499,39 @@ export const VenuesTab: React.FC = () => {
     return <div className="space-y-3">{infoFields}{mediaFields}</div>;
   };
 
+  if (!loadedScopes.has('VENUES')) {
+    return (
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className="dva-skeleton p-5 rounded-3xl h-28 space-y-3">
+              <div className="dva-skeleton-bar h-3 w-24" />
+              <div className="dva-skeleton-bar h-7 w-32" />
+            </div>
+          ))}
+        </div>
+        <div className="dva-glass-panel rounded-3xl p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="dva-skeleton-bar h-5 w-48" />
+            <div className="dva-skeleton h-9 w-36 rounded-full" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} className="dva-skeleton p-4 rounded-2xl h-44 space-y-3">
+                <div className="dva-skeleton-bar h-4 w-40" />
+                <div className="dva-skeleton-bar h-3 w-56 max-w-full" />
+                <div className="dva-skeleton-bar h-16 w-full rounded-xl" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <SlowServerPill active />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 dva-content-reveal">
       {isCaptain ? (
         /* CAPTAIN SELF-SERVICE VIEW: 2 FULL-WIDTH WORKSPACES VIA SIDEBAR */
         (() => {

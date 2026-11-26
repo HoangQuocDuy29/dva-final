@@ -22,6 +22,7 @@ import { RevenueTrendChart } from '../components/overview/RevenueTrendChart';
 import { GuestSessionsPanel } from '../components/overview/GuestSessionsPanel';
 import { SpatialKpiRow, SpatialKpiItem } from '../components/spatial/SpatialKpiRow';
 import { SpatialBentoGrid, SpatialBentoItem, BentoFilterKey } from '../components/spatial/SpatialBentoGrid';
+import { SlowServerPill } from '../../../components/common/GlassLoading';
 import {
   getSessionDailyState,
   getUpcomingSessionDates,
@@ -33,7 +34,7 @@ export const OverviewTab: React.FC = () => {
   const {
     isSuperAdmin,
     setActiveModule,
-    data: { bookings, trainingRegs, venuesList, players },
+    data: { bookings, trainingRegs, venuesList, players, loadedScopes },
   } = useAdminDashboard();
   const {
     verifiedClubRevenue,
@@ -100,190 +101,11 @@ export const OverviewTab: React.FC = () => {
     return venuesList.length > 0 ? 78 : 0;
   }, [venuesList, nowVn, paidBookingsCount, totalBookingsCount]);
 
-  // --- ADMIN (Restricted RBAC: strictly non-financial & PII-free) ---
-  if (!isSuperAdmin) {
-    const processedTryouts = approvedTryoutsCount + scheduledApplicationsCount;
-    const tryoutProgressPct = applicationsCount > 0 ? Math.round((processedTryouts / applicationsCount) * 100) : 100;
-
-    const adminKpis: SpatialKpiItem[] = [
-      {
-        id: 'admin-members-tryouts',
-        label: 'Thành viên & Tryout chờ duyệt',
-        value: `${activePlayersCount} VĐV · ${pendingApplicationsCount} chờ`,
-        subtitle: `${playersCount} tổng hồ sơ · ${scheduledApplicationsCount} lịch test`,
-        badge: pendingApplicationsCount > 0 ? `${pendingApplicationsCount} chờ duyệt` : 'Đã xử lý hết',
-        badgeTone: pendingApplicationsCount > 0 ? 'orange' : 'emerald',
-        icon: Users,
-        accentColor: '#FB923C',
-        sparkline: [Math.max(1, activePlayersCount - 8), Math.max(1, activePlayersCount - 5), activePlayersCount - 2, activePlayersCount],
-        onClick: () => setActiveModule('APPLICATIONS'),
-      },
-      {
-        id: 'admin-ops',
-        label: 'Giải Đấu & Truyền Thông',
-        value: `${tournamentsCount} Giải · ${newsCount} Tin`,
-        subtitle: `${hostedTournamentsCount} giải do DVA đăng cai · RBAC Scoped`,
-        badge: 'ADMIN Scope',
-        badgeTone: 'sky',
-        icon: Trophy,
-        accentColor: '#38BDF8',
-        sparkline: [2, 4, 3, Math.max(4, tournamentsCount + 2), Math.max(5, newsCount)],
-        onClick: () => setActiveModule('TOURNAMENTS'),
-      },
-      {
-        id: 'admin-fill',
-        label: 'Tỷ lệ xử lý Tryout & Tiến độ',
-        value: `${tryoutProgressPct}%`,
-        subtitle: `${approvedTryoutsCount} đạt · ${scheduledApplicationsCount} hẹn lịch / ${applicationsCount} đơn`,
-        badge: 'Tiến độ duyệt',
-        badgeTone: 'emerald',
-        icon: Activity,
-        accentColor: '#34D399',
-        gaugePct: tryoutProgressPct,
-        gaugeSublabel: 'Đã duyệt',
-        onClick: () => setActiveModule('APPLICATIONS'),
-      },
-    ];
-
-    const adminBentoItems: SpatialBentoItem[] = [
-      {
-        id: 'mod-applications',
-        category: 'Tuyển quân · RBAC',
-        title: 'Tryout Applications',
-        description: `${pendingApplicationsCount} đơn chờ đánh giá, ${scheduledApplicationsCount} lịch kiểm tra, ${approvedTryoutsCount} đã duyệt.`,
-        percent: tryoutProgressPct,
-        gaugeSublabel: 'Xử lý',
-        statusTag: pendingApplicationsCount > 0 ? 'Cần duyệt' : 'Đang hoạt động',
-        metaRight: `${applicationsCount} đơn`,
-        filterTags: pendingApplicationsCount > 0 ? ['ALL', 'ACTIVE', 'OPEN_SLOTS'] : ['ALL', 'ACTIVE'],
-        tone: 'orange',
-        onAction: () => setActiveModule('APPLICATIONS'),
-      },
-      {
-        id: 'mod-tournaments',
-        category: 'Giải đấu · Read-Only',
-        title: 'Tournaments & Leagues',
-        description: `Theo dõi ${tournamentsCount} giải đấu, bảng xếp hạng, nhánh knockout & lịch thi đấu.`,
-        percent: tournamentsCount > 0 ? Math.min(100, Math.round((hostedTournamentsCount / tournamentsCount) * 100) || 65) : 0,
-        gaugeSublabel: 'DVA Cup',
-        statusTag: tournamentsCount > 0 ? 'Đang hoạt động' : 'Tạm nghỉ',
-        metaRight: `${tournamentsCount} giải`,
-        filterTags: tournamentsCount > 0 ? ['ALL', 'ACTIVE'] : ['ALL', 'PAUSED'],
-        tone: 'rose',
-        onAction: () => setActiveModule('TOURNAMENTS'),
-      },
-      {
-        id: 'mod-news',
-        category: 'Truyền thông',
-        title: 'News & Media Stories',
-        description: `Xuất bản ${newsCount} bản tin CLB, tường thuật trận đấu & thông báo học viện.`,
-        percent: Math.min(100, Math.max(25, newsCount * 12)),
-        gaugeSublabel: 'Bài viết',
-        statusTag: 'Đang hoạt động',
-        metaRight: `${newsCount} bài`,
-        filterTags: ['ALL', 'ACTIVE', 'OPEN_SLOTS'],
-        tone: 'indigo',
-        onAction: () => setActiveModule('NEWS'),
-      },
-      {
-        id: 'mod-squad',
-        category: 'Đội hình CLB',
-        title: 'Active Squad Athletes',
-        description: `${activePlayersCount}/${playersCount} vận động viên đang hoạt động tại Senior, Junior & Youth.`,
-        percent: playersCount > 0 ? Math.round((activePlayersCount / playersCount) * 100) : 0,
-        gaugeSublabel: 'Active',
-        statusTag: 'Đang hoạt động',
-        metaRight: `${activePlayersCount} VĐV`,
-        filterTags: ['ALL', 'ACTIVE'],
-        tone: 'emerald',
-      },
-    ];
-
-    return (
-      <div className="space-y-6">
-        <SpatialKpiRow items={adminKpis} />
-
-        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-400/35 flex items-center justify-center shrink-0">
-              <Shield className="w-5 h-5 text-sky-300" />
-            </div>
-            <div>
-              <h2 className="font-heading font-black text-base text-white">Club Operations Overview</h2>
-              <p className="text-xs text-slate-300/80 mt-0.5">
-                Signed in as <strong className="text-sky-300">ADMIN</strong>. Access is scoped to Tryout Evaluations,
-                News &amp; Media publishing, and Read-Only Tournament brackets/rosters (financial &amp; PII fields hidden).
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <SpatialBentoGrid
-          title="Phân Hệ Quản Trị Được Cấp Quyền"
-          subtitle="Bấm vào nút mũi tên trắng trên mỗi thẻ Bento để mở nhanh khu vực thao tác"
-          items={adminBentoItems}
-        />
-      </div>
-    );
-  }
-
-  // --- SUPERADMIN FULL SPATIAL DASHBOARD ---
+  // All hooks MUST stay unconditionally above any early return (Rules of Hooks)
   const guestSessionsPanelRef = useRef<HTMLDivElement>(null);
-  const jumpToGuestSessions = () => {
-    guestSessionsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const monthlyTotals = monthlyRevenue.map(
-    (p) => p.court + p.store + p.guest + p.tryout + p.tournament + p.training
-  );
-
-  const superAdminKpis: SpatialKpiItem[] = [
-    {
-      id: 'sa-members-tryouts',
-      label: 'Tổng thành viên & Tryout chờ duyệt',
-      value: `${activePlayersCount} VĐV · ${pendingApplicationsCount} chờ`,
-      subtitle: `${playersCount} tổng đội hình · ${approvedTryoutsCount} đơn đã duyệt`,
-      badge: pendingApplicationsCount > 0 ? `${pendingApplicationsCount} Tryout mới` : 'Ổn định',
-      badgeTone: pendingApplicationsCount > 0 ? 'orange' : 'emerald',
-      icon: Users,
-      accentColor: '#FB923C',
-      sparkline: [
-        Math.max(1, activePlayersCount - 10),
-        Math.max(1, activePlayersCount - 7),
-        Math.max(1, activePlayersCount - 4),
-        Math.max(1, activePlayersCount - 2),
-        activePlayersCount,
-      ],
-      onClick: () => setActiveModule(pendingApplicationsCount > 0 ? 'APPLICATIONS' : 'PLAYERS'),
-    },
-    {
-      id: 'sa-revenue-vietqr',
-      label: 'Tổng doanh thu sân & VietQR',
-      value: `${verifiedClubRevenue.toLocaleString('vi-VN')} đ`,
-      subtitle: `Sân: ${courtRevenue.toLocaleString('vi-VN')} đ · ${paidBookingsCount} ca PAID`,
-      badge: 'Verified VietQR',
-      badgeTone: 'emerald',
-      icon: Wallet,
-      accentColor: '#34D399',
-      sparkline: monthlyTotals.length >= 2 ? monthlyTotals : [0, courtRevenue, verifiedClubRevenue],
-      onClick: () => setActiveModule('BOOKINGS'),
-    },
-    {
-      id: 'sa-slot-fill',
-      label: 'Tỷ lệ lấp đầy slot trung bình',
-      value: `${avgSlotFillPct}%`,
-      subtitle: `${venuesList.length} cụm sân Court Map · ${totalBookingsCount} lượt đặt sân`,
-      badge: avgSlotFillPct >= 70 ? 'Hiệu suất cao' : 'Còn nhiều slot',
-      badgeTone: avgSlotFillPct >= 70 ? 'orange' : 'sky',
-      icon: Activity,
-      accentColor: '#FB7185',
-      gaugePct: avgSlotFillPct,
-      gaugeSublabel: 'Slot fill',
-      onClick: () => setActiveModule('VENUES'),
-    },
-  ];
 
   const superAdminBentoItems = useMemo<SpatialBentoItem[]>(() => {
+    if (!isSuperAdmin) return [];
     const venueCards: SpatialBentoItem[] = venuesList.slice(0, 8).map((v) => {
       const closed = isVenueClosedNow(v);
       const sessions = v.sessions || [];
@@ -393,6 +215,7 @@ export const OverviewTab: React.FC = () => {
     ];
     return [...venueCards, ...moduleCards];
   }, [
+    isSuperAdmin,
     venuesList, players, playersCount, coachesCount, bentoStats, nowVn,
     paidBookingsCount,
     totalBookingsCount,
@@ -409,6 +232,242 @@ export const OverviewTab: React.FC = () => {
     paidTournamentTeamsCount,
     setActiveModule,
   ]);
+
+  // Prevent flashing placeholder "0" KPI numbers while initial overview summary is loading
+  if (!loadedScopes.has('OVERVIEW')) {
+    return (
+      <div className="space-y-6">
+        {/* 4 KPI Shimmer Skeleton Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="dva-skeleton p-5 rounded-3xl space-y-3 min-h-[136px]">
+              <div className="flex items-center justify-between">
+                <div className="dva-skeleton-bar h-3 w-28" />
+                <div className="dva-skeleton-bar h-6 w-16 rounded-full" />
+              </div>
+              <div className="dva-skeleton-bar h-8 w-40" />
+              <div className="dva-skeleton-bar h-2.5 w-32" />
+            </div>
+          ))}
+        </div>
+
+        {/* Spatial Bento Module Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} className="dva-skeleton p-5 rounded-3xl h-44 flex flex-col justify-between">
+              <div className="space-y-2.5">
+                <div className="dva-skeleton-bar h-3 w-24" />
+                <div className="dva-skeleton-bar h-5 w-44" />
+                <div className="dva-skeleton-bar h-3 w-full" />
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-white/[0.06]">
+                <div className="dva-skeleton-bar h-5 w-20 rounded-full" />
+                <div className="dva-skeleton-bar h-4 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Revenue Chart & Recent Activity Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="dva-skeleton p-6 rounded-3xl h-64 space-y-4">
+            <div className="dva-skeleton-bar h-4 w-48" />
+            <div className="dva-skeleton-bar h-44 w-full rounded-2xl" />
+          </div>
+          <div className="dva-skeleton p-6 rounded-3xl h-64 space-y-3">
+            <div className="dva-skeleton-bar h-4 w-48" />
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="dva-skeleton-bar h-10 w-full rounded-xl" />
+            ))}
+          </div>
+        </div>
+
+        <SlowServerPill active />
+      </div>
+    );
+  }
+
+  // --- ADMIN (Restricted RBAC: strictly non-financial & PII-free) ---
+  if (!isSuperAdmin) {
+    const processedTryouts = approvedTryoutsCount + scheduledApplicationsCount;
+    const tryoutProgressPct = applicationsCount > 0 ? Math.round((processedTryouts / applicationsCount) * 100) : 100;
+
+    const adminKpis: SpatialKpiItem[] = [
+      {
+        id: 'admin-members-tryouts',
+        label: 'Thành viên & Tryout chờ duyệt',
+        value: `${activePlayersCount} VĐV · ${pendingApplicationsCount} chờ`,
+        subtitle: `${playersCount} tổng hồ sơ · ${scheduledApplicationsCount} lịch test`,
+        badge: pendingApplicationsCount > 0 ? `${pendingApplicationsCount} chờ duyệt` : 'Đã xử lý hết',
+        badgeTone: pendingApplicationsCount > 0 ? 'orange' : 'emerald',
+        icon: Users,
+        accentColor: '#FB923C',
+        sparkline: [Math.max(1, activePlayersCount - 8), Math.max(1, activePlayersCount - 5), activePlayersCount - 2, activePlayersCount],
+        onClick: () => setActiveModule('APPLICATIONS'),
+      },
+      {
+        id: 'admin-ops',
+        label: 'Giải Đấu & Truyền Thông',
+        value: `${tournamentsCount} Giải · ${newsCount} Tin`,
+        subtitle: `${hostedTournamentsCount} giải do DVA đăng cai · RBAC Scoped`,
+        badge: 'ADMIN Scope',
+        badgeTone: 'sky',
+        icon: Trophy,
+        accentColor: '#38BDF8',
+        sparkline: [2, 4, 3, Math.max(4, tournamentsCount + 2), Math.max(5, newsCount)],
+        onClick: () => setActiveModule('TOURNAMENTS'),
+      },
+      {
+        id: 'admin-fill',
+        label: 'Tỷ lệ xử lý Tryout & Tiến độ',
+        value: `${tryoutProgressPct}%`,
+        subtitle: `${approvedTryoutsCount} đạt · ${scheduledApplicationsCount} hẹn lịch / ${applicationsCount} đơn`,
+        badge: 'Tiến độ duyệt',
+        badgeTone: 'emerald',
+        icon: Activity,
+        accentColor: '#34D399',
+        gaugePct: tryoutProgressPct,
+        gaugeSublabel: 'Đã duyệt',
+        onClick: () => setActiveModule('APPLICATIONS'),
+      },
+    ];
+
+    const adminBentoItems: SpatialBentoItem[] = [
+      {
+        id: 'mod-applications',
+        category: 'Tuyển quân · RBAC',
+        title: 'Tryout Applications',
+        description: `${pendingApplicationsCount} đơn chờ đánh giá, ${scheduledApplicationsCount} lịch kiểm tra, ${approvedTryoutsCount} đã duyệt.`,
+        percent: tryoutProgressPct,
+        gaugeSublabel: 'Xử lý',
+        statusTag: pendingApplicationsCount > 0 ? 'Cần duyệt' : 'Đang hoạt động',
+        metaRight: `${applicationsCount} đơn`,
+        filterTags: pendingApplicationsCount > 0 ? ['ALL', 'ACTIVE', 'OPEN_SLOTS'] : ['ALL', 'ACTIVE'],
+        tone: 'orange',
+        onAction: () => setActiveModule('APPLICATIONS'),
+      },
+      {
+        id: 'mod-tournaments',
+        category: 'Giải đấu · Read-Only',
+        title: 'Tournaments & Leagues',
+        description: `Theo dõi ${tournamentsCount} giải đấu, bảng xếp hạng, nhánh knockout & lịch thi đấu.`,
+        percent: tournamentsCount > 0 ? Math.min(100, Math.round((hostedTournamentsCount / tournamentsCount) * 100) || 65) : 0,
+        gaugeSublabel: 'DVA Cup',
+        statusTag: tournamentsCount > 0 ? 'Đang hoạt động' : 'Tạm nghỉ',
+        metaRight: `${tournamentsCount} giải`,
+        filterTags: tournamentsCount > 0 ? ['ALL', 'ACTIVE'] : ['ALL', 'PAUSED'],
+        tone: 'rose',
+        onAction: () => setActiveModule('TOURNAMENTS'),
+      },
+      {
+        id: 'mod-news',
+        category: 'Truyền thông',
+        title: 'News & Media Stories',
+        description: `Xuất bản ${newsCount} bản tin CLB, tường thuật trận đấu & thông báo học viện.`,
+        percent: Math.min(100, Math.max(25, newsCount * 12)),
+        gaugeSublabel: 'Bài viết',
+        statusTag: 'Đang hoạt động',
+        metaRight: `${newsCount} bài`,
+        filterTags: ['ALL', 'ACTIVE', 'OPEN_SLOTS'],
+        tone: 'indigo',
+        onAction: () => setActiveModule('NEWS'),
+      },
+      {
+        id: 'mod-squad',
+        category: 'Đội hình CLB',
+        title: 'Active Squad Athletes',
+        description: `${activePlayersCount}/${playersCount} vận động viên đang hoạt động tại Senior, Junior & Youth.`,
+        percent: playersCount > 0 ? Math.round((activePlayersCount / playersCount) * 100) : 0,
+        gaugeSublabel: 'Active',
+        statusTag: 'Đang hoạt động',
+        metaRight: `${activePlayersCount} VĐV`,
+        filterTags: ['ALL', 'ACTIVE'],
+        tone: 'emerald',
+      },
+    ];
+
+    return (
+      <div className="space-y-6 dva-content-reveal">
+        <SpatialKpiRow items={adminKpis} />
+
+        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-sky-500/15 border border-sky-400/35 flex items-center justify-center shrink-0">
+              <Shield className="w-5 h-5 text-sky-300" />
+            </div>
+            <div>
+              <h2 className="font-heading font-black text-base text-white">Club Operations Overview</h2>
+              <p className="text-xs text-slate-300/80 mt-0.5">
+                Signed in as <strong className="text-sky-300">ADMIN</strong>. Access is scoped to Tryout Evaluations,
+                News &amp; Media publishing, and Read-Only Tournament brackets/rosters (financial &amp; PII fields hidden).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <SpatialBentoGrid
+          title="Phân Hệ Quản Trị Được Cấp Quyền"
+          subtitle="Bấm vào nút mũi tên trắng trên mỗi thẻ Bento để mở nhanh khu vực thao tác"
+          items={adminBentoItems}
+        />
+      </div>
+    );
+  }
+
+  // --- SUPERADMIN FULL SPATIAL DASHBOARD ---
+  const jumpToGuestSessions = () => {
+    guestSessionsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const monthlyTotals = monthlyRevenue.map(
+    (p) => p.court + p.store + p.guest + p.tryout + p.tournament + p.training
+  );
+
+  const superAdminKpis: SpatialKpiItem[] = [
+    {
+      id: 'sa-members-tryouts',
+      label: 'Tổng thành viên & Tryout chờ duyệt',
+      value: `${activePlayersCount} VĐV · ${pendingApplicationsCount} chờ`,
+      subtitle: `${playersCount} tổng đội hình · ${approvedTryoutsCount} đơn đã duyệt`,
+      badge: pendingApplicationsCount > 0 ? `${pendingApplicationsCount} Tryout mới` : 'Ổn định',
+      badgeTone: pendingApplicationsCount > 0 ? 'orange' : 'emerald',
+      icon: Users,
+      accentColor: '#FB923C',
+      sparkline: [
+        Math.max(1, activePlayersCount - 10),
+        Math.max(1, activePlayersCount - 7),
+        Math.max(1, activePlayersCount - 4),
+        Math.max(1, activePlayersCount - 2),
+        activePlayersCount,
+      ],
+      onClick: () => setActiveModule(pendingApplicationsCount > 0 ? 'APPLICATIONS' : 'PLAYERS'),
+    },
+    {
+      id: 'sa-revenue-vietqr',
+      label: 'Tổng doanh thu sân & VietQR',
+      value: `${verifiedClubRevenue.toLocaleString('vi-VN')} đ`,
+      subtitle: `Sân: ${courtRevenue.toLocaleString('vi-VN')} đ · ${paidBookingsCount} ca PAID`,
+      badge: 'Verified VietQR',
+      badgeTone: 'emerald',
+      icon: Wallet,
+      accentColor: '#34D399',
+      sparkline: monthlyTotals.length >= 2 ? monthlyTotals : [0, courtRevenue, verifiedClubRevenue],
+      onClick: () => setActiveModule('BOOKINGS'),
+    },
+    {
+      id: 'sa-slot-fill',
+      label: 'Tỷ lệ lấp đầy slot trung bình',
+      value: `${avgSlotFillPct}%`,
+      subtitle: `${venuesList.length} cụm sân Court Map · ${totalBookingsCount} lượt đặt sân`,
+      badge: avgSlotFillPct >= 70 ? 'Hiệu suất cao' : 'Còn nhiều slot',
+      badgeTone: avgSlotFillPct >= 70 ? 'orange' : 'sky',
+      icon: Activity,
+      accentColor: '#FB7185',
+      gaugePct: avgSlotFillPct,
+      gaugeSublabel: 'Slot fill',
+      onClick: () => setActiveModule('VENUES'),
+    },
+  ];
 
   const pctOf = (value: number) =>
     totalClubRevenue > 0 ? Math.round((value / totalClubRevenue) * 1000) / 10 : 0;
@@ -498,7 +557,7 @@ export const OverviewTab: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 dva-content-reveal">
       {/* 0. Spatial 3-Column Executive KPI Row */}
       <SpatialKpiRow items={superAdminKpis} />
 

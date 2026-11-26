@@ -12,6 +12,7 @@ import { NewsPost, NEWS_CATEGORIES, User as UserType } from '../types';
 import { newsService } from '../services/api';
 import { ShareButton } from '../components/common/ShareButton';
 import { formatEnglishDate } from '../utils/date';
+import { SlowServerPill } from '../components/common/GlassLoading';
 
 interface NewsPageProps {
   currentUser: UserType;
@@ -40,6 +41,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
   const { t } = useTranslation('news');
   const [initialCache] = useState(() => newsService.getCachedNews());
   const [newsList, setNewsList] = useState<NewsPost[]>(() => initialCache?.data ?? []);
+  const [loading, setLoading] = useState<boolean>(() => !initialCache);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -57,13 +59,16 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
   );
 
   const fetchNews = async () => {
+    const category = selectedCategory === 'ALL' ? undefined : selectedCategory;
+    const cached = newsService.getCachedNews({ category });
+    if (cached) {
+      setNewsList(cached.data);
+      setLoading(false);
+      if (!cached.isStale) return;
+    } else if (newsList.length === 0) {
+      setLoading(true);
+    }
     try {
-      const category = selectedCategory === 'ALL' ? undefined : selectedCategory;
-      const cached = newsService.getCachedNews({ category });
-      if (cached) {
-        setNewsList(cached.data);
-        if (!cached.isStale) return;
-      }
       const data = await newsService.getNews({
         category,
         forceRefresh: Boolean(cached?.isStale),
@@ -71,6 +76,8 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
       setNewsList(data);
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -182,15 +189,37 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
         </div>
 
         {/* News Grid (Responsive: 1 col on mobile, 2 cols on tablet, 3 cols on desktop) */}
-        {paginatedNews.length === 0 ? (
-          <div className="bg-[#111827] border border-slate-800 rounded-3xl p-12 text-center space-y-2">
+        {loading && newsList.length === 0 ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div key={`news-skel-${idx}`} className="dva-skeleton rounded-3xl overflow-hidden flex flex-col justify-between min-h-[340px]">
+                  <div>
+                    <div className="dva-skeleton-bar h-44 w-full rounded-none" />
+                    <div className="p-6 space-y-2.5">
+                      <div className="dva-skeleton-bar h-3.5 w-full" />
+                      <div className="dva-skeleton-bar h-3.5 w-11/12" />
+                      <div className="dva-skeleton-bar h-3.5 w-2/3" />
+                    </div>
+                  </div>
+                  <div className="p-6 pt-4 border-t border-white/[0.07] flex items-center justify-between">
+                    <div className="dva-skeleton-bar h-3.5 w-24" />
+                    <div className="dva-skeleton-bar h-6 w-20 rounded-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <SlowServerPill active />
+          </div>
+        ) : paginatedNews.length === 0 ? (
+          <div className="dva-glass-panel rounded-3xl p-12 text-center space-y-2 dva-content-reveal">
             <p className="text-sm font-bold text-slate-300">{t('search.emptyTitle')}</p>
             <p className="text-xs text-slate-500">
               {t('search.emptyHint')}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 dva-content-reveal">
             {paginatedNews.map((article) => (
               <article
                 key={article.id}

@@ -1109,8 +1109,8 @@ export const MemberRegisterPage: React.FC = () => {
                 <label htmlFor="register-fullname" className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
                   {copy.labels.fullName}
                 </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-slate-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <div className="relative flex items-center">
+                  <User className="w-4 h-4 text-slate-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 z-10" />
                   <input
                     type="text"
                     name="fullName"
@@ -1123,7 +1123,7 @@ export const MemberRegisterPage: React.FC = () => {
                       if (e.target.value.trim()) clearFieldError('fullName');
                     }}
                     placeholder={copy.placeholders.fullName}
-                    className={glassInput(Boolean(fieldErrors.fullName), 'pl-10 pr-3.5')}
+                    className={`${glassInput(Boolean(fieldErrors.fullName), 'pl-10 pr-3.5')} min-h-[48px] h-[48px] text-[16px] sm:text-sm`}
                   />
                 </div>
                 {getFieldError('fullName') && (
@@ -1138,8 +1138,8 @@ export const MemberRegisterPage: React.FC = () => {
                 <label htmlFor="register-dob" className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-1.5">
                   {copy.labels.dob}
                 </label>
-                <div className="relative">
-                  <Calendar className="w-4 h-4 text-slate-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <div className="relative flex items-center">
+                  <Calendar className="w-4 h-4 text-slate-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 z-10" />
                   <input
                     type="date"
                     id="register-dob"
@@ -1149,7 +1149,7 @@ export const MemberRegisterPage: React.FC = () => {
                       setFormData({ ...formData, dob: e.target.value });
                       if (e.target.value) clearFieldError('dob');
                     }}
-                    className={`${glassInput(Boolean(fieldErrors.dob), 'pl-10 pr-3.5')} font-sans tabular-nums [color-scheme:dark]`}
+                    className={`${glassInput(Boolean(fieldErrors.dob), 'pl-11 pr-4')} appearance-none [-webkit-appearance:none] min-h-[48px] h-[48px] w-full flex items-center text-[16px] sm:text-sm font-sans tabular-nums [color-scheme:dark]`}
                   />
                 </div>
                 {getFieldError('dob') && (

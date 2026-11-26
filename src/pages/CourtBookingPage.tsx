@@ -736,14 +736,14 @@ const CourtBookingContent: React.FC = () => {
             </div>
 
             {/* Custom Date Input for any future date */}
-            <div className="flex items-center gap-2 bg-[#0B0F19] px-3.5 py-2 rounded-xl border border-slate-700">
-              <CalendarIcon className="w-4 h-4 text-orange-400 shrink-0" />
+            <div className="relative flex items-center w-full sm:w-auto">
+              <CalendarIcon className="w-4 h-4 text-orange-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 z-10 shrink-0" />
               <input
                 type="date"
                 value={bookingDate}
                 min={todayStr}
                 onChange={(e) => setBookingDate(e.target.value)}
-                className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+                className="dva-glass-input appearance-none [-webkit-appearance:none] min-h-[44px] h-[44px] w-full sm:w-auto pl-11 pr-4 flex items-center text-[16px] sm:text-xs font-sans tabular-nums font-bold text-white [color-scheme:dark] cursor-pointer"
               />
             </div>
           </div>
@@ -1135,7 +1135,7 @@ const CourtBookingContent: React.FC = () => {
             </div>
 
             {/* Customer Inputs */}
-            <div className="border-t border-slate-800 pt-5 space-y-4">
+            <div className="border-t border-white/10 pt-5 space-y-4">
               <h3 className="font-bold text-xs text-white uppercase tracking-wider">
                 Booking Contact Information:
               </h3>
@@ -1151,7 +1151,7 @@ const CourtBookingContent: React.FC = () => {
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="Marcus Tran"
-                    className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl focus:ring-2 focus:ring-red-600 text-white outline-none"
+                    className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs"
                   />
                 </div>
 
@@ -1165,7 +1165,7 @@ const CourtBookingContent: React.FC = () => {
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     placeholder="0903 123 456"
-                    className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl focus:ring-2 focus:ring-red-600 text-white outline-none"
+                    className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs font-sans tabular-nums"
                   />
                 </div>
 
@@ -1179,7 +1179,7 @@ const CourtBookingContent: React.FC = () => {
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
                     placeholder="marcus.tran@gmail.com"
-                    className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl focus:ring-2 focus:ring-red-600 text-white outline-none"
+                    className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs"
                   />
                 </div>
 
@@ -1192,7 +1192,7 @@ const CourtBookingContent: React.FC = () => {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="e.g. Set net height for Men (2.43m) or Women (2.24m)"
-                    className="w-full px-3 py-2.5 bg-[#0B0F19] border border-slate-700 rounded-xl focus:ring-2 focus:ring-red-600 text-white outline-none"
+                    className="dva-glass-input w-full px-3.5 py-2.5 text-[16px] sm:text-xs"
                   />
                 </div>
               </div>

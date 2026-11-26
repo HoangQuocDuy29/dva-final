@@ -254,190 +254,188 @@ export const InformationPage: React.FC = () => {
           </div>
 
           {/* Mobile Vertical Cards View (< 768px: md:hidden) */}
-          <div className="md:hidden space-y-3">
+          <div className="md:hidden space-y-3 pb-2">
             {/* Card 1: Senior Squad */}
-            <div className="bg-[#161F30] border border-red-900/60 rounded-2xl p-4 shadow-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-800 uppercase">
+            <div className="dva-glass-card !rounded-2xl bg-white/[0.035] border-white/10 hover:border-red-500/40 p-4 shadow-lg space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black bg-red-500/15 text-red-300 border border-red-500/40 shadow-[0_0_16px_rgba(239,68,68,0.18)] uppercase tracking-wider">
                   SENIOR
                 </span>
-                <span className="font-mono text-xs font-bold text-orange-400">
+                <span className="font-sans tabular-nums text-xs font-bold text-orange-300">
                   Mon · Wed · Sat
                 </span>
               </div>
               <div>
                 <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)] shrink-0" />
                   <span>Senior Squad – Play</span>
                 </h3>
-                <p className="text-[11px] text-slate-400 font-mono mt-1">19:00 – 21:30</p>
+                <p className="text-xs text-slate-400 font-sans tabular-nums mt-1">19:00 – 21:30</p>
               </div>
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <div className="pt-2.5 border-t border-white/[0.07] flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-slate-400 pr-10">
                 <span>Court Allocation:</span>
-                <strong className="text-slate-300">BTL Thong Tin · Court A</strong>
+                <strong className="text-slate-200 font-semibold">BTL Thong Tin · Court A</strong>
               </div>
             </div>
 
             {/* Card 2: Junior Squad */}
-            <div className="bg-[#161F30] border border-blue-900/60 rounded-2xl p-4 shadow-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800 uppercase">
+            <div className="dva-glass-card !rounded-2xl bg-white/[0.035] border-white/10 hover:border-sky-500/40 p-4 shadow-lg space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black bg-sky-500/15 text-sky-300 border border-sky-500/40 shadow-[0_0_16px_rgba(14,165,233,0.18)] uppercase tracking-wider">
                   JUNIOR
                 </span>
-                <span className="font-mono text-xs font-bold text-cyan-400">
+                <span className="font-sans tabular-nums text-xs font-bold text-cyan-300">
                   Friday Evening
                 </span>
               </div>
               <div>
                 <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)] shrink-0" />
                   <span>Junior Squad – Play</span>
                 </h3>
-                <p className="text-[11px] text-slate-400 font-mono mt-1">19:00 – 21:30</p>
+                <p className="text-xs text-slate-400 font-sans tabular-nums mt-1">19:00 – 21:30</p>
               </div>
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <div className="pt-2.5 border-t border-white/[0.07] flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-slate-400 pr-10">
                 <span>Court Allocation:</span>
-                <strong className="text-slate-300">BTL Thong Tin · Court A</strong>
+                <strong className="text-slate-200 font-semibold">BTL Thong Tin · Court A</strong>
               </div>
             </div>
 
             {/* Card 3: Junior Squad Matchplay */}
-            <div className="bg-[#161F30] border border-blue-900/60 rounded-2xl p-4 shadow-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800 uppercase">
+            <div className="dva-glass-card !rounded-2xl bg-white/[0.035] border-white/10 hover:border-sky-500/40 p-4 shadow-lg space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black bg-sky-500/15 text-sky-300 border border-sky-500/40 shadow-[0_0_16px_rgba(14,165,233,0.18)] uppercase tracking-wider">
                   JUNIOR
                 </span>
-                <span className="font-mono text-xs font-bold text-cyan-400">
+                <span className="font-sans tabular-nums text-xs font-bold text-cyan-300">
                   Sunday Afternoon
                 </span>
               </div>
               <div>
                 <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)] shrink-0" />
                   <span>Junior Squad – Matchplay</span>
                 </h3>
-                <p className="text-[11px] text-slate-400 font-mono mt-1">14:00 – 16:30</p>
+                <p className="text-xs text-slate-400 font-sans tabular-nums mt-1">14:00 – 16:30</p>
               </div>
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <div className="pt-2.5 border-t border-white/[0.07] flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-slate-400 pr-10">
                 <span>Court Allocation:</span>
-                <strong className="text-slate-300">BTL Thong Tin · Court A & B</strong>
+                <strong className="text-slate-200 font-semibold">BTL Thong Tin · Court A &amp; B</strong>
               </div>
             </div>
 
             {/* Card 4: Youth Squad */}
-            <div className="bg-[#161F30] border border-emerald-900/60 rounded-2xl p-4 shadow-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 uppercase">
+            <div className="dva-glass-card !rounded-2xl bg-white/[0.035] border-white/10 hover:border-emerald-500/40 p-4 shadow-lg space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 shadow-[0_0_16px_rgba(16,185,129,0.18)] uppercase tracking-wider">
                   YOUTH
                 </span>
-                <span className="font-mono text-xs font-bold text-emerald-400">
+                <span className="font-sans tabular-nums text-xs font-bold text-emerald-300">
                   Sunday Evening
                 </span>
               </div>
               <div>
                 <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-                  <span>Youth Squad – Training & Matchplay</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] shrink-0" />
+                  <span>Youth Squad – Training &amp; Matchplay</span>
                 </h3>
-                <p className="text-[11px] text-slate-400 font-mono mt-1">17:00 – 19:00</p>
+                <p className="text-xs text-slate-400 font-sans tabular-nums mt-1">17:00 – 19:00</p>
               </div>
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <div className="pt-2.5 border-t border-white/[0.07] flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-slate-400 pr-10">
                 <span>Court Allocation:</span>
-                <strong className="text-slate-300">BTL Thong Tin · Court A</strong>
+                <strong className="text-slate-200 font-semibold">BTL Thong Tin · Court A</strong>
               </div>
             </div>
           </div>
 
-          {/* Desktop & Tablet Table View (>= 768px: hidden md:block) with independent scroll indicator */}
-          <div className="hidden md:block dva-glass-panel rounded-3xl overflow-hidden">
+          {/* Desktop & Tablet Table View (>= 768px: hidden md:block) */}
+          <div className="hidden md:block dva-glass-panel rounded-3xl bg-white/[0.03] shadow-[0_20px_50px_rgba(0,0,0,0.45)] overflow-hidden">
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full min-w-[620px] text-xs text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#0E1524] text-white font-bold border-b border-slate-800">
+                  <tr className="bg-white/[0.04] text-slate-200 font-bold uppercase tracking-wider text-[11px] border-b border-white/10">
                     <th className="py-4 px-5">Session / Day</th>
                     <th className="py-4 px-5">Scheduled Squad / Activity</th>
                     <th className="py-4 px-5">Target Level</th>
                     <th className="py-4 px-5 text-right">Court Allocation</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 font-medium text-slate-300">
-                  
+                <tbody className="font-medium text-slate-300">
                   {/* Row 1: Mon - Wed - Sat Evening (Senior) */}
-                  <tr className="hover:bg-slate-800/40 bg-red-950/15">
-                    <td className="py-4 px-5 font-mono font-bold text-orange-400 whitespace-nowrap">
+                  <tr className="hover:bg-white/[0.04] border-b border-white/[0.07] transition-colors">
+                    <td className="py-4 px-5 font-sans tabular-nums font-bold text-orange-300 whitespace-nowrap">
                       Mon · Wed · Sat (19:00 – 21:30)
                     </td>
-                    <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                    <td className="py-4 px-5 font-bold text-white flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)] shrink-0" />
                       <span>Senior Squad – Play</span>
                     </td>
                     <td className="py-4 px-5 whitespace-nowrap">
-                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-950 text-red-300 border border-red-800">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black tracking-wider bg-red-500/15 text-red-300 border border-red-500/40 shadow-[0_0_16px_rgba(239,68,68,0.18)]">
                         SENIOR
                       </span>
                     </td>
-                    <td className="py-4 px-5 text-right font-mono text-slate-400 whitespace-nowrap">
+                    <td className="py-4 px-5 text-right font-sans tabular-nums text-slate-300 whitespace-nowrap">
                       BTL Thong Tin Court · Court A
                     </td>
                   </tr>
 
                   {/* Row 2: Friday Evening (Junior) */}
-                  <tr className="hover:bg-slate-800/40 bg-blue-950/15">
-                    <td className="py-4 px-5 font-mono font-bold text-cyan-400 whitespace-nowrap">
+                  <tr className="hover:bg-white/[0.04] border-b border-white/[0.07] transition-colors">
+                    <td className="py-4 px-5 font-sans tabular-nums font-bold text-cyan-300 whitespace-nowrap">
                       Friday Evening (19:00 – 21:30)
                     </td>
-                    <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                    <td className="py-4 px-5 font-bold text-white flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)] shrink-0" />
                       <span>Junior Squad – Play</span>
                     </td>
                     <td className="py-4 px-5 whitespace-nowrap">
-                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black tracking-wider bg-sky-500/15 text-sky-300 border border-sky-500/40 shadow-[0_0_16px_rgba(14,165,233,0.18)]">
                         JUNIOR
                       </span>
                     </td>
-                    <td className="py-4 px-5 text-right font-mono text-slate-400 whitespace-nowrap">
+                    <td className="py-4 px-5 text-right font-sans tabular-nums text-slate-300 whitespace-nowrap">
                       BTL Thong Tin Court · Court A
                     </td>
                   </tr>
 
                   {/* Row 3: Sunday Afternoon (Junior) */}
-                  <tr className="hover:bg-slate-800/40 bg-blue-950/15">
-                    <td className="py-4 px-5 font-mono font-bold text-cyan-400 whitespace-nowrap">
+                  <tr className="hover:bg-white/[0.04] border-b border-white/[0.07] transition-colors">
+                    <td className="py-4 px-5 font-sans tabular-nums font-bold text-cyan-300 whitespace-nowrap">
                       Sunday Afternoon (14:00 – 16:30)
                     </td>
-                    <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                    <td className="py-4 px-5 font-bold text-white flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)] shrink-0" />
                       <span>Junior Squad – Matchplay</span>
                     </td>
                     <td className="py-4 px-5 whitespace-nowrap">
-                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black tracking-wider bg-sky-500/15 text-sky-300 border border-sky-500/40 shadow-[0_0_16px_rgba(14,165,233,0.18)]">
                         JUNIOR
                       </span>
                     </td>
-                    <td className="py-4 px-5 text-right font-mono text-slate-400 whitespace-nowrap">
-                      BTL Thong Tin Court · Court A & B 
+                    <td className="py-4 px-5 text-right font-sans tabular-nums text-slate-300 whitespace-nowrap">
+                      BTL Thong Tin Court · Court A &amp; B
                     </td>
                   </tr>
 
                   {/* Row 4: Sunday Evening (Youth) */}
-                  <tr className="hover:bg-slate-800/40 bg-emerald-950/15">
-                    <td className="py-4 px-5 font-mono font-bold text-emerald-400 whitespace-nowrap">
+                  <tr className="hover:bg-white/[0.04] transition-colors">
+                    <td className="py-4 px-5 font-sans tabular-nums font-bold text-emerald-300 whitespace-nowrap">
                       Sunday Evening (17:00 – 19:00)
                     </td>
-                    <td className="py-4 px-5 font-bold text-white flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-                      <span>Youth Squad – Training & Matchplay</span>
+                    <td className="py-4 px-5 font-bold text-white flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] shrink-0" />
+                      <span>Youth Squad – Training &amp; Matchplay</span>
                     </td>
                     <td className="py-4 px-5 whitespace-nowrap">
-                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full backdrop-blur-md text-[10px] font-black tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 shadow-[0_0_16px_rgba(16,185,129,0.18)]">
                         YOUTH
                       </span>
                     </td>
-                    <td className="py-4 px-5 text-right font-mono text-slate-400 whitespace-nowrap">
+                    <td className="py-4 px-5 text-right font-sans tabular-nums text-slate-300 whitespace-nowrap">
                       BTL Thong Tin Court · Court A
                     </td>
                   </tr>
-
                 </tbody>
               </table>
             </div>
