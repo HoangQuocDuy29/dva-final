@@ -48,7 +48,7 @@ tryoutsRouter.post(
           required: ['fullName', 'position', 'height', 'gmail', 'zalo', 'experience', 'preferredDays'],
         })
       : sanitize(req.body, MEMBER_REGISTER_SCHEMA, {
-          required: ['fullName', 'dob', 'position', 'hometownCountry', 'level', 'height', 'weight', 'spikeReach', 'blockReach', 'gmail', 'zalo'],
+          required: ['fullName', 'dob', 'gender', 'position', 'hometownCountry', 'level', 'height', 'weight', 'spikeReach', 'blockReach', 'gmail', 'zalo'],
         });
     const dto = await registerApplication(data, isTryoutPage);
     res.status(200).json(dto);

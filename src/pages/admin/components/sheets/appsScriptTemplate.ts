@@ -50,7 +50,8 @@ export const GOOGLE_APPS_SCRIPT_TEMPLATE = `var STANDARD_HEADERS = {
     'Instagram',
     'Chiến thuật 5-1',
     'Quê quán',
-    'Thời gian gửi'
+    'Thời gian gửi',
+    'Giới tính'
   ],
   DonHang_Shop: [
     'Thời Gian Nhận',

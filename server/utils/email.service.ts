@@ -145,6 +145,7 @@ export interface MemberEmailPayload {
   passId?: string;
   fullName: string;
   dob?: string;
+  gender?: string | null;
   position: string;
   level: string;
   desiredJerseyNumber?: number | string;
@@ -160,6 +161,9 @@ export interface MemberEmailPayload {
   hometownCountry?: string;
   experience?: string;
   preferredDays?: string;
+  entryFee?: number;
+  transferContent?: string;
+  vietqrUrl?: string;
 }
 
 export interface GuestSessionEmailPayload {
@@ -392,6 +396,32 @@ export function buildBookingVietQrUrl(
   bankId = VIETQR_BANK_ID
 ): string {
   return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${Number(amount) || 0}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accountName)}`;
+}
+
+/**
+ * Chuẩn hóa nội dung chuyển khoản & URL VietQR cho Club Entry (Phí gia nhập CLB).
+ * Mẫu: `register_<ten_nguoi_dki>_clubentry_<sdt>` (<= 50 ký tự ASCII chuẩn Napas/VietQR, không cắt mất SĐT).
+ */
+export function buildMemberClubEntryVietQr(
+  fullName: string,
+  phone: string,
+  amount = 100000
+): { transferContent: string; vietqrUrl: string; amount: number } {
+  const cleanPhone = (phone || '').replace(/\D/g, '').slice(-12);
+  const prefix = 'register_';
+  const infix = '_clubentry_';
+  const maxNameLen = Math.max(6, 50 - prefix.length - infix.length - cleanPhone.length);
+  const rawSlug = removeVietnameseTones(fullName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  const trimmedName = (rawSlug.slice(0, maxNameLen).replace(/_+$/g, '') || 'member');
+  const transferContent = cleanPhone
+    ? `${prefix}${trimmedName}${infix}${cleanPhone}`
+    : `${prefix}${trimmedName}_clubentry`;
+  const resolvedAmount = Number.isFinite(Number(amount)) && Number(amount) >= 0 ? Math.trunc(Number(amount)) : 100000;
+  const vietqrUrl = buildBookingVietQrUrl(resolvedAmount, transferContent);
+  return { transferContent, vietqrUrl, amount: resolvedAmount };
 }
 
 export function formatMemberPosition(pos: string): string {
@@ -1207,6 +1237,7 @@ export function getMemberRegistrationHtml(member: {
   pass_id: string;
   full_name: string;
   dob: string;
+  gender?: string | null;
   position: string;
   formatted_position: string;
   level: string;
@@ -1238,6 +1269,9 @@ export function getMemberRegistrationHtml(member: {
     Number(member.spike_reach) > 0 && Number(member.block_reach) > 0
       ? `Đập ${escapeHtml(member.spike_reach)} cm | Chắn ${escapeHtml(member.block_reach)} cm`
       : 'Đo tại buổi Try-Out / Measured at Try-Out';
+  const genderKey = String(member.gender || '').trim().toUpperCase();
+  const genderDisplay =
+    genderKey === 'MALE' ? 'Nam / Male' : genderKey === 'FEMALE' ? 'Nữ / Female' : '';
 
   return `
 <!DOCTYPE html>
@@ -1312,6 +1346,18 @@ export function getMemberRegistrationHtml(member: {
                     ${escapeHtml(member.dob || 'N/A')}
                   </td>
                 </tr>
+                ${
+                  genderDisplay
+                    ? `<tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
+                    Giới tính<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Gender</span>
+                  </td>
+                  <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;font-weight:600;color:${genderKey === 'FEMALE' ? '#f9a8d4' : '#7dd3fc'};text-align:right;">
+                    ${escapeHtml(genderDisplay)}
+                  </td>
+                </tr>`
+                    : ''
+                }
                 <tr>
                   <td style="padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px;color:#94a3b8;">
                     Vị trí thi đấu<br /><span style="font-size:11px;color:#64748b;font-style:italic;">Playing Position</span>
@@ -1861,15 +1907,19 @@ export async function sendMemberRegistrationEmail(
 
   try {
     const formattedPosition = formatMemberPosition(member.position);
-    const cleanName = removeVietnameseTones(member.fullName).replace(/\s+/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    const cleanPhone = (member.zalo || '').replace(/\D/g, '').trim() || (member.zalo || '').trim();
-    const transferContent = `register_${cleanName}_clubentry_${cleanPhone}`;
-    const vietQrUrl = `https://img.vietqr.io/image/MB-0002090671521-compact2.png?amount=100000&addInfo=${encodeURIComponent(transferContent)}&accountName=HOANG%20QUOC%20DUY`;
+    const computedQr = buildMemberClubEntryVietQr(
+      member.fullName,
+      member.zalo || '',
+      member.entryFee ?? 100000
+    );
+    const transferContent = member.transferContent || computedQr.transferContent;
+    const vietQrUrl = member.vietqrUrl || computedQr.vietqrUrl;
 
     const memberHtml = getMemberRegistrationHtml({
       pass_id: passId,
       full_name: member.fullName,
       dob: member.dob || '',
+      gender: member.gender ?? null,
       position: member.position,
       formatted_position: formattedPosition,
       level: member.level,

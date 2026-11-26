@@ -43,6 +43,13 @@ function normalizePlayerBody(raw: unknown): Record<string, any> {
       rawBody.skillRank = rawBody.skillRank.trim().toUpperCase();
     }
   }
+  if (rawBody.gender !== undefined) {
+    if (rawBody.gender === null || (typeof rawBody.gender === 'string' && rawBody.gender.trim() === '')) {
+      rawBody.gender = null;
+    } else if (typeof rawBody.gender === 'string') {
+      rawBody.gender = rawBody.gender.trim().toUpperCase();
+    }
+  }
   return rawBody;
 }
 
@@ -83,6 +90,9 @@ const handleUpdatePlayer = ah(async (req, res) => {
   }
   if (normalized.skillRank === null) {
     data.skillRank = null;
+  }
+  if (normalized.gender === null) {
+    data.gender = null;
   }
   const updated = await updatePlayer(req.params.id, data);
   res.json(updated);

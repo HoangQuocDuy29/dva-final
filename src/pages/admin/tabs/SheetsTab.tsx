@@ -156,6 +156,7 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
                     'Chiến thuật 5-1': '5-1',
                     'Quê quán': 'Hà Nội',
                     'Thời gian gửi': nowEn,
+                    'Giới tính': 'Nam',
                   }),
                   googleScriptSyncService.testSync('DonHang_Shop', {
                     'Mã đơn hàng': `DVA-SHOP-TEST-${rand}`,

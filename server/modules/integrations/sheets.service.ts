@@ -253,6 +253,7 @@ export async function getSheetsInspectorData() {
         Scheduled_Tryout: (a as any).scheduledDate
           ? `${(a as any).scheduledDate} ${(a as any).scheduledTime || ''}`.trim()
           : '',
+        Gender: a.gender === 'MALE' ? 'Nam' : a.gender === 'FEMALE' ? 'Nữ' : '',
       })),
       Court_Bookings: bookingsList.map((b) => ({
         Timestamp: formatTimestamp(b.createdAt),

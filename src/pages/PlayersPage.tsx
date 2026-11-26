@@ -9,7 +9,7 @@ import {
   Columns3,
   LayoutGrid
 } from 'lucide-react';
-import { Player, SkillRank, VolleyballPosition, User as UserType, countryCodeToFlagEmoji } from '../types';
+import { Player, PlayerGender, SkillRank, VolleyballPosition, User as UserType, countryCodeToFlagEmoji } from '../types';
 import { SKILL_RANK_LIST, getSkillRankMeta, UNRANKED_BADGE_CLASS } from '../shared/skillRanks';
 import { playerService } from '../services/api';
 
@@ -36,6 +36,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
   const [loading, setLoading] = useState<boolean>(() => !initialCache);
   const [search, setSearch] = useState('');
   const [selectedPosition, setSelectedPosition] = useState<string>('ALL');
+  const [selectedGender, setSelectedGender] = useState<'ALL' | PlayerGender>('ALL');
   const [selectedRank, setSelectedRank] = useState<'ALL' | SkillRank | 'UNRANKED'>('ALL');
   const [viewMode, setViewMode] = useState<'SINGLE_TAB' | '3_COLUMNS'>('SINGLE_TAB');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -62,10 +63,10 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     void fetchPlayers(Boolean(initialCache?.isStale));
   }, []);
 
-  // Reset pagination when level, search, position, or USAV rank changes
+  // Reset pagination when level, search, position, gender, or USAV rank changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [resolvedLevel, search, selectedPosition, selectedRank]);
+  }, [resolvedLevel, search, selectedPosition, selectedGender, selectedRank]);
 
   // Normalize Vietnamese city/province names into English for public display
   const formatHometownEnglish = (raw?: string): string => {
@@ -112,6 +113,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     return list.filter((p) => {
       if (p.isActive === false) return false;
       if (selectedPosition !== 'ALL' && p.position !== selectedPosition) return false;
+      if (selectedGender !== 'ALL' && p.gender !== selectedGender) return false;
       if (selectedRank === 'UNRANKED' && p.skillRank) return false;
       if (selectedRank !== 'ALL' && selectedRank !== 'UNRANKED' && p.skillRank !== selectedRank) return false;
       if (search.trim()) {
@@ -133,9 +135,9 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
   };
 
   // Squad counts by level (sử dụng trực tiếp thứ tự đã sắp xếp từ API)
-  const seniorPlayers = useMemo(() => filterPlayers(players.filter(p => p.level === 'SENIOR')), [players, search, selectedPosition, selectedRank]);
-  const juniorPlayers = useMemo(() => filterPlayers(players.filter(p => p.level === 'JUNIOR')), [players, search, selectedPosition, selectedRank]);
-  const youthPlayers = useMemo(() => filterPlayers(players.filter(p => p.level === 'YOUTH')), [players, search, selectedPosition, selectedRank]);
+  const seniorPlayers = useMemo(() => filterPlayers(players.filter(p => p.level === 'SENIOR')), [players, search, selectedPosition, selectedGender, selectedRank]);
+  const juniorPlayers = useMemo(() => filterPlayers(players.filter(p => p.level === 'JUNIOR')), [players, search, selectedPosition, selectedGender, selectedRank]);
+  const youthPlayers = useMemo(() => filterPlayers(players.filter(p => p.level === 'YOUTH')), [players, search, selectedPosition, selectedGender, selectedRank]);
 
   // Active level list for Single Tab
   const activeLevelPlayers = useMemo(() => {
@@ -241,6 +243,17 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               >
                 <span>{rankMeta ? `RANK: ${rankMeta.code}` : 'UNRANKED'}</span>
               </Link>
+              {player.gender && (
+                <span
+                  className={`inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                    player.gender === 'MALE'
+                      ? 'bg-sky-500/15 text-sky-300 border-sky-400/40'
+                      : 'bg-pink-500/15 text-pink-300 border-pink-400/40'
+                  }`}
+                >
+                  {player.gender === 'MALE' ? '♂ Nam' : '♀ Nữ'}
+                </span>
+              )}
             </div>
           </div>
 
@@ -562,6 +575,30 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             ))}
           </div>
 
+          {/* Gender Filter Chips */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Giới tính:</span>
+            {([
+              { id: 'ALL', label: 'Tất cả', activeClass: 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-md shadow-orange-950/40 ring-1 ring-orange-400/60' },
+              { id: 'MALE', label: '♂ Nam', activeClass: 'bg-sky-600 text-white shadow-md shadow-sky-950/40 ring-1 ring-sky-400' },
+              { id: 'FEMALE', label: '♀ Nữ', activeClass: 'bg-pink-600 text-white shadow-md shadow-pink-950/40 ring-1 ring-pink-400' },
+            ] as const).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setSelectedGender(item.id)}
+                aria-pressed={selectedGender === item.id}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  selectedGender === item.id
+                    ? item.activeClass
+                    : 'dva-glass-pill text-slate-300 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
           {/* USAV Skill Rank Filter Chips */}
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">🇺🇸 USAV Rank:</span>
@@ -629,7 +666,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => { setSearch(''); setSelectedPosition('ALL'); setSelectedRank('ALL'); }}
+                  onClick={() => { setSearch(''); setSelectedPosition('ALL'); setSelectedGender('ALL'); setSelectedRank('ALL'); }}
                   className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl cursor-pointer"
                 >
                   Reset Filters

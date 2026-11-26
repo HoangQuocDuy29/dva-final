@@ -9,7 +9,7 @@ import {
 import { invalidateCache } from '../../utils/cache';
 import { HttpError } from '../../utils/validation';
 import {
-  removeVietnameseTones,
+  buildMemberClubEntryVietQr,
   sendAdminNotification,
   sendMemberRegistrationEmail,
   sendTryoutInvitationEmail,
@@ -74,6 +74,7 @@ async function promoteApplicationToPlayerIfNeeded(tx: any, existing: any): Promi
       bornYear: resolvedBornYear,
       level: existing.level || 'JUNIOR',
       skillRank: normalizeSkillRank(existing.skillRank),
+      gender: existing.gender ?? null,
       position: existing.position || 'OH',
       avatarUrl: '',
       bio: `Tân binh DVA gia nhập qua đợt tuyển chọn thành viên 2026. Am hiểu sơ đồ ${fromRotationEnum(existing.rotationKnowledge)}.`,
@@ -162,6 +163,7 @@ export async function registerApplication(data: Record<string, any>, isTryoutPag
       hometownCountry: data.hometownCountry || 'Hà Nội',
       desiredJerseyNumber: data.desiredJerseyNumber ?? 0,
       level: resolvedLevel,
+      gender: data.gender ?? null,
       height: data.height,
       weight: data.weight ?? 0,
       spikeReach: data.spikeReach ?? 0,
@@ -178,6 +180,7 @@ export async function registerApplication(data: Record<string, any>, isTryoutPag
   });
 
   const dto = toApplicationDto(created, true);
+  const clubEntryQr = buildMemberClubEntryVietQr(dto.fullName, dto.zalo || '', dto.entryFee ?? 100000);
 
   const memberSheetPayload = {
     'Họ và tên': dto.fullName,
@@ -199,9 +202,8 @@ export async function registerApplication(data: Record<string, any>, isTryoutPag
     Instagram: dto.instagram || 'None',
     'Chiến thuật 5-1': dto.rotationKnowledge,
     'Quê quán': dto.hometownCountry,
-    ...(dto.experience ? { 'Kinh nghiệm': dto.experience } : {}),
-    ...(dto.preferredDays ? { 'Khung ngày mong muốn': dto.preferredDays } : {}),
     'Thời gian gửi': new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }),
+    'Giới tính': dto.gender === 'MALE' ? 'Nam' : dto.gender === 'FEMALE' ? 'Nữ' : '',
   };
   dispatchGoogleSheetsWebhookAsync('Member_Registrations', 'TuyenThanhVien', memberSheetPayload);
 
@@ -212,6 +214,7 @@ export async function registerApplication(data: Record<string, any>, isTryoutPag
       passId: dto.id,
       fullName: dto.fullName,
       dob: dto.dob,
+      gender: dto.gender ?? null,
       position: dto.position,
       level: dto.level,
       desiredJerseyNumber: dto.desiredJerseyNumber,
@@ -226,14 +229,13 @@ export async function registerApplication(data: Record<string, any>, isTryoutPag
       hometownCountry: dto.hometownCountry,
       experience: dto.experience,
       preferredDays: dto.preferredDays,
+      entryFee: clubEntryQr.amount,
+      transferContent: clubEntryQr.transferContent,
+      vietqrUrl: clubEntryQr.vietqrUrl,
     }).catch((mailError: any) => {
       console.error('[Email Service Warning] Gửi mail thất bại cho:', memberEmail, mailError?.message || mailError);
     });
   }
-
-  const cleanMemberName = removeVietnameseTones(dto.fullName).replace(/\s+/g, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-  const cleanMemberPhone = (dto.zalo || '').replace(/\D/g, '').trim() || (dto.zalo || '').trim();
-  const memberTransferContent = `register_${cleanMemberName}_clubentry_${cleanMemberPhone}`;
 
   sendAdminNotification({
     type: 'MEMBER',
@@ -242,9 +244,10 @@ export async function registerApplication(data: Record<string, any>, isTryoutPag
     customerName: dto.fullName,
     phone: dto.zalo || '',
     email: dto.gmail || undefined,
-    amount: 100000,
-    transferContent: memberTransferContent,
+    amount: clubEntryQr.amount,
+    transferContent: clubEntryQr.transferContent,
     details: [
+      dto.gender === 'MALE' ? 'Giới tính: Nam' : dto.gender === 'FEMALE' ? 'Giới tính: Nữ' : '',
       `Cấp độ: ${dto.level}`,
       `Vị trí: ${dto.position || 'N/A'}`,
       `Chiều cao: ${dto.height}cm`,
@@ -256,7 +259,11 @@ export async function registerApplication(data: Record<string, any>, isTryoutPag
       .join(' | '),
   }).catch((err) => console.error('[Admin Alert Error - Member Application]:', err?.message || err));
 
-  return dto;
+  return {
+    ...dto,
+    transferContent: clubEntryQr.transferContent,
+    vietqrUrl: clubEntryQr.vietqrUrl,
+  };
 }
 
 export async function updateApplicationStatus(

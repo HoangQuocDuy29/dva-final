@@ -15,6 +15,17 @@ export const LEVEL_RULE: Rule = (v, k) => {
 };
 
 export const POSITIONS = ['OH', 'OP', 'MB', 'S', 'L'] as const;
+export const GENDERS = ['MALE', 'FEMALE'] as const;
+export const OPTIONAL_GENDER: Rule = (v, k) => {
+  if (v === null) return null;
+  if (typeof v !== 'string') throw new HttpError(400, `${k} must be a string`);
+  const clean = v.trim().toUpperCase();
+  if (clean === '') return null;
+  if (!(GENDERS as readonly string[]).includes(clean)) {
+    throw new HttpError(400, `${k} must be one of: ${GENDERS.join(', ')}`);
+  }
+  return clean;
+};
 export const SKILL_RANKS = ['C', 'B', 'BB', 'A', 'AA', 'OPEN'] as const;
 export const OPTIONAL_SKILL_RANK: Rule = (v, k) => {
   if (typeof v !== 'string') throw new HttpError(400, `${k} must be a string`);
@@ -88,6 +99,7 @@ export const PLAYER_SCHEMA: Schema = {
   bornYear: I(1950, 2030),
   level: LEVEL_RULE,
   skillRank: E(SKILL_RANKS),
+  gender: OPTIONAL_GENDER,
   squad: S(50),
   category: S(50),
   team: S(50),
@@ -336,6 +348,7 @@ export const MEMBER_REGISTER_SCHEMA: Schema = {
   fullName: S(100, 2),
   birthYear: I(1950, 2020),
   dob: D,
+  gender: E(GENDERS),
   position: E(POSITIONS),
   hometownCountry: S(100, 1),
   desiredJerseyNumber: I(0, 99),
@@ -362,6 +375,7 @@ export const TRYOUT_REGISTER_SCHEMA: Schema = {
   fullName: S(100, 2),
   birthYear: I(1950, 2020),
   dob: OPTIONAL_DATE,
+  gender: OPTIONAL_GENDER,
   position: E(POSITIONS),
   level: LEVEL_RULE,
   height: N(100, 250),

@@ -37,6 +37,7 @@ import {
   NewsPost,
   OrderStatus,
   Player,
+  PlayerGender,
   PlayerLevel,
   RotationKnowledge,
   StoreCategoryId,
@@ -264,6 +265,12 @@ export function resolveApplicationBirthYear(app: {
   return extractBirthYearFromDob(app.dob);
 }
 
+export function normalizeGender(val?: unknown): PlayerGender | null {
+  if (typeof val !== 'string') return null;
+  const clean = val.trim().toUpperCase();
+  return clean === 'MALE' || clean === 'FEMALE' ? clean : null;
+}
+
 export function toPlayerDto(p: DbPlayer | any): Player {
   const resolvedCountry = p.countryName || p.country || 'Vietnam';
   const resolvedCode = (p.countryCode || 'VN').toUpperCase();
@@ -295,6 +302,7 @@ export function toPlayerDto(p: DbPlayer | any): Player {
     bornYear: resolvedBornYear,
     level: normalizedLevel,
     skillRank: normalizeSkillRank(p.skillRank),
+    gender: normalizeGender(p.gender),
     position: p.position || 'OH',
     avatarUrl: p.avatarUrl ?? '',
     bio: p.bio ?? '',
@@ -535,6 +543,7 @@ export function toApplicationDto(
     desiredJerseyNumber: a.desiredJerseyNumber,
     level: normalizedLevel,
     skillRank: normalizeSkillRank(a.skillRank),
+    gender: normalizeGender(a.gender),
     height: a.height,
     weight: a.weight,
     spikeReach: a.spikeReach,

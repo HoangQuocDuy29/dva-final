@@ -22,6 +22,8 @@ export type PlayerLevel = 'SENIOR' | 'JUNIOR' | 'YOUTH';
 export type SkillRank = 'C' | 'B' | 'BB' | 'A' | 'AA' | 'OPEN';
 export const SKILL_RANKS: readonly SkillRank[] = ['C', 'B', 'BB', 'A', 'AA', 'OPEN'] as const;
 
+export type PlayerGender = 'MALE' | 'FEMALE';
+
 export type VolleyballPosition = 'OH' | 'OP' | 'MB' | 'S' | 'L';
 
 export type PlayerEligibilityStatus = 'PENDING_CHECK' | 'VERIFIED' | 'FLAGGED' | 'REJECTED';
@@ -60,6 +62,7 @@ export interface Player {
   bornYear?: number; // e.g. 2006
   level: PlayerLevel;
   skillRank?: SkillRank | null; // USAV standard skill rank: "C" | "B" | "BB" | "A" | "AA" | "OPEN" | null
+  gender?: PlayerGender | null; // "MALE" | "FEMALE" | null
   position: VolleyballPosition;
   avatarUrl?: string;
   bio?: string;
@@ -264,6 +267,7 @@ export interface MemberApplication {
   desiredJerseyNumber: number;
   level: PlayerLevel;
   skillRank?: SkillRank | null;
+  gender?: PlayerGender | null;
   height: number;
   weight: number;
   spikeReach: number;
@@ -277,6 +281,8 @@ export interface MemberApplication {
   paymentStatus: TryoutPaymentStatus;
   paidAt?: string;
   entryFee?: number;
+  transferContent?: string;
+  vietqrUrl?: string;
   approvedAt?: string;
   reviewNotes?: string;
   experience?: string;
@@ -305,6 +311,7 @@ export interface TryoutApplicationRegisterPayload {
   dob?: string;
   position: VolleyballPosition;
   level?: PlayerLevel;
+  gender?: PlayerGender | null;
   height: number;
   weight?: number;
   spikeReach?: number;

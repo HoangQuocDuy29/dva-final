@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Loader2, Upload } from 'lucide-react';
-import { Player, PlayerLevel, SkillRank, VolleyballPosition } from '../../../../types';
+import { Player, PlayerGender, PlayerLevel, SkillRank, VolleyballPosition } from '../../../../types';
 import { SKILL_RANK_LIST } from '../../../../shared/skillRanks';
 import { uploadToCloudinary } from '../../../../utils/cloudinary';
 import { CountrySelect } from '../../../../components/common/CountrySelect';
@@ -56,6 +56,35 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               onChange={(e) => setPlayerForm({ ...playerForm, fullName: e.target.value })}
               className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
             />
+          </div>
+
+          {/* GENDER SELECTION: UNKNOWN / MALE / FEMALE */}
+          <div>
+            <label className="block text-slate-300 font-semibold mb-1.5">Giới tính (Gender)</label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { value: null, label: 'Chưa rõ', activeClass: 'bg-slate-700/80 border-slate-400 text-white' },
+                { value: 'MALE' as PlayerGender, label: '♂ Nam', activeClass: 'bg-sky-500/20 border-sky-400/70 text-sky-200' },
+                { value: 'FEMALE' as PlayerGender, label: '♀ Nữ', activeClass: 'bg-pink-500/20 border-pink-400/70 text-pink-200' },
+              ] as const).map((opt) => {
+                const isSelected = (playerForm.gender ?? null) === opt.value;
+                return (
+                  <button
+                    key={opt.value ?? 'UNKNOWN'}
+                    type="button"
+                    onClick={() => setPlayerForm({ ...playerForm, gender: opt.value })}
+                    aria-pressed={isSelected}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      isSelected
+                        ? opt.activeClass
+                        : 'bg-[#0B0F19] border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* LEVEL SELECTION: SENIOR / JUNIOR / YOUTH (Required by user) */}

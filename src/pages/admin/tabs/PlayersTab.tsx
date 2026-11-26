@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, X, Edit3, Trash2, Eye, EyeOff, ImageOff } from 'lucide-react';
-import { Player, SkillRank, countryCodeToFlagEmoji } from '../../../types';
+import { Plus, Search, X, Edit3, Trash2, Eye, EyeOff, ImageOff, Users } from 'lucide-react';
+import { Player, PlayerGender, SkillRank, countryCodeToFlagEmoji } from '../../../types';
 import { SKILL_RANKS, getSkillRankMeta, UNRANKED_BADGE_CLASS } from '../../../shared/skillRanks';
 import { PLAYER_COUNTRIES } from '../../../data/countries';
 import { playerService } from '../../../services/api';
@@ -23,6 +23,7 @@ export const PlayersTab: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'HIDDEN'>('ALL');
   const [rankFilter, setRankFilter] = useState<'ALL' | SkillRank | 'UNRANKED'>('ALL');
   const [missingAvatarOnly, setMissingAvatarOnly] = useState<boolean>(false);
+  const [missingGenderOnly, setMissingGenderOnly] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
@@ -74,6 +75,33 @@ export const PlayersTab: React.FC = () => {
     }
   };
 
+  const handleQuickGenderCycle = async (p: Player) => {
+    const prevGender = p.gender ?? null;
+    const nextGender: PlayerGender | null =
+      prevGender === null ? 'MALE' : prevGender === 'MALE' ? 'FEMALE' : null;
+    try {
+      setPlayers((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, gender: nextGender } : item))
+      );
+      const updated = await playerService.updateGender(p.id, nextGender);
+      const resolvedGender = updated.gender ?? nextGender;
+      setPlayers((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, gender: resolvedGender } : item))
+      );
+      notify(
+        `Đã cập nhật giới tính ${p.fullName} → ${
+          resolvedGender === 'MALE' ? '♂ Nam' : resolvedGender === 'FEMALE' ? '♀ Nữ' : 'Chưa rõ'
+        }.`,
+        2200
+      );
+    } catch {
+      setPlayers((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, gender: prevGender } : item))
+      );
+      notify('Error updating athlete gender', 3000);
+    }
+  };
+
   const handleSavePlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -98,6 +126,7 @@ export const PlayersTab: React.FC = () => {
       const payload: Partial<Player> = {
         ...playerForm,
         skillRank: (playerForm.skillRank || null) as SkillRank | null,
+        gender: (playerForm.gender || null) as PlayerGender | null,
         ...(editingPlayer
           ? { bornYear: (resolvedBornYear ?? null) as unknown as number | undefined }
           : resolvedBornYear !== undefined
@@ -116,14 +145,30 @@ export const PlayersTab: React.FC = () => {
         setPlayers((prev) =>
           prev.map((p) =>
             p.id === editingPlayer.id
-              ? { ...p, ...payload, ...updated, bornYear: updated.bornYear, skillRank: updated.skillRank ?? null }
+              ? {
+                  ...p,
+                  ...payload,
+                  ...updated,
+                  bornYear: updated.bornYear,
+                  skillRank: updated.skillRank ?? null,
+                  gender: updated.gender ?? null,
+                }
               : p
           )
         );
         notify(`Player ${payload.fullName} updated successfully.`, 3000);
       } else {
         const created = await playerService.addPlayer(payload);
-        setPlayers((prev) => [{ ...payload, ...created, bornYear: created.bornYear, skillRank: created.skillRank ?? null } as Player, ...prev]);
+        setPlayers((prev) => [
+          {
+            ...payload,
+            ...created,
+            bornYear: created.bornYear,
+            skillRank: created.skillRank ?? null,
+            gender: created.gender ?? null,
+          } as Player,
+          ...prev,
+        ]);
         notify(`Athlete ${payload.fullName} added to DVA roster.`, 3000);
       }
       setIsPlayerModalOpen(false);
@@ -146,6 +191,7 @@ export const PlayersTab: React.FC = () => {
   const activeCount = players.filter((p) => p.isActive !== false).length;
   const hiddenCount = players.filter((p) => p.isActive === false).length;
   const missingAvatarCount = players.filter((p) => !p.avatarUrl || p.avatarUrl.trim() === '').length;
+  const missingGenderCount = players.filter((p) => !p.gender).length;
 
   const filteredPlayers = players.filter((p) => {
     // Status Filter (All | Active | Hidden)
@@ -154,6 +200,9 @@ export const PlayersTab: React.FC = () => {
 
     // Missing Avatar Filter
     if (missingAvatarOnly && p.avatarUrl && p.avatarUrl.trim() !== '') return false;
+
+    // Missing Gender Filter
+    if (missingGenderOnly && p.gender) return false;
 
     // USAV Skill Rank Filter
     if (rankFilter === 'UNRANKED' && p.skillRank) return false;
@@ -166,6 +215,9 @@ export const PlayersTab: React.FC = () => {
     const matchPos = p.position.toLowerCase().includes(q);
     const matchLevel = p.level.toLowerCase().includes(q);
     const matchRank = (p.skillRank || 'unranked').toLowerCase().includes(q);
+    const genderSearchText =
+      p.gender === 'MALE' ? 'male nam' : p.gender === 'FEMALE' ? 'female nữ nu' : 'chưa rõ unknown';
+    const matchGender = genderSearchText.includes(q);
     const matchHometown = (p.hometownCountry || '').toLowerCase().includes(q);
     const matchCountry =
       (p.country || p.countryName || '').toLowerCase().includes(q) ||
@@ -177,6 +229,7 @@ export const PlayersTab: React.FC = () => {
       matchPos ||
       matchLevel ||
       matchRank ||
+      matchGender ||
       matchHometown ||
       matchCountry ||
       matchJoined
@@ -185,7 +238,7 @@ export const PlayersTab: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, rankFilter, missingAvatarOnly, playerSearchQuery]);
+  }, [statusFilter, rankFilter, missingAvatarOnly, missingGenderOnly, playerSearchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPlayers.length / PLAYERS_PAGE_SIZE));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
@@ -266,23 +319,42 @@ export const PlayersTab: React.FC = () => {
               </button>
             </div>
 
-            {/* Secondary Filter: Missing Avatar */}
-            <button
-              type="button"
-              onClick={() => setMissingAvatarOnly(!missingAvatarOnly)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
-                missingAvatarOnly
-                  ? 'bg-orange-500/20 text-orange-300 border-orange-500/60 shadow-sm'
-                  : 'bg-[#161F30] text-slate-400 hover:text-slate-200 border-slate-700/60'
-              }`}
-              title="Show athletes with missing photo avatar"
-            >
-              <ImageOff className="w-3.5 h-3.5 text-orange-400" />
-              <span>Missing Avatar</span>
-              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/40 font-mono text-orange-300">
-                {missingAvatarCount}
-              </span>
-            </button>
+            {/* Secondary Filters: Missing Avatar & Unknown Gender */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMissingGenderOnly(!missingGenderOnly)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  missingGenderOnly
+                    ? 'bg-sky-500/20 text-sky-200 border-sky-400/60 shadow-sm'
+                    : 'bg-[#161F30] text-slate-400 hover:text-slate-200 border-slate-700/60'
+                }`}
+                title="Lọc các thành viên chưa cập nhật giới tính"
+              >
+                <Users className="w-3.5 h-3.5 text-sky-400" />
+                <span>Chưa rõ giới tính</span>
+                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/40 font-mono text-sky-300">
+                  {missingGenderCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMissingAvatarOnly(!missingAvatarOnly)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  missingAvatarOnly
+                    ? 'bg-orange-500/20 text-orange-300 border-orange-500/60 shadow-sm'
+                    : 'bg-[#161F30] text-slate-400 hover:text-slate-200 border-slate-700/60'
+                }`}
+                title="Show athletes with missing photo avatar"
+              >
+                <ImageOff className="w-3.5 h-3.5 text-orange-400" />
+                <span>Missing Avatar</span>
+                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/40 font-mono text-orange-300">
+                  {missingAvatarCount}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* USAV Skill Rank Filter Chips */}
@@ -450,6 +522,7 @@ export const PlayersTab: React.FC = () => {
                         setPlayerForm({
                           ...p,
                           skillRank: p.skillRank ?? null,
+                          gender: p.gender ?? null,
                           bornYear: initBornYear,
                           country: initCountry,
                           countryName: initCountry,
@@ -477,15 +550,32 @@ export const PlayersTab: React.FC = () => {
                   </div>
                   </div>
 
-                  {/* Quick Inline USAV Skill Rank Selector */}
-                  <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                        rankMeta ? rankMeta.badgeClass : UNRANKED_BADGE_CLASS
-                      }`}
-                    >
-                      {rankMeta ? `🇺🇸 RANK: ${rankMeta.code}` : 'UNRANKED'}
-                    </span>
+                  {/* Quick Inline Gender Cycle Badge & USAV Skill Rank Selector */}
+                  <div className="pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleQuickGenderCycle(p)}
+                        title="Bấm để đổi nhanh giới tính: Chưa rõ → ♂ Nam → ♀ Nữ → Chưa rõ"
+                        aria-label={`Đổi giới tính cho ${p.fullName}`}
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                          p.gender === 'MALE'
+                            ? 'bg-sky-500/15 text-sky-300 border-sky-500/45 hover:bg-sky-500/25'
+                            : p.gender === 'FEMALE'
+                              ? 'bg-pink-500/15 text-pink-300 border-pink-500/45 hover:bg-pink-500/25'
+                              : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:border-slate-500 hover:text-slate-200'
+                        }`}
+                      >
+                        {p.gender === 'MALE' ? '♂ Nam' : p.gender === 'FEMALE' ? '♀ Nữ' : 'Chưa rõ'}
+                      </button>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                          rankMeta ? rankMeta.badgeClass : UNRANKED_BADGE_CLASS
+                        }`}
+                      >
+                        {rankMeta ? `🇺🇸 RANK: ${rankMeta.code}` : 'UNRANKED'}
+                      </span>
+                    </div>
                     <select
                       aria-label={`USAV Skill Rank for ${p.fullName}`}
                       value={p.skillRank || ''}

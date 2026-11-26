@@ -535,6 +535,19 @@ export const playerService = {
     return res;
   },
 
+  async updateGender(id: string, gender: 'MALE' | 'FEMALE' | null): Promise<Player> {
+    const res = await request<Player>(`/players/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ gender }),
+    }, {
+      id,
+      gender,
+    } as Player);
+    playersCache.invalidate();
+    homeSummaryCache.invalidate();
+    return res;
+  },
+
   async updateLevel(id: string, level: PlayerLevel): Promise<Player> {
     const res = await request<Player>(`/players/${id}/level`, {
       method: 'PATCH',

@@ -116,6 +116,7 @@ model Player {
   bornYear        Int?
   level           PlayerLevel        @default(JUNIOR)
   skillRank       String?            // Hạng trình độ chuẩn USAV: "C" | "B" | "BB" | "A" | "AA" | "OPEN" | null
+  gender          String?            // Giới tính: "MALE" | "FEMALE" | null
   position        VolleyballPosition @default(OH)
   avatarUrl       String?
   bio             String?            @db.Text
@@ -343,6 +344,7 @@ model MemberApplication {
   desiredJerseyNumber Int
   level               PlayerLevel
   skillRank           String?            // Hạng USAV đánh giá khi Try-Out: "C" | "B" | "BB" | "A" | "AA" | "OPEN" | null
+  gender              String?            // Giới tính: "MALE" | "FEMALE" | null
   height              Float              // Chiều cao (cm)
   weight              Float              // Cân nặng (kg)
   spikeReach          Float              // Tầm bật đà (cm)

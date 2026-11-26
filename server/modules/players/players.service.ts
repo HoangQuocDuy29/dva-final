@@ -189,6 +189,7 @@ export async function createPlayer(data: Record<string, any>) {
       bornYear: data.bornYear ?? null,
       level: data.level,
       skillRank: data.skillRank ?? null,
+      gender: data.gender ?? null,
       position: data.position,
       avatarUrl: data.avatarUrl || '',
       bio: data.bio || '',
