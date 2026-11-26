@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  MapPin, Navigation, Phone, Clock, Search, Sparkles, X, ChevronLeft, ChevronDown,
+  MapPin, Navigation, Phone, MessageCircle, Copy, Clock, Search, Sparkles, X, ChevronLeft, ChevronDown,
   Check, List, Map as MapIcon, Wallet, Layers, Info, RefreshCw, Timer, Tag, LocateFixed,
   AlertTriangle, Maximize2, Minimize2, SlidersHorizontal, RotateCcw, Link2,
 } from 'lucide-react';
@@ -37,6 +37,7 @@ import {
   formatDayFull,
   formatShortVnDate,
   buildGoogleMapsUrl,
+  sanitizePhoneForLink,
   getClubInitials,
   parseTimeToMinutes,
   calcDistanceKm,
@@ -47,6 +48,7 @@ import { SessionStatusBlock } from '../components/court-map/SessionStatusBlock';
 import { ContactRevealModal, type ContactRevealTarget } from '../components/court-map/ContactRevealModal';
 import {
   SessionContactRow,
+  formatDisplayPhone,
   readRevealedContactCache,
   writeRevealedContactCache,
 } from '../components/court-map/SessionContactRow';
@@ -808,17 +810,63 @@ export const CourtMapPage: React.FC = () => {
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800 text-sky-300 font-semibold"><Layers className="w-3 h-3" />{venue.surfaceType}</span>
                 <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-orange-300 font-semibold">{venue.subCourtsCount} sân: {getSubCourtNames(venue.subCourtsCount).join(', ')}</span>
               </div>
-              <div className={`p-2.5 rounded-xl border text-xs space-y-1.5 ${venue.venueType === 'FREE_PUBLIC' ? 'bg-emerald-950/30 border-emerald-500/35' : 'bg-[#0B0F19]/80 border-slate-800'}`}>
-                {venue.venueType === 'FREE_PUBLIC' ? (
-                  <div className="flex justify-between gap-2"><span className="font-bold inline-flex items-center gap-1"><Wallet className="w-3.5 h-3.5 text-emerald-400" />Sân Miễn Phí</span><strong className="text-emerald-300">Miễn phí</strong></div>
-                ) : (
-                  <p className="font-semibold text-slate-200 leading-relaxed flex items-start gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                    <span>Nếu bạn muốn thuê sân, hãy liên hệ <a href="tel:0768299329" className="font-black text-amber-300 hover:text-orange-300 underline decoration-amber-400/60 underline-offset-2 whitespace-nowrap">0768299329</a></span>
-                  </p>
-                )}
-                {venue.entryNote && <p className="text-[11px] text-slate-300 flex items-start gap-1"><Info className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />{venue.entryNote}</p>}
-              </div>
+              {(() => {
+                const rentalPhone = venue.venueType === 'COMMERCIAL' ? (venue.rentalPhone || '').trim() : '';
+                const rentalDigits = rentalPhone ? sanitizePhoneForLink(rentalPhone) : '';
+                if (venue.venueType === 'FREE_PUBLIC') {
+                  return (
+                    <div className="p-2.5 rounded-xl border text-xs space-y-1.5 bg-emerald-950/30 border-emerald-500/35">
+                      <div className="flex justify-between gap-2">
+                        <span className="font-bold inline-flex items-center gap-1"><Wallet className="w-3.5 h-3.5 text-emerald-400" />Sân Miễn Phí</span>
+                        <strong className="text-emerald-300">Miễn phí</strong>
+                      </div>
+                      {venue.entryNote && <p className="text-[11px] text-slate-300 flex items-start gap-1"><Info className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />{venue.entryNote}</p>}
+                    </div>
+                  );
+                }
+                if (!rentalPhone && !venue.entryNote) return null;
+                return (
+                  <div className="p-3 rounded-xl border text-xs space-y-2 bg-[#0B0F19]/80 border-white/10">
+                    {rentalPhone && (
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">Liên hệ chủ sân (Đặt / Thuê sân)</p>
+                            {venue.rentalContactName && <p className="text-xs font-bold text-white truncate mt-0.5">{venue.rentalContactName}</p>}
+                            <p className="font-mono text-xs font-black text-amber-300 mt-0.5">{formatDisplayPhone(rentalPhone)}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <a
+                            href={`tel:${rentalDigits}`}
+                            className="min-h-[34px] py-1.5 px-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/45 text-emerald-300 font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap"
+                          >
+                            <Phone className="w-3 h-3 shrink-0" /><span>Gọi điện</span>
+                          </a>
+                          <a
+                            href={`https://zalo.me/${rentalDigits.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="min-h-[34px] py-1.5 px-2 rounded-xl bg-[#0068FF] hover:bg-[#0058D9] text-white font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap"
+                          >
+                            <MessageCircle className="w-3 h-3 shrink-0" /><span>Nhắn Zalo</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try { await navigator.clipboard.writeText(rentalPhone); showToast(`Đã sao chép SĐT chủ sân: ${formatDisplayPhone(rentalPhone)}`); } catch { showToast('Không thể sao chép SĐT.'); }
+                            }}
+                            className="min-h-[34px] py-1.5 px-2 rounded-xl bg-white/[0.06] hover:bg-white/12 border border-white/15 text-slate-100 font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer"
+                          >
+                            <Copy className="w-3 h-3 shrink-0" /><span>Copy</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {venue.entryNote && <p className="text-[11px] text-slate-300 flex items-start gap-1"><Info className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />{venue.entryNote}</p>}
+                  </div>
+                );
+              })()}
               <a href={buildGoogleMapsUrl(venue)} target="_blank" rel="noopener noreferrer" className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold text-xs flex items-center justify-center gap-2"><Navigation className="w-4 h-4" />Chỉ đường Google Maps</a>
             </div>
           </div>
@@ -970,6 +1018,13 @@ export const CourtMapPage: React.FC = () => {
         ) : (
           entries.map(({ venue, closed, hasActivity, isLive, distanceKm, activeSessions, matchingSessions }) => {
             const vt = VENUE_TYPE_META[venue.venueType] || VENUE_TYPE_META.COMMERCIAL;
+            const venueLogo =
+              venue.mapLogoUrl ??
+              (venue.featuredTeamId
+                ? (venue.clubs || []).find((c) => c.id === venue.featuredTeamId)?.logoUrl
+                : null) ??
+              (venue.clubs || []).find((c) => Boolean(c.logoUrl))?.logoUrl ??
+              null;
             const sessionCountLabel = filteringSessions
               ? `${matchingSessions.length}/${activeSessions.length} ca khớp`
               : `${(venue.clubs || []).length} CLB · ${activeSessions.length} ca`;
@@ -986,17 +1041,43 @@ export const CourtMapPage: React.FC = () => {
                       : 'border-orange-500/35 hover:border-orange-500/70'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      {closed && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-red-900/80 text-red-200 border border-red-500/50">TẠM NGHỈ</span>}
-                      {venue.isDvaOfficial && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-gradient-to-r from-red-600 to-orange-500 text-white">DVA</span>}
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${vt.badgeClass}`}>{vt.shortLabel}</span>
-                      {isLive && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">● Live</span>}
-                      {distanceKm !== null && <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/15 text-blue-300 border border-blue-400/40">📍 ~{distanceKm.toFixed(1)} km</span>}
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div
+                      className={`relative w-10 h-10 rounded-full overflow-hidden shrink-0 border-2 flex items-center justify-center ${
+                        closed
+                          ? 'border-red-400/70 bg-slate-800'
+                          : venue.isDvaOfficial
+                            ? 'border-orange-400 bg-gradient-to-br from-red-600 to-orange-500'
+                            : venue.venueType === 'FREE_PUBLIC'
+                              ? 'border-emerald-400 bg-gradient-to-br from-emerald-600 to-emerald-500'
+                              : 'border-white/20 bg-slate-900'
+                      }`}
+                    >
+                      <span className="font-heading font-black text-[9px] text-white">
+                        {closed ? 'NGHỈ' : venue.isDvaOfficial ? 'DVA' : venue.venueType === 'FREE_PUBLIC' ? 'FREE' : getClubInitials(venue.name)}
+                      </span>
+                      {venueLogo && (
+                        <img
+                          src={optimizeCloudinaryLogoUrl(venueLogo, 96)}
+                          alt={venue.name}
+                          loading="lazy"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          className="absolute inset-0 w-full h-full object-cover bg-[#0B0D12]"
+                        />
+                      )}
                     </div>
-                    <h3 className="font-heading font-extrabold text-sm text-white truncate">{venue.name}</h3>
-                    <p className="text-[11px] text-slate-400 truncate">{venue.district} · {venue.surfaceType} · {venue.subCourtsCount} sân</p>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        {closed && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-red-900/80 text-red-200 border border-red-500/50">TẠM NGHỈ</span>}
+                        {venue.isDvaOfficial && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-gradient-to-r from-red-600 to-orange-500 text-white">DVA</span>}
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${vt.badgeClass}`}>{vt.shortLabel}</span>
+                        {isLive && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">● Live</span>}
+                        {distanceKm !== null && <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/15 text-blue-300 border border-blue-400/40">📍 ~{distanceKm.toFixed(1)} km</span>}
+                      </div>
+                      <h3 className="font-heading font-extrabold text-sm text-white truncate">{venue.name}</h3>
+                      <p className="text-[11px] text-slate-400 truncate">{venue.district} · {venue.surfaceType} · {venue.subCourtsCount} sân</p>
+                    </div>
                   </div>
                   <span className={`px-2 py-1 rounded-full border text-[10px] font-bold shrink-0 ${filteringSessions && matchingSessions.length > 0 ? 'bg-orange-500/15 border-orange-500/40 text-orange-200' : 'bg-white/[0.06] border-white/10 text-slate-200'}`}>
                     {sessionCountLabel}
@@ -1369,8 +1450,7 @@ export const CourtMapPage: React.FC = () => {
               <span className="inline-block px-2 py-0.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 font-black text-[11px]">Bước 4</span>
               <h3 className="font-heading font-extrabold text-sm text-white leading-snug">Xác Thực Hiện SĐT &amp; Nhắn Zalo Đội Trưởng</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Bấm biểu tượng <strong className="text-orange-300">Con mắt</strong> để xác thực hiện SĐT thật, sau đó <strong className="text-sky-300">Nhắn Zalo</strong>, <strong className="text-emerald-300">Gọi điện</strong> hoặc <strong className="text-white">Copy</strong>. Thuê nguyên sân liên hệ{' '}
-                <a href="tel:0768299329" className="font-black text-amber-300 hover:text-orange-300 underline decoration-amber-400/60 underline-offset-2 whitespace-nowrap">0768299329</a>.
+                Bấm biểu tượng <strong className="text-orange-300">Con mắt</strong> để xác thực hiện SĐT Đội trưởng (xin ghép kèo), sau đó <strong className="text-sky-300">Nhắn Zalo</strong>, <strong className="text-emerald-300">Gọi điện</strong> hoặc <strong className="text-white">Copy</strong>. Nếu sân dịch vụ có cho thuê nguyên sân, thông tin <strong className="text-amber-300">Liên hệ chủ sân</strong> sẽ hiển thị riêng ở thẻ sân.
               </p>
             </div>
           </div>

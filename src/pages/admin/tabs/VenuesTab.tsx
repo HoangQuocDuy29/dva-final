@@ -127,7 +127,8 @@ export const VenuesTab: React.FC = () => {
         name: v?.name || '', slug: v?.slug || '', address: v?.address || '', city: v?.city || 'Hà Nội', district: v?.district || 'Thanh Xuân',
         latitude: String(v?.latitude ?? 21.0005), longitude: String(v?.longitude ?? 105.8294), coords: v ? `${v.latitude}, ${v.longitude}` : '',
         surfaceType: v?.surfaceType || 'Sàn thảm PVC', subCourtsCount: v?.subCourtsCount ?? 2, venueType: v?.venueType || 'COMMERCIAL',
-        rentalPriceInfo: v?.rentalPriceInfo ?? '550.000đ / giờ / sân', entryNote: v?.entryNote || '', coverUrl: v?.coverUrl || v?.imageUrl || '',
+        rentalPriceInfo: v?.rentalPriceInfo ?? '550.000đ / giờ / sân', rentalPhone: v?.venueType === 'COMMERCIAL' ? (v?.rentalPhone || '') : '', rentalContactName: v?.venueType === 'COMMERCIAL' ? (v?.rentalContactName || '') : '', entryNote: v?.entryNote || '', coverUrl: v?.coverUrl || v?.imageUrl || '',
+        featuredTeamId: v?.featuredTeamId || '',
         isDvaOfficial: Boolean(v?.isDvaOfficial), isFeatured: Boolean(v?.isFeatured),
         isClosed: Boolean(v?.isClosed), closureReason: v?.closureReason || '', closedUntil: v?.closedUntil ? v.closedUntil.slice(0, 10) : '',
       });
@@ -206,11 +207,15 @@ export const VenuesTab: React.FC = () => {
     setSaving(true);
     try {
       if (modal.kind === 'venue') {
+        const isCommercial = form.venueType === 'COMMERCIAL';
         const p = {
           name: form.name.trim(), ...(form.slug?.trim() ? { slug: form.slug.trim() } : {}), address: form.address.trim(), city: (form.city || 'Hà Nội').trim(), district: form.district.trim(),
           latitude: Number(form.latitude), longitude: Number(form.longitude), surfaceType: form.surfaceType, subCourtsCount: Number(form.subCourtsCount) || 1,
-          venueType: form.venueType as VenueType, rentalPriceInfo: form.rentalPriceInfo?.trim() || null, entryNote: form.entryNote?.trim() || null,
-          coverUrl: form.coverUrl?.trim() || null, isDvaOfficial: Boolean(form.isDvaOfficial), isFeatured: Boolean(form.isFeatured),
+          venueType: form.venueType as VenueType, rentalPriceInfo: form.rentalPriceInfo?.trim() || null,
+          rentalPhone: isCommercial ? (form.rentalPhone?.trim() || null) : null,
+          rentalContactName: isCommercial ? (form.rentalContactName?.trim() || null) : null,
+          entryNote: form.entryNote?.trim() || null,
+          coverUrl: form.coverUrl?.trim() || null, ...(modal.item ? { featuredTeamId: form.featuredTeamId || null } : {}), isDvaOfficial: Boolean(form.isDvaOfficial), isFeatured: Boolean(form.isFeatured),
           isClosed: Boolean(form.isClosed), closureReason: form.isClosed ? (form.closureReason?.trim() || null) : null, closedUntil: form.isClosed && form.closedUntil ? form.closedUntil : null,
         };
         const saved = modal.item ? await venueService.updateVenue(modal.item.id, p) : await venueService.createVenue(p);
@@ -774,6 +779,21 @@ export const VenuesTab: React.FC = () => {
                           <div className="min-w-0">
                             <p className="font-heading font-black text-xs text-white truncate">{v.name}</p>
                             <p className="text-[11px] text-slate-400 truncate mt-0.5">{v.district} · {(v.clubs || []).length} đội · {(v.sessions || []).length} ca</p>
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {v.venueType === 'FREE_PUBLIC' ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                                  Sân công cộng / Không cho thuê
+                                </span>
+                              ) : v.rentalPhone?.trim() ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono">
+                                  📞 Thuê sân: {v.rentalPhone}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-white/[0.04] text-slate-400 border border-white/10">
+                                  Chưa có SĐT thuê sân
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 border ${closed ? 'bg-red-950 text-red-300 border-red-500/50' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'}`}>{closed ? 'Tạm nghỉ' : 'Mở cửa'}</span>
                         </div>
@@ -798,7 +818,16 @@ export const VenuesTab: React.FC = () => {
                           <div className="flex items-start gap-3 min-w-0">
                             <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-900 border border-slate-700 shrink-0 flex items-center justify-center">{(v.coverUrl || v.imageUrl) ? <img src={optimizeCloudinaryUrl(v.coverUrl || v.imageUrl, 'thumb')} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-5 h-5 text-orange-400" />}</div>
                             <div className="min-w-0">
-                              <div className="flex flex-wrap gap-1.5 mb-1 text-[10px]">{v.isDvaOfficial && <span className="px-2 py-0.5 rounded-full font-black bg-gradient-to-r from-red-600 to-orange-500 text-white">DVA Official</span>}<span className={`px-2 py-0.5 rounded-full font-bold border ${vt.badgeClass}`}>{vt.shortLabel}</span><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-sky-300 font-semibold"><Layers className="w-3 h-3" />{v.surfaceType} · {v.subCourtsCount} sân</span></div>
+                              <div className="flex flex-wrap gap-1.5 mb-1 text-[10px]">
+                                {v.isDvaOfficial && <span className="px-2 py-0.5 rounded-full font-black bg-gradient-to-r from-red-600 to-orange-500 text-white">DVA Official</span>}
+                                <span className={`px-2 py-0.5 rounded-full font-bold border ${vt.badgeClass}`}>{vt.shortLabel}</span>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-sky-300 font-semibold"><Layers className="w-3 h-3" />{v.surfaceType} · {v.subCourtsCount} sân</span>
+                                {v.venueType === 'COMMERCIAL' && v.rentalPhone?.trim() && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/35 font-mono font-bold">
+                                    📞 {v.rentalPhone}{v.rentalContactName ? ` · ${v.rentalContactName}` : ''}
+                                  </span>
+                                )}
+                              </div>
                               <h3 className="font-heading font-black text-base text-white">{v.name}</h3>
                               <p className="text-xs text-slate-300">{v.address} · <a href={buildGoogleMapsUrl(v)} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">Maps ↗</a></p>
                             </div>
@@ -916,7 +945,47 @@ export const VenuesTab: React.FC = () => {
                   <F label="Thành phố *"><input required list="vn-cities-list" className={INP} value={form.city || 'Hà Nội'} onChange={(e) => set({ city: e.target.value })} /><datalist id="vn-cities-list">{VIETNAM_CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></F>
                   <F label="Quận / Huyện *"><input required list="hanoi-districts-list" className={INP} value={form.district || ''} onChange={(e) => set({ district: e.target.value })} /><datalist id="hanoi-districts-list">{HANOI_DISTRICTS.map((d) => <option key={d} value={d} />)}</datalist></F>
                   <F label="Mặt sân"><select className={INP} value={form.surfaceType} onChange={(e) => set({ surfaceType: e.target.value })}>{SURFACE_TYPES.map((s) => <option key={s}>{s}</option>)}</select></F>
-                  <F label="Loại sân"><select className={INP} value={form.venueType} onChange={(e) => set({ venueType: e.target.value })}><option value="COMMERCIAL">Sân dịch vụ</option><option value="FREE_PUBLIC">Sân miễn phí / Công cộng</option></select></F>
+                  <F label="Loại sân">
+                    <select
+                      className={INP}
+                      value={form.venueType}
+                      onChange={(e) => {
+                        const nextType = e.target.value;
+                        set({
+                          venueType: nextType,
+                          ...(nextType !== 'COMMERCIAL' ? { rentalPhone: '', rentalContactName: '' } : {}),
+                        });
+                      }}
+                    >
+                      <option value="COMMERCIAL">Sân dịch vụ / Có cho thuê</option>
+                      <option value="FREE_PUBLIC">Sân Free / Không cho thuê</option>
+                    </select>
+                  </F>
+                  {form.venueType === 'COMMERCIAL' && (
+                    <div className="sm:col-span-2 p-3.5 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-amber-500/30 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <F label="📞 SĐT người cho thuê sân (Tùy chọn)" tone="text-amber-300">
+                        <input
+                          type="tel"
+                          placeholder="VD: 0912 345 678"
+                          className={INP}
+                          value={form.rentalPhone || ''}
+                          onChange={(e) => set({ rentalPhone: e.target.value })}
+                        />
+                      </F>
+                      <F label="Tên quản lý / Chủ sân (Tùy chọn)" tone="text-slate-300">
+                        <input
+                          type="text"
+                          placeholder="VD: Ban quản lý Nhà thi đấu..."
+                          className={INP}
+                          value={form.rentalContactName || ''}
+                          onChange={(e) => set({ rentalContactName: e.target.value })}
+                        />
+                      </F>
+                      <p className="sm:col-span-2 text-[10px] text-slate-400">
+                        Để trống nếu không muốn hiển thị mục liên hệ thuê sân trên Bản đồ (SĐT Đội trưởng từng ca vẫn hiển thị độc lập).
+                      </p>
+                    </div>
+                  )}
                   <F label={`Số sân con (${getSubCourtNames(form.subCourtsCount).join(', ')})`} full><input type="number" min={1} max={12} className={INP} value={form.subCourtsCount} onChange={(e) => set({ subCourtsCount: Number(e.target.value) })} /></F>
                   <F label="Giá thuê / phí vào sân" full><input className={INP} value={form.rentalPriceInfo || ''} onChange={(e) => set({ rentalPriceInfo: e.target.value })} /></F>
                   <F label="Lưu ý ra vào sân" full><textarea rows={2} className={INP} value={form.entryNote || ''} onChange={(e) => set({ entryNote: e.target.value })} /></F>
@@ -924,6 +993,72 @@ export const VenuesTab: React.FC = () => {
                   <F label="Latitude *"><input required type="number" step="any" className={INP} value={form.latitude || ''} onChange={(e) => set({ latitude: e.target.value })} /></F>
                   <F label="Longitude *"><input required type="number" step="any" className={INP} value={form.longitude || ''} onChange={(e) => set({ longitude: e.target.value })} /></F>
                   <div className="sm:col-span-2 flex items-center gap-2"><input className={INP} placeholder="Ảnh bìa URL..." value={form.coverUrl || ''} onChange={(e) => set({ coverUrl: e.target.value })} /><label className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 font-bold inline-flex items-center gap-1 cursor-pointer shrink-0">{uploading === 'coverUrl' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}Upload<input type="file" accept="image/*" className="hidden" onChange={(e) => void handleUpload(e.target.files, 'coverUrl', 'venues')} /></label></div>
+                  {(() => {
+                    const venueClubs = modal.item?.clubs || [];
+                    const selectedId = form.featuredTeamId || '';
+                    return (
+                      <div className="sm:col-span-2 p-3.5 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-white/10 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-orange-300">Logo đại diện hiển thị trên Bản đồ</span>
+                          {venueClubs.length > 0 && <span className="text-[10px] text-slate-400">{venueClubs.length} CLB tại sân</span>}
+                        </div>
+                        {venueClubs.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 italic">
+                            Chưa có CLB nào sinh hoạt tại sân này — bản đồ sẽ hiển thị chữ mặc định.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => set({ featuredTeamId: '' })}
+                              className={`flex items-center gap-2.5 p-2 rounded-xl border text-left transition-colors cursor-pointer ${
+                                !selectedId
+                                  ? 'border-orange-500 bg-orange-500/15 text-white'
+                                  : 'border-white/10 bg-[#0B0F19]/75 text-slate-300 hover:border-white/25'
+                              }`}
+                            >
+                              <div className="w-9 h-9 rounded-full shrink-0 bg-gradient-to-br from-red-600 to-orange-500 border border-white/20 flex items-center justify-center font-heading font-black text-[9px] text-white">
+                                {form.venueType === 'FREE_PUBLIC' ? 'FREE' : 'DVA'}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold truncate">Mặc định (Chữ DVA / FREE)</p>
+                                <p className="text-[10px] text-slate-400 truncate">Tự động theo đội có logo hoặc chữ mặc định</p>
+                              </div>
+                              {!selectedId && <Check className="w-4 h-4 text-orange-400 shrink-0" />}
+                            </button>
+                            {venueClubs.map((club) => {
+                              const active = selectedId === club.id;
+                              return (
+                                <button
+                                  key={club.id}
+                                  type="button"
+                                  onClick={() => set({ featuredTeamId: club.id })}
+                                  className={`flex items-center gap-2.5 p-2 rounded-xl border text-left transition-colors cursor-pointer ${
+                                    active
+                                      ? 'border-orange-500 bg-orange-500/15 text-white'
+                                      : 'border-white/10 bg-[#0B0F19]/75 text-slate-300 hover:border-white/25'
+                                  }`}
+                                >
+                                  <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 bg-slate-900 border border-white/20 flex items-center justify-center">
+                                    {club.logoUrl ? (
+                                      <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 96)} alt={club.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span className="font-heading font-black text-[10px] text-orange-400">{getClubInitials(club.name)}</span>
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold truncate">{club.name}</p>
+                                    <p className="text-[10px] text-slate-400 truncate">{club.logoUrl ? 'Có logo CLB' : 'Chưa có ảnh logo'}</p>
+                                  </div>
+                                  {active && <Check className="w-4 h-4 text-orange-400 shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <div className="sm:col-span-2 flex flex-wrap gap-4">
                     <label className="inline-flex items-center gap-1.5 font-bold text-orange-300 cursor-pointer"><input type="checkbox" checked={Boolean(form.isDvaOfficial)} onChange={(e) => set({ isDvaOfficial: e.target.checked })} />DVA Official</label>
                     <label className="inline-flex items-center gap-1.5 font-bold text-amber-300 cursor-pointer"><input type="checkbox" checked={Boolean(form.isFeatured)} onChange={(e) => set({ isFeatured: e.target.checked })} />Featured</label>

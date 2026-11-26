@@ -1106,6 +1106,8 @@ export interface VolleyballVenue {
   subCourtsCount: number;
   venueType: VenueType;
   rentalPriceInfo?: string | null;
+  rentalPhone?: string | null;
+  rentalContactName?: string | null;
   entryNote?: string | null;
   isDvaOfficial: boolean;
   isFeatured: boolean;
@@ -1114,6 +1116,8 @@ export interface VolleyballVenue {
   closedUntil?: string | null;
   coverUrl?: string | null;
   imageUrl?: string | null;
+  featuredTeamId?: string | null;
+  mapLogoUrl?: string | null;
   clubs: CourtClubProfile[];
   sessions: VenueSessionSlot[];
   createdAt?: string;
@@ -1146,6 +1150,8 @@ export type VenuePayload = {
   subCourtsCount: number;
   venueType: VenueType;
   rentalPriceInfo?: string | null;
+  rentalPhone?: string | null;
+  rentalContactName?: string | null;
   entryNote?: string | null;
   isDvaOfficial: boolean;
   isFeatured: boolean;
@@ -1153,6 +1159,7 @@ export type VenuePayload = {
   closureReason?: string | null;
   closedUntil?: string | null;
   coverUrl?: string | null;
+  featuredTeamId?: string | null;
 };
 
 export type VenueClubPayload = {

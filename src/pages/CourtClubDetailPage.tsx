@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, MapPin, Navigation, Clock, Tag, Wallet,
+  ArrowLeft, MapPin, Navigation, Phone, MessageCircle, Copy, Clock, Tag, Wallet,
   CalendarDays, Timer, Layers, Image as ImageIcon, Check, X, Info, Sparkles, AlertTriangle,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
@@ -9,13 +9,14 @@ import { venueService } from '../services/api';
 import type { RevealedSessionContact, VenueClubDetailResponse } from '../types';
 import {
   PLAY_STYLE_META, parsePlayStyles, GENDER_RULE_META, RECRUITMENT_META, VENUE_TYPE_META, getVietnamNow, getSessionRealtimeInfo, isSessionCancelledOnDate,
-  isVenueClosedNow, formatClosedUntilDate, formatDaysOfWeek, buildGoogleMapsUrl, getClubInitials,
+  isVenueClosedNow, formatClosedUntilDate, formatDaysOfWeek, buildGoogleMapsUrl, sanitizePhoneForLink, getClubInitials,
 } from '../utils/venueSchedule';
 import { optimizeCloudinaryLogoUrl, optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { SessionStatusBlock } from '../components/court-map/SessionStatusBlock';
 import { ContactRevealModal, type ContactRevealTarget } from '../components/court-map/ContactRevealModal';
 import {
   SessionContactRow,
+  formatDisplayPhone,
   readRevealedContactCache,
   writeRevealedContactCache,
 } from '../components/court-map/SessionContactRow';
@@ -254,9 +255,29 @@ export const CourtClubDetailPage: React.FC = () => {
               <h3 className="font-heading font-black text-base">{club.venue.name}</h3>
               <p className="text-slate-300">{club.venue.address}</p>
               <div className="flex flex-wrap gap-1.5"><span className="px-2.5 py-0.5 dva-glass-pill">Quận {club.venue.district}</span><span className="inline-flex items-center gap-1 px-2.5 py-0.5 dva-glass-pill text-sky-300"><Layers className="w-3 h-3" />{club.venue.surfaceType}</span></div>
-              <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 text-slate-200 leading-relaxed">
-                {club.venue.venueType === 'FREE_PUBLIC' ? <div className="flex justify-between"><span className="text-slate-400">Loại sân:</span><strong className="text-emerald-300">Sân Miễn Phí</strong></div> : <>Nếu bạn muốn thuê sân, hãy liên hệ <a href="tel:0768299329" className="font-black text-amber-300 hover:text-orange-300 underline decoration-amber-400/60 underline-offset-2 whitespace-nowrap">0768299329</a></>}
-              </div>
+              {club.venue.venueType === 'FREE_PUBLIC' ? (
+                <div className="p-2.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/35 text-slate-200 leading-relaxed flex justify-between">
+                  <span className="text-slate-300">Loại sân:</span>
+                  <strong className="text-emerald-300">Sân Miễn Phí</strong>
+                </div>
+              ) : club.venue.rentalPhone?.trim() ? (() => {
+                const rp = club.venue.rentalPhone.trim();
+                const rd = sanitizePhoneForLink(rp);
+                return (
+                  <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">Liên hệ chủ sân (Đặt / Thuê sân)</p>
+                      {club.venue.rentalContactName && <p className="text-xs font-bold text-white mt-0.5">{club.venue.rentalContactName}</p>}
+                      <p className="font-mono text-xs font-black text-amber-300 mt-0.5">{formatDisplayPhone(rp)}</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <a href={`tel:${rd}`} className="py-1.5 px-2 rounded-xl bg-emerald-600/20 border border-emerald-500/45 text-emerald-300 font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap"><Phone className="w-3 h-3" />Gọi</a>
+                      <a href={`https://zalo.me/${rd.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="py-1.5 px-2 rounded-xl bg-[#0068FF] hover:bg-[#0058D9] text-white font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap"><MessageCircle className="w-3 h-3" />Zalo</a>
+                      <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(rp); showToast(`Đã sao chép SĐT chủ sân: ${formatDisplayPhone(rp)}`); } catch { showToast('Không thể sao chép SĐT.'); } }} className="py-1.5 px-2 rounded-xl bg-white/[0.06] border border-white/15 text-slate-100 font-bold text-[11px] inline-flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer"><Copy className="w-3 h-3" />Copy</button>
+                    </div>
+                  </div>
+                );
+              })() : null}
               <a href={buildGoogleMapsUrl(club.venue)} target="_blank" rel="noopener noreferrer" className="w-full py-2.5 rounded-full bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold flex items-center justify-center gap-1.5"><Navigation className="w-4 h-4" />Chỉ đường Google Maps</a>
             </div>
           </aside>

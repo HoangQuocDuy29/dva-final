@@ -130,14 +130,14 @@ const tournamentDetailCache = createSwrCache<Tournament>({
 });
 
 const venuesCache = createSwrCache<VolleyballVenue[]>({
-  storagePrefix: 'dva_venues_public_v3:',
+  storagePrefix: 'dva_venues_public_v4:',
   freshMs: 60_000,
   staleMs: 300_000,
   validate: Array.isArray,
 });
 
 const venueClubDetailCache = createSwrCache<VenueClubDetailResponse>({
-  storagePrefix: 'dva_venue_club_detail_v2:',
+  storagePrefix: 'dva_venue_club_detail_v3:',
   freshMs: 60_000,
   staleMs: 300_000,
 });

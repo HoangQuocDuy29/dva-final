@@ -990,6 +990,13 @@ const GALLERY_URLS_RULE: Rule = (v, k) => {
     .filter((url): url is string => typeof url === 'string' && url.length > 0);
 };
 
+const OPTIONAL_PHONE: Rule = (v, k) => {
+  if (typeof v !== 'string') throw new HttpError(400, `${k} must be a string`);
+  const clean = v.trim();
+  if (!clean) return null;
+  return PH(clean, k);
+};
+
 export const VENUE_SCHEMA: Schema = {
   name: S(180, 2),
   slug: S(150),
@@ -1002,6 +1009,8 @@ export const VENUE_SCHEMA: Schema = {
   subCourtsCount: I(1, 12),
   venueType: E(VENUE_TYPES),
   rentalPriceInfo: S(200),
+  rentalPhone: OPTIONAL_PHONE,
+  rentalContactName: S(120),
   entryNote: S(1500),
   isDvaOfficial: B,
   isFeatured: B,
@@ -1009,6 +1018,7 @@ export const VENUE_SCHEMA: Schema = {
   closureReason: S(500),
   closedUntil: OPTIONAL_DATE,
   coverUrl: U,
+  featuredTeamId: S(120),
 };
 
 export const VENUE_CLUB_SCHEMA: Schema = {

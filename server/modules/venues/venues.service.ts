@@ -83,13 +83,35 @@ async function findSessionConflicts(p: { venueId: string; daysOfWeek: number[]; 
   }, []);
 }
 
+const resolveMapLogoUrl = (v: {
+  featuredTeamId?: string | null;
+  clubs?: Array<{ id: string; logoUrl?: string | null; isActive?: boolean }>;
+}): string | null => {
+  const activeClubs = (v.clubs || []).filter((c) => c.isActive !== false);
+  if (v.featuredTeamId) {
+    const picked = activeClubs.find((c) => c.id === v.featuredTeamId);
+    if (picked?.logoUrl?.trim()) return picked.logoUrl.trim();
+  }
+  const fallback = activeClubs.find((c) => Boolean(c.logoUrl?.trim()));
+  return fallback?.logoUrl?.trim() || null;
+};
+
 export async function listPublicVenues() {
   return getOrSetCache('venues:public', PUBLIC_TTL_MS, async () => {
     const rows = await prisma.volleyballVenue.findMany({
       orderBy: [{ isDvaOfficial: 'desc' }, { isFeatured: 'desc' }, { name: 'asc' }],
       include: { clubs: { where: { isActive: true }, orderBy: { createdAt: 'asc' } }, sessions: { where: { club: { isActive: true } }, orderBy: [{ startTime: 'asc' }, { createdAt: 'asc' }], include: { club: true } } },
     });
-    return rows.map((v) => ({ ...v, slug: v.slug || slugify(v.name), coverUrl: v.coverUrl || v.imageUrl || null, clubs: v.clubs.map(sanitizePublicClub), sessions: v.sessions.map((s) => ({ ...s, club: s.club ? sanitizePublicClub(s.club) : undefined })) }));
+    return rows.map((v) => ({
+      ...v,
+      slug: v.slug || slugify(v.name),
+      coverUrl: v.coverUrl || v.imageUrl || null,
+      mapLogoUrl: resolveMapLogoUrl(v),
+      rentalPhone: v.venueType === 'COMMERCIAL' ? (v.rentalPhone || null) : null,
+      rentalContactName: v.venueType === 'COMMERCIAL' ? (v.rentalContactName || null) : null,
+      clubs: v.clubs.map(sanitizePublicClub),
+      sessions: v.sessions.map((s) => ({ ...s, club: s.club ? sanitizePublicClub(s.club) : undefined })),
+    }));
   });
 }
 
@@ -112,7 +134,16 @@ export async function getPublicClubBySlug(slug: string) {
   return getOrSetCache(`venues:team:${key}`, PUBLIC_TTL_MS, async () => {
     const club = await prisma.courtClubProfile.findFirst({ where: { slug: key, isActive: true }, include: { venue: true, sessions: { orderBy: [{ startTime: 'asc' }, { createdAt: 'asc' }] } } });
     if (!club) throw new HttpError(404, 'Không tìm thấy hồ sơ đội bóng chuyền.');
-    return { ...sanitizePublicClub(club), venue: { ...club.venue, slug: club.venue.slug || slugify(club.venue.name), coverUrl: club.venue.coverUrl || club.venue.imageUrl || null } };
+    return {
+      ...sanitizePublicClub(club),
+      venue: {
+        ...club.venue,
+        slug: club.venue.slug || slugify(club.venue.name),
+        coverUrl: club.venue.coverUrl || club.venue.imageUrl || null,
+        rentalPhone: club.venue.venueType === 'COMMERCIAL' ? (club.venue.rentalPhone || null) : null,
+        rentalContactName: club.venue.venueType === 'COMMERCIAL' ? (club.venue.rentalContactName || null) : null,
+      },
+    };
   });
 }
 
@@ -249,6 +280,7 @@ export async function listAdminVenues(actor?: Actor) {
     ...v,
     slug: v.slug || slugify(v.name),
     coverUrl: v.coverUrl || v.imageUrl || null,
+    mapLogoUrl: resolveMapLogoUrl(v),
     clubs: v.clubs.map((c) => ({
       ...c,
       sessions: c.sessions.map((s) => ({ ...s, contactRevealCount: revealCountMap.get(s.id) ?? 0 })),
@@ -264,14 +296,30 @@ export async function upsertVenue(data: Record<string, any>, id?: string) {
   for (const k of ['name', 'address', 'city', 'district', 'surfaceType', 'venueType'] as const) if (data[k] !== undefined) p[k] = data[k];
   for (const k of ['latitude', 'longitude', 'subCourtsCount'] as const) if (data[k] !== undefined) p[k] = Number(data[k]);
   for (const k of ['isDvaOfficial', 'isFeatured', 'isClosed'] as const) if (data[k] !== undefined) p[k] = Boolean(data[k]);
-  for (const k of ['rentalPriceInfo', 'entryNote', 'closureReason'] as const) if (data[k] !== undefined) p[k] = data[k] ? String(data[k]) : null;
+  for (const k of ['rentalPriceInfo', 'rentalPhone', 'rentalContactName', 'entryNote', 'closureReason'] as const) if (data[k] !== undefined) p[k] = data[k] ? String(data[k]).trim() : null;
+  const effectiveVenueType = String(p.venueType ?? existing?.venueType ?? 'COMMERCIAL');
+  if (effectiveVenueType !== 'COMMERCIAL') {
+    p.rentalPhone = null;
+    p.rentalContactName = null;
+  }
+  if (data.featuredTeamId !== undefined) {
+    const rawTeamId = data.featuredTeamId ? String(data.featuredTeamId).trim() : null;
+    if (!rawTeamId) {
+      p.featuredTeamId = null;
+    } else {
+      if (!id) throw new HttpError(400, 'Chỉ có thể chọn CLB đại diện sau khi sân đã có CLB sinh hoạt.');
+      const teamHit = await prisma.courtClubProfile.findFirst({ where: { id: rawTeamId, venueId: id }, select: { id: true } });
+      if (!teamHit) throw new HttpError(400, 'CLB đại diện phải thuộc danh sách các đội đang sinh hoạt tại sân này.');
+      p.featuredTeamId = rawTeamId;
+    }
+  }
   if (data.closedUntil !== undefined) p.closedUntil = parseDate(data.closedUntil);
   if (data.coverUrl !== undefined) { const v = data.coverUrl ? String(data.coverUrl) : null; p.coverUrl = v; p.imageUrl = v; }
   if (!id || data.slug !== undefined) p.slug = await uniqueSlug('venue', data.slug || data.name || existing?.name || 'venue', id);
   const include = { clubs: { orderBy: [{ isActive: 'desc' as const }, { createdAt: 'asc' as const }] }, sessions: { orderBy: { startTime: 'asc' as const }, include: { club: true } } };
   const out = id ? await prisma.volleyballVenue.update({ where: { id }, data: p, include }) : await prisma.volleyballVenue.create({ data: p as any, include });
   invalidateCache('venues');
-  return out;
+  return { ...out, mapLogoUrl: resolveMapLogoUrl(out) };
 }
 
 export async function deleteVenue(id: string) {
@@ -345,6 +393,7 @@ export async function upsertClub(venueId: string, data: Record<string, any>, clu
 
 export async function deleteClub(venueId: string, clubId: string) {
   if (!(await prisma.courtClubProfile.findFirst({ where: { id: clubId, venueId }, select: { id: true } }))) throw new HttpError(404, 'Không tìm thấy CLB.');
+  await prisma.volleyballVenue.updateMany({ where: { id: venueId, featuredTeamId: clubId }, data: { featuredTeamId: null } });
   await prisma.courtClubProfile.delete({ where: { id: clubId } });
   invalidateCache('venues');
   return { success: true, id: clubId };

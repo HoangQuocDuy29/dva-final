@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { VolleyballVenue } from '../../types';
+import { optimizeCloudinaryLogoUrl } from '../../utils/cloudinary';
 
 const HANOI_CENTER: [number, number] = [21.0285, 105.8542];
 const DEFAULT_ZOOM = 12;
@@ -19,25 +20,53 @@ interface HanoiLeafletMapProps {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
 
+function resolveVenueMapLogo(venue: VolleyballVenue): string | null {
+  if (venue.mapLogoUrl !== undefined) return venue.mapLogoUrl?.trim() || null;
+  const clubs = (venue.clubs || []).filter((c) => c.isActive !== false);
+  if (venue.featuredTeamId) {
+    const picked = clubs.find((c) => c.id === venue.featuredTeamId);
+    if (picked?.logoUrl?.trim()) return picked.logoUrl.trim();
+  }
+  const fallback = clubs.find((c) => Boolean(c.logoUrl?.trim()));
+  return fallback?.logoUrl?.trim() || null;
+}
+
 function createVenueIcon(item: MapVenueItem, isSelected: boolean): L.DivIcon {
   const { venue, isLive, isClosed, hasActivity, matchingSessionsCount } = item;
   const isDimmed = !isClosed && !hasActivity;
   const isDva = venue.isDvaOfficial;
   const isFree = venue.venueType === 'FREE_PUBLIC';
-  const size = isSelected ? 44 : isDva && !isDimmed && !isClosed ? 40 : 34;
+  const rawLogo = resolveVenueMapLogo(venue);
+  const logoSrc = rawLogo ? optimizeCloudinaryLogoUrl(rawLogo, 96) : '';
+  const teamCount = (venue.clubs || []).filter((c) => c.isActive !== false).length;
+  const size = isSelected ? 46 : logoSrc || (isDva && !isDimmed && !isClosed) ? 42 : 36;
 
   const pinBg = isClosed
-    ? 'background:#334155;border:2px solid #f87171;box-shadow:0 4px 12px rgba(0,0,0,.6);'
+    ? 'background:#334155;border:2.5px solid #f87171;box-shadow:0 4px 12px rgba(0,0,0,.6);'
     : isDva
-      ? 'background:linear-gradient(135deg,#dc2626,#f97316);border:2.5px solid #fed7aa;box-shadow:0 6px 20px rgba(234,88,12,.55);'
+      ? 'background:linear-gradient(135deg,#dc2626,#f97316);border:2.5px solid #fb923c;box-shadow:0 6px 20px rgba(234,88,12,.55);'
       : isFree
-        ? 'background:linear-gradient(135deg,#059669,#10b981);border:2px solid #a7f3d0;box-shadow:0 6px 18px rgba(16,185,129,.45);'
-        : 'background:#1e293b;border:2px solid #94a3b8;box-shadow:0 5px 14px rgba(0,0,0,.65);';
+        ? 'background:linear-gradient(135deg,#059669,#10b981);border:2.5px solid #34d399;box-shadow:0 6px 18px rgba(16,185,129,.45);'
+        : hasActivity
+          ? 'background:#1e293b;border:2.5px solid #f97316;box-shadow:0 5px 16px rgba(234,88,12,.45);'
+          : 'background:#1e293b;border:2px solid #94a3b8;box-shadow:0 5px 14px rgba(0,0,0,.65);';
 
   const dimStyle = isDimmed ? 'opacity:0.45;filter:grayscale(100%);' : 'opacity:1;';
-  const liveRing = isLive && !isClosed && !isDimmed ? '<span class="dva-live-ripple" style="position:absolute;left:50%;top:50%;width:42px;height:42px;border-radius:9999px;background:rgba(16,185,129,.45);border:2px solid #34d399;pointer-events:none;"></span>' : '';
-  const selectedRing = isSelected ? '<span style="position:absolute;left:50%;top:50%;width:56px;height:56px;transform:translate(-50%,-50%);border-radius:9999px;border:2px solid #f97316;background:rgba(249,115,22,.16);pointer-events:none;"></span>' : '';
-  const inner = isClosed ? '<span style="font-weight:900;font-size:8px;color:#fecaca;">NGHỈ</span>' : isDva ? '<span style="font-weight:900;font-size:10px;color:#fff;">DVA</span>' : isFree ? '<span style="font-weight:900;font-size:8px;color:#fff;">FREE</span>' : `<span style="font-weight:800;font-size:11px;color:#f8fafc;">${matchingSessionsCount}</span>`;
+  const liveRing = isLive && !isClosed && !isDimmed ? `<span class="dva-live-ripple" style="position:absolute;left:50%;top:50%;width:${size + 6}px;height:${size + 6}px;border-radius:9999px;background:rgba(16,185,129,.45);border:2px solid #34d399;pointer-events:none;"></span>` : '';
+  const selectedRing = isSelected ? `<span style="position:absolute;left:50%;top:50%;width:${size + 14}px;height:${size + 14}px;transform:translate(-50%,-50%);border-radius:9999px;border:2px solid #f97316;background:rgba(249,115,22,.18);pointer-events:none;"></span>` : '';
+  const fallbackInner = isClosed
+    ? '<span style="font-weight:900;font-size:8px;color:#fecaca;">NGHỈ</span>'
+    : isDva
+      ? '<span style="font-weight:900;font-size:10px;color:#fff;">DVA</span>'
+      : isFree
+        ? '<span style="font-weight:900;font-size:8px;color:#fff;">FREE</span>'
+        : `<span style="font-weight:800;font-size:11px;color:#f8fafc;">${matchingSessionsCount}</span>`;
+  const logoImg = logoSrc
+    ? `<img src="${esc(logoSrc)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:9999px;background:#0B0D12;" onerror="this.style.display='none'" />`
+    : '';
+  const teamBadge = teamCount > 1
+    ? `<span style="position:absolute;top:-5px;right:-10px;z-index:4;padding:1px 5px;border-radius:9999px;background:#0B0D12;border:1px solid rgba(255,255,255,.22);color:#f8fafc;font-size:9px;font-weight:800;line-height:1.2;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.65);pointer-events:none;">${teamCount} CLB</span>`
+    : '';
   const tag = isClosed ? '<span style="background:#991b1b;color:#fecaca;padding:1px 5px;border-radius:9999px;font-size:8px;margin-right:4px;">TẠM NGHỈ</span>' : '';
   const nameShort = esc(venue.name.length > 24 ? `${venue.name.slice(0, 22)}…` : venue.name);
 
@@ -45,7 +74,7 @@ function createVenueIcon(item: MapVenueItem, isSelected: boolean): L.DivIcon {
     className: 'dva-venue-marker-wrapper',
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
-    html: `<div style="position:relative;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;cursor:pointer;${dimStyle}">${liveRing}${selectedRing}<div style="position:relative;z-index:2;width:${size}px;height:${size}px;border-radius:9999px;display:flex;align-items:center;justify-content:center;${pinBg}">${inner}</div><div style="position:absolute;top:${size + 4}px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:2px 8px;border-radius:9999px;background:rgba(11,15,25,.92);border:1px solid ${isClosed ? 'rgba(248,113,113,.6)' : isSelected ? 'rgba(249,115,22,.8)' : 'rgba(51,65,85,.75)'};color:${isSelected ? '#fdba74' : '#e2e8f0'};font-size:10px;font-weight:700;pointer-events:none;">${tag}${nameShort}</div></div>`,
+    html: `<div style="position:relative;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;cursor:pointer;${dimStyle}">${liveRing}${selectedRing}<div style="position:relative;z-index:2;width:${size}px;height:${size}px;border-radius:9999px;overflow:hidden;display:flex;align-items:center;justify-content:center;${pinBg}">${fallbackInner}${logoImg}</div>${teamBadge}<div style="position:absolute;top:${size + 4}px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:2px 8px;border-radius:9999px;background:rgba(11,15,25,.92);border:1px solid ${isClosed ? 'rgba(248,113,113,.6)' : isSelected ? 'rgba(249,115,22,.8)' : 'rgba(51,65,85,.75)'};color:${isSelected ? '#fdba74' : '#e2e8f0'};font-size:10px;font-weight:700;pointer-events:none;">${tag}${nameShort}</div></div>`,
   });
 }
 

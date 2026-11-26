@@ -99,8 +99,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         : 'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-md overflow-hidden animate-in fade-in duration-200'}
     >
       {isPage && (
-        <div className="flex flex-col items-center gap-2 mb-6">
-          <img src="/logo.png" alt="DVA Volleyball Club" className="w-16 h-16 object-contain drop-shadow-[0_0_24px_rgba(249,115,22,0.35)]" />
+        <div className="flex flex-col items-center gap-2.5 mb-6">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border border-white/15 bg-white/[0.05] p-0.5 shadow-[0_8px_28px_rgba(249,115,22,0.28)] mx-auto">
+            <img src="/logo.png" alt="DVA Volleyball Club" className="w-full h-full object-cover rounded-full" />
+          </div>
           <span className="font-heading font-black text-sm tracking-[0.2em] uppercase text-white/90">DVA VOLLEYBALL</span>
         </div>
       )}
@@ -129,13 +131,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           {/* Header */}
           <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-white/10 flex items-start justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-11 h-11 rounded-2xl bg-white/[0.06] border border-white/15 p-1.5 flex items-center justify-center shadow-lg shrink-0 overflow-hidden">
+              <div className="w-11 h-11 rounded-full bg-white/[0.06] border border-white/15 p-0.5 flex items-center justify-center shadow-lg shrink-0 overflow-hidden">
                 {!logoFailed ? (
                   <img
                     src="/logo.png"
                     alt="DVA Volleyball Club"
                     onError={() => setLogoFailed(true)}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover rounded-full"
                   />
                 ) : (
                   <span className="font-heading font-black text-xs tracking-tight text-white">DVA</span>

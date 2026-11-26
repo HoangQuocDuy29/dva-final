@@ -824,6 +824,8 @@ model VolleyballVenue {
   subCourtsCount  Int                 @default(2)
   venueType       String              @default("COMMERCIAL") // "COMMERCIAL" | "FREE_PUBLIC"
   rentalPriceInfo String?             // VD: "550.000đ / giờ / sân" hoặc "Miễn phí — Tự đến xin ghép đội"
+  rentalPhone       String?           // SĐT người cho thuê sân (chỉ lưu khi venueType === "COMMERCIAL")
+  rentalContactName String?           // Tên chủ sân / Ban quản lý (tùy chọn)
   entryNote       String?             @db.Text
   isDvaOfficial   Boolean             @default(false)
   isFeatured      Boolean             @default(false)
@@ -832,6 +834,7 @@ model VolleyballVenue {
   closedUntil     DateTime?
   imageUrl        String?             // Legacy column preserved for additive-only compatibility
   coverUrl        String?
+  featuredTeamId  String?             // ID CLB đại diện hiển thị logo trên ghim Bản đồ sân
 
   // Relations
   clubs           CourtClubProfile[]

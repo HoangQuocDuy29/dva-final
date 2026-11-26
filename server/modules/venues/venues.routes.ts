@@ -74,12 +74,20 @@ venuesRouter.get('/admin/venues', requireCaptainOrSuperAdmin, ah(async (req, res
 }));
 
 venuesRouter.post('/admin/venues', requireSuperAdmin, ah(async (req, res) => {
-  const data = sanitize(req.body, VENUE_SCHEMA, { required: ['name', 'address', 'district', 'latitude', 'longitude', 'surfaceType'] });
+  const data = preserveNulls(
+    req.body,
+    sanitize(req.body, VENUE_SCHEMA, { required: ['name', 'address', 'district', 'latitude', 'longitude', 'surfaceType'] }),
+    ['coverUrl', 'featuredTeamId', 'rentalPriceInfo', 'rentalPhone', 'rentalContactName', 'entryNote', 'closureReason', 'closedUntil']
+  );
   res.status(201).json(await upsertVenue(data));
 }));
 
 const updateVenueHandler = ah(async (req, res) => {
-  const data = preserveNulls(req.body, sanitize(req.body, VENUE_SCHEMA, { partial: true }), ['coverUrl', 'rentalPriceInfo', 'entryNote', 'closureReason', 'closedUntil']);
+  const data = preserveNulls(
+    req.body,
+    sanitize(req.body, VENUE_SCHEMA, { partial: true }),
+    ['coverUrl', 'featuredTeamId', 'rentalPriceInfo', 'rentalPhone', 'rentalContactName', 'entryNote', 'closureReason', 'closedUntil']
+  );
   res.json(await upsertVenue(data, req.params.id));
 });
 venuesRouter.put('/admin/venues/:id', requireSuperAdmin, updateVenueHandler);
