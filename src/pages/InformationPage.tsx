@@ -113,7 +113,7 @@ export const InformationPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Card 1: Court Rental */}
-            <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl flex flex-col justify-between">
+            <div className="dva-glass-card p-6 shadow-xl flex flex-col justify-between">
               <div>
                 <span className="inline-block px-3 py-1 bg-red-950 border border-red-800 text-red-400 text-xs font-bold rounded-lg uppercase">
                   Court Rental
@@ -197,7 +197,7 @@ export const InformationPage: React.FC = () => {
             </div>
 
             {/* Card 3: Monthly Basic Scrimmage Pass (Replaces Technical Academy Course) */}
-            <div className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 shadow-xl flex flex-col justify-between">
+            <div className="dva-glass-card p-6 shadow-xl flex flex-col justify-between">
               <div>
                 <span className="inline-block px-3 py-1 bg-slate-800 text-slate-300 text-xs font-bold rounded-lg uppercase">
                   Monthly Basic Scrimmage Pass
@@ -349,7 +349,7 @@ export const InformationPage: React.FC = () => {
           </div>
 
           {/* Desktop & Tablet Table View (>= 768px: hidden md:block) with independent scroll indicator */}
-          <div className="hidden md:block border border-slate-800 rounded-3xl overflow-hidden bg-[#161F30] shadow-xl">
+          <div className="hidden md:block dva-glass-panel rounded-3xl overflow-hidden">
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full min-w-[620px] text-xs text-left border-collapse">
                 <thead>
@@ -466,7 +466,7 @@ export const InformationPage: React.FC = () => {
           {/* Responsive Criteria Cards: 1 col on mobile, 2 cols on tablet, 3 cols on laptop/desktop */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             
-            <div className="bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-3">
+            <div className="dva-glass-card p-5 sm:p-6 shadow-xl space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className="font-heading font-black text-base sm:text-lg text-white">Senior Team</h3>
                 <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200 uppercase">SENIOR</span>
@@ -482,7 +482,7 @@ export const InformationPage: React.FC = () => {
               </ul>
             </div>
 
-            <div className="bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-3">
+            <div className="dva-glass-card p-5 sm:p-6 shadow-xl space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className="font-heading font-black text-base sm:text-lg text-white">Junior Squad</h3>
                 <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-orange-900 text-orange-200 uppercase">JUNIOR</span>
@@ -498,7 +498,7 @@ export const InformationPage: React.FC = () => {
               </ul>
             </div>
 
-            <div className="bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-800 p-5 sm:p-6 shadow-xl space-y-3 md:col-span-2 lg:col-span-1">
+            <div className="dva-glass-card p-5 sm:p-6 shadow-xl space-y-3 md:col-span-2 lg:col-span-1">
               <div className="flex justify-between items-center">
                 <h3 className="font-heading font-black text-base sm:text-lg text-white">Youth</h3>
                 <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 uppercase">Youth</span>
@@ -520,7 +520,7 @@ export const InformationPage: React.FC = () => {
         <ContactBanner />
 
         {/* SECTION 4: TARAFLEX SHOE ETIQUETTE */}
-        <section className="bg-[#161F30] rounded-3xl border border-slate-800 p-8 shadow-xl space-y-6">
+        <section className="dva-glass-panel rounded-3xl p-8 space-y-6">
           <div className="flex items-center gap-2">
             <Footprints className="w-5 h-5 text-red-500" />
             <h2 className="text-xl font-black text-white font-heading">

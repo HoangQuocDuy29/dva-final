@@ -30,6 +30,7 @@ const ShopPage = lazy(() => import('./pages/ShopPage').then((m) => ({ default: m
 const TournamentsPage = lazy(() => import('./pages/TournamentsPage').then((m) => ({ default: m.TournamentsPage })));
 const MemberRegisterPage = lazy(() => import('./pages/MemberRegisterPage').then((m) => ({ default: m.MemberRegisterPage })));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 
 // Fallback loader chuẩn phong cách Dark Theme DVA (tránh giật trắng màn hình khi tải trang)
 const PageLoadingFallback: React.FC = () => (
@@ -58,16 +59,24 @@ const RedirectPreserveQuery: React.FC<{ to: string }> = ({ to }) => {
   return <Navigate to={{ pathname: to, search: location.search }} replace />;
 };
 
+const isDashboardPath = (p: string) => p.startsWith('/admin') || p.startsWith('/dashboard');
+
 const PublicNavbarGuard: React.FC<{ currentUser: User; onUserChange: (u: User) => void }> = (props) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  return pathname === '/login' ? null : <Navbar {...props} onOpenAuth={() => navigate('/login')} />;
+  return pathname === '/login' || isDashboardPath(pathname) ? null : <Navbar {...props} onOpenAuth={() => navigate('/login')} />;
 };
 
 const PublicFooterGuard: React.FC = () => {
   const { pathname } = useLocation();
-  if (pathname.startsWith('/admin') || pathname === '/login') return null;
+  if (isDashboardPath(pathname) || pathname === '/login') return null;
   return <Footer />;
+};
+
+const MainShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { pathname } = useLocation();
+  const dash = isDashboardPath(pathname);
+  return <main className={`relative z-10 flex-1 ${dash ? '' : 'pt-20 dva-public-canvas'}`}>{children}</main>;
 };
 
 export default function App() {
@@ -96,7 +105,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <div className="min-h-screen flex flex-col bg-[#0B0F19] text-white font-sans selection:bg-red-600 selection:text-white overflow-x-clip w-full max-w-full">
+      <div className="relative min-h-screen flex flex-col bg-[#0B0D12] text-white font-sans selection:bg-red-600 selection:text-white overflow-x-clip w-full max-w-full">
+        {/* Global Public Spatial Ambient Mesh (DVA Orange + Cherry Red) */}
+        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+          <div className="absolute -top-32 -left-20 w-[460px] h-[460px] rounded-full bg-orange-500 blur-[140px] opacity-20" />
+          <div className="absolute top-1/3 -right-24 w-[480px] h-[480px] rounded-full bg-rose-600 blur-[140px] opacity-20" />
+        </div>
         
         {/* Navbar (Clean international sports club navigation, no internal scripts/sheets buttons) */}
         <PublicNavbarGuard
@@ -105,7 +119,7 @@ export default function App() {
         />
 
         {/* Main Routes */}
-        <main className="flex-1 pt-20">
+        <MainShell>
           <Suspense fallback={<PageLoadingFallback />}>
             <Routes>
               <Route path="/" element={<HomePage />} />
@@ -166,11 +180,11 @@ export default function App() {
                 )}
               />
 
-              {/* Catch-all */}
-              <Route path="*" element={<Navigate to="/" replace />} />
+              {/* Catch-all 404 Not Found */}
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
-        </main>
+        </MainShell>
 
         {/* Professional Footer with Embedded Arena Map (Hidden on /admin/* routes) */}
         <PublicFooterGuard />

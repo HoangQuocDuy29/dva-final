@@ -117,7 +117,7 @@ export const MatchScoreboardRow: React.FC<MatchScoreboardRowProps> = ({
         {renderTeamSide('HOME', homeTeam, match.homeLabel, homeBadge)}
 
         {/* Center VS / Set Scoreline Pill */}
-        <div className="flex flex-col items-center justify-center px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-slate-900/90 border border-white/10 min-w-[60px] sm:min-w-[72px] shrink-0">
+        <div className="flex flex-col items-center justify-center px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-white/[0.06] backdrop-blur-md border border-white/15 min-w-[60px] sm:min-w-[72px] shrink-0">
           {showScore ? (
             <>
               <span className="font-mono font-black text-sm sm:text-base leading-tight text-amber-400 tabular-nums whitespace-nowrap">
@@ -139,7 +139,7 @@ export const MatchScoreboardRow: React.FC<MatchScoreboardRowProps> = ({
 
       {/* Mobile-only Outcome Pills Strip (prevents squeezing team names between logo & scoreboard) */}
       {(homeBadge || awayBadge) && (
-        <div className="flex sm:hidden flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-[#1E293B]/60">
+        <div className="flex sm:hidden flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-white/10">
           <div className="flex items-center justify-start min-w-0">{homeBadge}</div>
           <div className="flex items-center justify-end min-w-0 ml-auto">{awayBadge}</div>
         </div>

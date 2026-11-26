@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { authService } from '../../services/api';
-import { LanguageSwitcher } from '../common/LanguageSwitcher';
 
 interface NavbarProps {
   currentUser: UserType;
@@ -237,19 +236,27 @@ export const Navbar: React.FC<NavbarProps> = ({
           : t('nav.openAdminDashboard');
 
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 flex flex-col items-center pointer-events-none ${
-        compactNav ? 'pt-3 px-4 sm:px-6' : 'pt-0 px-0'
-      }`}
-    >
-      {/* Khối Navbar chính (Inner Capsule): Single Container tránh giật layout */}
+    <>
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-200"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 bg-transparent border-none shadow-none flex flex-col items-center pointer-events-none ${
+          isAdminRoute ? 'pt-0 px-0' : 'px-3 sm:px-6'
+        }`}
+      >
+      {/* Khối Navbar chính (Inner Capsule): Permanent Floating Glass Pill on Public routes */}
       <div
-        className={`pointer-events-auto transition-[background-color,box-shadow,border-color] duration-300 ease-out flex items-center justify-between w-full gap-2 sm:gap-3 md:gap-2.5 lg:gap-5 ${
+        className={`pointer-events-auto transition-[background-color,box-shadow,border-color,max-width,height] duration-300 ease-out flex items-center justify-between w-full gap-2 sm:gap-3 md:gap-2.5 lg:gap-5 ${
           isAdminRoute
             ? 'max-w-none rounded-none h-20 border-b border-white/10 bg-[#0B0D12]/90 backdrop-blur-2xl px-4 sm:px-6 lg:px-8'
             : compactNav
-              ? 'max-w-6xl rounded-2xl h-14 border border-slate-700/60 shadow-2xl shadow-black/50 bg-[#0B0F19]/95 px-4 sm:px-6'
-              : 'max-w-7xl rounded-none h-20 border-b border-slate-800/80 bg-[#0B0F19] px-4 sm:px-6 lg:px-8'
+              ? 'mt-3 max-w-6xl rounded-full h-14 bg-[#0B0D12]/75 backdrop-blur-2xl border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.5)] px-4 sm:px-6'
+              : 'mt-3 max-w-7xl rounded-full h-15 bg-[#0B0D12]/70 backdrop-blur-2xl border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.45)] px-4 sm:px-6 lg:px-7'
         }`}
       >
         {/* Brand Wordmark & Dynamic Logo Slot */}
@@ -511,9 +518,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Area */}
         <div className="relative z-30 pointer-events-auto flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Segmented Pill Language Switcher (Visible on both Mobile Topbar & Desktop) */}
-          <LanguageSwitcher />
-
           {/* User Account / Role Pill (Desktop & Tablet) — hidden on /admin/* routes to avoid duplicate profile header */}
           {!isAdminRoute && (
           <div ref={dropdownRef} className="relative shrink-0">
@@ -618,9 +622,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle Navigation Menu"
-            className={`md:hidden rounded-xl bg-[#161F30] border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-all duration-300 shrink-0 ${
-              isScrolled ? 'w-8 h-8 min-w-[32px] min-h-[32px]' : 'w-10 h-10 min-w-[40px] min-h-[40px]'
-            }`}
+            className="md:hidden w-10 h-10 rounded-full bg-white/[0.08] border border-white/15 text-white hover:bg-white/15 flex items-center justify-center cursor-pointer transition-all duration-300 shrink-0 focus:outline-none"
           >
             {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -630,27 +632,23 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div
-          className={`w-full md:hidden pointer-events-auto transition-all duration-300 ease-out animate-in slide-in-from-top-2 max-h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar ${
-            isScrolled
-              ? 'mt-2 max-w-6xl rounded-2xl bg-[#0F1420] border border-slate-700/60 shadow-2xl p-4 space-y-3'
-              : 'max-w-7xl rounded-b-2xl bg-[#0F1420] border-x border-b border-slate-800 px-4 pt-4 pb-6 space-y-3 shadow-2xl'
-          }`}
+          className="w-full md:hidden pointer-events-auto transition-all duration-300 ease-out animate-in slide-in-from-top-2 max-h-[calc(100vh-5.75rem)] overflow-y-auto no-scrollbar mt-3 max-w-6xl rounded-3xl bg-[#0B0D12]/85 backdrop-blur-2xl border border-white/15 shadow-[0_24px_64px_rgba(0,0,0,0.75)] p-4 space-y-3"
         >
           
           {/* User status in mobile drawer if logged in (hidden on /admin/* routes) */}
           {!isAdminRoute && (currentUser.role !== 'GUEST' ? (
-            <div className="p-3 bg-[#161F30] rounded-2xl border border-slate-800 flex items-center justify-between">
-              <div>
+            <div className="p-3.5 rounded-2xl bg-white/[0.06] border border-white/15 flex items-center justify-between gap-2">
+              <div className="min-w-0">
                 <div className="text-[10px] text-slate-400 font-medium">{t('nav.loggedInAs')}</div>
-                <div className="font-bold text-white text-xs">{currentUser.fullName}</div>
-                <div className="text-[10px] text-slate-400">{currentUser.email}</div>
+                <div className="font-bold text-white text-xs truncate">{currentUser.fullName}</div>
+                <div className="text-[10px] text-slate-400 truncate">{currentUser.email}</div>
               </div>
-              <span className={`px-2 py-0.5 text-[10px] rounded uppercase font-bold font-mono border ${
+              <span className={`px-2.5 py-0.5 text-[10px] rounded-full uppercase font-bold font-mono border shrink-0 ${
                 currentUser.role === 'SUPERADMIN' 
-                  ? 'bg-red-900 text-red-200 border-red-700'
+                  ? 'bg-red-500/20 text-red-200 border-red-500/40'
                   : currentUser.role === 'ADMIN'
-                  ? 'bg-amber-900 text-amber-200 border-amber-700'
-                  : 'bg-blue-900 text-blue-200 border-blue-700'
+                  ? 'bg-amber-500/20 text-amber-200 border-amber-500/40'
+                  : 'bg-sky-500/20 text-sky-200 border-sky-500/40'
               }`}>
                 {currentUser.role}
               </span>
@@ -662,7 +660,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setMobileMenuOpen(false);
                   onOpenAuth();
                 }}
-                className="w-full py-2.5 px-4 text-xs font-bold text-center text-slate-200 bg-[#161F30] border border-slate-700 hover:bg-slate-800 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow"
+                className="w-full py-3 px-4 text-xs font-bold text-center text-white bg-white/[0.06] border border-white/15 hover:bg-white/10 rounded-full flex items-center justify-center gap-2 cursor-pointer transition-colors"
               >
                 <User className="w-4 h-4 text-orange-400" />
                 <span>{t('nav.signInPortal')}</span>
@@ -677,10 +675,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={link.path}
                 to={link.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                className={`block px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${
                   isActive(link.path)
-                    ? 'bg-gradient-to-r from-red-950/90 to-orange-950/70 text-white font-bold border-l-4 border-red-500'
-                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                    ? 'bg-white/[0.08] text-orange-400 font-bold'
+                    : 'text-slate-200 hover:bg-white/[0.06] hover:text-white'
                 }`}
               >
                 {link.label}
@@ -692,10 +690,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => setMobileServicesOpen((prev) => !prev)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition-colors cursor-pointer ${
                   isServicesActive
-                    ? 'bg-gradient-to-r from-red-950/60 to-orange-950/40 text-white font-bold border-l-4 border-orange-500'
-                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                    ? 'bg-white/[0.08] text-orange-400 font-bold'
+                    : 'text-slate-200 hover:bg-white/[0.06] hover:text-white'
                 }`}
                 aria-expanded={mobileServicesOpen}
               >
@@ -708,7 +706,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {mobileServicesOpen && (
-                <div className="mt-1 ml-4 pl-3 border-l-2 border-slate-800 space-y-1 animate-in fade-in duration-150">
+                <div className="mt-1 ml-4 pl-3 border-l border-white/10 space-y-1 animate-in fade-in duration-150">
                   {serviceItems.map((item) => {
                     const ItemIcon = item.icon;
                     const itemActive = location.pathname.startsWith(item.path);
@@ -717,17 +715,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                         key={item.path}
                         to={item.path}
                         onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition-colors ${
+                        className={`flex items-center gap-3 px-3 py-2 rounded-2xl text-xs transition-colors ${
                           itemActive
-                            ? 'bg-red-950/80 text-white font-bold border-l-2 border-red-500'
-                            : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                            ? 'bg-white/[0.08] text-orange-400 font-bold'
+                            : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'
                         }`}
                       >
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                          className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border ${
                             itemActive
                               ? 'bg-orange-500/20 border-orange-500/40 text-orange-400'
-                              : 'bg-white/[0.03] border-white/10 text-slate-400'
+                              : 'bg-white/[0.04] border-white/10 text-slate-400'
                           }`}
                         >
                           <ItemIcon className="w-3.5 h-3.5" />
@@ -752,10 +750,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 key={link.path}
                 to={link.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                className={`block px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${
                   isActive(link.path)
-                    ? 'bg-gradient-to-r from-red-950/90 to-orange-950/70 text-white font-bold border-l-4 border-red-500'
-                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                    ? 'bg-white/[0.08] text-orange-400 font-bold'
+                    : 'text-slate-200 hover:bg-white/[0.06] hover:text-white'
                 }`}
               >
                 {link.label}
@@ -767,10 +765,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => setMobileInfoOpen((prev) => !prev)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition-colors cursor-pointer ${
                   isInfoActive
-                    ? 'bg-gradient-to-r from-red-950/60 to-orange-950/40 text-white font-bold border-l-4 border-orange-500'
-                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                    ? 'bg-white/[0.08] text-orange-400 font-bold'
+                    : 'text-slate-200 hover:bg-white/[0.06] hover:text-white'
                 }`}
                 aria-expanded={mobileInfoOpen}
               >
@@ -783,7 +781,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {mobileInfoOpen && (
-                <div className="mt-1 ml-4 pl-3 border-l-2 border-slate-800 space-y-1 animate-in fade-in duration-150">
+                <div className="mt-1 ml-4 pl-3 border-l border-white/10 space-y-1 animate-in fade-in duration-150">
                   {infoItems.map((item) => {
                     const ItemIcon = item.icon;
                     const itemActive = item.exact
@@ -794,17 +792,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                         key={item.path}
                         to={item.path}
                         onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition-colors ${
+                        className={`flex items-center gap-3 px-3 py-2 rounded-2xl text-xs transition-colors ${
                           itemActive
-                            ? 'bg-red-950/80 text-white font-bold border-l-2 border-red-500'
-                            : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                            ? 'bg-white/[0.08] text-orange-400 font-bold'
+                            : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'
                         }`}
                       >
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                          className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border ${
                             itemActive
                               ? 'bg-orange-500/20 border-orange-500/40 text-orange-400'
-                              : 'bg-white/[0.03] border-white/10 text-slate-400'
+                              : 'bg-white/[0.04] border-white/10 text-slate-400'
                           }`}
                         >
                           <ItemIcon className="w-3.5 h-3.5" />
@@ -827,10 +825,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Link
               to="/news"
               onClick={() => setMobileMenuOpen(false)}
-              className={`block px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              className={`block px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${
                 isActive('/news')
-                  ? 'bg-gradient-to-r from-red-950/90 to-orange-950/70 text-white font-bold border-l-4 border-red-500'
-                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  ? 'bg-white/[0.08] text-orange-400 font-bold'
+                  : 'text-slate-200 hover:bg-white/[0.06] hover:text-white'
               }`}
             >
               {t('nav.news')}
@@ -839,13 +837,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Admin Dashboard shortcut if admin */}
           {isAdmin && (
-            <div className="pt-2">
+            <div className="pt-1">
               <Link
                 to="/admin/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2.5 px-4 text-xs font-bold text-center text-white bg-red-950/90 hover:bg-red-900 border border-red-700 rounded-xl flex items-center justify-center gap-2 shadow"
+                className="w-full py-2.5 px-4 text-xs font-bold text-center text-white bg-white/[0.06] hover:bg-white/10 border border-white/15 rounded-full flex items-center justify-center gap-2 transition-colors"
               >
-                <LayoutDashboard className="w-4 h-4 text-red-400" />
+                <LayoutDashboard className="w-4 h-4 text-orange-400" />
                 <span>{t('nav.goToAdminDashboard')}</span>
               </Link>
             </div>
@@ -861,7 +859,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setMobileMenuOpen(false);
                   navigate('/');
                 }}
-                className="w-full py-2 px-3 text-xs font-semibold text-red-400 hover:bg-red-950/40 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                className="w-full py-2.5 px-4 text-xs font-semibold text-rose-400 hover:bg-rose-500/15 rounded-full flex items-center justify-center gap-2 cursor-pointer transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>{t('nav.signOut')}</span>
@@ -870,25 +868,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Primary CTA in drawer */}
-          <div className="pt-2 border-t border-slate-800">
+          <div className="pt-3 border-t border-white/10">
             <Link
               to="/register"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-3 px-4 text-xs font-bold text-center text-white bg-gradient-to-r from-red-600 to-orange-500 rounded-xl block shadow-lg shadow-red-900/30"
+              className="w-full py-3 px-4 text-xs font-bold text-center text-white bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 rounded-full block shadow-[0_8px_24px_rgba(249,115,22,0.35)] transition-all"
             >
               {t('nav.applyTryouts')}
             </Link>
           </div>
-
-          {/* Mobile Drawer Footer: Language Switcher */}
-          <div className="relative z-30 pointer-events-auto pt-3 border-t border-slate-800/80 flex items-center justify-between px-1">
-            <span className="text-xs font-semibold text-slate-400 select-none">
-              {t('nav.language')}
-            </span>
-            <LanguageSwitcher />
-          </div>
         </div>
       )}
     </header>
+    </>
   );
 };

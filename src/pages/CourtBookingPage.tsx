@@ -640,7 +640,7 @@ const CourtBookingContent: React.FC = () => {
                         ? 'border-amber-700/60 bg-[#101520] opacity-65 cursor-not-allowed select-none'
                         : isSelected
                         ? 'border-red-500 bg-[#161F30] shadow-2xl ring-2 ring-red-500/30 scale-[1.02] cursor-pointer'
-                        : 'border-slate-800 bg-[#121826] hover:border-slate-700 shadow-md hover:bg-[#151c2c] cursor-pointer'
+                        : 'dva-glass-card shadow-md cursor-pointer'
                     }`}
                   >
                     {/* Court Photograph Banner */}
@@ -720,7 +720,7 @@ const CourtBookingContent: React.FC = () => {
         </div>
 
         {/* STEP 2: REAL-TIME DATES (PRESENT TO FUTURE) & DYNAMIC COURT-SPECIFIC SLOTS */}
-        <div className="space-y-6 bg-[#121826] rounded-3xl border border-slate-800 p-6 sm:p-8 shadow-2xl">
+        <div className="space-y-6 dva-glass-panel rounded-3xl p-6 sm:p-8">
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
             <div>
@@ -1051,7 +1051,7 @@ const CourtBookingContent: React.FC = () => {
         <form onSubmit={handleBookingSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Add-on Services & Inputs (Left 7 cols) */}
-          <div className="lg:col-span-7 bg-[#121826] rounded-3xl border border-slate-800 p-6 sm:p-8 shadow-xl space-y-6">
+          <div className="lg:col-span-7 dva-glass-panel rounded-3xl p-6 sm:p-8 space-y-6">
             <h2 className="text-base font-extrabold text-white font-heading flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center font-bold">
                 3
@@ -1203,7 +1203,7 @@ const CourtBookingContent: React.FC = () => {
           {/* Pricing Summary, Auto VietQR Transfer Memo & Checkout Button (Right 5 cols) */}
           <div className="lg:col-span-5 space-y-4">
             
-            <div className="bg-[#121826] rounded-3xl border border-slate-800 p-6 sm:p-8 shadow-xl space-y-5">
+            <div className="dva-glass-panel rounded-3xl p-6 sm:p-8 space-y-5">
               <h3 className="font-heading font-extrabold text-base text-white border-b border-slate-800 pb-3">
                 Order Summary & Checkout
               </h3>

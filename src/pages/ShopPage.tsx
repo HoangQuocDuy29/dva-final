@@ -249,7 +249,7 @@ const ShopProductCard: React.FC<ShopProductCardProps> = ({
       onMouseLeave={handleDeactivateBackView}
       onFocus={handleActivateBackView}
       onBlur={handleDeactivateBackView}
-      className="group bg-[#0E1524] border border-slate-800/80 hover:border-red-500/50 rounded-2xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:shadow-red-950/20 hover:-translate-y-1 h-full"
+      className="group dva-glass-card hover:border-red-500/50 overflow-hidden flex flex-col justify-between hover:shadow-xl hover:shadow-red-950/20 hover:-translate-y-1 h-full"
     >
       <div className="flex flex-col flex-1">
         {/* COMPACT IMAGE CONTAINER (aspect-[4/5]) */}
@@ -1222,7 +1222,7 @@ export const ShopPage: React.FC = () => {
         /* ===================================================================== */
         <>
           {/* HERO BANNER */}
-          <section className="relative overflow-hidden border-b border-slate-800/80 bg-gradient-to-b from-[#0E1524] via-[#0B101D] to-[#080C14] pt-28 pb-16">
+          <section className="relative overflow-hidden border-b border-white/[0.06] bg-transparent pt-10 pb-14">
             <div className="absolute inset-0 pointer-events-none opacity-25">
               <div className="absolute -top-24 left-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-3xl" />
               <div className="absolute top-12 right-1/4 w-80 h-80 bg-orange-500/15 rounded-full blur-3xl" />
@@ -1260,7 +1260,7 @@ export const ShopPage: React.FC = () => {
               </div>
 
               {/* CATEGORY PILLS & SEARCH BAR */}
-              <div className="mt-10 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-[#0E1524]/90 p-3 rounded-2xl border border-slate-800">
+              <div className="mt-10 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 dva-glass-panel p-3 rounded-3xl">
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
                   <button
                     type="button"

@@ -280,16 +280,16 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm overflow-y-auto no-scrollbar animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="scorecard-modal-title"
     >
-      <div className="bg-[#111827] border border-slate-800 rounded-3xl max-w-6xl w-full shadow-2xl relative my-4 text-white flex flex-col max-h-[92vh] overflow-hidden">
+      <div className="rounded-3xl bg-[#0B0D12]/85 backdrop-blur-2xl border border-white/15 shadow-[0_24px_64px_rgba(0,0,0,0.65)] max-w-6xl w-full relative text-white flex flex-col max-h-[88vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-5 sm:px-6 py-4 shrink-0 bg-[#0E1524]">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 sm:px-6 py-3.5 shrink-0 bg-white/[0.03]">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-sky-600 flex items-center justify-center text-white shadow-lg shadow-emerald-950/50 shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-500 flex items-center justify-center text-white shadow-lg shadow-emerald-950/50 shrink-0">
               <ClipboardCheck className="w-5 h-5" />
             </div>
             <div className="min-w-0">
@@ -306,21 +306,21 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
             disabled={submitting !== null}
             onClick={onClose}
             aria-label="Close modal"
-            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+            className="text-slate-400 hover:text-white p-2 rounded-full bg-white/[0.05] hover:bg-white/10 border border-white/10 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Mobile Toggle */}
-        <div className="lg:hidden flex items-center gap-2 px-5 py-2.5 border-b border-slate-800 bg-[#0B0F19]">
+        <div className="lg:hidden flex items-center gap-2 px-5 py-2.5 border-b border-white/10 bg-white/[0.02] shrink-0">
           <button
             type="button"
             onClick={() => setMobileView('SCORECARD')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+            className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
               mobileView === 'SCORECARD'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-white/[0.05] border border-white/10 text-slate-300 hover:text-white'
             }`}
           >
             <ClipboardCheck className="w-3.5 h-3.5" />
@@ -329,10 +329,10 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
           <button
             type="button"
             onClick={() => setMobileView('PREVIEW')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+            className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
               mobileView === 'PREVIEW'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-white/[0.05] border border-white/10 text-slate-300 hover:text-white'
             }`}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -343,7 +343,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
         {/* Body */}
         <div className="flex-1 overflow-y-auto no-scrollbar p-5 sm:p-6">
           {errorMsg && (
-            <div className="mb-4 bg-red-950/80 border border-red-500/60 text-red-200 px-4 py-3 rounded-2xl text-xs font-semibold flex items-center gap-2">
+            <div className="mb-4 bg-red-500/15 border border-red-500/40 text-red-200 px-4 py-3 rounded-2xl text-xs font-semibold flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -353,50 +353,50 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
             {/* Left Column: Scorecard Controls */}
             <div className={`lg:col-span-6 space-y-4 ${mobileView === 'PREVIEW' ? 'hidden lg:block' : ''}`}>
               {/* Technical Profile Card (Zero PII) */}
-              <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800 space-y-2.5">
+              <div className="dva-glass-card !rounded-2xl p-4 space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <User className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span className="font-bold text-sm text-white truncate">{application.fullName}</span>
                     {birthYearDisplay && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 border border-white/10">
                         {birthYearDisplay}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                         application.paymentStatus === 'FREE'
-                          ? 'bg-sky-950 text-sky-300 border-sky-700'
+                          ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
                           : application.paymentStatus === 'PAID'
-                            ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
-                            : 'bg-amber-950 text-amber-300 border-amber-700'
+                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                            : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                       }`}
                     >
                       {application.paymentStatus || 'PENDING'}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/[0.06] text-slate-200 border border-white/10">
                       {application.status}
                     </span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-[11px]">
-                  <div className="bg-[#161F30] rounded-xl px-3 py-2 border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">Position · Registered</span>
+                  <div className="bg-white/[0.04] rounded-xl px-3 py-2 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">Position · Registered</span>
                     <strong className="text-orange-400 font-bold">
                       {application.position} · Registered: {registeredLevel}
                     </strong>
                   </div>
-                  <div className="bg-[#161F30] rounded-xl px-3 py-2 border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">Height / Weight</span>
+                  <div className="bg-white/[0.04] rounded-xl px-3 py-2 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">Height / Weight</span>
                     <strong className="text-white font-mono">
                       {application.height}cm{application.weight > 0 ? ` / ${application.weight}kg` : ''}
                     </strong>
                   </div>
-                  <div className="bg-[#161F30] rounded-xl px-3 py-2 border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">Spike / Tactics</span>
+                  <div className="bg-white/[0.04] rounded-xl px-3 py-2 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">Spike / Tactics</span>
                     <strong className="text-sky-300 font-mono">
                       {application.spikeReach > 0 ? `${application.spikeReach}cm` : application.rotationKnowledge}
                     </strong>
@@ -405,8 +405,8 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
               </div>
 
               {/* 4 Criteria (1–5 Rating Selectors) */}
-              <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800 space-y-3.5">
-                <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+              <div className="dva-glass-card !rounded-2xl p-4 space-y-3.5">
+                <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2.5">
                   <div className="flex items-center gap-2">
                     <Award className="w-4 h-4 text-amber-400" />
                     <span className="text-xs font-black uppercase tracking-wider text-white">
@@ -414,7 +414,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${scoreBand.cls}`}>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${scoreBand.cls}`}>
                       {scoreBand.label}
                     </span>
                     <span className="font-mono font-black text-base text-emerald-400 tabular-nums">
@@ -433,7 +433,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                             <span className="font-bold text-slate-200">
                               {idx + 1}. {crit.vi}
                             </span>
-                            <span className="text-[10px] text-slate-500 block italic">{crit.en}</span>
+                            <span className="text-[10px] text-slate-400 block italic">{crit.en}</span>
                           </div>
                           <span className="font-mono font-bold text-amber-300 text-xs shrink-0">
                             {RATING_LABELS[currentVal]?.label || `${currentVal}/5`}
@@ -449,8 +449,8 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                                 onClick={() => setScoreValue(crit.key, score)}
                                 className={`py-2 rounded-xl font-mono font-black text-xs border transition-all cursor-pointer ${
                                   active
-                                    ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-white border-orange-400 shadow'
-                                    : 'bg-[#161F30] text-slate-400 border-slate-800 hover:border-slate-600 hover:text-white'
+                                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-400 shadow'
+                                    : 'bg-white/[0.05] text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'
                                 }`}
                               >
                                 {score}
@@ -465,7 +465,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
               </div>
 
               {/* Assigned Level Selector (Coach overrides mis-registered division) */}
-              <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800 space-y-2.5">
+              <div className="dva-glass-card !rounded-2xl p-4 space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <label className="block text-xs font-bold text-slate-200">
@@ -477,7 +477,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                     </span>
                   </div>
                   {levelAdjusted && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-950/80 text-sky-300 border border-sky-700/70">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">
                       Điều chỉnh: {registeredLevel} → {assignedLevel}
                     </span>
                   )}
@@ -493,8 +493,8 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                         onClick={() => setAssignedLevel(lvl.value)}
                         className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer space-y-0.5 ${
                           active
-                            ? 'bg-sky-950/90 border-sky-500 text-sky-100 shadow shadow-sky-950/50'
-                            : 'bg-[#161F30] border-slate-800 text-slate-400 hover:border-slate-600 hover:text-white'
+                            ? 'bg-sky-500/20 border-sky-400/60 text-sky-100 shadow'
+                            : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:text-white'
                         }`}
                       >
                         <div className="font-mono font-black text-xs">{lvl.label}</div>
@@ -506,7 +506,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
               </div>
 
               {/* USAV Skill Rank Selector (Auto-syncs to Player Roster upon APPROVED) */}
-              <div className="p-4 rounded-2xl bg-[#0B0F19] border border-blue-900/50 space-y-2.5">
+              <div className="dva-glass-card !rounded-2xl p-4 border-blue-500/25 space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <label className="block text-xs font-bold text-slate-200">
@@ -529,10 +529,10 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                   <button
                     type="button"
                     onClick={() => setAssignedSkillRank(null)}
-                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all cursor-pointer ${
                       assignedSkillRank === null
-                        ? 'bg-slate-700 text-white border-slate-400'
-                        : 'bg-[#161F30] text-slate-400 border-slate-800 hover:text-white'
+                        ? 'bg-white/20 text-white border-white/40'
+                        : 'bg-white/[0.05] text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
                   >
                     Chưa xếp hạng
@@ -545,7 +545,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                         type="button"
                         onClick={() => setAssignedSkillRank(tier.code)}
                         title={tier.labelVi}
-                        className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
                           active
                             ? `${tier.pillBgClass} border-white/40 shadow scale-[1.03]`
                             : `${tier.badgeClass} opacity-75 hover:opacity-100`
@@ -569,8 +569,8 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                     onClick={() => setConclusion('APPROVED')}
                     className={`p-3 rounded-2xl border text-left transition-all cursor-pointer space-y-0.5 ${
                       conclusion === 'APPROVED'
-                        ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200 shadow-lg shadow-emerald-950/40'
-                        : 'bg-[#0B0F19] border-slate-800 text-slate-400 hover:text-white'
+                        ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-100 shadow-lg shadow-emerald-950/30'
+                        : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:text-white'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-black text-xs">
@@ -586,8 +586,8 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                     title="Đề xuất tham gia test lại buổi 2"
                     className={`p-3 rounded-2xl border text-left transition-all cursor-pointer space-y-0.5 ${
                       conclusion === 'RETEST'
-                        ? 'bg-amber-950/80 border-amber-500 text-amber-200 shadow-lg shadow-amber-950/40'
-                        : 'bg-[#0B0F19] border-slate-800 text-slate-400 hover:text-white'
+                        ? 'bg-amber-500/20 border-amber-400/60 text-amber-100 shadow-lg shadow-amber-950/30'
+                        : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:text-white'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-black text-xs">
@@ -604,8 +604,8 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                       title="Chưa đạt tiêu chuẩn đợt này"
                       className={`p-3 rounded-2xl border text-left transition-all cursor-pointer space-y-0.5 ${
                         conclusion === 'REJECTED'
-                          ? 'bg-red-950/80 border-red-500 text-red-200 shadow-lg shadow-red-950/40'
-                          : 'bg-[#0B0F19] border-slate-800 text-slate-400 hover:text-white'
+                          ? 'bg-red-500/20 border-red-400/60 text-red-100 shadow-lg shadow-red-950/30'
+                          : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-1.5 font-black text-xs">
@@ -629,7 +629,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                   value={coachNotes}
                   onChange={(e) => setCoachNotes(e.target.value)}
                   placeholder="Ghi chú điểm mạnh, điểm cần cải thiện về kỹ thuật bước 1, bật đà, chắn bóng..."
-                  className="w-full bg-[#161F30] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 placeholder:text-slate-500"
+                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500/60 focus:bg-white/[0.08] placeholder:text-white/40 transition-colors"
                 />
                 <div className="flex flex-wrap gap-1.5">
                   {COACH_FEEDBACK_PRESETS[conclusion].map((preset, idx) => (
@@ -637,7 +637,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                       key={idx}
                       type="button"
                       onClick={() => handleAppendFeedback(preset)}
-                      className="text-[10px] px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/80 text-left cursor-pointer transition-colors"
+                      className="text-[10px] px-2.5 py-1 rounded-full bg-white/[0.05] hover:bg-white/10 text-slate-300 border border-white/10 text-left cursor-pointer transition-colors"
                     >
                       + {preset.slice(0, 62)}...
                     </button>
@@ -647,14 +647,14 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
 
               {/* Result Email History (No PII / no toEmail) */}
               {resultHistory.length > 0 && (
-                <div className="p-3 rounded-2xl bg-sky-950/20 border border-sky-800/40 space-y-1.5">
+                <div className="p-3 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-1.5">
                   <div className="text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
                     <History className="w-3.5 h-3.5" />
                     <span>Lịch sử gửi email kết quả ({resultHistory.length})</span>
                   </div>
                   <div className="space-y-1 max-h-24 overflow-y-auto no-scrollbar">
                     {resultHistory.slice(0, 4).map((h, i) => (
-                      <div key={i} className="text-[10px] text-slate-400 flex items-center justify-between gap-2">
+                      <div key={i} className="text-[10px] text-slate-300 flex items-center justify-between gap-2">
                         <span className="truncate">
                           {h.outcome} · {h.sentAt ? new Date(h.sentAt).toLocaleString('vi-VN') : ''} · bởi {h.sentBy}
                         </span>
@@ -675,14 +675,14 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                   <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                   Live Result Email Preview (Resend HTML)
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-[10px] font-bold">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
                   Assigned: {assignedLevel}
                   {levelAdjusted ? ` (was ${registeredLevel})` : ''}
                 </span>
               </div>
 
               {conclusion === 'APPROVED' && (
-                <div className={`p-3 rounded-2xl border text-[11px] flex items-start gap-2.5 ${groupMeta.badgeClass}`}>
+                <div className={`p-3 rounded-2xl border text-[11px] flex items-start gap-2.5 backdrop-blur-md ${groupMeta.badgeClass}`}>
                   {assignedLevel === 'YOUTH' ? (
                     <Instagram className="w-4 h-4 shrink-0 mt-0.5" />
                   ) : (
@@ -696,7 +696,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
               )}
 
               {conclusion === 'RETEST' ? (
-                <div className="rounded-2xl border border-amber-700/50 bg-amber-950/20 p-6 text-xs text-amber-200 space-y-2">
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-xs text-amber-200 space-y-2">
                   <div className="font-bold text-sm flex items-center gap-2 text-amber-300">
                     <RotateCcw className="w-4 h-4" />
                     <span>Trạng thái Test Lại Buổi 2 (RETEST)</span>
@@ -709,8 +709,8 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                   </p>
                 </div>
               ) : (
-                <div className="rounded-2xl bg-[#090D16] border border-slate-800 overflow-hidden">
-                  <div className="px-4 py-2.5 border-b border-slate-800 text-[11px] space-y-1 bg-[#0E1524]">
+                <div className="dva-glass-card !rounded-2xl overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-white/10 text-[11px] space-y-1 bg-white/[0.03]">
                     <div className="flex items-center gap-2 text-slate-400">
                       <span className="font-semibold shrink-0">To:</span>
                       <span className="font-mono text-sky-300 truncate">
@@ -735,7 +735,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                     title="Live Try-Out Result Email Preview"
                     sandbox=""
                     srcDoc={previewHtml}
-                    className="w-full h-[460px] sm:h-[500px] bg-[#0b0f19] border-0"
+                    className="w-full h-[420px] sm:h-[450px] bg-[#0b0f19] border-0"
                   />
                 </div>
               )}
@@ -744,7 +744,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-800 px-5 sm:px-6 py-4 bg-[#0E1524] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="shrink-0 border-t border-white/10 bg-white/[0.03] px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-[11px] text-slate-400">
             Tổng điểm: <strong className="font-mono text-emerald-400">{totalScore}/20</strong> · Level:{' '}
             <strong className="font-mono text-sky-300">{assignedLevel}</strong> · Kết luận:{' '}
@@ -756,7 +756,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
               type="button"
               disabled={submitting !== null}
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-full text-xs font-semibold text-slate-300 hover:text-white bg-white/[0.05] hover:bg-white/10 border border-white/10 transition-colors cursor-pointer disabled:opacity-50"
             >
               Đóng
             </button>
@@ -765,7 +765,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
               type="button"
               disabled={submitting !== null}
               onClick={handleSaveOnly}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+              className="px-4 py-2 rounded-full bg-white/[0.08] hover:bg-white/15 border border-white/15 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
             >
               {submitting === 'SAVE' ? (
                 <>
@@ -785,7 +785,7 @@ export const EvaluationScorecardModal: React.FC<EvaluationScorecardModalProps> =
                 type="button"
                 disabled={submitting !== null}
                 onClick={handleSaveAndSendEmail}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:brightness-110 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-950/40 disabled:opacity-50 cursor-pointer transition-all"
+                className="px-5 py-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-950/40 disabled:opacity-50 cursor-pointer transition-all"
               >
                 {submitting === 'SEND' ? (
                   <>

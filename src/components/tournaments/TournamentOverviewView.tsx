@@ -239,7 +239,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
   return (
     <div className="space-y-8">
       {/* 1. HERO OVERVIEW CARD */}
-      <section className="relative overflow-hidden rounded-3xl border border-[#1E293B] bg-[#111827] shadow-2xl">
+      <section className="relative overflow-hidden dva-glass-panel rounded-3xl shadow-2xl">
         {bannerSrc && (
           <div className="relative aspect-[21/9] max-h-[340px] w-full overflow-hidden bg-[#0B0F19]">
             <img
@@ -299,7 +299,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
 
             {/* Countdown Box (when UPCOMING) */}
             {countdown && (
-              <div className="p-4 rounded-2xl bg-[#0B0F19]/90 border border-[#1E293B] space-y-1.5 shrink-0">
+              <div className="p-4 rounded-2xl bg-white/[0.05] backdrop-blur-lg border border-white/10 space-y-1.5 shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-[#F97316]" />
                   Kick-off Countdown
@@ -311,7 +311,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
                     { v: countdown.minutes, u: 'M' },
                     { v: countdown.seconds, u: 'S' },
                   ].map((item) => (
-                    <div key={item.u} className="text-center px-2.5 py-1.5 rounded-xl bg-[#111827] border border-[#1E293B]">
+                    <div key={item.u} className="text-center px-2.5 py-1.5 rounded-xl bg-white/[0.05] border border-white/10">
                       <div className="text-lg font-black text-white tabular-nums">
                         {String(item.v).padStart(2, '0')}
                       </div>
@@ -366,7 +366,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
 
       {/* 2. CAPTAIN REGISTRATION & PROGRESS CARD (HOSTED + UPCOMING) */}
       {isHosted && tournament.status === 'UPCOMING' && (
-        <section className="rounded-3xl border border-[#1E293B] bg-[#111827] p-6 space-y-5">
+        <section className="dva-glass-panel rounded-3xl p-6 space-y-5">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1">
               <h3 className="font-heading font-black text-lg text-white flex items-center gap-2">
@@ -412,7 +412,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-[#1E293B]">
-            <div className="p-4 rounded-2xl bg-[#0B0F19] border border-[#1E293B] space-y-2 sm:col-span-2">
+            <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2 sm:col-span-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-300">{t('registration.confirmedProgress')}</span>
                 <span className="font-mono font-black text-emerald-400">
@@ -432,7 +432,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
               )}
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#0B0F19] border border-[#1E293B] flex flex-col justify-center">
+            <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col justify-center">
               <span className="text-[11px] text-slate-400 font-semibold">{t('registration.entryFee')}</span>
               <span className="font-mono font-black text-xl text-[#FACC15] mt-0.5 whitespace-nowrap">
                 {tournament.entryFeePerTeam > 0
@@ -585,7 +585,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
                       type="button"
                       disabled={!w.team}
                       onClick={() => w.team && onSelectTeam(w.team)}
-                      className={`text-left p-4 rounded-2xl bg-[#111827] border border-[#1E293B] hover:border-[#FACC15]/60 space-y-3 transition-all ${
+                      className={`text-left p-4 dva-glass-card hover:border-[#FACC15]/60 space-y-3 ${
                         w.team ? 'hover:-translate-y-0.5 cursor-pointer group' : 'cursor-default'
                       }`}
                     >
@@ -770,7 +770,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
         </div>
 
         {tournament.teams.length === 0 ? (
-          <div className="rounded-2xl bg-[#111827] border border-[#1E293B] p-8 text-center text-xs text-slate-500">
+          <div className="dva-glass-panel rounded-3xl p-8 text-center text-xs text-slate-500">
             Confirmed teams will appear here once registrations are verified.
           </div>
         ) : (
@@ -784,7 +784,7 @@ export const TournamentOverviewView: React.FC<TournamentOverviewViewProps> = ({
                   key={tm.id}
                   type="button"
                   onClick={() => onSelectTeam(tm)}
-                  className="text-left p-3 sm:p-4 rounded-2xl bg-[#111827] hover:bg-[#161F30] border border-[#1E293B] hover:border-[#F97316]/50 transition-all flex items-center gap-2.5 sm:gap-3 cursor-pointer group min-w-0 overflow-hidden"
+                  className="text-left p-3 sm:p-4 dva-glass-card hover:border-[#F97316]/50 flex items-center gap-2.5 sm:gap-3 cursor-pointer group min-w-0 overflow-hidden"
                 >
                   <TeamLogoBadge
                     logoUrl={tm.logoUrl}

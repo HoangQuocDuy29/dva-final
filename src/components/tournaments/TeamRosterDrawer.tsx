@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowUpRight, Calendar, MapPin, Shield, Trophy, Users, X } from 'lucide-react';
@@ -76,8 +77,8 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
     ? `/players/${team.dvaSquadLevel.toLowerCase()}`
     : '/players';
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex justify-end" role="dialog" aria-modal="true">
       <button
         type="button"
         aria-label="Close team roster drawer"
@@ -85,9 +86,9 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
         className="absolute inset-0 bg-black/75 backdrop-blur-sm cursor-default"
       />
 
-      <aside className="relative w-full max-w-lg h-full bg-[#0E1524] border-l border-[#1E293B] shadow-2xl flex flex-col text-white overflow-hidden animate-in slide-in-from-right duration-200">
+      <aside className="relative w-full max-w-lg h-full bg-[#0B0D12]/90 backdrop-blur-2xl border-l border-white/15 shadow-2xl flex flex-col text-white overflow-hidden animate-in slide-in-from-right duration-200">
         {/* Drawer Header */}
-        <div className="p-5 sm:p-6 bg-[#0B0F19] border-b border-[#1E293B] space-y-4">
+        <div className="p-5 sm:p-6 bg-white/[0.03] border-b border-white/10 space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3.5 min-w-0">
               <TeamLogoBadge
@@ -170,7 +171,7 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
                       className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
                         pl.awards.length > 0
                           ? 'bg-amber-950/15 border-amber-500/40'
-                          : 'bg-[#111827] border-[#1E293B]'
+                          : 'bg-white/[0.04] border-white/10'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -246,7 +247,7 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
                   return (
                     <div
                       key={m.id}
-                      className="p-3.5 rounded-2xl bg-[#111827] border border-[#1E293B] flex items-center justify-between gap-3 text-xs"
+                      className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-3 text-xs"
                     >
                       <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-2 text-[10px] text-slate-400">
@@ -303,6 +304,7 @@ export const TeamRosterDrawer: React.FC<TeamRosterDrawerProps> = ({
           </section>
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body
   );
 };

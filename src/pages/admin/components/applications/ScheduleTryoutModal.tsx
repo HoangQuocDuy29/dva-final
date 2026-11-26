@@ -150,16 +150,16 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm overflow-y-auto no-scrollbar animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="schedule-tryout-modal-title"
     >
-      <div className="bg-[#111827] border border-slate-800 rounded-3xl max-w-6xl w-full shadow-2xl relative my-4 text-white flex flex-col max-h-[92vh] overflow-hidden">
+      <div className="rounded-3xl bg-[#0B0D12]/85 backdrop-blur-2xl border border-white/15 shadow-[0_24px_64px_rgba(0,0,0,0.65)] max-w-6xl w-full relative text-white flex flex-col max-h-[88vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-5 sm:px-6 py-4 shrink-0 bg-[#0E1524]">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 sm:px-6 py-3.5 shrink-0 bg-white/[0.03]">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-950/50 shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-950/50 shrink-0">
               <Calendar className="w-5 h-5" />
             </div>
             <div className="min-w-0">
@@ -176,21 +176,21 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
             disabled={isSending}
             onClick={onClose}
             aria-label="Close modal"
-            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+            className="text-slate-400 hover:text-white p-2 rounded-full bg-white/[0.05] hover:bg-white/10 border border-white/10 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Mobile Form / Preview Toggle */}
-        <div className="lg:hidden flex items-center gap-2 px-5 py-2.5 border-b border-slate-800 bg-[#0B0F19]">
+        <div className="lg:hidden flex items-center gap-2 px-5 py-2.5 border-b border-white/10 bg-white/[0.02] shrink-0">
           <button
             type="button"
             onClick={() => setMobileView('FORM')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+            className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
               mobileView === 'FORM'
-                ? 'bg-orange-600 text-white'
-                : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                ? 'bg-orange-500 text-white'
+                : 'bg-white/[0.05] border border-white/10 text-slate-300 hover:text-white'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
@@ -199,10 +199,10 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
           <button
             type="button"
             onClick={() => setMobileView('PREVIEW')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+            className={`flex-1 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
               mobileView === 'PREVIEW'
-                ? 'bg-orange-600 text-white'
-                : 'bg-slate-800/80 text-slate-400 hover:text-white'
+                ? 'bg-orange-500 text-white'
+                : 'bg-white/[0.05] border border-white/10 text-slate-300 hover:text-white'
             }`}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -213,7 +213,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
         {/* Body */}
         <div className="flex-1 overflow-y-auto no-scrollbar p-5 sm:p-6">
           {errorMsg && (
-            <div className="mb-4 bg-red-950/80 border border-red-500/60 text-red-200 px-4 py-3 rounded-2xl text-xs font-semibold flex items-center gap-2">
+            <div className="mb-4 bg-red-500/15 border border-red-500/40 text-red-200 px-4 py-3 rounded-2xl text-xs font-semibold flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -227,19 +227,19 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
               className={`lg:col-span-5 space-y-4 ${mobileView === 'PREVIEW' ? 'hidden lg:block' : ''}`}
             >
               {/* Auto-filled Candidate Card */}
-              <div className="p-4 rounded-2xl bg-[#0B0F19] border border-slate-800 space-y-2.5">
+              <div className="dva-glass-card !rounded-2xl p-4 space-y-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <User className="w-4 h-4 text-orange-400 shrink-0" />
                     <span className="font-bold text-sm text-white truncate">{application.fullName}</span>
                   </div>
                   <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
                       application.paymentStatus === 'FREE'
-                        ? 'bg-sky-950 text-sky-300 border-sky-700'
+                        ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
                         : application.paymentStatus === 'PAID'
-                          ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
-                          : 'bg-amber-950 text-amber-300 border-amber-700'
+                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                     }`}
                   >
                     Fee: {application.paymentStatus || 'PENDING'}
@@ -247,23 +247,23 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
-                  <div className="bg-[#161F30] rounded-xl px-3 py-2 border border-slate-800/80">
-                    <span className="text-slate-500 block text-[10px]">Position &amp; Level</span>
+                  <div className="bg-white/[0.04] rounded-xl px-3 py-2 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">Position &amp; Level</span>
                     <strong className="text-orange-400 font-bold">
                       {application.position} · {application.level}
                     </strong>
                   </div>
                   {isSuperAdmin ? (
-                    <div className="bg-[#161F30] rounded-xl px-3 py-2 border border-slate-800/80">
-                      <span className="text-slate-500 block text-[10px]">Phone / Zalo</span>
+                    <div className="bg-white/[0.04] rounded-xl px-3 py-2 border border-white/10">
+                      <span className="text-slate-400 block text-[10px]">Phone / Zalo</span>
                       <strong className="text-white font-mono inline-flex items-center gap-1">
                         <Phone className="w-3 h-3 text-sky-400" />
                         {application.zalo || '—'}
                       </strong>
                     </div>
                   ) : (
-                    <div className="bg-[#161F30] rounded-xl px-3 py-2 border border-slate-800/80">
-                      <span className="text-slate-500 block text-[10px]">Physical Metrics</span>
+                    <div className="bg-white/[0.04] rounded-xl px-3 py-2 border border-white/10">
+                      <span className="text-slate-400 block text-[10px]">Physical Metrics</span>
                       <strong className="text-white font-mono">
                         {application.height}cm{application.spikeReach > 0 ? ` · ${application.spikeReach}cm` : ''}
                       </strong>
@@ -272,7 +272,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                 </div>
 
                 {application.preferredDays && (
-                  <div className="text-[11px] text-sky-300 bg-sky-950/30 border border-sky-800/40 rounded-xl px-3 py-2">
+                  <div className="text-[11px] text-sky-300 bg-sky-500/10 border border-sky-500/30 rounded-xl px-3 py-2">
                     <span className="font-bold text-sky-400">Khung ngày VĐV mong muốn:</span>{' '}
                     {application.preferredDays}
                   </div>
@@ -286,18 +286,18 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                 </label>
                 {isSuperAdmin ? (
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <Mail className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="email"
                       required
                       value={toEmail}
                       onChange={(e) => setToEmail(e.target.value)}
                       placeholder="athlete@gmail.com"
-                      className="w-full bg-[#161F30] border border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500 placeholder:text-slate-500"
+                      className="w-full bg-white/[0.05] border border-white/10 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500/60 focus:bg-white/[0.08] placeholder:text-white/40 transition-colors"
                     />
                   </div>
                 ) : (
-                  <div className="px-3.5 py-2.5 rounded-xl bg-[#0B0F19] border border-slate-800 text-[11px] text-sky-300 flex items-center gap-2">
+                  <div className="px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-[11px] text-sky-300 flex items-center gap-2">
                     <Mail className="w-4 h-4 text-sky-400 shrink-0" />
                     <span>Server tự động đọc email của {application.fullName} &amp; gửi qua Resend (Ẩn theo quyền ADMIN).</span>
                   </div>
@@ -315,7 +315,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                     required
                     value={date}
                     onChange={(e) => handleDateChange(e.target.value)}
-                    className="w-full bg-[#161F30] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-orange-500"
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-orange-500/60 focus:bg-white/[0.08] transition-colors"
                   />
                 </div>
 
@@ -327,9 +327,9 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                     className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold border flex items-center justify-between ${
                       dayInfo.valid
                         ? dayInfo.isStandardTryoutDay
-                          ? 'bg-emerald-950/40 border-emerald-700/60 text-emerald-300'
-                          : 'bg-amber-950/40 border-amber-700/60 text-amber-300'
-                        : 'bg-[#161F30] border-slate-700 text-slate-400'
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                          : 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                        : 'bg-white/[0.05] border-white/10 text-slate-400'
                     }`}
                   >
                     <span>{dayInfo.valid ? dayInfo.combinedLabel : '—'}</span>
@@ -343,7 +343,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
               </div>
 
               {dayInfo.valid && !dayInfo.isStandardTryoutDay && (
-                <div className="text-[11px] text-amber-300 bg-amber-950/30 border border-amber-700/40 rounded-xl px-3 py-2">
+                <div className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">
                   Lưu ý: Lịch Try-Out cố định là Thứ 2, 4, 6, 7 (18:00 - 19:00) &amp; Chủ Nhật (13:30 - 14:30). Bạn vẫn có thể hẹn lịch riêng vào {dayInfo.viDay}.
                 </div>
               )}
@@ -354,14 +354,14 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                   Khung giờ Try-Out <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
-                  <Clock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Clock className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     required
                     value={timeSlot}
                     onChange={(e) => setTimeSlot(e.target.value)}
                     placeholder="18:00 - 19:00"
-                    className="w-full bg-[#161F30] border border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-orange-500"
+                    className="w-full bg-white/[0.05] border border-white/10 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-orange-500/60 focus:bg-white/[0.08] transition-colors"
                   />
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -370,10 +370,10 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                       key={preset}
                       type="button"
                       onClick={() => setTimeSlot(preset)}
-                      className={`text-[11px] px-2.5 py-1 rounded-lg border font-mono cursor-pointer transition-colors ${
+                      className={`text-[11px] px-3 py-1 rounded-full border font-mono cursor-pointer transition-colors ${
                         timeSlot === preset
-                          ? 'bg-orange-600/25 border-orange-500 text-orange-300 font-bold'
-                          : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
+                          ? 'bg-orange-500/20 border-orange-500/60 text-orange-300 font-bold'
+                          : 'bg-white/[0.05] border-white/10 text-slate-300 hover:bg-white/10 hover:text-white'
                       }`}
                     >
                       {preset}{' '}
@@ -395,7 +395,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="VD: Mang giày đế bằng chuyên dụng indoor, có mặt trước 15 phút để khởi động..."
-                  className="w-full bg-[#161F30] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500 placeholder:text-slate-500 resize-y"
+                  className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500/60 focus:bg-white/[0.08] placeholder:text-white/40 resize-y transition-colors"
                 />
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {COACH_NOTE_PRESETS.map((snippet, idx) => (
@@ -403,7 +403,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                       key={idx}
                       type="button"
                       onClick={() => handleAppendNote(snippet)}
-                      className="text-[10px] px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 cursor-pointer transition-colors"
+                      className="text-[10px] px-2.5 py-1 rounded-full bg-white/[0.05] hover:bg-white/10 border border-white/10 text-slate-300 cursor-pointer transition-colors"
                     >
                       + {idx === 0 ? 'Giày indoor' : idx === 1 ? 'Đến sớm 15p' : 'Nước & đồ tập'}
                     </button>
@@ -412,7 +412,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
               </div>
 
               {/* Venue reminder pill */}
-              <div className="p-3 rounded-2xl bg-[#0B0F19] border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
+              <div className="dva-glass-card !rounded-2xl p-3 text-[11px] text-slate-400 flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold text-slate-200 block">
@@ -426,14 +426,14 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
 
               {/* Invite History if previously sent */}
               {historyList.length > 0 && (
-                <div className="p-3 rounded-2xl bg-sky-950/20 border border-sky-800/40 space-y-1.5">
+                <div className="p-3 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-1.5">
                   <div className="text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
                     <History className="w-3.5 h-3.5" />
                     <span>Lịch sử hẹn đã gửi ({historyList.length})</span>
                   </div>
                   <div className="space-y-1 max-h-24 overflow-y-auto no-scrollbar">
                     {historyList.slice(0, 4).map((h, i) => (
-                      <div key={i} className="text-[10px] text-slate-400 flex items-center justify-between gap-2">
+                      <div key={i} className="text-[10px] text-slate-300 flex items-center justify-between gap-2">
                         <span className="truncate">
                           {h.dayLabel} ({h.date}) · {h.timeSlot}
                           {isSuperAdmin && h.toEmail ? ` → ${h.toEmail}` : ''}
@@ -455,13 +455,13 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                   <Sparkles className="w-3.5 h-3.5 text-orange-400" />
                   Live Email Preview (Resend HTML)
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-[10px] font-bold">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
                   dva-volleyball-hanoi.com
                 </span>
               </div>
 
-              <div className="rounded-2xl bg-[#090D16] border border-slate-800 overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-slate-800 text-[11px] space-y-1 bg-[#0E1524]">
+              <div className="dva-glass-card !rounded-2xl overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-white/10 text-[11px] space-y-1 bg-white/[0.03]">
                   <div className="flex items-center gap-2 text-slate-400">
                     <span className="font-semibold shrink-0">To:</span>
                     <span className="font-mono text-sky-300 truncate">
@@ -480,7 +480,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
                   title="Live Try-Out Invitation Email Preview"
                   sandbox=""
                   srcDoc={previewHtml}
-                  className="w-full h-[480px] sm:h-[520px] bg-[#0b0f19] border-0"
+                  className="w-full h-[420px] sm:h-[450px] bg-[#0b0f19] border-0"
                 />
               </div>
             </div>
@@ -488,7 +488,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t border-slate-800 px-5 sm:px-6 py-4 bg-[#0E1524] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="shrink-0 border-t border-white/10 bg-white/[0.03] px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span>
@@ -502,7 +502,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
               type="button"
               disabled={isSending}
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-full text-xs font-semibold text-slate-300 hover:text-white bg-white/[0.05] hover:bg-white/10 border border-white/10 transition-colors cursor-pointer disabled:opacity-50"
             >
               Hủy bỏ
             </button>
@@ -510,7 +510,7 @@ export const ScheduleTryoutModal: React.FC<ScheduleTryoutModalProps> = ({
               type="submit"
               form="schedule-tryout-form"
               disabled={isSending}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-orange-950/40 disabled:opacity-50 cursor-pointer transition-all"
+              className="px-5 py-2 rounded-full bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-orange-950/40 disabled:opacity-50 cursor-pointer transition-all"
             >
               {isSending ? (
                 <>

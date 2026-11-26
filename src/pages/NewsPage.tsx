@@ -152,16 +152,16 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
 
         {/* Filter Bar & Search */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-[#111827] border border-slate-800 rounded-2xl w-full lg:w-auto">
+          <div className="flex flex-wrap items-center gap-1.5 p-2 dva-glass-panel rounded-2xl w-full lg:w-auto">
             {filterTabs.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                   selectedCategory === cat.id
                     ? 'bg-red-600 text-white shadow-lg shadow-red-950/50'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
                 }`}
               >
                 {cat.label}
@@ -176,7 +176,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('search.placeholder')}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-[#111827] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full pl-9 pr-3 py-2 text-xs dva-glass-pill text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/60"
             />
           </div>
         </div>
@@ -194,7 +194,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
             {paginatedNews.map((article) => (
               <article
                 key={article.id}
-                className={`bg-[#161F30] rounded-3xl border overflow-hidden shadow-xl flex flex-col justify-between transition-all group ${
+                className={`dva-glass-card overflow-hidden shadow-xl flex flex-col justify-between group ${
                   article.isPinned && selectedCategory === 'ALL' && !search.trim()
                     ? 'border-orange-500/40 hover:border-orange-500/70'
                     : 'border-slate-800 hover:border-slate-700'
@@ -284,7 +284,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                 type="button"
                 onClick={() => handlePageChange(safeCurrentPage - 1)}
                 disabled={safeCurrentPage <= 1}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold bg-[#111827] border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-2 dva-glass-pill text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 <span>{t('pagination.previous')}</span>
@@ -301,7 +301,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                       className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         isActive
                           ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-lg shadow-red-950/60 border border-red-500/40'
-                          : 'bg-[#111827] border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                          : 'dva-glass-pill text-slate-400 hover:text-white hover:bg-white/10'
                       }`}
                     >
                       {pageNum}
@@ -314,7 +314,7 @@ export const NewsPage: React.FC<NewsPageProps> = ({ currentUser: _currentUser })
                 type="button"
                 onClick={() => handlePageChange(safeCurrentPage + 1)}
                 disabled={safeCurrentPage >= totalPages}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold bg-[#111827] border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-2 dva-glass-pill text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
               >
                 <span>{t('pagination.next')}</span>
                 <ChevronRight className="w-3.5 h-3.5" />

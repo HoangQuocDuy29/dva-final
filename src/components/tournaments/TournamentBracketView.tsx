@@ -57,7 +57,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
       tournament.isRegistrationOpen &&
       !tournament.isRosterLocked;
     return (
-      <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-8 sm:p-12 text-center space-y-5">
+      <div className="dva-glass-panel rounded-3xl p-8 sm:p-12 text-center space-y-5">
         <div className="w-14 h-14 rounded-2xl bg-[#F97316]/10 border border-[#F97316]/30 flex items-center justify-center mx-auto">
           <Construction className="w-7 h-7 text-[#F97316]" />
         </div>
@@ -122,7 +122,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
 
     return (
       <div
-        className={`rounded-2xl bg-[#111827] border p-3.5 space-y-2 transition-all ${
+        className={`rounded-2xl bg-white/[0.04] backdrop-blur-lg border p-3.5 space-y-2 transition-all ${
           isLive
             ? 'border-red-500 shadow-lg shadow-red-950/30'
             : isCompleted
@@ -285,7 +285,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
           : 'bg-sky-500/15 text-sky-300 border-sky-500/30';
 
       return (
-        <div className={`rounded-2xl bg-[#0B0F19] border ${accentBorder} p-4 space-y-3`}>
+        <div className={`rounded-2xl bg-white/[0.03] backdrop-blur-md border ${accentBorder} p-4 space-y-3`}>
           <div className="flex items-center justify-between gap-2">
             <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase border ${badgeTone}`}>
               {poolTitle}
@@ -309,7 +309,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
                     type="button"
                     disabled={!onSelectTeam}
                     onClick={() => onSelectTeam?.(team)}
-                    className={`p-2.5 rounded-xl bg-[#111827] border border-[#1E293B] flex items-center gap-2.5 text-left transition-colors ${
+                    className={`p-2.5 rounded-xl bg-white/[0.04] border border-white/10 flex items-center gap-2.5 text-left transition-colors ${
                       onSelectTeam ? 'hover:border-[#F97316]/60 cursor-pointer group' : 'cursor-default'
                     }`}
                   >
@@ -340,7 +340,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
               return (
                 <div
                   key={`${poolKey}-slot-${idx}`}
-                  className="p-2.5 rounded-xl bg-[#111827]/50 border border-dashed border-[#1E293B] flex items-center gap-2.5"
+                  className="p-2.5 rounded-xl bg-white/[0.02] border border-dashed border-white/15 flex items-center gap-2.5"
                 >
                   <span className="w-8 h-8 rounded-lg bg-[#0B0F19] border border-[#1E293B] flex items-center justify-center font-mono font-black text-[11px] text-slate-300 shrink-0">
                     {codeBadge}
@@ -369,7 +369,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
         : `/tournaments/${tournament.slug}/schedule`;
 
     return (
-      <section className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-7 space-y-6">
+      <section className="dva-glass-panel rounded-3xl p-5 sm:p-7 space-y-6">
         {/* Block 2 Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1E293B] pb-4">
           <div className="space-y-1.5">
@@ -419,7 +419,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
           </div>
 
           {/* Desktop 5-Column Symmetrical 2-Wing Blueprint */}
-          <div className="hidden lg:block rounded-2xl border border-[#1E293B] bg-[#0B0F19] p-5">
+          <div className="hidden lg:block rounded-2xl border border-white/10 bg-white/[0.02] p-5">
             <div className="grid grid-cols-5 gap-3 items-center">
               {/* Left Wing QF1 & QF3 */}
               <div className="space-y-4">
@@ -479,7 +479,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
           </div>
 
           {/* Mobile Stacked Vertical Progression Blueprint (No horizontal scroll) */}
-          <div className="lg:hidden rounded-2xl border border-[#1E293B] bg-[#0B0F19] p-4 space-y-4">
+          <div className="lg:hidden rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-4">
             <div className="space-y-2.5">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 {t('rules.blueprint.quarterfinals')}
@@ -549,7 +549,7 @@ export const TournamentBracketView: React.FC<TournamentBracketViewProps> = ({
             <span>{t('bracket.knockoutTitle')}</span>
           </h3>
 
-          <div className="rounded-3xl border border-[#1E293B] bg-[#0B0F19] p-4 sm:p-6 overflow-x-auto no-scrollbar">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-4 sm:p-6 overflow-x-auto no-scrollbar">
             <div className="min-w-[920px] grid grid-cols-5 gap-4 items-center">
               {/* Col 1: Left Wing QF1 & QF3 */}
               <div className="space-y-6">

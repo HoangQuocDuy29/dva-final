@@ -308,7 +308,7 @@ export const SkillLevelsPage: React.FC = () => {
           <div
             role="group"
             aria-label="Language switcher"
-            className="inline-flex items-center p-1 rounded-full bg-[#161F30] border border-slate-700/80 shadow-lg"
+            className="inline-flex items-center p-1 dva-glass-pill shadow-lg"
           >
             <button
               type="button"
@@ -478,7 +478,7 @@ export const SkillLevelsPage: React.FC = () => {
                 <article
                   id={`rank-${tier.code.toLowerCase()}`}
                   key={tier.code}
-                  className={`bg-[#161F30]/90 backdrop-blur-sm rounded-3xl border ${tier.cardBorderClass} p-6 shadow-xl flex flex-col justify-between space-y-4 transition-all duration-200 scroll-mt-24`}
+                  className={`dva-glass-card ${tier.cardBorderClass} p-6 shadow-xl flex flex-col justify-between space-y-4 scroll-mt-24`}
                 >
                   <div className="space-y-4">
                     <div className="flex items-start justify-between gap-3">
@@ -549,7 +549,7 @@ export const SkillLevelsPage: React.FC = () => {
             {DVA_SQUAD_USAV_MAPPING.map((squad) => (
               <div
                 key={squad.level}
-                className={`rounded-3xl bg-[#161F30]/90 border ${squad.borderClass} p-5 sm:p-6 shadow-xl flex flex-col justify-between gap-4 transition-colors`}
+                className={`dva-glass-card ${squad.borderClass} p-5 sm:p-6 shadow-xl flex flex-col justify-between gap-4`}
               >
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">

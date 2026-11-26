@@ -10,6 +10,7 @@ import {
   Clock,
   Loader2,
   Mail,
+  MoreHorizontal,
   Pencil,
   Search,
   ShieldCheck,
@@ -121,6 +122,17 @@ export const ApplicationsTab: React.FC = () => {
       setUpdatingLevelId(null);
     }
   };
+
+  const [actionMenu, setActionMenu] = useState<{ app: MemberApplication; fee: number; top: number; right: number } | null>(null);
+
+  useEffect(() => {
+    if (!actionMenu) return undefined;
+    const close = () => setActionMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', close);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('resize', close); };
+  }, [actionMenu]);
 
   const startEditName = (app: MemberApplication) => {
     if (!isSuperAdmin || savingNameId) return;
@@ -348,12 +360,12 @@ export const ApplicationsTab: React.FC = () => {
       {/* Main Card */}
       <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
         {/* Top Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-bold text-base text-white">Tryout Applications &amp; Scorecard</h3>
               {!isSuperAdmin && (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-sky-950/70 text-sky-300 border border-sky-700/60">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-sky-500/15 text-sky-300 border border-sky-500/30">
                   Coach / Admin Mode (Privacy Protected)
                 </span>
               )}
@@ -367,7 +379,7 @@ export const ApplicationsTab: React.FC = () => {
 
           {/* Search Input */}
           <div className="relative w-full lg:w-72 shrink-0">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
@@ -380,14 +392,14 @@ export const ApplicationsTab: React.FC = () => {
                   ? 'Search name, Zalo, email, position...'
                   : 'Search name, position, division...'
               }
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#0E1524] border border-slate-700 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-orange-500"
+              className="w-full pl-9 pr-4 py-2 rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 text-xs text-white placeholder:text-white/40 focus:outline-none focus:border-orange-500/50 transition-colors"
             />
           </div>
         </div>
 
         {/* Filter Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#0E1524] border border-slate-800 w-fit">
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 w-fit">
             {statusTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -396,10 +408,10 @@ export const ApplicationsTab: React.FC = () => {
                   setStatusFilter(tab.id);
                   setCurrentPage(1);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                   statusFilter === tab.id
-                    ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
                 }`}
               >
                 {tab.label} ({tab.count})
@@ -407,7 +419,7 @@ export const ApplicationsTab: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#0E1524] border border-slate-800 w-fit">
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 w-fit">
             {(
               [
                 { id: 'ALL', label: 'All Fees' },
@@ -423,16 +435,10 @@ export const ApplicationsTab: React.FC = () => {
                   setPaymentFilter(pf.id);
                   setCurrentPage(1);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                   paymentFilter === pf.id
-                    ? pf.id === 'PAID'
-                      ? 'bg-emerald-600 text-white'
-                      : pf.id === 'FREE'
-                        ? 'bg-sky-600 text-white'
-                        : pf.id === 'PENDING'
-                          ? 'bg-amber-600 text-white'
-                          : 'bg-slate-700 text-white'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-white text-slate-950 shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
                 }`}
               >
                 {pf.label}
@@ -469,7 +475,7 @@ export const ApplicationsTab: React.FC = () => {
               )}
             </colgroup>
             <thead>
-              <tr className="bg-[#0E1524] text-slate-400 font-bold border-b border-slate-800">
+              <tr className="bg-white/[0.03] backdrop-blur-md text-white/60 font-bold border-y border-white/10">
                 <th className="py-3 px-3 min-w-[190px]">Candidate / Profile</th>
                 <th className="py-3 px-3">Division &amp; Metrics</th>
                 {isSuperAdmin && <th className="py-3 px-3">Contact (Zalo / Email)</th>}
@@ -478,7 +484,7 @@ export const ApplicationsTab: React.FC = () => {
                 <th className="py-3 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800 text-slate-300">
+            <tbody className="divide-y divide-white/[0.06] text-slate-300">
               {paginatedApplications.length === 0 ? (
                 <tr>
                   <td colSpan={isSuperAdmin ? 6 : 5} className="py-10 text-center text-slate-500">
@@ -690,7 +696,7 @@ export const ApplicationsTab: React.FC = () => {
                           <div>
                             Zalo: <strong className="font-mono text-white">{app.zalo || '—'}</strong>
                           </div>
-                          <div className="text-slate-400 break-all">
+                          <div title={app.gmail || undefined} className="text-slate-400 truncate max-w-[195px] block">
                             {app.gmail || '—'}
                           </div>
                           {app.instagram && app.instagram !== 'None' && (
@@ -708,40 +714,40 @@ export const ApplicationsTab: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleChangePaymentStatus(app, 'PAID')}
-                                  title="Đánh dấu đã đóng phí (PAID) — giữ nguyên trạng thái duyệt hồ sơ"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide border bg-amber-950/80 text-amber-300 border-amber-600/70 hover:bg-emerald-950/90 hover:text-emerald-300 hover:border-emerald-600/70 cursor-pointer transition-all whitespace-nowrap"
+                                  title="Bấm để chuyển sang PAID"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25 cursor-pointer transition-all whitespace-nowrap"
                                 >
                                   <Clock className="w-3 h-3" />
-                                  <span>PENDING → Paid</span>
+                                  <span>PENDING</span>
                                 </button>
                               ) : payStatus === 'PAID' ? (
                                 <button
                                   type="button"
                                   onClick={() => handleChangePaymentStatus(app, 'PENDING')}
-                                  title="Đã PAID (bấm để chuyển lại PENDING nếu cần)"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide border bg-emerald-950/90 text-emerald-300 border-emerald-600/70 hover:bg-amber-950/80 hover:text-amber-300 hover:border-amber-600/70 cursor-pointer transition-all whitespace-nowrap"
+                                  title="Bấm để chuyển về PENDING"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25 cursor-pointer transition-all whitespace-nowrap"
                                 >
                                   <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                  <span>PAID ⇄ Pending</span>
+                                  <span>PAID</span>
                                 </button>
                               ) : (
                                 <>
                                   <button
                                     type="button"
                                     onClick={() => handleChangePaymentStatus(app, 'PENDING')}
-                                    title="Đang FREE (bấm để chuyển lại PENDING nếu cần)"
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide border bg-sky-950/90 text-sky-300 border-sky-600/70 hover:bg-amber-950/80 hover:text-amber-300 hover:border-amber-600/70 cursor-pointer transition-all whitespace-nowrap"
+                                    title="Đang FREE (bấm để chuyển về PENDING)"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-sky-500/15 text-sky-300 border-sky-500/30 hover:bg-sky-500/25 cursor-pointer transition-all whitespace-nowrap"
                                   >
                                     <CheckCircle2 className="w-3 h-3 text-sky-400" />
-                                    <span>FREE ⇄ Pending</span>
+                                    <span>FREE</span>
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleChangePaymentStatus(app, 'PAID')}
                                     title="Chuyển từ FREE sang PAID"
-                                    className="px-2 py-1 rounded-lg text-[10px] font-bold border border-emerald-700/70 bg-emerald-950/60 text-emerald-300 hover:bg-emerald-900/70 cursor-pointer transition-colors whitespace-nowrap"
+                                    className="px-2.5 py-1 rounded-full text-[10px] font-semibold border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 cursor-pointer transition-colors whitespace-nowrap"
                                   >
-                                    → Paid
+                                    PAID
                                   </button>
                                 </>
                               )}
@@ -750,8 +756,8 @@ export const ApplicationsTab: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleChangePaymentStatus(app, 'FREE')}
-                                  title="Miễn phí (Waive → FREE, giữ nguyên trạng thái duyệt hồ sơ)"
-                                  className="px-2 py-1 rounded-lg text-[10px] font-bold border border-sky-700/70 bg-sky-950/70 text-sky-300 hover:bg-sky-900/80 cursor-pointer transition-colors whitespace-nowrap"
+                                  title="Miễn phí (Waive → FREE)"
+                                  className="px-2.5 py-1 rounded-full text-[10px] font-semibold border border-white/15 bg-white/[0.05] text-sky-300 hover:bg-sky-500/15 cursor-pointer transition-colors whitespace-nowrap"
                                 >
                                   Waive
                                 </button>
@@ -868,96 +874,50 @@ export const ApplicationsTab: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* 6. Actions Matrix: Non-APPROVED = full actions; APPROVED = compact Accepted badge + Chấm điểm + Delete (SUPERADMIN) */}
+                      {/* 6. Actions Matrix: 2 Primary Actions + Overflow Glass Menu (⋯) */}
                       <td className="py-3.5 px-3 text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5">
                           {isApproved ? (
-                            <>
-                              <span className="min-h-[36px] px-2.5 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-700/70 text-emerald-300 text-[11px] font-bold inline-flex items-center gap-1.5 whitespace-nowrap">
-                                <span>✓ ĐÃ CHẤP NHẬN</span>
-                                {scoreTotal > 0 && (
-                                  <span className="font-mono text-emerald-200 bg-emerald-900/80 px-1.5 py-0.5 rounded text-[10px]">
-                                    {scoreTotal}/20
-                                  </span>
-                                )}
-                              </span>
-
-                              <button
-                                type="button"
-                                onClick={() => setEvaluatingApp(app)}
-                                title="Mở phiếu chấm để chỉnh lại Level (SENIOR/JUNIOR/YOUTH), ghi chú & gửi email mời vào nhóm Zalo/IG"
-                                className="min-h-[36px] px-3 py-1.5 bg-teal-700 hover:bg-teal-600 text-white font-bold text-[11px] rounded-xl inline-flex items-center gap-1.5 shadow cursor-pointer transition-all whitespace-nowrap"
-                              >
-                                <ClipboardCheck className="w-3.5 h-3.5" />
-                                <span>Chấm điểm</span>
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              {isSuperAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleApproveApplication(app.id, fee)}
-                                  title="Chốt nhận chính thức (APPROVED) & thêm vào Player Roster"
-                                  className="min-h-[36px] px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-xl inline-flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Approve</span>
-                                </button>
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={() => setEvaluatingApp(app)}
-                                title="Mở phiếu chấm điểm 4 tiêu chí, chốt Level & gửi mail kết quả"
-                                className="min-h-[36px] px-3 py-1.5 bg-teal-700 hover:bg-teal-600 text-white font-bold text-[11px] rounded-xl inline-flex items-center gap-1.5 shadow cursor-pointer transition-all whitespace-nowrap"
-                              >
-                                <ClipboardCheck className="w-3.5 h-3.5" />
-                                <span>{scoreTotal > 0 ? `Chấm điểm (${scoreTotal}/20)` : 'Chấm điểm'}</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setSchedulingApp(app)}
-                                title="Mở form hẹn lịch Try-Out & gửi email qua Resend"
-                                className="min-h-[36px] px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-[11px] rounded-xl inline-flex items-center gap-1.5 shadow-md shadow-indigo-950/40 cursor-pointer transition-all whitespace-nowrap"
-                              >
-                                <Calendar className="w-3.5 h-3.5" />
-                                <Mail className="w-3.5 h-3.5 -ml-0.5" />
-                                <span>{app.scheduledDate ? 'Hẹn lại' : 'Hẹn Try-Out'}</span>
-                              </button>
-
-                              {isSuperAdmin && app.status !== 'REJECTED' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRejectApplication(app.id)}
-                                  className="min-h-[36px] px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded-xl transition-colors cursor-pointer whitespace-nowrap"
-                                >
-                                  Reject
-                                </button>
-                              )}
-                            </>
-                          )}
-
-                          {isSuperAdmin && (
+                            <span className="h-8 px-3 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium backdrop-blur-md inline-flex items-center gap-1 whitespace-nowrap">
+                              <span>✓ ĐÃ DUYỆT</span>
+                              {scoreTotal > 0 && <span className="font-mono text-[10px] text-emerald-200">{scoreTotal}/20</span>}
+                            </span>
+                          ) : isSuperAdmin ? (
                             <button
                               type="button"
-                              onClick={() =>
-                                handleDeleteApplication(
-                                  app.id,
-                                  app.fullName,
-                                  app.status === 'APPROVED',
-                                  fee
-                                )
-                              }
-                              className="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer transition-colors"
-                              title={
-                                app.status === 'APPROVED'
-                                  ? 'Xóa hồ sơ đã duyệt (nếu VĐV rút khỏi đội — trừ khỏi thống kê)'
-                                  : 'Delete application'
-                              }
+                              onClick={() => handleApproveApplication(app.id, fee)}
+                              title="Chốt nhận chính thức (APPROVED) & thêm vào Player Roster"
+                              className="h-8 px-3.5 rounded-full text-xs font-medium backdrop-blur-md transition-all bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Approve</span>
+                            </button>
+                          ) : null}
+
+                          <button
+                            type="button"
+                            onClick={() => setEvaluatingApp(app)}
+                            title="Mở phiếu chấm điểm 4 tiêu chí, chốt Level & gửi mail kết quả"
+                            className="h-8 px-3.5 rounded-full text-xs font-medium backdrop-blur-md transition-all bg-sky-500/15 text-sky-300 border border-sky-500/30 hover:bg-sky-500/25 inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                          >
+                            <ClipboardCheck className="w-3.5 h-3.5" />
+                            <span>{scoreTotal > 0 ? `Chấm (${scoreTotal}/20)` : 'Chấm điểm'}</span>
+                          </button>
+
+                          {(!isApproved || isSuperAdmin) && (
+                            <button
+                              type="button"
+                              aria-label="Thao tác khác"
+                              aria-expanded={actionMenu?.app.id === app.id}
+                              onClick={(e) => {
+                                if (actionMenu?.app.id === app.id) return setActionMenu(null);
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const top = rect.bottom + 150 > window.innerHeight ? Math.max(12, rect.top - 136) : rect.bottom + 6;
+                                setActionMenu({ app, fee, top, right: Math.max(12, window.innerWidth - rect.right) });
+                              }}
+                              className="w-8 h-8 rounded-full bg-white/[0.05] border border-white/10 hover:bg-white/10 text-slate-200 hover:text-white inline-flex items-center justify-center cursor-pointer transition-all shrink-0"
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
                             </button>
                           )}
                         </div>
@@ -994,6 +954,55 @@ export const ApplicationsTab: React.FC = () => {
           onUpdated={handleApplicationUpdated}
         />
       </div>
+
+      {actionMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} aria-hidden="true" />
+          <div
+            role="menu"
+            style={{ top: actionMenu.top, right: actionMenu.right }}
+            className="fixed z-50 w-44 rounded-2xl bg-[#111520]/95 backdrop-blur-2xl border border-white/15 shadow-2xl p-1.5 space-y-0.5 text-xs animate-in fade-in duration-100"
+          >
+            {actionMenu.app.status !== 'APPROVED' && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { const target = actionMenu.app; setActionMenu(null); setSchedulingApp(target); }}
+                className="w-full px-3 py-2 rounded-xl text-left text-indigo-300 hover:text-white hover:bg-indigo-500/20 font-semibold flex items-center gap-2 cursor-pointer"
+              >
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <span>{actionMenu.app.scheduledDate ? 'Hẹn lại Try-Out' : 'Hẹn Try-Out'}</span>
+              </button>
+            )}
+            {isSuperAdmin && actionMenu.app.status !== 'APPROVED' && actionMenu.app.status !== 'REJECTED' && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { const id = actionMenu.app.id; setActionMenu(null); handleRejectApplication(id); }}
+                className="w-full px-3 py-2 rounded-xl text-left text-amber-300 hover:text-white hover:bg-amber-500/15 font-semibold flex items-center gap-2 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5 shrink-0" />
+                <span>Reject</span>
+              </button>
+            )}
+            {isSuperAdmin && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  const { app: target, fee: f } = actionMenu;
+                  setActionMenu(null);
+                  handleDeleteApplication(target.id, target.fullName, target.status === 'APPROVED', f);
+                }}
+                className="w-full px-3 py-2 rounded-xl text-left text-rose-400 hover:text-rose-200 hover:bg-rose-500/15 font-semibold flex items-center gap-2 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Xóa hồ sơ</span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {levelToast && (
         <div

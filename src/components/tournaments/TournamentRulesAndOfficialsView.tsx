@@ -199,8 +199,8 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Header + Quick Share Link for Zalo Captain Group */}
-      <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-7 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1E293B] pb-5">
+      <div className="dva-glass-panel rounded-3xl p-5 sm:p-7 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-[#F97316]" />
@@ -236,7 +236,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
             {/* 1. Format */}
-            <div className="rounded-2xl bg-[#0B0F19] border border-[#1E293B] p-4 space-y-1.5">
+            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 space-y-1.5">
               <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-[#38BDF8]">
                 <GitBranch className="w-4 h-4 shrink-0" />
                 <span>{t('rules.quick.formatLabel')}</span>
@@ -249,7 +249,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
             </div>
 
             {/* 2. Dynamic Set Scoring Rules */}
-            <div className="rounded-2xl bg-[#0B0F19] border border-[#1E293B] p-4 space-y-1.5">
+            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 space-y-1.5">
               <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-[#F97316]">
                 <Trophy className="w-4 h-4 shrink-0" />
                 <span>{t('rules.quick.setRulesLabel')}</span>
@@ -275,7 +275,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
             </div>
 
             {/* 3. FIVB Points */}
-            <div className="rounded-2xl bg-[#0B0F19] border border-[#1E293B] p-4 space-y-1.5">
+            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 space-y-1.5">
               <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-[#FACC15]">
                 <Award className="w-4 h-4 shrink-0" />
                 <span>{t('rules.quick.fivbLabel')}</span>
@@ -293,7 +293,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
             </div>
 
             {/* 4. Tie-Breakers */}
-            <div className="rounded-2xl bg-[#0B0F19] border border-[#1E293B] p-4 space-y-2">
+            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 space-y-2">
               <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-emerald-400">
                 <ListOrdered className="w-4 h-4 shrink-0" />
                 <span>{t('rules.quick.tieBreakLabel')}</span>
@@ -322,8 +322,8 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
       />
 
       {/* BLOCK 3: Detailed Official Rules & Captain Checklist */}
-      <section className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-7 space-y-6">
-        <div className="flex items-center gap-2 border-b border-[#1E293B] pb-4">
+      <section className="dva-glass-panel rounded-3xl p-5 sm:p-7 space-y-6">
+        <div className="flex items-center gap-2 border-b border-white/10 pb-4">
           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <h3 className="font-heading font-black text-lg sm:text-xl text-white">
             {t('rules.detailsTitle')}
@@ -349,7 +349,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
             {parsedSections.map((sec, sIdx) => (
               <div
                 key={`${sec.heading || 'sec'}-${sIdx}`}
-                className="rounded-2xl bg-[#0B0F19] border border-[#1E293B] p-5 space-y-3"
+                className="rounded-2xl bg-white/[0.04] border border-white/10 p-5 space-y-3"
               >
                 {sec.heading && (
                   <h4 className="font-heading font-black text-sm sm:text-base text-[#F97316] tracking-wide flex items-center gap-2">
@@ -380,9 +380,9 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
       {/* BLOCK 4: FIVB Official Rules & Updates + Local Amateur Eligibility Rules */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* FIVB Official Rules & Updates */}
-        <section className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-6 flex flex-col justify-between gap-5">
+        <section className="dva-glass-panel rounded-3xl p-5 sm:p-6 flex flex-col justify-between gap-5">
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E293B] pb-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3.5">
               <h3 className="font-heading font-black text-base sm:text-lg text-white flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-[#38BDF8] shrink-0" />
                 <span>{t('rules.fivb.sectionTitle')}</span>
@@ -400,7 +400,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
               ].map((rule) => (
                 <div
                   key={rule.title}
-                  className="rounded-2xl bg-[#0B0F19] border border-[#1E293B] p-4 space-y-1.5"
+                  className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 space-y-1.5"
                 >
                   <h4 className="font-bold text-xs sm:text-sm text-[#38BDF8]">{rule.title}</h4>
                   <p className="text-xs text-slate-300 leading-relaxed">{rule.desc}</p>
@@ -424,8 +424,8 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
         {/* Local Amateur Eligibility Rules + Spectator Venue Fee */}
         <div className="space-y-6 flex flex-col">
           {/* Amateur Eligibility */}
-          <section className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-6 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E293B] pb-3.5">
+          <section className="dva-glass-panel rounded-3xl p-5 sm:p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3.5">
               <h3 className="font-heading font-black text-base sm:text-lg text-white flex items-center gap-2">
                 <Ban className="w-5 h-5 text-red-400 shrink-0" />
                 <span>{t('rules.eligibility.sectionTitle')}</span>
@@ -458,7 +458,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
           </section>
 
           {/* Spectator Entry Fee Card */}
-          <section className="rounded-3xl border border-amber-500/40 bg-gradient-to-br from-[#1A140B] via-[#111827] to-[#111827] p-5 sm:p-6 space-y-4 flex-1">
+          <section className="dva-glass-panel rounded-3xl border-amber-500/35 bg-gradient-to-br from-amber-500/15 via-white/[0.04] to-white/[0.02] p-5 sm:p-6 space-y-4 flex-1">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/20 pb-3.5">
               <h3 className="font-heading font-black text-base sm:text-lg text-white flex items-center gap-2">
                 <Ticket className="w-5 h-5 text-[#FACC15] shrink-0" />
@@ -496,8 +496,8 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
       </div>
 
       {/* BLOCK 5: Section IX. Discipline & Protests */}
-      <section className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-7 space-y-6">
-        <div className="flex items-center gap-2.5 border-b border-[#1E293B] pb-4">
+      <section className="dva-glass-panel rounded-3xl p-5 sm:p-7 space-y-6">
+        <div className="flex items-center gap-2.5 border-b border-white/10 pb-4">
           <Gavel className="w-5 h-5 text-[#F97316]" />
           <h3 className="font-heading font-black text-lg sm:text-xl text-white">
             {t('rules.discipline.title')}
@@ -505,7 +505,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
         </div>
 
         {/* 1. General Principles */}
-        <div className="rounded-2xl bg-[#0B0F19] border border-[#1E293B] p-5 space-y-3 text-xs sm:text-sm">
+        <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-5 space-y-3 text-xs sm:text-sm">
           <h4 className="font-heading font-bold text-sm sm:text-base text-[#F97316]">
             {t('rules.discipline.part1Title')}
           </h4>
@@ -535,20 +535,20 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
           <h4 className="font-heading font-bold text-sm sm:text-base text-[#F97316]">
             {t('rules.discipline.part2Title')}
           </h4>
-          <div className="rounded-2xl border border-[#1E293B] bg-[#0B0F19] overflow-hidden">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
             <div className="overflow-x-auto no-scrollbar">
               <table className="w-full min-w-[540px] text-xs sm:text-sm text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#161F30] text-slate-300 text-[11px] uppercase tracking-wider border-b border-[#1E293B]">
+                <thead className="bg-transparent">
+                  <tr className="bg-transparent text-slate-300 text-[11px] uppercase tracking-wider border-b border-white/[0.08]">
                     <th className="py-3 px-4 w-16 text-center">{t('rules.discipline.colNo')}</th>
                     <th className="py-3 px-4">{t('rules.discipline.colViolation')}</th>
                     <th className="py-3 px-4">{t('rules.discipline.colPenalty')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1E293B]">
+                <tbody className="divide-y divide-white/[0.06] bg-transparent">
                   {Array.isArray(disciplineRows) &&
                     disciplineRows.map((row) => (
-                      <tr key={row.no} className="hover:bg-slate-800/30 transition-colors">
+                      <tr key={row.no} className="bg-transparent hover:bg-white/[0.05] transition-colors">
                         <td className="py-3 px-4 text-center font-mono font-bold text-[#F97316]">
                           {row.no}
                         </td>
@@ -563,7 +563,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
         </div>
 
         {/* 3. Protest Procedure & Email */}
-        <div className="rounded-2xl bg-[#0B0F19] border border-[#1E293B] p-5 space-y-3 text-xs sm:text-sm">
+        <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-5 space-y-3 text-xs sm:text-sm">
           <h4 className="font-heading font-bold text-sm sm:text-base text-[#F97316]">
             {t('rules.discipline.part3Title')}
           </h4>
@@ -637,8 +637,8 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
       {/* BLOCK 6: Sections X, XI & XII */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* X. Officiating */}
-        <section className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-6 space-y-3">
-          <div className="flex items-center gap-2 border-b border-[#1E293B] pb-3">
+        <section className="dva-glass-panel rounded-3xl p-5 sm:p-6 space-y-3">
+          <div className="flex items-center gap-2 border-b border-white/10 pb-3">
             <ShieldCheck className="w-5 h-5 text-[#38BDF8]" />
             <h3 className="font-heading font-black text-base sm:text-lg text-white">
               {t('rules.sectionX.title')}
@@ -650,8 +650,8 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
         </section>
 
         {/* XI. Other Regulations */}
-        <section className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-6 space-y-3">
-          <div className="flex items-center gap-2 border-b border-[#1E293B] pb-3">
+        <section className="dva-glass-panel rounded-3xl p-5 sm:p-6 space-y-3">
+          <div className="flex items-center gap-2 border-b border-white/10 pb-3">
             <Scale className="w-5 h-5 text-[#FACC15]" />
             <h3 className="font-heading font-black text-base sm:text-lg text-white">
               {t('rules.sectionXI.title')}
@@ -664,8 +664,8 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
       </div>
 
       {/* XII. Logistics & Venue Requirements + Sign-off */}
-      <section className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 sm:p-7 space-y-6">
-        <div className="flex items-center gap-2 border-b border-[#1E293B] pb-3.5">
+      <section className="dva-glass-panel rounded-3xl p-5 sm:p-7 space-y-6">
+        <div className="flex items-center gap-2 border-b border-white/10 pb-3.5">
           <PackageCheck className="w-5 h-5 text-emerald-400" />
           <h3 className="font-heading font-black text-lg sm:text-xl text-white">
             {t('rules.sectionXII.title')}
@@ -677,7 +677,7 @@ export const TournamentRulesView: React.FC<TournamentRulesViewProps> = ({
             sectionXiiItems.map((item, idx) => (
               <li
                 key={idx}
-                className="flex items-start gap-3 p-3 rounded-2xl bg-[#0B0F19] border border-[#1E293B]"
+                className="flex items-start gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10"
               >
                 <span className="w-5 h-5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                   {idx + 1}
@@ -716,7 +716,7 @@ export const TournamentOfficialsView: React.FC<{ tournament: Tournament }> = ({ 
       </div>
 
       {tournament.officials.length === 0 ? (
-        <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-10 text-center space-y-2">
+        <div className="dva-glass-panel rounded-3xl p-10 text-center space-y-2">
           <UserCheck className="w-9 h-9 text-slate-600 mx-auto" />
           <p className="text-xs text-slate-400">{t('officials.empty')}</p>
         </div>
@@ -725,7 +725,7 @@ export const TournamentOfficialsView: React.FC<{ tournament: Tournament }> = ({ 
           {tournament.officials.map((off) => (
             <div
               key={off.id}
-              className="rounded-3xl bg-[#111827] border border-[#1E293B] p-5 flex items-center gap-4"
+              className="dva-glass-card p-5 flex items-center gap-4"
             >
               <OfficialAvatar
                 avatarUrl={off.avatarUrl}

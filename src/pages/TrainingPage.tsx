@@ -509,7 +509,7 @@ export const TrainingPage: React.FC = () => {
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
                 Filter by Level:
               </span>
-              <div className="flex flex-wrap items-center gap-1.5 bg-[#0E1524] p-1.5 rounded-2xl border border-slate-800">
+              <div className="flex flex-wrap items-center gap-1.5 dva-glass-panel rounded-2xl p-1.5">
                 {TRAINING_LEVEL_FILTERS.map((f) => {
                   const active = levelFilter === f.id;
                   return (
@@ -517,7 +517,7 @@ export const TrainingPage: React.FC = () => {
                       key={f.id}
                       type="button"
                       onClick={() => setLevelFilter(f.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                         active
                           ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-950/50'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -575,7 +575,7 @@ export const TrainingPage: React.FC = () => {
                 return (
                   <div
                     key={course.id}
-                    className={`bg-[#0E1524] rounded-3xl border p-6 sm:p-7 shadow-2xl flex flex-col justify-between transition-all duration-300 relative group hover:scale-[1.01] ${
+                    className={`dva-glass-card p-6 sm:p-7 shadow-2xl flex flex-col justify-between relative group hover:scale-[1.01] ${
                       isPrivate1on1 
                         ? 'border-amber-500/70 shadow-amber-950/30 ring-1 ring-amber-500/40 bg-gradient-to-b from-[#141b2b] to-[#0E1524]' 
                         : 'border-[#1e2738] hover:border-amber-500/50'
@@ -742,7 +742,7 @@ export const TrainingPage: React.FC = () => {
               {coaches.map((coach) => (
                 <div
                   key={coach.id}
-                  className="bg-[#121826] rounded-3xl border border-slate-800 p-5 flex flex-col justify-between hover:border-slate-700 transition-all shadow-xl group"
+                  className="dva-glass-card p-5 flex flex-col justify-between shadow-xl group"
                 >
                   <div className="space-y-4">
                     

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PieChart,
   ArrowRight,
@@ -14,6 +14,7 @@ import {
   Wallet,
   Activity,
 } from 'lucide-react';
+import { playerService, userService } from '../../../services/api';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { useAdminMetrics } from '../hooks/useAdminMetrics';
 import { RevenueKpiCards } from '../components/overview/RevenueKpiCards';
@@ -32,7 +33,7 @@ export const OverviewTab: React.FC = () => {
   const {
     isSuperAdmin,
     setActiveModule,
-    data: { bookings, trainingRegs, venuesList },
+    data: { bookings, trainingRegs, venuesList, players },
   } = useAdminDashboard();
   const {
     verifiedClubRevenue,
@@ -56,6 +57,7 @@ export const OverviewTab: React.FC = () => {
     hostedTournamentsCount,
     playersCount,
     activePlayersCount,
+    coachesCount,
     newsCount,
     confirmedTrainingCount,
     totalBookingsCount,
@@ -66,6 +68,17 @@ export const OverviewTab: React.FC = () => {
   } = useAdminMetrics();
 
   const nowVn = useMemo(() => getVietnamNow(), []);
+  const [bentoStats, setBentoStats] = useState({ totalPlayers: 0, rankedPlayers: 0, totalUsers: 0, activeUsers: 0, captains: 0, coaches: 0 });
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let alive = true;
+    Promise.all([playerService.getPlayers().catch(() => []), userService.getUsers().catch(() => [])]).then(([ps, us]) => {
+      if (!alive) return;
+      const pArr = Array.isArray(ps) ? ps : [], uArr = Array.isArray(us) ? us : [];
+      setBentoStats({ totalPlayers: pArr.length, rankedPlayers: pArr.filter((p) => Boolean(p.skillRank)).length, totalUsers: uArr.length, activeUsers: uArr.filter((u) => u.isActive !== false).length, captains: uArr.filter((u) => u.role === 'CAPTAIN' && u.isActive !== false).length, coaches: uArr.filter((u) => u.role === 'COACH' && u.isActive !== false).length });
+    });
+    return () => { alive = false; };
+  }, [isSuperAdmin]);
 
   // Compute real average slot occupancy % across active Court Map venues (or fallback to booking confirmation %)
   const avgSlotFillPct = useMemo(() => {
@@ -308,6 +321,8 @@ export const OverviewTab: React.FC = () => {
     if (venueCards.length >= 4) return venueCards;
 
     // Combine with core management module cards if fewer than 4 venues exist
+    const totalPlayers = players.length || bentoStats.totalPlayers || playersCount;
+    const rankedCount = players.length ? players.filter((p) => Boolean(p.skillRank)).length : bentoStats.rankedPlayers;
     const moduleCards: SpatialBentoItem[] = [
       {
         id: 'bento-mod-bookings',
@@ -361,11 +376,24 @@ export const OverviewTab: React.FC = () => {
         tone: 'rose',
         onAction: () => setActiveModule('TOURNAMENTS'),
       },
+      {
+        id: 'bento-mod-players', category: 'ĐỘI HÌNH CHÍNH THỨC', title: 'Roster Squad & USAV Rank',
+        description: `${rankedCount}/${totalPlayers} VĐV có hạng USAV · Senior, Junior & Kid`,
+        percent: totalPlayers > 0 ? Math.round((rankedCount / totalPlayers) * 100) : 0,
+        gaugeSublabel: 'ĐÃ XẾP HẠNG', statusTag: 'Đang hoạt động', metaRight: `${totalPlayers} VĐV`,
+        filterTags: ['ALL', 'ACTIVE'], tone: 'emerald', onAction: () => setActiveModule('PLAYERS'),
+      },
+      {
+        id: 'bento-mod-users', category: 'PHÂN QUYỀN & NHÂN SỰ', title: 'Captains, Coaches & Users',
+        description: `${bentoStats.captains} Captain CLB · ${bentoStats.coaches || coachesCount} HLV đang hoạt động`,
+        percent: bentoStats.totalUsers > 0 ? Math.round((bentoStats.activeUsers / bentoStats.totalUsers) * 100) : 0,
+        gaugeSublabel: 'HOẠT ĐỘNG', statusTag: 'Hệ thống', metaRight: `${bentoStats.totalUsers} TK`,
+        filterTags: ['ALL', 'ACTIVE'], tone: 'orange', onAction: () => setActiveModule('USERS'),
+      },
     ];
     return [...venueCards, ...moduleCards];
   }, [
-    venuesList,
-    nowVn,
+    venuesList, players, playersCount, coachesCount, bentoStats, nowVn,
     paidBookingsCount,
     totalBookingsCount,
     courtRevenue,

@@ -17,6 +17,7 @@ import {
 import { authService } from '../../../services/api';
 import { uploadToCloudinary } from '../../../utils/cloudinary';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
+import { useAdminMetrics } from '../hooks/useAdminMetrics';
 import { findNavItem, USER_ROLE_BADGE } from '../constants';
 import { AdminQuickSearch } from './AdminQuickSearch';
 import { RoleAvatarRing } from '../components/RoleAvatarRing';
@@ -29,6 +30,11 @@ interface SubPill {
   label: string;
   active: boolean;
   onClick: () => void;
+}
+
+function getVietnamGreeting(): string {
+  const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Ho_Chi_Minh', hour: 'numeric', hour12: false }).format(new Date())) % 24;
+  return hour >= 5 && hour < 12 ? '☀️ Chào buổi sáng' : hour >= 12 && hour < 18 ? '🌤️ Chào buổi chiều' : '🌙 Chào buổi tối';
 }
 
 /**
@@ -54,13 +60,30 @@ export const AdminHeader: React.FC = () => {
     storeSubView,
     setStoreSubView,
     setIsMobileNavOpen,
+    data: { venuesList },
   } = useAdminDashboard();
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isUploadingQuickAvatar, setIsUploadingQuickAvatar] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const quickAvatarInputRef = useRef<HTMLInputElement>(null);
+  const { pendingGuestSessionsCount, pendingApplicationsCount, pendingBookingsCount } = useAdminMetrics();
+  const hasUnreadAlert = pendingGuestSessionsCount + pendingApplicationsCount + pendingBookingsCount > 0;
+
+  useEffect(() => {
+    if (isCaptain) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((v) => !v);
+      } else if (e.key === 'Escape') {
+        setIsSearchOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isCaptain]);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return undefined;
@@ -82,6 +105,8 @@ export const AdminHeader: React.FC = () => {
 
   const moduleLabel = findNavItem(activeModule)?.label ?? 'Overview & Analytics';
   const roleBadgeClass = USER_ROLE_BADGE[currentUser.role] || USER_ROLE_BADGE.GUEST;
+  const captainTeamName = isCaptain ? venuesList.flatMap((v) => v.clubs || []).find((c) => c.captainUserId === currentUser.id)?.name : undefined;
+  const greetingText = `${getVietnamGreeting()}, ${currentUser.fullName?.trim() || captainTeamName || currentUser.email}`;
 
   // Contextual sub-navigation pill tabs inside the floating glass topbar
   const subPills: SubPill[] = (() => {
@@ -181,26 +206,19 @@ export const AdminHeader: React.FC = () => {
             <Menu className="w-4 h-4" />
           </button>
 
-          {/* Compact active module badge */}
-          <div className="min-w-0 hidden sm:flex flex-col pl-1 pr-2 shrink-0 max-w-[175px]">
-            <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-orange-400/90 leading-none">
-              DVA Spatial
+          {/* Compact active module badge + Vietnam time-of-day greeting (all 5 roles) */}
+          <div className="min-w-0 flex flex-col pl-1 pr-2 shrink-0 max-w-[175px] sm:max-w-[235px]">
+            <span className="text-[10px] font-semibold text-orange-300/95 leading-none truncate" title={greetingText}>
+              {greetingText}
             </span>
-            <h1 className="font-heading font-black text-xs text-white truncate mt-0.5">{moduleLabel}</h1>
+            <h1 className="font-heading font-black text-xs text-white truncate mt-1">{moduleLabel}</h1>
           </div>
-
-          {/* Quick Search Pill */}
-          {!isCaptain ? (
-            <div className="hidden md:block flex-1 min-w-[160px] max-w-xs">
-              <AdminQuickSearch />
-            </div>
-          ) : null}
 
           {/* Contextual Sub-Navigation Pill Tabs */}
           <div
             role="tablist"
             aria-label="Quick module switch"
-            className="hidden xl:flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/10 mx-auto shrink-0"
+            className="hidden lg:flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/10 mx-auto shrink-0"
           >
             {subPills.map((pill) => (
               <button
@@ -209,7 +227,7 @@ export const AdminHeader: React.FC = () => {
                 role="tab"
                 aria-selected={pill.active}
                 onClick={pill.onClick}
-                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
                   pill.active
                     ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
@@ -220,18 +238,20 @@ export const AdminHeader: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex-1 xl:hidden" />
+          <div className="flex-1 lg:hidden" />
 
           {/* Right Action Cluster + User & Role Badge */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {!isCaptain && (
               <button
                 type="button"
-                aria-label="Search"
-                onClick={() => setIsMobileSearchOpen(true)}
-                className="md:hidden w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer"
+                aria-label="Quick search (⌘K)"
+                title="Tìm kiếm nhanh (⌘K)"
+                onClick={() => setIsSearchOpen(true)}
+                className="h-9 px-2.5 sm:px-3 rounded-full bg-white/[0.06] hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white inline-flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <Search className="w-4 h-4" />
+                <Search className="w-3.5 h-3.5" />
+                <kbd className="hidden md:inline text-[10px] font-mono text-slate-400">⌘K</kbd>
               </button>
             )}
 
@@ -240,10 +260,13 @@ export const AdminHeader: React.FC = () => {
                 type="button"
                 onClick={openGuestModal}
                 title="Guest Session Email"
-                className="h-9 px-3 rounded-full text-[11px] font-bold bg-gradient-to-r from-orange-500 to-rose-600 hover:brightness-110 text-white flex items-center gap-1.5 transition-all shadow-lg shadow-orange-950/40 cursor-pointer"
+                aria-label="Guest Session Email"
+                className="relative w-9 h-9 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/10 text-slate-200 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span className="hidden 2xl:inline">Guest Email</span>
+                {hasUnreadAlert && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 ring-2 ring-[#0B0D12]" aria-hidden="true" />
+                )}
               </button>
             )}
 
@@ -260,8 +283,8 @@ export const AdminHeader: React.FC = () => {
 
             <Link
               to="/"
-              title="Exit to Public Website"
-              aria-label="Exit to Public Website"
+              title="Về trang chủ DVA"
+              aria-label="Về trang chủ DVA"
               className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 hover:text-white flex items-center justify-center transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -415,22 +438,25 @@ export const AdminHeader: React.FC = () => {
         </header>
       </div>
 
-      {/* Mobile search overlay — rendered outside <header> because backdrop-filter traps position:fixed */}
-      {isMobileSearchOpen && (
+      {/* Quick Search Modal Overlay (Desktop ⌘K & Mobile) */}
+      {isSearchOpen && (
         <div
-          className="md:hidden fixed inset-0 z-50 bg-[#0B0D12]/95 backdrop-blur-xl p-4"
+          className="fixed inset-0 z-50 bg-[#0B0D12]/80 backdrop-blur-xl p-4 sm:pt-24 flex items-start justify-center"
           role="dialog"
           aria-modal="true"
           aria-label="Quick search"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsSearchOpen(false);
+          }}
         >
-          <div className="flex items-start gap-2">
+          <div className="w-full max-w-lg flex items-start gap-2">
             <div className="flex-1">
-              <AdminQuickSearch autoFocus enableHotkey={false} onDone={() => setIsMobileSearchOpen(false)} />
+              <AdminQuickSearch autoFocus enableHotkey={false} onDone={() => setIsSearchOpen(false)} />
             </div>
             <button
               type="button"
               aria-label="Close search"
-              onClick={() => setIsMobileSearchOpen(false)}
+              onClick={() => setIsSearchOpen(false)}
               className="p-2.5 rounded-full bg-white/[0.06] border border-white/10 text-slate-300 hover:text-white cursor-pointer"
             >
               <X className="w-4 h-4" />

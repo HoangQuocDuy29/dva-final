@@ -158,7 +158,7 @@ export const TournamentsPage: React.FC = () => {
     <div className="min-h-screen bg-[#0B0F19] text-white py-8 sm:py-12 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         {/* Persistent Header & Smart Tournament Switcher */}
-        <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-4 sm:p-6 space-y-5 overflow-hidden">
+        <div className="rounded-3xl dva-glass-panel p-4 sm:p-6 space-y-5 overflow-hidden">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full min-w-0">
             <div className="space-y-1 min-w-0">
               <span className="text-[11px] font-black uppercase tracking-widest text-[#F97316]">
@@ -182,10 +182,10 @@ export const TournamentsPage: React.FC = () => {
                   aria-label={t('header.switcherLabel')}
                   value={activeTournament.slug}
                   onChange={(e) => handleSwitchTournament(e.target.value)}
-                  className="w-full min-w-0 max-w-full truncate appearance-none pl-3 sm:pl-4 pr-9 sm:pr-10 py-2.5 box-border rounded-xl bg-[#0B0F19] border border-[#1E293B] hover:border-[#F97316]/60 text-[11px] sm:text-sm font-bold text-white cursor-pointer focus:outline-none"
+                  className="w-full min-w-0 max-w-full truncate appearance-none pl-3 sm:pl-4 pr-9 sm:pr-10 py-2.5 box-border dva-glass-pill hover:border-[#F97316]/60 text-[11px] sm:text-sm font-bold text-white cursor-pointer focus:outline-none"
                 >
                   {tournaments.map((item) => (
-                    <option key={item.id} value={item.slug}>
+                    <option key={item.id} value={item.slug} className="bg-[#0B0D12]">
                       {item.status === 'ONGOING'
                         ? '🔴 LIVE · '
                         : item.status === 'UPCOMING'
@@ -197,7 +197,7 @@ export const TournamentsPage: React.FC = () => {
                 </select>
                 <span
                   aria-hidden="true"
-                  className="pointer-events-none absolute top-px bottom-px right-px w-11 rounded-r-[11px] bg-gradient-to-l from-[#0B0F19] via-[#0B0F19] to-transparent flex items-center justify-end pr-2.5 z-10"
+                  className="pointer-events-none absolute top-px bottom-px right-px w-10 rounded-r-full flex items-center justify-end pr-3 z-10"
                 >
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                 </span>
@@ -217,7 +217,7 @@ export const TournamentsPage: React.FC = () => {
           {/* Sub-view Navigation Pills */}
           <nav
             aria-label="Tournament sections"
-            className="grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-1.5 pt-4 border-t border-[#1E293B]"
+            className="grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-1.5 pt-4 border-t border-white/10"
           >
             {visibleNavTabs.map(({ id, label, icon: Icon }, idx) => {
               const isActive = activeSubView === id;
@@ -235,7 +235,7 @@ export const TournamentsPage: React.FC = () => {
                   } ${
                     isActive
                       ? 'bg-gradient-to-r from-[#8B0000] to-[#F97316] text-white shadow'
-                      : 'bg-[#0B0F19] text-slate-400 hover:text-white border border-[#1E293B]'
+                      : 'dva-glass-pill text-slate-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5 shrink-0" />

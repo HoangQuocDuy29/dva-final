@@ -20,11 +20,11 @@ export const PoolStandingsTable: React.FC<PoolStandingsTableProps> = ({
   onSelectTeam,
   compact = false,
 }) => (
-  <div className="rounded-3xl border border-[#1E293B] bg-[#111827] overflow-hidden">
+  <div className="dva-glass-panel rounded-3xl overflow-hidden">
     <div
       className={`${
         compact ? 'px-4 py-2.5' : 'px-5 py-3.5'
-      } bg-[#0B0F19] border-b border-[#1E293B] flex items-center justify-between gap-2`}
+      } bg-white/[0.03] border-b border-white/10 flex items-center justify-between gap-2`}
     >
       <h4 className="font-heading font-black text-sm text-white uppercase tracking-wider">{title}</h4>
       <span className="text-[10px] font-mono text-slate-400">{subtitle}</span>
@@ -34,8 +34,8 @@ export const PoolStandingsTable: React.FC<PoolStandingsTableProps> = ({
     ) : (
       <div className="overflow-x-auto no-scrollbar">
         <table className="w-full text-xs text-left">
-          <thead>
-            <tr className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-[#1E293B] bg-[#0B0F19]/40">
+          <thead className="bg-transparent">
+            <tr className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-white/[0.08] bg-transparent">
               <th className={compact ? 'py-2 px-3' : 'py-2.5 px-3'}>#</th>
               <th className={compact ? 'py-2 px-3' : 'py-2.5 px-3'}>Team</th>
               <th className={compact ? 'py-2 px-2 text-center' : 'py-2.5 px-2 text-center'}>P</th>
@@ -45,11 +45,11 @@ export const PoolStandingsTable: React.FC<PoolStandingsTableProps> = ({
               <th className={compact ? 'py-2 px-3 text-right' : 'py-2.5 px-3 text-right'}>Pt Ratio</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#1E293B]">
+          <tbody className="divide-y divide-white/[0.06] bg-transparent">
             {rows.map((r) => {
               const tm = teamMap.get(r.teamId);
               return (
-                <tr key={r.teamId} className="hover:bg-slate-800/35">
+                <tr key={r.teamId} className="bg-transparent hover:bg-white/[0.05] transition-colors">
                   <td className={`${compact ? 'py-2 px-3' : 'py-3 px-3'} font-mono font-black text-[#F97316]`}>
                     {r.rank}
                   </td>

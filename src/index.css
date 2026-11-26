@@ -33,6 +33,22 @@
   }
 }
 
+@layer components {
+  .dva-glass-panel {
+    @apply bg-white/[0.04] backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.35)];
+  }
+  .dva-glass-card {
+    @apply bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl transition-all duration-300 hover:bg-white/[0.07] hover:border-white/20;
+  }
+  .dva-glass-pill {
+    @apply bg-white/[0.06] backdrop-blur-lg border border-white/15 rounded-full;
+  }
+}
+
+.dva-public-canvas > div[class*="min-h-"] {
+  background-color: transparent;
+}
+
 /* Hide scrollbar utility (Chrome, Safari, Opera, IE, Edge, Firefox) */
 @utility no-scrollbar {
   -ms-overflow-style: none;

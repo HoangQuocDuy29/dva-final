@@ -147,8 +147,8 @@ export const CourtMapPage: React.FC = () => {
     const vt = VENUE_TYPE_META[venue.venueType] || VENUE_TYPE_META.COMMERCIAL;
 
     return (
-      <div className="flex flex-col h-full min-h-0 bg-[#0F1420] text-white">
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#0F1420]/95 backdrop-blur border-b border-slate-800">
+      <div className="flex flex-col h-full min-h-0 bg-[#0B0D12]/85 backdrop-blur-2xl text-white">
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 bg-white/[0.03] border-b border-white/10">
           {!isMobile ? <button type="button" onClick={() => setSelectedId(null)} className="inline-flex items-center gap-1 text-xs font-bold text-slate-300 hover:text-orange-400 cursor-pointer"><ChevronLeft className="w-4 h-4" />Danh sách sân ({entries.length})</button> : <span className="text-xs font-bold text-slate-300">Chi tiết sân & lịch ca</span>}
           <button type="button" onClick={() => (isMobile ? closeSheet() : setSelectedId(null))} aria-label="Đóng chi tiết sân" className="p-1.5 rounded-lg bg-slate-800 text-slate-300 cursor-pointer"><X className="w-4 h-4" /></button>
         </div>
@@ -161,7 +161,7 @@ export const CourtMapPage: React.FC = () => {
             </div>
           )}
 
-          <div className="rounded-2xl overflow-hidden bg-[#141C2B] border border-slate-800">
+          <div className="rounded-2xl overflow-hidden dva-glass-panel">
             {(venue.coverUrl || venue.imageUrl) && (
               <div className="relative h-36 bg-slate-900">
                 <img src={optimizeCloudinaryUrl(venue.coverUrl || venue.imageUrl, 'card')} alt={venue.name} className="w-full h-full object-cover" loading="lazy" />
@@ -221,7 +221,7 @@ export const CourtMapPage: React.FC = () => {
               const rt = getSessionRealtimeInfo(s, nowVn, closed, activeSelectedDay);
               const cancelled = !closed && isSessionCancelledOnDate(s, viewedDate);
               return (
-                <div key={s.id} className={`rounded-2xl p-3.5 border space-y-2 ${cancelled ? 'opacity-50 bg-[#121622] border-amber-500/40' : rt.state === 'LIVE' ? 'opacity-65 hover:opacity-95 bg-[#121826] border-slate-700' : rt.state === 'UPCOMING' ? 'bg-gradient-to-br from-[#1B1726] to-[#141C2B] border-orange-400/75 ring-1 ring-orange-500/35' : 'bg-[#141C2B] border-slate-800'}`}>
+                <div key={s.id} className={`rounded-2xl p-3.5 border space-y-2 ${cancelled ? 'opacity-50 bg-white/[0.03] border-amber-500/40' : rt.state === 'LIVE' ? 'opacity-70 hover:opacity-95 dva-glass-panel' : rt.state === 'UPCOMING' ? 'bg-gradient-to-br from-orange-500/15 to-white/[0.04] backdrop-blur-xl border-orange-400/75 ring-1 ring-orange-500/35' : 'dva-glass-panel'}`}>
                   {!closed && !cancelled && (rt.state === 'LIVE' || rt.state === 'UPCOMING' || rt.state === 'SCHEDULED') && (
                     <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
                       {rt.state === 'LIVE' ? <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">● ĐANG ĐÁNH ({s.startTime} - {s.endTime})</span> : rt.state === 'UPCOMING' ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-500/20 text-amber-200 border border-orange-400/60"><Timer className="w-3.5 h-3.5 text-orange-300" />⏳ {rt.countdownText}</span> : <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">📅 Lịch {formatDayFull(selectedDay)} {formatShortVnDate(viewedDate)} ({s.startTime} - {s.endTime})</span>}
@@ -262,7 +262,7 @@ export const CourtMapPage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => void openZalo(club, venue, s)} className="flex-1 py-2 px-2.5 rounded-xl bg-[#0068FF] hover:bg-[#0058D9] text-white font-bold text-xs inline-flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"><MessageCircle className="w-3.5 h-3.5 shrink-0" /><span>Zalo</span></button>
                     <a href={`tel:${sanitizePhoneForLink(club.captainPhone)}`} className="flex-1 py-2 px-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/45 text-emerald-300 font-bold text-xs inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><Phone className="w-3.5 h-3.5 shrink-0" /><span>Gọi</span></a>
-                    <Link to={`/services/court-map/teams/${club.slug}`} className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 hover:text-orange-300 font-bold text-xs inline-flex items-center justify-center gap-0.5 whitespace-nowrap shrink-0"><span>Chi tiết</span><ChevronRight className="w-3.5 h-3.5 shrink-0" /></Link>
+                    <Link to={`/services/court-map/teams/${club.slug}`} className="py-2 px-3 rounded-full dva-glass-pill text-slate-100 hover:text-orange-300 hover:bg-white/10 font-bold text-xs inline-flex items-center justify-center gap-0.5 whitespace-nowrap shrink-0"><span>Chi tiết</span><ChevronRight className="w-3.5 h-3.5 shrink-0" /></Link>
                   </div>
                 </div>
               );
@@ -274,16 +274,16 @@ export const CourtMapPage: React.FC = () => {
   };
 
   const renderList = () => (
-    <div className="flex flex-col h-full bg-[#0F1420]">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+    <div className="flex flex-col h-full bg-transparent">
+      <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
         <h2 className="font-heading font-black text-sm">Danh Sách Sân ({entries.length}){userGeo && <span className="text-[10px] font-semibold text-blue-400 ml-1">· Gần nhất trước</span>}</h2>
         {(timeMode !== 'ALL' || playStyle !== 'ALL' || genderFilter !== 'ALL' || venueType !== 'ALL' || cityFilter !== 'ALL' || query) && <button type="button" onClick={() => { setTimeMode('ALL'); setPlayStyle('ALL'); setGenderFilter('ALL'); setVenueType('ALL'); setCityFilter('ALL'); setQuery(''); }} className="text-[11px] font-bold text-orange-400 cursor-pointer">Xóa lọc</button>}
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-        {loading && !venues.length ? <div className="py-16 flex justify-center"><div className="w-7 h-7 rounded-full border-2 border-slate-700 border-t-orange-500 animate-spin" /></div> : entries.map(({ venue, closed, hasActivity, isLive, distanceKm, activeSessions }) => {
+        {loading && !venues.length ? <div className="py-16 flex justify-center"><div className="w-7 h-7 rounded-full border-2 border-white/15 border-t-orange-500 animate-spin" /></div> : entries.map(({ venue, closed, hasActivity, isLive, distanceKm, activeSessions }) => {
           const vt = VENUE_TYPE_META[venue.venueType] || VENUE_TYPE_META.COMMERCIAL;
           return (
-            <button key={venue.id} type="button" onClick={() => onSelectVenue(venue.id)} className={`w-full text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${closed ? 'bg-[#121622] border-red-500/40 opacity-80' : !hasActivity ? 'bg-[#121826] border-slate-800 opacity-60' : 'bg-[#141C2B] border-orange-500/35 hover:border-orange-500/70'}`}>
+            <button key={venue.id} type="button" onClick={() => onSelectVenue(venue.id)} className={`w-full text-left p-3.5 dva-glass-card rounded-2xl cursor-pointer ${closed ? 'border-red-500/40 opacity-80' : !hasActivity ? 'opacity-70 hover:border-orange-500/40' : 'border-orange-500/30 hover:border-orange-500/60'}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5 mb-1">
@@ -296,7 +296,7 @@ export const CourtMapPage: React.FC = () => {
                   <h3 className="font-heading font-extrabold text-sm text-white truncate">{venue.name}</h3>
                   <p className="text-[11px] text-slate-400 truncate">{venue.district} · {venue.surfaceType} · {venue.subCourtsCount} sân</p>
                 </div>
-                <span className="px-2 py-1 rounded-lg bg-slate-800 text-[10px] font-bold text-slate-200 shrink-0">{(venue.clubs || []).length} CLB · {activeSessions.length} ca</span>
+                <span className="px-2 py-1 rounded-full bg-white/[0.06] border border-white/10 text-[10px] font-bold text-slate-200 shrink-0">{(venue.clubs || []).length} CLB · {activeSessions.length} ca</span>
               </div>
             </button>
           );
@@ -306,66 +306,68 @@ export const CourtMapPage: React.FC = () => {
   );
 
   return (
-    <div className="min-h-[calc(100vh-5rem)] bg-[#0B0F19] text-white flex flex-col">
-      <section className="border-b border-slate-800/80 bg-gradient-to-b from-[#111827] to-[#0B0F19]">
+    <div className="min-h-[calc(100vh-5rem)] bg-transparent text-white flex flex-col">
+      <section className="bg-transparent pt-3">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-3">
+          <div className="dva-glass-panel backdrop-blur-2xl rounded-3xl p-4 sm:p-5 space-y-3.5">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-[11px]">
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-black uppercase bg-orange-500/15 text-orange-400 border border-orange-500/35"><MapPin className="w-3 h-3" />Hanoi Volleyball Radar</span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700"><Clock className="w-3 h-3 text-emerald-400" />Hà Nội: <strong className="text-white">{nowVn.timeLabel}</strong> ({nowVn.dayLabel})</span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 dva-glass-pill text-slate-300"><Clock className="w-3 h-3 text-emerald-400" />Hà Nội: <strong className="text-white">{nowVn.timeLabel}</strong> ({nowVn.dayLabel})</span>
               </div>
               <h1 className="font-heading font-black text-xl sm:text-2xl lg:text-3xl mt-1">Bản Đồ Sân Bóng Chuyền <span className="text-orange-500">Hà Nội</span></h1>
             </div>
             <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
-              <div className="relative flex-1 min-w-[150px] sm:w-52 xl:w-60"><Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm sân, quận, CLB..." className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#141C2B] border border-slate-700 text-xs text-white focus:outline-none focus:border-orange-500" /></div>
-              <select aria-label="Lọc theo thành phố" value={cityFilter} onChange={(e) => handleCityChange(e.target.value)} className="px-2.5 py-2 rounded-xl bg-[#141C2B] border border-slate-700 text-xs font-bold text-slate-100 focus:outline-none focus:border-orange-500 cursor-pointer shrink-0">
-                <option value="ALL">Tất cả TP</option>
-                {VIETNAM_CITIES.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+              <div className="relative flex-1 min-w-[150px] sm:w-52 xl:w-60"><Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm sân, quận, CLB..." className="w-full pl-9 pr-3 py-2 dva-glass-pill text-xs text-white focus:outline-none focus:border-orange-500" /></div>
+              <select aria-label="Lọc theo thành phố" value={cityFilter} onChange={(e) => handleCityChange(e.target.value)} className="px-3 py-2 dva-glass-pill text-xs font-bold text-slate-100 focus:outline-none focus:border-orange-500 cursor-pointer shrink-0">
+                <option value="ALL" className="bg-[#0B0D12]">Tất cả TP</option>
+                {VIETNAM_CITIES.map((c) => <option key={c.name} value={c.name} className="bg-[#0B0D12]">{c.name}</option>)}
               </select>
-              <button type="button" onClick={handleViewAllVietnam} className="px-2.5 py-2 rounded-xl bg-[#141C2B] hover:border-orange-400 border border-slate-700 text-xs font-bold text-slate-100 cursor-pointer shrink-0">🇻🇳 Toàn Việt Nam</button>
-              <button type="button" onClick={handleLocateMe} disabled={locating} className={`px-2.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border cursor-pointer shrink-0 ${userGeo ? 'bg-blue-600 text-white border-blue-400' : 'bg-[#141C2B] text-blue-300 border-blue-500/40'}`}><LocateFixed className={`w-3.5 h-3.5 ${locating ? 'animate-spin' : ''}`} /><span>📍 Gần tôi</span></button>
-              <button type="button" onClick={() => void loadVenues(true)} disabled={loading} aria-label="Làm mới" className="p-2 rounded-xl bg-[#141C2B] border border-slate-700 text-slate-300 cursor-pointer shrink-0"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-400' : ''}`} /></button>
+              <button type="button" onClick={handleViewAllVietnam} className="px-3 py-2 dva-glass-pill hover:border-orange-400 text-xs font-bold text-slate-100 cursor-pointer shrink-0">🇻🇳 Toàn Việt Nam</button>
+              <button type="button" onClick={handleLocateMe} disabled={locating} className={`px-3 py-2 rounded-full text-xs font-bold inline-flex items-center gap-1.5 border cursor-pointer shrink-0 ${userGeo ? 'bg-blue-600 text-white border-blue-400' : 'dva-glass-pill text-blue-300 border-blue-500/40'}`}><LocateFixed className={`w-3.5 h-3.5 ${locating ? 'animate-spin' : ''}`} /><span>📍 Gần tôi</span></button>
+              <button type="button" onClick={() => void loadVenues(true)} disabled={loading} aria-label="Làm mới" className="p-2 dva-glass-pill text-slate-300 hover:text-white cursor-pointer shrink-0"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-400' : ''}`} /></button>
             </div>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-2">
               {([['ALL', `Tất cả sân (${venues.length})`], ['LIVE', `🟢 Đang đánh (${liveCount})`], ['UPCOMING_TODAY', `🟠 Sắp diễn ra (${upcomingCount})`]] as const).map(([id, label]) => (
-                <button key={id} type="button" onClick={() => setTimeMode(id)} className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${timeMode === id ? 'bg-white text-slate-950 border-white' : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{label}</button>
+                <button key={id} type="button" onClick={() => setTimeMode(id)} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${timeMode === id ? 'bg-white text-slate-950 border-white' : 'dva-glass-pill text-slate-300 hover:text-white'}`}>{label}</button>
               ))}
-              <span className="h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
+              <span className="h-5 w-px bg-white/10 mx-0.5 shrink-0" />
               {VN_DAY_OPTIONS.map((d) => {
                 const active = timeMode === 'DAY' && selectedDay === d.value;
-                return <button key={d.value} type="button" onClick={() => { if (active) setTimeMode('ALL'); else { setSelectedDay(d.value); setTimeMode('DAY'); } }} className={`px-2.5 py-1.5 rounded-lg text-xs font-bold shrink-0 border cursor-pointer ${active ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400' : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{d.short}</button>;
+                return <button key={d.value} type="button" onClick={() => { if (active) setTimeMode('ALL'); else { setSelectedDay(d.value); setTimeMode('DAY'); } }} className={`px-2.5 py-1.5 rounded-full text-xs font-bold shrink-0 border cursor-pointer transition-colors ${active ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400' : 'dva-glass-pill text-slate-300 hover:text-white'}`}>{d.short}</button>;
               })}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-col gap-1.5 md:flex-row md:flex-wrap md:items-center w-full lg:w-auto">
                 <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
                   {(['ALL', 'COMPETITIVE', 'FUN_GAME', 'TRAINING'] as const).map((id) => (
-                    <button key={id} type="button" onClick={() => setPlayStyle(id)} className={`px-1.5 sm:px-2.5 py-1 md:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${playStyle === id ? (id === 'ALL' ? 'bg-slate-200 text-slate-950 border-white' : PLAY_STYLE_META[id].activeClass) : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{id === 'ALL' ? 'Tất cả gu' : `${PLAY_STYLE_META[id].emoji} ${PLAY_STYLE_META[id].shortLabel}`}</button>
+                    <button key={id} type="button" onClick={() => setPlayStyle(id)} className={`px-2.5 py-1 md:py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${playStyle === id ? (id === 'ALL' ? 'bg-white text-slate-950 border-white' : PLAY_STYLE_META[id].activeClass) : 'dva-glass-pill text-slate-300 hover:text-white'}`}>{id === 'ALL' ? 'Tất cả gu' : `${PLAY_STYLE_META[id].emoji} ${PLAY_STYLE_META[id].shortLabel}`}</button>
                   ))}
                 </div>
-                <span className="hidden md:block h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
+                <span className="hidden md:block h-5 w-px bg-white/10 mx-0.5 shrink-0" />
                 <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
                   {([['ALL', 'Tất cả'], ['MALE_ONLY', '♂️ Chỉ Nam'], ['MIXED', '⚥ Nam & Nữ'], ['FEMALE_ONLY', '♀️ Chỉ Nữ']] as const).map(([id, label]) => (
-                    <button key={id} type="button" onClick={() => setGenderFilter(id)} className={`px-1.5 sm:px-2.5 py-1 md:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${genderFilter === id ? 'bg-purple-600 text-white border-purple-400' : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{label}</button>
+                    <button key={id} type="button" onClick={() => setGenderFilter(id)} className={`px-2.5 py-1 md:py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${genderFilter === id ? 'bg-purple-600 text-white border-purple-400' : 'dva-glass-pill text-slate-300 hover:text-white'}`}>{label}</button>
                   ))}
                 </div>
-                <span className="hidden md:block h-5 w-px bg-slate-800 mx-0.5 shrink-0" />
+                <span className="hidden md:block h-5 w-px bg-white/10 mx-0.5 shrink-0" />
                 <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
                   {([['ALL', 'Mọi loại sân'], ['COMMERCIAL', 'Sân dịch vụ'], ['FREE_PUBLIC', 'Sân Free']] as const).map(([id, label]) => (
-                    <button key={id} type="button" onClick={() => setVenueType(id)} className={`px-1.5 sm:px-2.5 py-1 md:py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer ${venueType === id ? 'bg-sky-600 text-white border-sky-400' : 'bg-[#141C2B] text-slate-300 border-slate-800'}`}>{label}</button>
+                    <button key={id} type="button" onClick={() => setVenueType(id)} className={`px-2.5 py-1 md:py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${venueType === id ? 'bg-sky-600 text-white border-sky-400' : 'dva-glass-pill text-slate-300 hover:text-white'}`}>{label}</button>
                   ))}
                 </div>
               </div>
-              <div className="flex lg:hidden bg-[#141C2B] border border-slate-800 rounded-xl p-0.5 shrink-0">
+              <div className="flex lg:hidden dva-glass-pill p-0.5 shrink-0">
                 {([['MAP', MapIcon, 'Bản đồ'], ['LIST', List, `Danh sách (${entries.length})`]] as const).map(([id, Icon, label]) => (
-                  <button key={id} type="button" onClick={() => setMobileView(id)} className={`px-2.5 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer ${mobileView === id ? 'bg-orange-500 text-white' : 'text-slate-400'}`}><Icon className="w-3.5 h-3.5" />{label}</button>
+                  <button key={id} type="button" onClick={() => setMobileView(id)} className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 cursor-pointer ${mobileView === id ? 'bg-orange-500 text-white' : 'text-slate-300'}`}><Icon className="w-3.5 h-3.5" />{label}</button>
                 ))}
               </div>
             </div>
+          </div>
           </div>
         </div>
       </section>
@@ -373,22 +375,22 @@ export const CourtMapPage: React.FC = () => {
       {error && <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-3"><div className="p-3 rounded-xl bg-red-950/60 border border-red-700 text-xs text-red-200">{error}</div></div>}
 
       <section className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-5">
-        <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-15.5rem)] lg:min-h-[580px] rounded-2xl lg:rounded-3xl overflow-hidden border border-slate-800 bg-[#0F1420] relative">
+        <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-15.5rem)] lg:min-h-[580px] rounded-2xl lg:rounded-3xl overflow-hidden dva-glass-panel relative">
           <div className={`relative isolate z-0 ${mobileView === 'LIST' ? 'hidden lg:block lg:flex-1 lg:h-full' : 'block w-full h-[64vh] min-h-[430px] lg:flex-1 lg:h-full'}`}>
             <HanoiLeafletMap items={mapItems} selectedVenueId={selectedId} onSelectVenue={onSelectVenue} focusTrigger={focusTick} isVisible={mobileView === 'MAP'} userLocation={userGeo} userFocusTrigger={geoTick} viewportTarget={viewportTarget} />
-            <div className="absolute top-3 left-3 z-[400] pointer-events-none px-2.5 py-1.5 rounded-xl bg-[#0B0F19]/90 backdrop-blur border border-slate-700 text-[10px] font-bold text-slate-200 flex items-center gap-2.5">
+            <div className="absolute top-3 left-3 z-[400] pointer-events-none px-3 py-1.5 rounded-full bg-[#0B0D12]/80 backdrop-blur-xl border border-white/15 text-[10px] font-bold text-slate-200 flex items-center gap-2.5">
               <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-red-600 to-orange-500" />Có lịch</span>
               <span className="inline-flex items-center gap-1 text-slate-400"><span className="w-2.5 h-2.5 rounded-full bg-slate-500 opacity-50" />Không lịch</span>
               <span className="inline-flex items-center gap-1 text-red-300"><span className="w-2.5 h-2.5 rounded-full bg-red-600" />Tạm nghỉ</span>
             </div>
           </div>
           {mobileView === 'LIST' && <div className="lg:hidden min-h-[60vh]">{renderList()}</div>}
-          <aside className="hidden lg:flex lg:flex-col w-[380px] xl:w-[420px] shrink-0 border-l border-slate-800 h-full overflow-hidden">{selected ? renderDrawer(selected, false) : renderList()}</aside>
+          <aside className="hidden lg:flex lg:flex-col w-[380px] xl:w-[420px] shrink-0 border-l border-white/10 h-full overflow-hidden">{selected ? renderDrawer(selected, false) : renderList()}</aside>
         </div>
       </section>
 
       <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-10">
-        <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-5 sm:p-6 space-y-5">
+        <div className="dva-glass-panel rounded-3xl p-5 sm:p-6 space-y-5">
           <div className="space-y-1.5">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/35">
               <Info className="w-3.5 h-3.5" />HƯỚNG DẪN SỬ DỤNG
@@ -397,28 +399,28 @@ export const CourtMapPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 space-y-2">
+            <div className="dva-glass-card rounded-2xl p-4 space-y-2">
               <span className="inline-block px-2 py-0.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 font-black text-[11px]">Bước 1</span>
               <h3 className="font-heading font-extrabold text-sm text-white leading-snug">Chọn Khu Vực &amp; Định Vị (📍 Gần tôi)</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Chọn <strong className="text-white">Thành phố</strong> (Hà Nội, Đà Nẵng, TP.HCM), bấm <strong className="text-white">🇻🇳 Toàn Việt Nam</strong>, hoặc bấm <strong className="text-blue-300">📍 Gần tôi</strong> để bản đồ tự động đo khoảng cách (km) và xếp ưu tiên các sân gần bạn nhất.
               </p>
             </div>
-            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 space-y-2">
+            <div className="dva-glass-card rounded-2xl p-4 space-y-2">
               <span className="inline-block px-2 py-0.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 font-black text-[11px]">Bước 2</span>
               <h3 className="font-heading font-extrabold text-sm text-white leading-snug">Lọc Đúng Thứ, Gu Chơi &amp; Giới Tính</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Chọn <strong className="text-white">Thứ trong tuần (T2 → CN)</strong>, lọc theo <strong className="text-white">Gu chơi</strong> (🔥 Đấu căng, 😊 Chơi vui, 🎯 Tập luyện), <strong className="text-white">Đối tượng</strong> (♂️ Chỉ Nam, ⚥ Nam &amp; Nữ, ♀️ Chỉ Nữ) và <strong className="text-white">Loại sân</strong> (Sân dịch vụ, Sân miễn phí).
               </p>
             </div>
-            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 space-y-2">
+            <div className="dva-glass-card rounded-2xl p-4 space-y-2">
               <span className="inline-block px-2 py-0.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 font-black text-[11px]">Bước 3</span>
               <h3 className="font-heading font-extrabold text-sm text-white leading-snug">Xem Slot Trống &amp; Vị Trí Đang Thiếu</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
                 Bấm vào điểm ghim sân sáng màu để xem danh sách các đội đang hoạt động, kiểm tra số suất (slot) còn trống theo đúng ngày đã chọn và các vị trí đang cần tuyển (<strong className="text-white">OH</strong> Chủ công, <strong className="text-white">MB</strong> Phụ công, <strong className="text-white">OP</strong> Đối chuyền, <strong className="text-white">S</strong> Chuyền hai, <strong className="text-white">L</strong> Libero).
               </p>
             </div>
-            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 space-y-2">
+            <div className="dva-glass-card rounded-2xl p-4 space-y-2">
               <span className="inline-block px-2 py-0.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-300 font-black text-[11px]">Bước 4</span>
               <h3 className="font-heading font-extrabold text-sm text-white leading-snug">Nhắn Zalo Đội Trưởng Hoặc Thuê Sân</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
@@ -434,7 +436,7 @@ export const CourtMapPage: React.FC = () => {
               ['⚫ Ghim Xám Mờ', 'text-slate-300', 'Sân chưa có lịch đội sinh hoạt vào thứ đang lọc (bấm vào vẫn xem được lịch các ngày khác trong tuần).'],
               ['🔴 Tạm nghỉ / Báo nghỉ buổi', 'text-red-300', 'Sân tạm đóng cửa dịp lễ Tết hoặc đội tạm nghỉ riêng buổi hôm đó (hệ thống tự động mở lại ở các buổi tiếp theo).'],
             ] as const).map(([title, color, desc]) => (
-              <div key={title} className="bg-[#0B0F19]/60 border border-white/10 rounded-xl px-3.5 py-3 space-y-1">
+              <div key={title} className="dva-glass-card rounded-2xl px-3.5 py-3 space-y-1">
                 <p className={`text-xs font-extrabold ${color}`}>{title}</p>
                 <p className="text-xs text-slate-300 leading-relaxed">{desc}</p>
               </div>
@@ -446,7 +448,7 @@ export const CourtMapPage: React.FC = () => {
       {activeVenue && (
         <div className="lg:hidden fixed inset-0 z-[100]" role="dialog" aria-modal="true">
           <button type="button" aria-label="Đóng" onClick={closeSheet} className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ease-out ${isSheetOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} />
-          <div className={`fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-3xl overflow-hidden border-t border-slate-700 bg-[#0F1420] flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSheetOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+          <div className={`fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-3xl overflow-hidden border-t border-white/15 bg-[#0B0D12]/85 backdrop-blur-2xl flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${isSheetOpen ? 'translate-y-0' : 'translate-y-full'}`}>
             <div className="w-10 h-1 rounded-full bg-white/20 mx-auto my-2 shrink-0" />
             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">{renderDrawer(activeVenue, true)}</div>
           </div>

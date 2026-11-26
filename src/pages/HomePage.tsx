@@ -15,7 +15,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Court, Player, NewsPost, LeadershipMember } from '../types';
-import { homeService, leadershipService } from '../services/api';
+import { homeService, leadershipService, playerService } from '../services/api';
 import { formatEnglishDate } from '../utils/date';
 import { optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { DEFAULT_LEADERSHIP_FALLBACK, getLeadershipInitials, getLeadershipTheme } from '../utils/leadership';
@@ -24,7 +24,7 @@ const LeadershipCard: React.FC<{ member: LeadershipMember }> = ({ member }) => {
   const theme = getLeadershipTheme(member.accentColor);
   return (
     <div
-      className={`w-[280px] sm:w-[320px] min-h-[390px] shrink-0 bg-[#121826] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between transition-all duration-300 shadow-xl group hover:shadow-2xl hover:-translate-y-1 ${theme.hoverBorder} select-none`}
+      className={`w-[280px] sm:w-[320px] min-h-[390px] shrink-0 dva-glass-card p-6 flex flex-col justify-between shadow-xl group hover:shadow-2xl hover:-translate-y-1 ${theme.hoverBorder} select-none`}
     >
       <div className="space-y-4">
         <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${theme.avatarGradient} overflow-hidden relative flex items-center justify-center font-athletic font-black text-2xl text-white shadow-lg mx-auto`}>
@@ -289,7 +289,28 @@ export const HomePage: React.FC = () => {
       });
   }, []);
 
-  const seniorCaptain = players.find(p => p.isCaptain || (p as any).captain) || players[0];
+  const [seniorPlayers, setSeniorPlayers] = useState<Player[]>(() =>
+    (initialCache?.data.players ?? []).filter((p) => String(p.level || '').toUpperCase() === 'SENIOR')
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    playerService
+      .getPlayers({ level: 'SENIOR', forceRefresh: true })
+      .then((rows) => {
+        if (!cancelled && Array.isArray(rows) && rows.length > 0) setSeniorPlayers(rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const seniorPool = seniorPlayers.length > 0 ? seniorPlayers : players.filter((p) => String(p.level || '').toUpperCase() === 'SENIOR');
+  const seniorCaptain =
+    seniorPool.find((p) => p.isCaptain || (p as any).captain) ||
+    seniorPool[0] ||
+    ({ fullName: 'Hoàng Quốc Duy', jerseyNumber: 17, spikeTouch: 285, blockTouch: 270 } as Player);
   const featuredPlayers = players.slice(0, 3);
   const latestNews = news.slice(0, 3);
 
@@ -297,7 +318,7 @@ export const HomePage: React.FC = () => {
     <div className="min-h-screen bg-[#0B0F19] text-white">
       
       {/* HERO SECTION */}
-      <section className="relative bg-gradient-to-b from-[#080C14] via-[#0B0F19] to-[#0B0F19] text-white overflow-hidden py-20 lg:py-28 border-b border-slate-800">
+      <section className="relative -mt-20 pt-36 lg:pt-44 pb-16 lg:pb-24 bg-transparent text-white overflow-x-clip border-b border-white/[0.06]">
         
         {/* Subtle background ambient sports graphics */}
         <div className="absolute inset-0 opacity-20 pointer-events-none">
@@ -366,66 +387,72 @@ export const HomePage: React.FC = () => {
 
             {/* Right Column: Hero Visual Card (Court Central + Captain Spotlight) */}
             <div className="lg:col-span-5">
-              <div className="relative rounded-3xl overflow-hidden bg-[#121826] border border-slate-800 shadow-2xl p-6 space-y-5">
+              <div className="relative rounded-3xl overflow-hidden dva-glass-panel p-6 space-y-5">
                 
-                {/* Court illustration graphic */}
-                <div className="relative h-64 rounded-2xl overflow-hidden bg-gradient-to-br from-red-950 via-slate-900 to-[#121826] border border-slate-700/80 flex flex-col justify-between p-5">
-                  <div className="flex justify-between items-start">
+                {/* Court illustration graphic with /courts/btl.png backdrop */}
+                <div className="relative h-64 rounded-2xl overflow-hidden border border-white/15 flex flex-col justify-between p-5">
+                  <img src="/courts/btl.png" alt="DVA Sports Arena" className="absolute inset-0 h-full w-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-[#0B0D12]/80 via-[#0B0D12]/70 to-[#0B0D12]/90" aria-hidden="true" />
+                  <div className="relative z-10 flex justify-between items-start">
                     <span className="px-3 py-1 bg-red-600 text-white font-extrabold text-xs rounded-lg uppercase tracking-wider shadow">
                       CENTRAL COURT · MAIN ARENA
                     </span>
-                    <span className="text-xs text-slate-300 font-mono bg-black/50 px-2 py-1 rounded backdrop-blur border border-white/10">
+                    <span className="text-xs text-slate-200 font-mono bg-black/55 px-2 py-1 rounded backdrop-blur border border-white/15">
                       Taraflex 7.5mm
                     </span>
                   </div>
 
-                  <div className="my-auto text-center space-y-2">
+                  <div className="relative z-10 my-auto text-center space-y-2">
                     <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
-                    <div className="font-heading font-black text-2xl text-white tracking-wide">
+                    <div className="font-heading font-black text-2xl text-white tracking-wide drop-shadow">
                       DVA SPORTS ARENA
                     </div>
-                    <p className="text-xs text-slate-300">
+                    <p className="text-xs text-slate-200">
                       1200 Lux Glare-Free Arena Lighting · Antenna Nets
                     </p>
                   </div>
 
-                  <div className="flex justify-between items-center text-xs text-slate-300 border-t border-white/10 pt-3">
+                  <div className="relative z-10 flex justify-between items-center text-xs text-slate-200 border-t border-white/15 pt-3">
                     <span className="font-semibold text-orange-400 font-mono">550,000 VND / Hour</span>
-                    <span className="text-slate-400">Prime evening slots available</span>
+                    <span className="text-slate-300">Prime evening slots available</span>
                   </div>
                 </div>
 
-                {/* Captain spotlight mini card */}
-                {seniorCaptain ? (
-                  <div className="flex items-center gap-4 p-4 bg-[#161F30] rounded-2xl border border-slate-800">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center font-athletic font-black text-2xl text-white shadow">
-                      #{seniorCaptain.jerseyNumber || 1}
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-xs font-bold text-white flex items-center gap-2">
-                        <span>{seniorCaptain.fullName}</span>
-                        <span className="text-[10px] text-orange-400 bg-orange-950 border border-orange-800 px-1.5 py-0.2 rounded font-bold">Team Captain</span>
+                {/* Live SENIOR Team Captain spotlight card */}
+                <Link to="/players/senior" className="flex items-center gap-3.5 p-4 dva-glass-card rounded-2xl group">
+                  <div className="relative shrink-0">
+                    {seniorCaptain.avatarUrl ? (
+                      <>
+                        <img
+                          src={optimizeCloudinaryUrl(seniorCaptain.avatarUrl, 'thumb')}
+                          alt={seniorCaptain.fullName}
+                          className="w-11 h-11 rounded-xl object-cover border border-orange-500/40"
+                        />
+                        <span className="absolute -bottom-1.5 -right-1.5 px-1.5 py-0.5 rounded-md bg-gradient-to-r from-red-600 to-orange-500 font-athletic font-black text-[10px] leading-none text-white shadow ring-1 ring-[#0B0D12]">
+                          #{seniorCaptain.jerseyNumber || 1}
+                        </span>
+                      </>
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center font-athletic font-black text-xl text-white shadow border border-orange-500/40">
+                        #{seniorCaptain.jerseyNumber || 1}
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        Spike Reach: <strong className="text-white font-mono">{seniorCaptain.spikeTouch || 325}cm</strong> · Block: <strong className="text-white font-mono">{seniorCaptain.blockTouch || 310}cm</strong>
-                      </div>
-                    </div>
-                    <Link
-                      to="/players/senior"
-                      className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-                    >
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex items-center gap-4 p-4 bg-[#161F30] rounded-2xl border border-slate-800 animate-pulse">
-                    <div className="w-12 h-12 rounded-xl bg-slate-800" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 w-32 bg-slate-700/60 rounded" />
-                      <div className="h-2.5 w-48 bg-slate-800 rounded" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-white flex flex-wrap items-center gap-2">
+                      <span className="truncate">{seniorCaptain.fullName}</span>
+                      <span className="text-[10px] text-orange-300 bg-orange-500/15 border border-orange-500/40 px-2 py-0.5 rounded-full font-bold whitespace-nowrap">
+                        Senior Team Captain
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">
+                      Spike Reach: <strong className="text-white font-mono">{seniorCaptain.spikeTouch || 285}cm</strong> · Block: <strong className="text-white font-mono">{seniorCaptain.blockTouch || 270}cm</strong>
                     </div>
                   </div>
-                )}
+                  <span className="p-2 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0">
+                    <ArrowRight className="w-4 h-4" />
+                  </span>
+                </Link>
 
               </div>
             </div>
@@ -436,11 +463,11 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* QUICK STATS ROW */}
-      <section className="bg-[#0E1524] border-b border-slate-800 py-10">
+      <section className="bg-white/[0.02] border-b border-white/[0.06] py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             
-            <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800">
+            <div className="p-5 dva-glass-card">
               <div className="font-heading font-black text-3xl sm:text-4xl text-red-500 tabular-nums">
                 03
               </div>
@@ -450,7 +477,7 @@ export const HomePage: React.FC = () => {
               <div className="text-[11px] text-slate-500 mt-0.5">Central Court, Court 1 & 2</div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800">
+            <div className="p-5 dva-glass-card">
               <div className="font-heading font-black text-3xl sm:text-4xl text-orange-400 tabular-nums">
                 400+
               </div>
@@ -460,7 +487,7 @@ export const HomePage: React.FC = () => {
               <div className="text-[11px] text-slate-500 mt-0.5">Senior, Junior & Youth Squads</div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800">
+            <div className="p-5 dva-glass-card">
               <div className="font-heading font-black text-3xl sm:text-4xl text-white tabular-nums">
                 04
               </div>
@@ -470,7 +497,7 @@ export const HomePage: React.FC = () => {
               <div className="text-[11px] text-slate-500 mt-0.5">5-1 System Specialists</div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#161F30] border border-slate-800">
+            <div className="p-5 dva-glass-card">
               <div className="font-heading font-black text-3xl sm:text-4xl text-red-500 tabular-nums">
                 270+
               </div>
@@ -508,7 +535,7 @@ export const HomePage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
           {/* TEAM 1: SENIOR SQUAD */}
-          <div className="bg-[#131822] rounded-3xl border border-red-900/40 p-6 sm:p-7 shadow-2xl flex flex-col justify-between hover:border-red-500/70 transition-all duration-300 relative group">
+          <div className="dva-glass-card border-red-500/25 p-6 sm:p-7 shadow-2xl flex flex-col justify-between hover:border-red-500/70 relative group">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-950 text-red-300 border border-red-700">
@@ -568,7 +595,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* TEAM 2: JUNIOR SQUAD */}
-          <div className="bg-[#131822] rounded-3xl border border-blue-900/40 p-6 sm:p-7 shadow-2xl flex flex-col justify-between hover:border-blue-500/70 transition-all duration-300 relative group">
+          <div className="dva-glass-card border-blue-500/25 p-6 sm:p-7 shadow-2xl flex flex-col justify-between hover:border-blue-500/70 relative group">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-950 text-blue-300 border border-blue-700">
@@ -628,7 +655,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* TEAM 3: YOUTH SQUAD */}
-          <div className="bg-[#131822] rounded-3xl border border-emerald-900/40 p-6 sm:p-7 shadow-2xl flex flex-col justify-between hover:border-emerald-500/70 transition-all duration-300 relative group">
+          <div className="dva-glass-card border-emerald-500/25 p-6 sm:p-7 shadow-2xl flex flex-col justify-between hover:border-emerald-500/70 relative group">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-700">
@@ -691,7 +718,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* LEADERSHIP, MANAGEMENT & CONTENT CREATOR SHOWCASE */}
-      <section className="py-16 bg-[#080C14] border-t border-slate-800 relative overflow-hidden">
+      <section className="py-16 bg-transparent border-t border-white/[0.06] relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
@@ -707,13 +734,8 @@ export const HomePage: React.FC = () => {
             
           </div>
 
-          {/* Carousel Slider with edge fade masks */}
-          <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
-            {/* Left fade gradient overlay */}
-            <div className="absolute left-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-r from-[#080C14] to-transparent z-10 pointer-events-none" />
-            {/* Right fade gradient overlay */}
-            <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-l from-[#080C14] to-transparent z-10 pointer-events-none" />
-
+          {/* Carousel Slider with transparent CSS mask-image edge fade */}
+          <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 [mask-image:linear-gradient(to_right,transparent,black_3%,black_97%,transparent)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_3%,black_97%,transparent)]">
             <div
               ref={sliderRef}
               onScroll={handleSliderScroll}
@@ -754,7 +776,7 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* SECTION: COURTS OVERVIEW */}
-      <section className="py-16 bg-[#0E1524] border-t border-slate-800">
+      <section className="py-16 bg-white/[0.02] border-t border-white/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
@@ -790,7 +812,7 @@ export const HomePage: React.FC = () => {
               {courts.map((court) => (
                 <div
                   key={court.id}
-                  className="bg-[#161F30] rounded-3xl border border-slate-800 overflow-hidden shadow-xl flex flex-col justify-between"
+                  className="dva-glass-card overflow-hidden shadow-xl flex flex-col justify-between"
                 >
                   <div>
                     <div className="relative h-44 w-full overflow-hidden bg-slate-900">
@@ -896,7 +918,7 @@ export const HomePage: React.FC = () => {
             latestNews.map((news) => (
               <article
                 key={news.id}
-                className="bg-[#161F30] rounded-3xl border border-slate-800 p-6 flex flex-col justify-between shadow-xl space-y-4"
+                className="dva-glass-card p-6 flex flex-col justify-between shadow-xl space-y-4"
               >
                 <div className="space-y-3">
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-red-950 text-red-400 border border-red-800">

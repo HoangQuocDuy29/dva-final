@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
@@ -256,8 +257,8 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md">
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md">
       <div className="w-full max-w-3xl bg-[#111827] border border-[#1E293B] rounded-3xl shadow-2xl text-white flex flex-col max-h-[92vh] overflow-hidden">
         {/* Header */}
         <div className="bg-[#0B0F19] px-5 sm:px-6 py-4 border-b border-[#1E293B] flex items-center justify-between shrink-0">
@@ -763,6 +764,7 @@ export const CaptainRegisterModal: React.FC<CaptainRegisterModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

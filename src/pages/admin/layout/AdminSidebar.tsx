@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Shield, X, LogOut, Phone, LayoutGrid } from 'lucide-react';
 import { useAdminDashboard } from '../context/AdminDashboardContext';
 import { getAdminNavBadges, getVisibleNavGroups } from '../constants';
@@ -39,6 +40,17 @@ export const AdminSidebar: React.FC = () => {
   const badges = getAdminNavBadges(metrics);
   const groups = getVisibleNavGroups(isSuperAdmin, isCaptain, currentUser.role);
   const allItems = groups.flatMap((g) => g.items);
+  const itemById = new Map(allItems.map((i) => [i.id, i]));
+  const dockClusters =
+    allItems.length > 3
+      ? [
+          ['OVERVIEW', 'APPLICATIONS', 'BOOKINGS', 'COURTS', 'VENUES'],
+          ['PLAYERS', 'COACHES', 'LEADERSHIP', 'TRAINING', 'TOURNAMENTS'],
+          ['NEWS', 'STORE', 'USERS', 'SHEETS'],
+        ]
+          .map((ids) => ids.map((id) => itemById.get(id as AdminNavItem['id'])).filter((x): x is AdminNavItem => Boolean(x)))
+          .filter((cluster) => cluster.length > 0)
+      : [allItems];
 
   // Mobile bottom dock shows up to 4 primary items + "More" trigger when role has >5 modules
   const mobileHasMore = allItems.length > 5;
@@ -71,17 +83,19 @@ export const AdminSidebar: React.FC = () => {
       {/* Desktop Left Floating Pill Dock (fixed left-4, vertically centered / bounded) */}
       <aside
         aria-label="Spatial navigation dock"
-        className="hidden lg:flex flex-col items-center fixed left-4 top-24 bottom-5 z-30 w-[60px] pointer-events-none justify-center"
+        className="hidden lg:flex flex-col items-center fixed left-4 top-4 bottom-4 z-30 w-[60px] pointer-events-none justify-center"
       >
         <div className="pointer-events-auto flex flex-col items-center max-h-full rounded-full bg-white/[0.05] backdrop-blur-2xl border border-white/15 p-2 shadow-2xl shadow-black/60 gap-1.5">
-          {/* Brand emblem */}
-          <div
-            onMouseEnter={(e) => showTooltip(e, 'DVA Spatial Hub')}
+          {/* Brand emblem -> Home */}
+          <Link
+            to="/"
+            aria-label="Về trang chủ DVA"
+            onMouseEnter={(e) => showTooltip(e, 'Về trang chủ DVA')}
             onMouseLeave={() => setTooltip(null)}
-            className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-rose-600 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-950/50 ring-1 ring-white/25"
+            className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-rose-600 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-950/50 ring-1 ring-white/25 hover:scale-105 transition-transform"
           >
             <Shield className="w-4 h-4" />
-          </div>
+          </Link>
 
           <div className="w-6 h-px bg-white/10 shrink-0 my-0.5" aria-hidden="true" />
 
@@ -90,10 +104,10 @@ export const AdminSidebar: React.FC = () => {
             aria-label="Workspace modules"
             className="flex flex-col items-center gap-1 overflow-y-auto no-scrollbar py-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           >
-            {groups.map((group, gIdx) => (
-              <React.Fragment key={group.id}>
-                {gIdx > 0 && <div className="w-5 h-px bg-white/10 my-1 shrink-0" aria-hidden="true" />}
-                {group.items.map((item) => {
+            {dockClusters.map((cluster, cIdx) => (
+              <React.Fragment key={cIdx}>
+                {cIdx > 0 && <div className="w-5 h-px bg-white/10 my-1.5 mx-auto shrink-0" aria-hidden="true" />}
+                {cluster.map((item) => {
                   const Icon = item.icon;
                   const active = activeModule === item.id;
                   const badge = badges[item.id];

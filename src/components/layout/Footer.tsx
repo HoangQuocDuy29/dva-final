@@ -7,7 +7,7 @@ export const Footer: React.FC = () => {
   const { t } = useTranslation('common');
 
   return (
-    <footer className="bg-[#080C14] text-slate-400 border-t border-slate-800 text-sm">
+    <footer className="relative z-0 bg-transparent text-slate-400 border-t border-white/10 text-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16 space-y-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           
@@ -55,7 +55,7 @@ export const Footer: React.FC = () => {
             </div>
 
             {/* MB Bank Beneficiary Card */}
-            <div className="bg-[#121826] border border-slate-800 rounded-2xl p-4 space-y-1.5 text-xs">
+            <div className="dva-glass-card rounded-2xl p-4 space-y-1.5 text-xs">
               <div className="flex items-center gap-2 text-slate-300 font-bold">
                 <QrCode className="w-4 h-4 text-red-500" />
                 <span>{t('footer.paymentTitle')}</span>
@@ -93,7 +93,7 @@ export const Footer: React.FC = () => {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className="px-3.5 py-2.5 rounded-xl bg-[#121826] hover:bg-gradient-to-r hover:from-red-950/70 hover:to-orange-950/50 border border-slate-800 hover:border-orange-500/50 text-slate-300 hover:text-white flex items-center justify-between text-xs font-semibold group transition-all shadow-sm cursor-pointer"
+                  className="px-3.5 py-2.5 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-white/10 hover:bg-white/[0.09] hover:border-orange-500/40 text-slate-300 hover:text-white flex items-center justify-between text-xs font-semibold group transition-all duration-200 cursor-pointer"
                 >
                   <span>{link.label}</span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-orange-400 group-hover:translate-x-1 transition-all" />
@@ -122,36 +122,35 @@ export const Footer: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-2 text-[11px] text-slate-500 leading-relaxed border-t border-slate-800/80">
+            <div className="pt-2 text-[11px] text-slate-500 leading-relaxed border-t border-white/10">
               {t('footer.facilityDesc')}
             </div>
           </div>
 
           {/* Col 4: Interactive Arena Map (aligned right on same row) */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                <span>{t('footer.arenaMapTitle')}</span>
-              </h4>
+            <h4 className="text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-orange-500" />
+              <span>{t('footer.arenaMapTitle')}</span>
+            </h4>
+
+            {/* Embedded interactive map container */}
+            <div className="w-full h-52 rounded-2xl border border-white/15 bg-white/[0.03] p-1 backdrop-blur-xl overflow-hidden relative shadow-inner">
               <a
                 href="https://maps.google.com/?q=155+Truong+Chinh+Thanh+Xuan+Hanoi"
                 target="_blank"
                 rel="noreferrer"
-                className="text-[11px] text-orange-400 hover:underline flex items-center gap-1"
+                className="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#0B0D12]/75 backdrop-blur-xl border border-white/20 hover:bg-white/15 text-[11px] font-bold text-white transition-colors"
               >
-                <span>{t('footer.directions')}</span>
-                <ExternalLink className="w-3 h-3" />
+                <span>Mở trong Maps</span>
+                <ExternalLink className="w-3 h-3 text-orange-400" />
               </a>
-            </div>
-
-            {/* Embedded interactive map container */}
-            <div className="w-full h-52 rounded-2xl overflow-hidden border border-slate-800 bg-[#121826] relative shadow-inner">
               <iframe
                 title="DVA Sports Arena Location"
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3579.4279507469305!2d105.8314439750799!3d20.995316580645632!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3135ac636fc82dd9%3A0xddf37bc4f391daff!2zTmjDoCB0aGkgxJHhuqV1IELDs25nIGNodXnhu4FuIFRow7RuZyBUaW4!5e1!3m2!1svi!2s!4v1792692619456!5m2!1svi!2s" 
                 width="100%"
                 height="100%"
+                className="rounded-xl"
                 style={{ border: 0, filter: 'grayscale(0.2) contrast(1.1) invert(0.9) hue-rotate(180deg)' }}
                 allowFullScreen={false}
                 loading="lazy"
@@ -165,7 +164,7 @@ export const Footer: React.FC = () => {
 
         </div>
 
-        <div className="mt-14 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+        <div className="mt-14 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div>
             {t('footer.copyright', { year: new Date().getFullYear() })}
           </div>

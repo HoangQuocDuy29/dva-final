@@ -257,13 +257,13 @@ export const VenuesTab: React.FC = () => {
     const reasonDraft = cancelReasonDrafts[s.id] ?? (s.cancelReason || '');
 
     return (
-      <div key={s.id} onClick={() => setActiveSessionId(s.id)} className={`rounded-2xl p-3.5 border space-y-2.5 ${isOff ? 'bg-[#121622] border-amber-500/50' : 'bg-[#0B0F19]/90 border-slate-800'}`}>
+      <div key={s.id} onClick={() => setActiveSessionId(s.id)} className={`dva-glass-card !rounded-2xl p-4 space-y-3 ${isOff ? '!border-amber-500/50 bg-amber-500/[0.06]' : ''}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="px-2 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/40 text-orange-300 font-black">{formatDaysOfWeek(s.daysOfWeek)}</span>
+            <span className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/40 text-orange-300 font-black">{formatDaysOfWeek(s.daysOfWeek)}</span>
             <span className="font-mono font-bold text-white"><Clock className="w-3 h-3 inline mr-1 text-orange-400" />{s.startTime}–{s.endTime}</span>
-            {s.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/35 text-[10px] font-bold">{sc}</span>)}
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold border ${rec.badgeClass}`}>{rec.label}</span>
+            {s.subCourts.map((sc) => <span key={sc} className="px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/35 text-[10px] font-bold">{sc}</span>)}
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${rec.badgeClass}`}>{rec.label}</span>
           </div>
           <div className="flex flex-wrap items-center gap-1">
             <select
@@ -271,59 +271,59 @@ export const VenuesTab: React.FC = () => {
               disabled={busy}
               value={s.skillRankLabel || ''}
               onChange={(e) => void quickPatchSession(venue.id, s, { skillRankLabel: e.target.value || null })}
-              className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-blue-950/70 text-blue-200 border-blue-700/60 focus:outline-none cursor-pointer"
+              className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-blue-500/15 text-blue-200 border-blue-400/35 focus:outline-none cursor-pointer"
               title="Gắn hạng trình độ USAV khuyến nghị cho ca chơi"
             >
-              <option value="" className="bg-[#0B0F19] text-slate-300">🇺🇸 Chưa gắn hạng</option>
+              <option value="" className="bg-[#0B0D12] text-slate-300">🇺🇸 Chưa gắn hạng</option>
               {RECOMMENDED_SKILL_RANK_PRESETS.map((preset) => (
-                <option key={preset} value={preset} className="bg-[#0B0F19] text-white">🇺🇸 USAV: {preset}</option>
+                <option key={preset} value={preset} className="bg-[#0B0D12] text-white">🇺🇸 USAV: {preset}</option>
               ))}
             </select>
             {(['MALE_ONLY', 'MIXED', 'FEMALE_ONLY'] as const).map((g) => (
-              <button key={g} type="button" disabled={busy} onClick={() => void quickPatchSession(venue.id, s, { genderRule: g })} className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border cursor-pointer ${(s.genderRule || 'MIXED') === g ? 'bg-purple-600 text-white border-purple-400' : 'bg-[#111827] text-slate-400 border-slate-800'}`}>{GENDER_RULE_META[g].shortLabel}</button>
+              <button key={g} type="button" disabled={busy} onClick={() => void quickPatchSession(venue.id, s, { genderRule: g })} className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer transition-colors ${(s.genderRule || 'MIXED') === g ? 'bg-purple-500/30 text-purple-100 border-purple-400/50' : 'bg-white/[0.05] text-slate-300 border-white/10 hover:bg-white/10'}`}>{GENDER_RULE_META[g].shortLabel}</button>
             ))}
             {isSuperAdmin && (
               <>
-                <button type="button" onClick={() => openModal({ kind: 'session', venue, item: s })} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"><Pencil className="w-3 h-3" /></button>
-                <button type="button" onClick={async () => { if (!confirm('Xóa ca này?')) return; await venueService.deleteSession(venue.id, s.id); await reload(); notify('Đã xóa ca.'); }} className="p-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 text-red-300 cursor-pointer"><Trash2 className="w-3 h-3" /></button>
+                <button type="button" onClick={() => openModal({ kind: 'session', venue, item: s })} className="p-1.5 rounded-full bg-white/[0.06] hover:bg-white/15 border border-white/10 text-slate-300 cursor-pointer"><Pencil className="w-3 h-3" /></button>
+                <button type="button" onClick={async () => { if (!confirm('Xóa ca này?')) return; await venueService.deleteSession(venue.id, s.id); await reload(); notify('Đã xóa ca.'); }} className="p-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 cursor-pointer"><Trash2 className="w-3 h-3" /></button>
               </>
             )}
           </div>
         </div>
 
         {/* Quick Date Selector Bar (T2 23/11, T4 25/11, T7 28/11...) */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/80">
+        <div className="flex flex-wrap items-center gap-1.5 pt-2.5 border-t border-white/10">
           <span className="text-[10px] font-bold uppercase text-slate-400 mr-0.5">Ngày:</span>
           {upcomingDates.map((d) => {
             const active = selDate === d.dateStr;
             const dOff = isSessionCancelledOnDate(s, d.dateStr);
             const dCur = getSessionDailyState(s, d.dateStr).currentPlayers;
             return (
-              <button key={d.dateStr} type="button" onClick={() => setSelectedDateBySession((p) => ({ ...p, [s.id]: d.dateStr }))} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer inline-flex items-center gap-1 ${active ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400 shadow' : 'bg-[#111827] text-slate-300 border-slate-700 hover:border-slate-500'}`}>
+              <button key={d.dateStr} type="button" onClick={() => setSelectedDateBySession((p) => ({ ...p, [s.id]: d.dateStr }))} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer inline-flex items-center gap-1 transition-colors ${active ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400 shadow' : 'bg-white/[0.05] text-slate-200 border-white/10 hover:bg-white/10'}`}>
                 <span>{d.label}</span>
-                {dOff ? <span className="text-[9px] text-amber-300">⚠️</span> : (limited && dCur > 0 && <span className={`text-[9px] px-1 rounded ${active ? 'bg-black/25' : 'bg-sky-500/20 text-sky-300'}`}>{dCur}</span>)}
+                {dOff ? <span className="text-[9px] text-amber-300">⚠️</span> : (limited && dCur > 0 && <span className={`text-[9px] px-1 rounded-full ${active ? 'bg-black/25' : 'bg-sky-500/20 text-sky-300'}`}>{dCur}</span>)}
               </button>
             );
           })}
-          <input type="date" aria-label="Chọn ngày khác" value={selDate} onChange={(e) => { if (e.target.value) setSelectedDateBySession((p) => ({ ...p, [s.id]: e.target.value })); }} className="px-2 py-1 rounded-lg bg-[#111827] border border-slate-700 text-[11px] text-slate-200 ml-auto" />
+          <input type="date" aria-label="Chọn ngày khác" value={selDate} onChange={(e) => { if (e.target.value) setSelectedDateBySession((p) => ({ ...p, [s.id]: e.target.value })); }} className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] text-slate-200 focus:outline-none focus:border-orange-500/50 ml-auto" />
         </div>
 
         {/* 1-Tap Controls for Selected Date: Capacity, -/+ Players, OH-MB-OP-S-L, Off Toggle */}
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={busy} onClick={() => void quickPatchSession(venue.id, s, { capacityMode: limited ? 'UNLIMITED' : 'LIMITED_SLOTS' })} className="px-2.5 py-1.5 rounded-xl bg-[#161F30] border border-slate-700 text-[11px] font-bold text-slate-200 cursor-pointer">
+            <button type="button" disabled={busy} onClick={() => void quickPatchSession(venue.id, s, { capacityMode: limited ? 'UNLIMITED' : 'LIMITED_SLOTS' })} className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer transition-colors">
               {limited ? 'Giới hạn slot' : '∞ Tự do'}
             </button>
             {limited && (
-              <div className="inline-flex items-center gap-1.5 bg-[#111827] border border-slate-700 rounded-xl px-2 py-1">
-                <button type="button" disabled={busy || cur <= 0} onClick={() => void patchDailyOverride(venue.id, s, selDate, { currentPlayers: Math.max(0, cur - 1) })} className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white inline-flex items-center justify-center cursor-pointer disabled:opacity-40"><Minus className="w-3.5 h-3.5" /></button>
+              <div className="inline-flex items-center gap-1.5 bg-white/[0.05] border border-white/10 rounded-full px-2 py-1">
+                <button type="button" disabled={busy || cur <= 0} onClick={() => void patchDailyOverride(venue.id, s, selDate, { currentPlayers: Math.max(0, cur - 1) })} className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/15 text-white inline-flex items-center justify-center cursor-pointer disabled:opacity-40 transition-colors"><Minus className="w-3.5 h-3.5" /></button>
                 <span className="min-w-12 text-center font-mono font-black text-xs text-white tabular-nums">{cur} / {max}</span>
-                <button type="button" disabled={busy} onClick={() => void patchDailyOverride(venue.id, s, selDate, { currentPlayers: cur + 1 })} className="w-7 h-7 rounded-lg bg-sky-600 hover:bg-sky-500 text-white inline-flex items-center justify-center cursor-pointer"><Plus className="w-3.5 h-3.5" /></button>
-                <span className="text-[10px] font-bold text-emerald-300 pl-1">Còn {Math.max(0, max - cur)}</span>
+                <button type="button" disabled={busy} onClick={() => void patchDailyOverride(venue.id, s, selDate, { currentPlayers: cur + 1 })} className="w-7 h-7 rounded-full bg-sky-500/80 hover:bg-sky-400 text-white inline-flex items-center justify-center cursor-pointer transition-colors"><Plus className="w-3.5 h-3.5" /></button>
+                <span className="text-[10px] font-bold text-emerald-300 pl-1 pr-1.5">Còn {Math.max(0, max - cur)}</span>
               </div>
             )}
           </div>
-          <button type="button" disabled={busy} onClick={() => void toggleSessionDateOff(venue.id, s, selDate, reasonDraft.trim() || `Đội nghỉ buổi ${formatShortVnDate(selDate)}`)} className={`px-3 py-1.5 rounded-xl text-[11px] font-black border inline-flex items-center gap-1.5 cursor-pointer ${isOff ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'}`}>
+          <button type="button" disabled={busy} onClick={() => void toggleSessionDateOff(venue.id, s, selDate, reasonDraft.trim() || `Đội nghỉ buổi ${formatShortVnDate(selDate)}`)} className={`px-3 py-1.5 rounded-full text-[11px] font-black border inline-flex items-center gap-1.5 cursor-pointer transition-colors ${isOff ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35 hover:bg-emerald-500/25'}`}>
             <Power className="w-3.5 h-3.5" />{isOff ? `⚠️ Nghỉ ${formatShortVnDate(selDate)} (Mở lại)` : `Nghỉ buổi ${formatShortVnDate(selDate)}`}
           </button>
         </div>
@@ -333,7 +333,7 @@ export const VenuesTab: React.FC = () => {
           {SESSION_POSITION_OPTIONS.map((p) => {
             const on = posList.includes(p.code);
             return (
-              <button key={p.code} type="button" disabled={busy} onClick={() => void patchDailyOverride(venue.id, s, selDate, { neededPositions: on ? posList.filter((x) => x !== p.code) : [...posList, p.code] })} className={`px-2.5 py-1 rounded-lg text-[11px] font-black border cursor-pointer ${on ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400 shadow' : 'bg-[#111827] text-slate-400 border-slate-700 hover:text-white'}`}>
+              <button key={p.code} type="button" disabled={busy} onClick={() => void patchDailyOverride(venue.id, s, selDate, { neededPositions: on ? posList.filter((x) => x !== p.code) : [...posList, p.code] })} className={`px-2.5 py-1 rounded-full text-[11px] font-black border cursor-pointer transition-colors ${on ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400 shadow' : 'bg-white/[0.05] text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'}`}>
                 {p.code}
               </button>
             );
@@ -656,7 +656,7 @@ export const VenuesTab: React.FC = () => {
                         <h3 className="font-heading font-black text-xs text-white">📋 Tạo Tin Tuyển Quân Nhanh</h3>
                         <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(postText); notify('Đã copy mẫu tin tuyển quân', 2500); } catch { notify('Không thể copy tự động.', 2500); } }} className="px-3 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-orange-500 text-white text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer shadow shrink-0"><Copy className="w-3 h-3" />Copy tin đăng</button>
                       </div>
-                      <pre className="p-3 rounded-2xl bg-black/30 border border-white/10 text-[11px] text-slate-200 whitespace-pre-wrap font-sans leading-relaxed select-all">{postText}</pre>
+                      <pre className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 text-[11px] text-slate-200 whitespace-pre-wrap font-sans leading-relaxed select-all">{postText}</pre>
                     </div>
 
                     <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 space-y-3 shadow-xl">
@@ -664,15 +664,15 @@ export const VenuesTab: React.FC = () => {
                         <h3 className="font-heading font-black text-xs text-white">👁️ Xem Trước Hiển Thị Công Khai</h3>
                         <span className="text-[10px] font-bold text-orange-300">{previewDateObj?.label || formatShortVnDate(previewDate)}</span>
                       </div>
-                      <div className={`rounded-2xl p-3.5 border space-y-2 ${!venueClosed && isSessionCancelledOnDate(activeSession, previewDate) ? 'opacity-50 bg-black/30 border-amber-500/40' : 'bg-white/[0.04] border-white/10'}`}>
+                      <div className={`rounded-2xl p-3.5 border space-y-2 ${!venueClosed && isSessionCancelledOnDate(activeSession, previewDate) ? 'opacity-50 bg-amber-500/[0.06] border-amber-500/40' : 'bg-white/[0.04] border-white/10'}`}>
                         <div className="flex items-start gap-2.5">
-                          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-white/15 bg-slate-900 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 96)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-xs text-orange-400">{getClubInitials(club.name)}</span>}</div>
+                          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-white/15 bg-white/[0.05] flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 96)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-xs text-orange-400">{getClubInitials(club.name)}</span>}</div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-1.5"><span className="font-heading font-black text-xs text-white truncate">{club.name}</span><span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${club.feeType === 'FREE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-amber-300'}`}>{club.feeType === 'FREE' ? 'FREE' : club.feeAmount || 'Thu phí'}</span></div>
-                            <div className="flex flex-wrap gap-1 mt-1">{clubStyles.map((m) => <span key={m.shortLabel} className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${m.badgeClass}`}>{m.emoji} {m.shortLabel}</span>)}<span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).badgeClass}`}>{(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>{activeSession.skillRankLabel && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-950/85 text-blue-200 border border-blue-500/50">🇺🇸 USAV: {activeSession.skillRankLabel}</span>}{activeSession.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/35">{sc}</span>)}</div>
+                            <div className="flex items-center justify-between gap-1.5"><span className="font-heading font-black text-xs text-white truncate">{club.name}</span><span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0 ${club.feeType === 'FREE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-amber-300'}`}>{club.feeType === 'FREE' ? 'FREE' : club.feeAmount || 'Thu phí'}</span></div>
+                            <div className="flex flex-wrap gap-1 mt-1">{clubStyles.map((m) => <span key={m.shortLabel} className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${m.badgeClass}`}>{m.emoji} {m.shortLabel}</span>)}<span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).badgeClass}`}>{(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>{activeSession.skillRankLabel && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-500/15 text-blue-200 border border-blue-400/40">🇺🇸 USAV: {activeSession.skillRankLabel}</span>}{activeSession.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/35">{sc}</span>)}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/30 border border-white/10 text-[11px]"><Clock className="w-3 h-3 text-orange-400 shrink-0" /><strong className="text-orange-300">{activeSession.startTime} – {activeSession.endTime}</strong><span className="text-slate-600">•</span><span className="text-slate-200 font-semibold">{formatDaysOfWeek(activeSession.daysOfWeek)}</span></div>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 text-[11px]"><Clock className="w-3 h-3 text-orange-400 shrink-0" /><strong className="text-orange-300">{activeSession.startTime} – {activeSession.endTime}</strong><span className="text-slate-500">•</span><span className="text-slate-200 font-semibold">{formatDaysOfWeek(activeSession.daysOfWeek)}</span></div>
                         <SessionStatusBlock session={activeSession} venueClosed={venueClosed} targetDate={previewDate} todayDate={nowVn.dateStr} />
                       </div>
                     </div>

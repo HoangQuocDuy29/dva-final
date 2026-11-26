@@ -175,7 +175,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
     return (
       <div
         key={player.id}
-        className={`w-[calc(100%-2rem)] sm:w-full max-w-md mx-auto rounded-3xl bg-[#131822] p-4 sm:p-5 shadow-xl transition-all duration-300 flex flex-col justify-between relative group hover:scale-[1.01] ${
+        className={`w-[calc(100%-2rem)] sm:w-full max-w-md mx-auto dva-glass-card p-4 sm:p-5 shadow-xl flex flex-col justify-between relative group hover:scale-[1.01] ${
           isTeamCaptain 
             ? 'border-2 border-amber-500/80 shadow-lg shadow-amber-500/10 hover:border-amber-400 ring-1 ring-amber-400/30' 
             : 'border border-[#1e2738] hover:border-slate-600'
@@ -360,7 +360,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             className={`p-5 sm:p-6 rounded-3xl text-left transition-all duration-300 cursor-pointer relative overflow-hidden flex flex-col justify-between border-2 ${
               resolvedLevel === 'JUNIOR'
                 ? 'bg-gradient-to-br from-blue-950/80 via-[#131d33] to-[#0E1524] border-cyan-400 shadow-2xl shadow-cyan-950/60 ring-2 ring-cyan-500/30 scale-[1.02]'
-                : 'bg-[#121826] border-slate-800 hover:border-slate-700 hover:bg-[#161f33]'
+                : 'dva-glass-card'
             }`}
           >
             <div className="flex items-start justify-between gap-2">
@@ -402,7 +402,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             className={`p-5 sm:p-6 rounded-3xl text-left transition-all duration-300 cursor-pointer relative overflow-hidden flex flex-col justify-between border-2 ${
               resolvedLevel === 'SENIOR'
                 ? 'bg-gradient-to-br from-red-950/80 via-[#26151b] to-[#0E1524] border-red-500 shadow-2xl shadow-red-950/60 ring-2 ring-red-500/30 scale-[1.02]'
-                : 'bg-[#121826] border-slate-800 hover:border-slate-700 hover:bg-[#1f1722]'
+                : 'dva-glass-card'
             }`}
           >
             <div className="flex items-start justify-between gap-2">
@@ -444,7 +444,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
             className={`p-5 sm:p-6 rounded-3xl text-left transition-all duration-300 cursor-pointer relative overflow-hidden flex flex-col justify-between border-2 ${
               resolvedLevel === 'YOUTH'
                 ? 'bg-gradient-to-br from-emerald-950/80 via-[#13241e] to-[#0E1524] border-emerald-400 shadow-2xl shadow-emerald-950/60 ring-2 ring-emerald-500/30 scale-[1.02]'
-                : 'bg-[#121826] border-slate-800 hover:border-slate-700 hover:bg-[#131f1c]'
+                : 'dva-glass-card'
             }`}
           >
             <div className="flex items-start justify-between gap-2">
@@ -482,7 +482,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
         </div>
 
         {/* SEARCH BAR & POSITION FILTERS (Positioned below the 3 big level buttons) */}
-        <div className="bg-[#121826] p-4 sm:p-5 rounded-3xl border border-slate-800 space-y-4">
+        <div className="dva-glass-panel p-4 sm:p-5 rounded-3xl space-y-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             
             {/* Live Search Bar */}
@@ -554,7 +554,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   selectedPosition === item.id
                     ? 'bg-red-600 text-white shadow-md shadow-red-950 ring-1 ring-red-400'
-                    : 'bg-[#161F30] text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
+                    : 'dva-glass-pill text-slate-300 hover:text-white hover:bg-white/10'
                 }`}
               >
                 {item.label}
@@ -571,7 +571,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 selectedRank === 'ALL'
                   ? 'bg-blue-600 text-white shadow ring-1 ring-blue-400'
-                  : 'bg-[#161F30] text-slate-300 hover:text-white border border-slate-800'
+                  : 'dva-glass-pill text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               All Ranks
@@ -596,7 +596,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               className={`px-3 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                 selectedRank === 'UNRANKED'
                   ? 'bg-slate-700 text-white border-slate-400'
-                  : 'bg-[#161F30] text-slate-400 hover:text-white border-slate-800'
+                  : 'dva-glass-pill text-slate-400 hover:text-white hover:bg-white/10'
               }`}
             >
               Unranked

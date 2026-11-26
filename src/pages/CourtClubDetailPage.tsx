@@ -77,8 +77,8 @@ export const CourtClubDetailPage: React.FC = () => {
   const telHref = `tel:${sanitizePhoneForLink(club.captainPhone)}`;
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white pb-16">
-      <div className="border-b border-slate-800 bg-[#0F1420]/90 backdrop-blur">
+    <div className="min-h-screen bg-transparent text-white pb-16">
+      <div className="border-b border-white/10 bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between text-xs">
           <Link to="/services/court-map" className="inline-flex items-center gap-1.5 font-bold text-slate-300 hover:text-orange-400"><ArrowLeft className="w-4 h-4" />Quay lại Bản đồ sân Hà Nội</Link>
           <span className="text-slate-400 hidden sm:inline">Hà Nội: <strong className="text-white">{nowVn.timeLabel}</strong> ({nowVn.dayLabel})</span>
@@ -96,17 +96,17 @@ export const CourtClubDetailPage: React.FC = () => {
           </div>
         )}
 
-        <div className="rounded-3xl overflow-hidden bg-[#141C2B] border border-slate-800 shadow-2xl">
-          <div className="relative h-48 sm:h-64 bg-slate-900">
+        <div className="dva-glass-panel rounded-3xl overflow-hidden shadow-2xl">
+          <div className="relative h-48 sm:h-64 bg-slate-900/70">
             {heroCover && <img src={optimizeCloudinaryUrl(heroCover, 'detail')} alt={club.name} className="w-full h-full object-cover" />}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#141C2B] via-[#141C2B]/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0B0D12]/90 via-[#0B0D12]/35 to-transparent" />
             {club.venue.isDvaOfficial && <span className="absolute top-4 right-4 inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-black uppercase bg-gradient-to-r from-red-600 to-orange-500 text-white"><Sparkles className="w-3.5 h-3.5" />DVA Official</span>}
           </div>
 
           <div className="px-5 sm:px-8 pb-6 -mt-12 relative z-10 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div className="flex flex-col sm:flex-row sm:items-end gap-4 min-w-0">
-                <div className="w-24 h-24 rounded-3xl overflow-hidden bg-[#0B0F19] border-4 border-[#141C2B] shadow-2xl flex items-center justify-center shrink-0">
+                <div className="w-24 h-24 rounded-3xl overflow-hidden bg-[#0B0D12] border-4 border-white/15 shadow-2xl flex items-center justify-center shrink-0">
                   {club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 160)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-3xl text-orange-400">{getClubInitials(club.name)}</span>}
                 </div>
                 <div className="min-w-0 space-y-1.5">
@@ -126,8 +126,8 @@ export const CourtClubDetailPage: React.FC = () => {
               </div>
             </div>
             {club.tags?.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-3 border-t border-slate-800">
-                {club.tags.map((t) => <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0B0F19] border border-slate-700 text-xs font-semibold text-slate-200"><Tag className="w-3 h-3 text-orange-400" />{t}</span>)}
+              <div className="flex flex-wrap gap-1.5 pt-3 border-t border-white/10">
+                {club.tags.map((t) => <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 dva-glass-pill text-xs font-semibold text-slate-200"><Tag className="w-3 h-3 text-orange-400" />{t}</span>)}
               </div>
             )}
           </div>
@@ -135,19 +135,19 @@ export const CourtClubDetailPage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-5">
-            <div className="rounded-3xl p-5 bg-[#141C2B] border border-slate-800 space-y-2">
+            <div className="dva-glass-panel rounded-3xl p-5 space-y-2">
               <h2 className="font-heading font-black text-base flex items-center gap-2"><Info className="w-4 h-4 text-orange-400" />Giới Thiệu & Phong Cách Chơi</h2>
               <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">{club.description || `${club.name} sinh hoạt định kỳ tại ${club.venue.name}.`}</p>
             </div>
 
-            <div className={`rounded-3xl p-5 bg-[#141C2B] border border-slate-800 space-y-3 ${closed ? 'opacity-50' : ''}`}>
+            <div className={`dva-glass-panel rounded-3xl p-5 space-y-3 ${closed ? 'opacity-50' : ''}`}>
               <h2 className="font-heading font-black text-base flex items-center gap-2"><CalendarDays className="w-4 h-4 text-orange-400" />Lịch Hoạt Động Trọn Tuần ({club.sessions.length} ca)</h2>
               {club.sessions.map((s) => {
                 const rt = getSessionRealtimeInfo(s, nowVn, closed);
                 const rec = RECRUITMENT_META[s.recruitmentStatus] || RECRUITMENT_META.CHECK_CAPTAIN;
                 const cancelled = !closed && isSessionCancelledOnDate(s, nowVn.dateStr);
                 return (
-                  <div key={s.id} className={`p-3.5 rounded-2xl border space-y-2 ${cancelled ? 'opacity-50 bg-[#0D121D] border-amber-500/40' : rt.state === 'LIVE' ? 'opacity-70 bg-[#0F1420] border-emerald-500/40' : rt.state === 'UPCOMING' ? 'bg-gradient-to-r from-[#1D1829] to-[#111827] border-orange-400/75' : 'bg-[#0F1420] border-slate-800'}`}>
+                  <div key={s.id} className={`p-3.5 rounded-2xl border space-y-2 ${cancelled ? 'opacity-50 bg-white/[0.03] border-amber-500/40' : rt.state === 'LIVE' ? 'opacity-75 dva-glass-card border-emerald-500/40' : rt.state === 'UPCOMING' ? 'bg-gradient-to-r from-orange-500/15 to-white/[0.04] backdrop-blur-xl border-orange-400/75' : 'dva-glass-card rounded-2xl'}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-xs">
                         <span className="px-2.5 py-0.5 rounded-lg bg-orange-500/15 border border-orange-500/40 text-orange-300 font-extrabold">{formatDaysOfWeek(s.daysOfWeek)}</span>
@@ -180,12 +180,12 @@ export const CourtClubDetailPage: React.FC = () => {
               })}
             </div>
 
-            <div className="rounded-3xl p-5 bg-[#141C2B] border border-slate-800 space-y-3">
+            <div className="dva-glass-panel rounded-3xl p-5 space-y-3">
               <h2 className="font-heading font-black text-base flex items-center gap-2"><ImageIcon className="w-4 h-4 text-orange-400" />Thư Viện Ảnh Sinh Hoạt ({gallery.length})</h2>
               {gallery.length === 0 ? <p className="text-xs text-slate-400">Chưa có ảnh sinh hoạt.</p> : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {gallery.map((u, i) => (
-                    <button key={`${u}-${i}`} type="button" onClick={() => setLightboxIndex(i)} className="aspect-[4/3] rounded-2xl overflow-hidden border border-slate-800 hover:border-orange-500/60 cursor-pointer">
+                    <button key={`${u}-${i}`} type="button" onClick={() => setLightboxIndex(i)} className="aspect-[4/3] rounded-2xl overflow-hidden border border-white/15 hover:border-orange-500/60 cursor-pointer">
                       <img src={optimizeCloudinaryUrl(u, 'card')} alt="" className="w-full h-full object-cover" loading="lazy" />
                     </button>
                   ))}
@@ -195,21 +195,21 @@ export const CourtClubDetailPage: React.FC = () => {
           </div>
 
           <aside className="space-y-4">
-            <div className="rounded-3xl p-5 bg-[#141C2B] border border-slate-800 space-y-3">
+            <div className="dva-glass-card rounded-3xl p-5 space-y-3">
               <p className="text-[10px] font-black uppercase text-orange-400">Liên Hệ Đội Trưởng</p>
               <div><h3 className="font-heading font-black text-base">{club.captainName}</h3><p className="text-xs text-slate-400 font-mono">{club.captainPhone}</p></div>
-              <button type="button" onClick={() => void openZalo()} className="w-full py-2.5 rounded-xl bg-[#0068FF] hover:bg-[#0058D9] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"><MessageCircle className="w-4 h-4" />Nhắn Zalo Hỏi Slot</button>
-              <a href={telHref} className="w-full py-2.5 rounded-xl bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2"><Phone className="w-4 h-4" />Gọi Điện: {club.captainPhone}</a>
+              <button type="button" onClick={() => void openZalo()} className="w-full py-2.5 rounded-full bg-[#0068FF] hover:bg-[#0058D9] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"><MessageCircle className="w-4 h-4" />Nhắn Zalo Hỏi Slot</button>
+              <a href={telHref} className="w-full py-2.5 rounded-full bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2"><Phone className="w-4 h-4" />Gọi Điện: {club.captainPhone}</a>
             </div>
-            <div className="rounded-3xl p-5 bg-[#141C2B] border border-slate-800 space-y-3 text-xs">
+            <div className="dva-glass-card rounded-3xl p-5 space-y-3 text-xs">
               <div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase text-slate-400">Địa Điểm</span><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${vt.badgeClass}`}>{vt.shortLabel}</span></div>
               <h3 className="font-heading font-black text-base">{club.venue.name}</h3>
               <p className="text-slate-300">{club.venue.address}</p>
-              <div className="flex flex-wrap gap-1.5"><span className="px-2 py-0.5 rounded bg-slate-800">Quận {club.venue.district}</span><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 text-sky-300"><Layers className="w-3 h-3" />{club.venue.surfaceType}</span></div>
-              <div className="p-2.5 rounded-xl bg-[#0B0F19] border border-slate-800 text-slate-200 leading-relaxed">
+              <div className="flex flex-wrap gap-1.5"><span className="px-2.5 py-0.5 dva-glass-pill">Quận {club.venue.district}</span><span className="inline-flex items-center gap-1 px-2.5 py-0.5 dva-glass-pill text-sky-300"><Layers className="w-3 h-3" />{club.venue.surfaceType}</span></div>
+              <div className="p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 text-slate-200 leading-relaxed">
                 {club.venue.venueType === 'FREE_PUBLIC' ? <div className="flex justify-between"><span className="text-slate-400">Loại sân:</span><strong className="text-emerald-300">Sân Miễn Phí</strong></div> : <>Nếu bạn muốn thuê sân, hãy liên hệ <a href="tel:0768299329" className="font-black text-amber-300 hover:text-orange-300 underline decoration-amber-400/60 underline-offset-2 whitespace-nowrap">0768299329</a></>}
               </div>
-              <a href={buildGoogleMapsUrl(club.venue)} target="_blank" rel="noopener noreferrer" className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold flex items-center justify-center gap-1.5"><Navigation className="w-4 h-4" />Chỉ đường Google Maps</a>
+              <a href={buildGoogleMapsUrl(club.venue)} target="_blank" rel="noopener noreferrer" className="w-full py-2.5 rounded-full bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold flex items-center justify-center gap-1.5"><Navigation className="w-4 h-4" />Chỉ đường Google Maps</a>
             </div>
           </aside>
         </div>

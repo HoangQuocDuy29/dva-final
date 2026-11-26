@@ -90,7 +90,7 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
       tournament.isRegistrationOpen &&
       !tournament.isRosterLocked;
     return (
-      <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-8 sm:p-12 text-center space-y-5">
+      <div className="dva-glass-panel rounded-3xl p-8 sm:p-12 text-center space-y-5">
         <div className="w-14 h-14 rounded-2xl bg-[#38BDF8]/10 border border-[#38BDF8]/30 flex items-center justify-center mx-auto">
           <Calendar className="w-7 h-7 text-[#38BDF8]" />
         </div>
@@ -193,12 +193,12 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
     const isDone = m.status === 'COMPLETED';
 
     const cardFrame = isLive
-      ? 'border-red-500 shadow-lg shadow-red-950/30 bg-[#111827]'
+      ? 'dva-glass-card border-red-500/75 shadow-lg shadow-red-950/30'
       : variant === 'final'
-      ? 'border-[#FACC15]/50 bg-gradient-to-br from-[#1A160B] via-[#111827] to-[#111827] shadow-lg shadow-amber-950/20'
+      ? 'dva-glass-card border-[#FACC15]/45 bg-gradient-to-br from-amber-500/15 via-white/[0.04] to-white/[0.03] shadow-lg shadow-amber-950/20'
       : variant === 'bronze'
-      ? 'border-orange-500/40 bg-gradient-to-br from-[#19120D] via-[#111827] to-[#111827]'
-      : 'border-[#1E293B] bg-[#111827]';
+      ? 'dva-glass-card border-orange-500/40 bg-gradient-to-br from-orange-500/15 via-white/[0.04] to-white/[0.03]'
+      : 'dva-glass-card';
 
     const homeOutcome = getTeamOutcomeBadge(m, 'HOME');
     const awayOutcome = getTeamOutcomeBadge(m, 'AWAY');
@@ -206,11 +206,11 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
     return (
       <div
         key={m.id}
-        className={`rounded-3xl border p-3.5 sm:p-5 space-y-3.5 sm:space-y-4 overflow-hidden transition-all ${cardFrame}`}
+        className={`p-3.5 sm:p-5 space-y-3.5 sm:space-y-4 overflow-hidden ${cardFrame}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 text-xs">
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <span className="px-2 sm:px-2.5 py-0.5 rounded-lg bg-[#0B0F19] border border-[#1E293B] font-mono font-black text-white whitespace-nowrap shrink-0">
+            <span className="px-2 sm:px-2.5 py-0.5 rounded-lg bg-white/[0.06] border border-white/15 font-mono font-black text-white whitespace-nowrap shrink-0">
               {m.matchCode}
             </span>
             <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase whitespace-nowrap shrink-0">
@@ -255,7 +255,7 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
 
         {/* Assigned Official Footer */}
         {ref && (
-          <div className="pt-3 border-t border-[#1E293B] flex items-center justify-end text-[11px]">
+          <div className="pt-3 border-t border-white/10 flex items-center justify-end text-[11px]">
             <span className="inline-flex items-center gap-1 text-slate-400">
               <Shield className="w-3 h-3 text-[#38BDF8]" />
               Ref: <strong className="text-slate-200">{ref.fullName}</strong>
@@ -294,7 +294,7 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Stage, Court & Team Filter Bar */}
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#111827] border border-[#1E293B] space-y-3 overflow-hidden">
+      <div className="p-3.5 sm:p-4 rounded-3xl dva-glass-panel space-y-3 overflow-hidden">
         {stageFilterOptions.length > 1 && (
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-1.5 text-[11px] sm:text-xs">
             {stageFilterOptions.map((tab, idx) => {
@@ -305,12 +305,12 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
                   key={tab.key}
                   type="button"
                   onClick={() => setStageFilter(tab.key)}
-                  className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-xl font-bold transition-colors cursor-pointer text-center leading-tight min-w-0 whitespace-nowrap ${
+                  className={`px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-full font-bold transition-colors cursor-pointer text-center leading-tight min-w-0 whitespace-nowrap ${
                     isOddLast ? 'col-span-2 sm:col-span-1' : ''
                   } ${
                     stageFilter === tab.key
                       ? 'bg-[#F97316] text-white shadow'
-                      : 'bg-[#0B0F19] text-slate-400 hover:text-white border border-[#1E293B]'
+                      : 'dva-glass-pill text-slate-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {tab.label}
@@ -321,16 +321,16 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
         )}
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 min-w-0">
-          <div className="grid grid-cols-3 sm:inline-flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-[11px] sm:text-xs w-full sm:w-auto">
+          <div className="grid grid-cols-3 sm:inline-flex items-center gap-1 sm:gap-1.5 p-1 dva-glass-pill text-[11px] sm:text-xs w-full sm:w-auto">
             {(['ALL', 'Court A', 'Court B'] as const).map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => setCourtFilter(c)}
-                className={`px-2 sm:px-3.5 py-1.5 rounded-lg font-bold transition-colors cursor-pointer whitespace-nowrap text-center ${
+                className={`px-2 sm:px-3.5 py-1.5 rounded-full font-bold transition-colors cursor-pointer whitespace-nowrap text-center ${
                   courtFilter === c
                     ? 'bg-[#38BDF8] text-slate-950'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-300 hover:text-white'
                 }`}
               >
                 {c === 'ALL' ? t('schedule.allCourts') : c}
@@ -342,11 +342,11 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
             <select
               value={teamFilter}
               onChange={(e) => setTeamFilter(e.target.value)}
-              className="w-full sm:w-auto max-w-full truncate pr-8 pl-3.5 py-2 box-border rounded-xl bg-[#0B0F19] border border-[#1E293B] text-xs text-white font-semibold"
+              className="w-full sm:w-auto max-w-full truncate pr-8 pl-3.5 py-2 box-border dva-glass-pill text-xs text-white font-semibold"
             >
-              <option value="ALL">{t('schedule.allTeams')}</option>
+              <option value="ALL" className="bg-[#0B0D12]">{t('schedule.allTeams')}</option>
               {tournament.teams.map((tm) => (
-                <option key={tm.id} value={tm.id}>
+                <option key={tm.id} value={tm.id} className="bg-[#0B0D12]">
                   {tm.name}
                 </option>
               ))}
@@ -356,7 +356,7 @@ export const TournamentScheduleView: React.FC<TournamentScheduleViewProps> = ({
       </div>
 
       {filteredMatches.length === 0 && (
-        <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-10 text-center text-xs text-slate-400">
+        <div className="dva-glass-panel rounded-3xl p-10 text-center text-xs text-slate-400">
           {t('schedule.noFilteredMatches')}
         </div>
       )}
