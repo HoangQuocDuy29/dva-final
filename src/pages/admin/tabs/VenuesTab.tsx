@@ -13,6 +13,8 @@ import {
 } from '../../../utils/venueSchedule';
 import { SessionStatusBlock } from '../../../components/court-map/SessionStatusBlock';
 import { RECOMMENDED_SKILL_RANK_PRESETS } from '../../../shared/skillRanks';
+import { SpatialKpiRow, SpatialKpiItem } from '../components/spatial/SpatialKpiRow';
+import { SpatialBentoGrid, SpatialBentoItem, BentoFilterKey } from '../components/spatial/SpatialBentoGrid';
 
 type ModalState =
   | { kind: 'venue'; item?: VolleyballVenue }
@@ -29,6 +31,8 @@ const F: React.FC<{ label: string; full?: boolean; tone?: string; children: Reac
 export const VenuesTab: React.FC = () => {
   const { isSuperAdmin, isCaptain, activeModule, setActiveModule, data: { venuesList }, setData: { setVenuesList }, notify } = useAdminDashboard();
   const [subTab, setSubTab] = useState<'VENUES' | 'CAPTAINS'>('VENUES');
+  const [showBentoOverview, setShowBentoOverview] = useState(true);
+  const detailWorkspaceRef = React.useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
   const [cityFilter, setCityFilter] = useState<string>('ALL');
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
@@ -488,21 +492,21 @@ export const VenuesTab: React.FC = () => {
         /* CAPTAIN SELF-SERVICE VIEW: 2 FULL-WIDTH WORKSPACES VIA SIDEBAR */
         (() => {
           const entry = allClubs[0];
-          if (!entry) return <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-8 text-center space-y-2"><Users className="w-10 h-10 text-cyan-400 mx-auto" /><h2 className="font-heading font-black text-lg text-white">Chưa có Đội / CLB được liên kết</h2><p className="text-xs text-slate-400">Liên hệ Superadmin để gắn tài khoản CAPTAIN với CLB của bạn.</p></div>;
+          if (!entry) return <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-8 text-center space-y-2"><Users className="w-10 h-10 text-cyan-400 mx-auto" /><h2 className="font-heading font-black text-lg text-white">Chưa có Đội / CLB được liên kết</h2><p className="text-xs text-slate-400">Liên hệ Superadmin để gắn tài khoản CAPTAIN với CLB của bạn.</p></div>;
           const { venue, club, sessions } = entry;
           if (activeModule === 'CAPTAIN_PROFILE') {
             return (
-              <form onSubmit={async (e) => { e.preventDefault(); setSaving(true); try { await saveClubPayload(venue, club); await reload(); notify('Đã lưu hồ sơ & ảnh đội thành công!'); } catch (err: any) { notify(err?.message || 'Lưu thất bại.', 4500); } finally { setSaving(false); } }} className="bg-[#161F30] border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-5 shadow-xl w-full">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+              <form onSubmit={async (e) => { e.preventDefault(); setSaving(true); try { await saveClubPayload(venue, club); await reload(); notify('Đã lưu hồ sơ & ảnh đội thành công!'); } catch (err: any) { notify(err?.message || 'Lưu thất bại.', 4500); } finally { setSaving(false); } }} className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-5 sm:p-6 space-y-5 shadow-2xl w-full">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
                   <div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/40">🛡️ Hồ Sơ & Ảnh Đội</span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/40">🛡️ Hồ Sơ & Ảnh Đội</span>
                     <h2 className="font-heading font-black text-xl text-white mt-1">{club.name} · {venue.name}</h2>
                   </div>
-                  <a href={`/services/court-map/teams/${club.slug}`} target="_blank" rel="noopener noreferrer" className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-bold inline-flex items-center gap-1.5">Xem trang công khai <ExternalLink className="w-3.5 h-3.5" /></a>
+                  <a href={`/services/court-map/teams/${club.slug}`} target="_blank" rel="noopener noreferrer" className="px-3.5 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-sky-300 text-xs font-bold inline-flex items-center gap-1.5">Xem trang công khai <ExternalLink className="w-3.5 h-3.5" /></a>
                 </div>
                 {renderClubFormFields(club, true)}
-                <div className="flex justify-end pt-3 border-t border-slate-800">
-                  <button type="submit" disabled={saving} className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-2 shadow cursor-pointer disabled:opacity-50">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Lưu Thay Đổi Hồ Sơ</button>
+                <div className="flex justify-end pt-3 border-t border-white/10">
+                  <button type="submit" disabled={saving} className="px-6 py-2.5 rounded-full bg-gradient-to-r from-rose-600 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-2 shadow cursor-pointer disabled:opacity-50">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Lưu Thay Đổi Hồ Sơ</button>
                 </div>
               </form>
             );
@@ -515,6 +519,88 @@ export const VenuesTab: React.FC = () => {
           const venueClosed = isVenueClosedNow(venue);
           const clubStyles = parsePlayStyles(club.playStyle).map((k) => PLAY_STYLE_META[k]);
           const teamUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/services/court-map/teams/${club.slug}`;
+
+          // Captain 3-Column Spatial KPI metrics
+          const weeklySessionsCount = sessions.reduce((acc, s) => acc + (s.daysOfWeek?.length || 0), 0);
+          let captainTotalReg = 0;
+          let captainTotalCap = 0;
+          sessions.forEach((s) => {
+            if (s.capacityMode === 'LIMITED_SLOTS') {
+              const d = selectedDateBySession[s.id] || getUpcomingSessionDates(s.daysOfWeek, nowVn)[0]?.dateStr || nowVn.dateStr;
+              captainTotalReg += getSessionDailyState(s, d).currentPlayers;
+              captainTotalCap += Math.max(1, s.maxPlayers ?? 14);
+            }
+          });
+          const captainFillPct = venueClosed ? 0 : captainTotalCap > 0 ? Math.min(100, Math.round((captainTotalReg / captainTotalCap) * 100)) : sessions.length > 0 ? 75 : 0;
+
+          const captainKpis: SpatialKpiItem[] = [
+            {
+              id: 'cap-weekly-sessions',
+              label: 'Số ca sinh hoạt tuần này',
+              value: `${weeklySessionsCount} buổi / tuần`,
+              subtitle: `${sessions.length} khung giờ cố định · ${club.name}`,
+              badge: `${sessions.length} ca đang mở`,
+              badgeTone: 'orange',
+              icon: CalendarClock,
+              accentColor: '#FB923C',
+              sparkline: [Math.max(1, weeklySessionsCount - 1), weeklySessionsCount, weeklySessionsCount, Math.max(1, weeklySessionsCount)],
+            },
+            {
+              id: 'cap-slots',
+              label: 'Số slot đã đăng ký / Tổng slot',
+              value: captainTotalCap > 0 ? `${captainTotalReg} / ${captainTotalCap}` : '∞ Tự do',
+              subtitle: captainTotalCap > 0 ? `Còn trống ${Math.max(0, captainTotalCap - captainTotalReg)} slot buổi tới` : 'Chế độ mở không giới hạn người',
+              badge: captainTotalCap > 0 ? `${captainFillPct}% lấp đầy` : 'Unlimited',
+              badgeTone: captainFillPct >= 80 ? 'emerald' : 'sky',
+              icon: Users,
+              accentColor: '#34D399',
+              gaugePct: captainFillPct,
+              gaugeSublabel: 'Slot',
+            },
+            {
+              id: 'cap-venue-status',
+              label: 'Trạng thái mở cửa sân',
+              value: venueClosed ? 'Tạm nghỉ' : 'Đang mở cửa',
+              subtitle: venueClosed ? (venue.closureReason || 'Sân đang tạm đóng cửa') : `${venue.name} · ${venue.district}`,
+              badge: venueClosed ? 'Đã khóa lịch' : 'Hoạt động bình thường',
+              badgeTone: venueClosed ? 'rose' : 'emerald',
+              icon: Power,
+              accentColor: venueClosed ? '#FB7185' : '#34D399',
+              gaugePct: venueClosed ? 0 : 100,
+              gaugeLabel: venueClosed ? 'OFF' : 'ON',
+              gaugeSublabel: 'Sân',
+            },
+          ];
+
+          const captainBentoItems: SpatialBentoItem[] = sessions.map((s) => {
+            const nextDate = selectedDateBySession[s.id] || getUpcomingSessionDates(s.daysOfWeek, nowVn)[0]?.dateStr || nowVn.dateStr;
+            const isOff = venueClosed || isSessionCancelledOnDate(s, nextDate);
+            const limited = s.capacityMode === 'LIMITED_SLOTS';
+            const max = Math.max(1, s.maxPlayers ?? 14);
+            const cur = getSessionDailyState(s, nextDate).currentPlayers;
+            const pct = isOff ? 0 : limited ? Math.min(100, Math.round((cur / max) * 100)) : 75;
+            const filterTags: BentoFilterKey[] = ['ALL'];
+            if (isOff) filterTags.push('PAUSED');
+            else {
+              filterTags.push('ACTIVE');
+              if (!limited || pct < 75) filterTags.push('OPEN_SLOTS');
+            }
+            return {
+              id: `cap-session-${s.id}`,
+              category: `${formatDaysOfWeek(s.daysOfWeek)} · ${s.subCourts.join(', ')}`,
+              title: `${s.startTime} – ${s.endTime}`,
+              description: `${venue.name}${s.skillRankLabel ? ` · USAV ${s.skillRankLabel}` : ''} · ${limited ? `Còn ${Math.max(0, max - cur)} slot` : '∞ Tự do'}`,
+              percent: pct,
+              gaugeLabel: isOff ? 'OFF' : limited ? `${pct}%` : '∞',
+              gaugeSublabel: isOff ? 'Nghỉ' : 'Lấp đầy',
+              statusTag: isOff ? 'Tạm nghỉ' : pct < 75 ? 'Còn nhiều slot' : 'Đang hoạt động',
+              metaRight: limited ? `${cur}/${max}` : 'Tự do',
+              filterTags,
+              actionLabel: `Chỉnh sửa ca ${s.startTime}`,
+              onAction: () => setActiveSessionId(s.id),
+            };
+          });
+
           const postText = activeSession ? [
             `🏐 ${club.name} — TUYỂN QUÂN GIAO LƯU`,
             `📍 Sân: ${venue.name} (${venue.address})`,
@@ -531,77 +617,138 @@ export const VenuesTab: React.FC = () => {
           ].filter(Boolean).join('\n') : '';
 
           return (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-              {/* LEFT COLUMN (8/12): CLUB HEADER + SESSION CONTROLS */}
-              <div className="xl:col-span-8 space-y-4 min-w-0">
-                {venueClosed && <div className="p-3.5 rounded-2xl bg-red-950/70 border border-red-500/60 text-xs text-red-100 flex items-start gap-2"><AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" /><div><strong className="uppercase">Sân {venue.name} đang tạm nghỉ:</strong> {venue.closureReason || 'Tạm đóng cửa'}</div></div>}
-                <div className="bg-[#161F30] border border-cyan-500/35 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-900 border border-slate-700 shrink-0 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 120)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-lg text-orange-400">{getClubInitials(club.name)}</span>}</div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5 text-[10px]"><span className="px-2 py-0.5 rounded-full font-black uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/40">CAPTAIN · Lịch Chơi & Slot Ca</span><a href={`/services/court-map/teams/${club.slug}`} target="_blank" rel="noopener noreferrer" className="text-sky-400 font-bold hover:underline inline-flex items-center gap-0.5">Trang công khai <ExternalLink className="w-3 h-3" /></a></div>
-                      <h2 className="font-heading font-black text-lg text-white truncate mt-0.5">{club.name}</h2>
-                      <p className="text-xs text-slate-400 truncate"><MapPin className="w-3 h-3 inline text-orange-400 mr-1" />{venue.name} · {venue.district}</p>
-                    </div>
-                  </div>
-                  <button type="button" onClick={() => setActiveModule('CAPTAIN_PROFILE')} className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0">🛡️ Hồ Sơ & Ảnh Đội →</button>
-                </div>
-                <div className="space-y-3">{sessions.map((s) => renderSessionCard(venue, s))}</div>
-              </div>
+            <div className="space-y-6">
+              {/* CAPTAIN 3-Column Spatial KPI Row */}
+              <SpatialKpiRow items={captainKpis} />
 
-              {/* RIGHT COLUMN (4/12): RECRUITMENT POST GENERATOR + PUBLIC CARD PREVIEW */}
-              {activeSession && (
-                <aside className="xl:col-span-4 space-y-4 xl:sticky xl:top-20">
-                  <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-4 space-y-3 shadow-xl">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-heading font-black text-xs text-white">📋 Tạo Tin Tuyển Quân Nhanh</h3>
-                      <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(postText); notify('Đã copy mẫu tin tuyển quân', 2500); } catch { notify('Không thể copy tự động.', 2500); } }} className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer shadow shrink-0"><Copy className="w-3 h-3" />Copy tin đăng</button>
-                    </div>
-                    <pre className="p-3 rounded-2xl bg-[#0B0F19] border border-slate-800 text-[11px] text-slate-200 whitespace-pre-wrap font-sans leading-relaxed select-all">{postText}</pre>
-                  </div>
-
-                  <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-4 space-y-3 shadow-xl">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-heading font-black text-xs text-white">👁️ Xem Trước Hiển Thị Công Khai</h3>
-                      <span className="text-[10px] font-bold text-orange-300">{previewDateObj?.label || formatShortVnDate(previewDate)}</span>
-                    </div>
-                    <div className={`rounded-2xl p-3.5 border space-y-2 ${!venueClosed && isSessionCancelledOnDate(activeSession, previewDate) ? 'opacity-50 bg-[#121622] border-amber-500/40' : 'bg-[#141C2B] border-slate-700'}`}>
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-slate-700 bg-slate-900 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 96)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-xs text-orange-400">{getClubInitials(club.name)}</span>}</div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-1.5"><span className="font-heading font-black text-xs text-white truncate">{club.name}</span><span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${club.feeType === 'FREE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-amber-300'}`}>{club.feeType === 'FREE' ? 'FREE' : club.feeAmount || 'Thu phí'}</span></div>
-                          <div className="flex flex-wrap gap-1 mt-1">{clubStyles.map((m) => <span key={m.shortLabel} className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${m.badgeClass}`}>{m.emoji} {m.shortLabel}</span>)}<span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).badgeClass}`}>{(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>{activeSession.skillRankLabel && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-950/85 text-blue-200 border border-blue-500/50">🇺🇸 USAV: {activeSession.skillRankLabel}</span>}{activeSession.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/35">{sc}</span>)}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0B0F19]/80 border border-slate-800 text-[11px]"><Clock className="w-3 h-3 text-orange-400 shrink-0" /><strong className="text-orange-300">{activeSession.startTime} – {activeSession.endTime}</strong><span className="text-slate-600">•</span><span className="text-slate-200 font-semibold">{formatDaysOfWeek(activeSession.daysOfWeek)}</span></div>
-                      <SessionStatusBlock session={activeSession} venueClosed={venueClosed} targetDate={previewDate} todayDate={nowVn.dateStr} />
-                    </div>
-                  </div>
-                </aside>
+              {/* CAPTAIN Bento Gradient Cards for Own Club Sessions */}
+              {captainBentoItems.length > 0 && (
+                <SpatialBentoGrid
+                  title={`Đội Của Tôi · ${club.name}`}
+                  subtitle="Theo dõi tỷ lệ lấp đầy từng ca sinh hoạt và bấm nút mũi tên để thao tác nhanh bên dưới"
+                  items={captainBentoItems}
+                />
               )}
+
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+                {/* LEFT COLUMN (8/12): CLUB HEADER + SESSION CONTROLS */}
+                <div className="xl:col-span-8 space-y-4 min-w-0">
+                  {venueClosed && <div className="p-3.5 rounded-2xl bg-red-950/70 border border-red-500/60 text-xs text-red-100 flex items-start gap-2"><AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" /><div><strong className="uppercase">Sân {venue.name} đang tạm nghỉ:</strong> {venue.closureReason || 'Tạm đóng cửa'}</div></div>}
+                  <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-900 border border-white/15 shrink-0 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 120)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-lg text-orange-400">{getClubInitials(club.name)}</span>}</div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px]"><span className="px-2 py-0.5 rounded-full font-black uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/40">CAPTAIN · Lịch Chơi & Slot Ca</span><a href={`/services/court-map/teams/${club.slug}`} target="_blank" rel="noopener noreferrer" className="text-sky-400 font-bold hover:underline inline-flex items-center gap-0.5">Trang công khai <ExternalLink className="w-3 h-3" /></a></div>
+                        <h2 className="font-heading font-black text-lg text-white truncate mt-0.5">{club.name}</h2>
+                        <p className="text-xs text-slate-400 truncate"><MapPin className="w-3 h-3 inline text-orange-400 mr-1" />{venue.name} · {venue.district}</p>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setActiveModule('CAPTAIN_PROFILE')} className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-cyan-300 text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer shrink-0">🛡️ Hồ Sơ & Ảnh Đội →</button>
+                  </div>
+                  <div className="space-y-3">{sessions.map((s) => renderSessionCard(venue, s))}</div>
+                </div>
+
+                {/* RIGHT COLUMN (4/12): RECRUITMENT POST GENERATOR + PUBLIC CARD PREVIEW */}
+                {activeSession && (
+                  <aside className="xl:col-span-4 space-y-4 xl:sticky xl:top-20">
+                    <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 space-y-3 shadow-xl">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-heading font-black text-xs text-white">📋 Tạo Tin Tuyển Quân Nhanh</h3>
+                        <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(postText); notify('Đã copy mẫu tin tuyển quân', 2500); } catch { notify('Không thể copy tự động.', 2500); } }} className="px-3 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-orange-500 text-white text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer shadow shrink-0"><Copy className="w-3 h-3" />Copy tin đăng</button>
+                      </div>
+                      <pre className="p-3 rounded-2xl bg-black/30 border border-white/10 text-[11px] text-slate-200 whitespace-pre-wrap font-sans leading-relaxed select-all">{postText}</pre>
+                    </div>
+
+                    <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 space-y-3 shadow-xl">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-heading font-black text-xs text-white">👁️ Xem Trước Hiển Thị Công Khai</h3>
+                        <span className="text-[10px] font-bold text-orange-300">{previewDateObj?.label || formatShortVnDate(previewDate)}</span>
+                      </div>
+                      <div className={`rounded-2xl p-3.5 border space-y-2 ${!venueClosed && isSessionCancelledOnDate(activeSession, previewDate) ? 'opacity-50 bg-black/30 border-amber-500/40' : 'bg-white/[0.04] border-white/10'}`}>
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-white/15 bg-slate-900 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 96)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-xs text-orange-400">{getClubInitials(club.name)}</span>}</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1.5"><span className="font-heading font-black text-xs text-white truncate">{club.name}</span><span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${club.feeType === 'FREE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-amber-300'}`}>{club.feeType === 'FREE' ? 'FREE' : club.feeAmount || 'Thu phí'}</span></div>
+                            <div className="flex flex-wrap gap-1 mt-1">{clubStyles.map((m) => <span key={m.shortLabel} className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${m.badgeClass}`}>{m.emoji} {m.shortLabel}</span>)}<span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).badgeClass}`}>{(GENDER_RULE_META[activeSession.genderRule || 'MIXED'] || GENDER_RULE_META.MIXED).shortLabel}</span>{activeSession.skillRankLabel && <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-950/85 text-blue-200 border border-blue-500/50">🇺🇸 USAV: {activeSession.skillRankLabel}</span>}{activeSession.subCourts.map((sc) => <span key={sc} className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/15 text-sky-300 border border-sky-500/35">{sc}</span>)}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/30 border border-white/10 text-[11px]"><Clock className="w-3 h-3 text-orange-400 shrink-0" /><strong className="text-orange-300">{activeSession.startTime} – {activeSession.endTime}</strong><span className="text-slate-600">•</span><span className="text-slate-200 font-semibold">{formatDaysOfWeek(activeSession.daysOfWeek)}</span></div>
+                        <SessionStatusBlock session={activeSession} venueClosed={venueClosed} targetDate={previewDate} todayDate={nowVn.dateStr} />
+                      </div>
+                    </div>
+                  </aside>
+                )}
+              </div>
             </div>
           );
         })()
       ) : (
         <>
           {/* SUPERADMIN TOP BAR & SUB-TABS */}
-          <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
-            <div className="inline-flex bg-[#0F172A] border border-slate-800 rounded-xl p-1 self-start">
+          <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
+            <div className="inline-flex bg-white/[0.04] border border-white/10 rounded-full p-1 self-start">
               {([['VENUES', `Quản lý Sân & Lịch Ca (${venuesList.length})`], ['CAPTAINS', `Danh bạ Đội trưởng (${allClubs.length})`]] as const).map(([id, label]) => (
-                <button key={id} type="button" onClick={() => setSubTab(id)} className={`px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${subTab === id ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow' : 'text-slate-400 hover:text-white'}`}>{label}</button>
+                <button key={id} type="button" onClick={() => setSubTab(id)} className={`px-3.5 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all ${subTab === id ? 'bg-white text-slate-950 shadow' : 'text-slate-300 hover:text-white'}`}>{label}</button>
               ))}
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {subTab === 'VENUES' && (
+                <button type="button" onClick={() => setShowBentoOverview((v) => !v)} className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-200 cursor-pointer">
+                  {showBentoOverview ? 'Thu gọn Bento Grid' : 'Hiện Bento Grid'}
+                </button>
+              )}
               <a href="/services/court-map" target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-sky-400 hover:underline inline-flex items-center gap-1">Bản Đồ Công Khai <ExternalLink className="w-3.5 h-3.5" /></a>
-              {subTab === 'CAPTAINS' && <button type="button" onClick={() => openModal({ kind: 'captain' })} className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"><Users className="w-3.5 h-3.5" />Cập Nhật Đội Trưởng</button>}
+              {subTab === 'CAPTAINS' && <button type="button" onClick={() => openModal({ kind: 'captain' })} className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"><Users className="w-3.5 h-3.5" />Cập Nhật Đội Trưởng</button>}
             </div>
           </div>
 
+          {subTab === 'VENUES' && showBentoOverview && venuesList.length > 0 && (
+            <SpatialBentoGrid
+              title="Court Map & Venues — Lưới Bento Tỷ Lệ Lấp Đầy"
+              subtitle="Bấm nút mũi tên trắng trên thẻ sân để mở nhanh bảng điều khiển chi tiết bên dưới"
+              items={venuesList.map((v): SpatialBentoItem => {
+                const closed = isVenueClosedNow(v);
+                const vSessions = v.sessions || [];
+                let reg = 0;
+                let cap = 0;
+                vSessions.forEach((s) => {
+                  if (s.capacityMode === 'LIMITED_SLOTS') {
+                    const nd = getUpcomingSessionDates(s.daysOfWeek, nowVn)[0]?.dateStr || nowVn.dateStr;
+                    reg += getSessionDailyState(s, nd).currentPlayers;
+                    cap += Math.max(1, s.maxPlayers ?? 14);
+                  }
+                });
+                const pct = closed ? 0 : cap > 0 ? Math.min(100, Math.round((reg / cap) * 100)) : vSessions.length > 0 ? 75 : 25;
+                const filterTags: BentoFilterKey[] = ['ALL'];
+                if (closed) filterTags.push('PAUSED');
+                else {
+                  filterTags.push('ACTIVE');
+                  if (pct < 75) filterTags.push('OPEN_SLOTS');
+                }
+                return {
+                  id: `sa-venue-${v.id}`,
+                  category: `${v.district} · ${(v.clubs || []).length} đội`,
+                  title: v.name,
+                  description: `${v.address} · ${vSessions.length} ca · ${v.surfaceType}`,
+                  percent: pct,
+                  gaugeSublabel: closed ? 'Tạm nghỉ' : 'Slot fill',
+                  statusTag: closed ? 'Tạm nghỉ' : pct < 75 ? 'Còn nhiều slot' : 'Đang hoạt động',
+                  metaRight: cap > 0 ? `${reg}/${cap}` : `${vSessions.length} ca`,
+                  filterTags,
+                  onAction: () => {
+                    setSelectedVenueId(v.id);
+                    detailWorkspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  },
+                };
+              })}
+            />
+          )}
+
           {subTab === 'VENUES' ? (
             /* MASTER–DETAIL 2-COLUMN WORKSPACE (32% LEFT / 68% RIGHT) */
-            <div className="flex flex-col lg:flex-row gap-4 items-start">
+            <div ref={detailWorkspaceRef} className="flex flex-col lg:flex-row gap-4 items-start scroll-mt-20">
               {/* LEFT COLUMN (32%): VENUE LIST */}
-              <aside className="w-full lg:w-[32%] shrink-0 bg-[#161F30] border border-slate-800 rounded-3xl p-4 space-y-3 shadow-xl">
+              <aside className="w-full lg:w-[32%] shrink-0 bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 space-y-3 shadow-xl">
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1"><Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm sân, quận, CLB..." className="w-full pl-8 pr-2.5 py-2 rounded-xl bg-[#0F172A] border border-slate-700 text-xs text-white" /></div>
                   <button type="button" onClick={() => openModal({ kind: 'venue' })} className="px-3 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-1 shrink-0 cursor-pointer"><Plus className="w-3.5 h-3.5" />Sân</button>
@@ -638,8 +785,8 @@ export const VenuesTab: React.FC = () => {
                   const vt = VENUE_TYPE_META[v.venueType] || VENUE_TYPE_META.COMMERCIAL;
                   const allOpen = (v.clubs || []).length > 0 && (v.clubs || []).every((c) => expandedClubs[c.id]);
                   return (
-                    <div className={`bg-[#161F30] border rounded-3xl overflow-hidden shadow-xl ${closed ? 'border-red-500/50' : 'border-slate-800'}`}>
-                      <div className="p-5 border-b border-slate-800 bg-[#111827]/75 space-y-3">
+                    <div className={`bg-white/[0.04] backdrop-blur-xl border rounded-3xl overflow-hidden shadow-xl ${closed ? 'border-red-500/50' : 'border-white/10'}`}>
+                      <div className="p-5 border-b border-white/10 bg-white/[0.02] space-y-3">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                           <div className="flex items-start gap-3 min-w-0">
                             <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-900 border border-slate-700 shrink-0 flex items-center justify-center">{(v.coverUrl || v.imageUrl) ? <img src={optimizeCloudinaryUrl(v.coverUrl || v.imageUrl, 'thumb')} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-5 h-5 text-orange-400" />}</div>
@@ -704,12 +851,12 @@ export const VenuesTab: React.FC = () => {
                       </div>
                     </div>
                   );
-                })() : <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-10 text-center text-xs text-slate-400">Chọn một sân ở cột bên trái để quản lý đội và ca sinh hoạt.</div>}
+                })() : <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-10 text-center text-xs text-slate-400">Chọn một sân ở cột bên trái để quản lý đội và ca sinh hoạt.</div>}
               </section>
             </div>
           ) : (
             /* SUB-TAB 2: DANH BẠ ĐỘI TRƯỞNG */
-            <div className="bg-[#161F30] border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-xl">
               <div className="px-5 py-3.5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                 <span className="font-bold text-slate-300">Danh bạ Đội trưởng ({filteredCaptains.length} · Gmail ẩn khỏi Public API)</span>
                 <div className="relative w-full sm:w-64"><Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm đội trưởng, SĐT, Gmail..." className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#0F172A] border border-slate-700 text-xs text-white" /></div>

@@ -263,7 +263,7 @@ export const TournamentsTab: React.FC = () => {
       {/* 3 KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {kpis.map(({ icon: Icon, label, value, tone }) => (
-          <div key={label} className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 space-y-1">
+          <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-5 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-400 font-semibold">{label}</span>
               <Icon className="w-4 h-4 text-slate-500" />
@@ -324,7 +324,7 @@ export const TournamentsTab: React.FC = () => {
           {selectedTournament && (
             <div className="space-y-5">
               {/* Selected Tournament Header Bar */}
-              <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-heading font-black text-lg text-white">
@@ -519,7 +519,7 @@ export const TournamentsTab: React.FC = () => {
                     readOnly={readOnly}
                   />
                   {selectedTournament.rulesContent && (
-                    <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-5 space-y-2">
+                    <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-5 space-y-2">
                       <div className="flex items-center justify-between">
                         <h4 className="font-bold text-sm text-white flex items-center gap-2">
                           <FileText className="w-4 h-4 text-[#F97316]" />

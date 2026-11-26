@@ -239,8 +239,8 @@ const KpiCard: React.FC<KpiCardProps> = ({
           }
         : undefined
     }
-    className={`relative overflow-hidden rounded-3xl p-5 bg-[#111827] border border-[#1E293B] transition-colors ${
-      onClick ? 'hover:bg-[#161F30] cursor-pointer' : ''
+    className={`relative overflow-hidden rounded-3xl p-5 bg-white/[0.04] backdrop-blur-xl border border-white/10 transition-all shadow-lg shadow-black/20 ${
+      onClick ? 'hover:bg-white/[0.07] hover:border-white/20 cursor-pointer' : ''
     }`}
   >
     <span className={`absolute left-0 top-5 bottom-5 w-1 rounded-r ${bar}`} aria-hidden="true" />

@@ -580,7 +580,7 @@ export const StoreTab: React.FC = () => {
       {/* Store KPI Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {kpis.map(({ icon: Icon, label, value, tone }) => (
-          <div key={label} className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 space-y-1">
+          <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-5 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-400 font-semibold">{label}</span>
               <Icon className="w-4 h-4 text-slate-500" />
@@ -639,7 +639,7 @@ export const StoreTab: React.FC = () => {
       {/* SUB-VIEW 1: ORDERS MANAGEMENT & VIETQR                              */}
       {/* =================================================================== */}
       {storeSubView === 'ORDERS' && (
-        <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-6 space-y-4">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-6 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#1E293B] pb-4">
             <div className="flex flex-wrap items-center gap-1.5">
               {ORDER_STATUS_FILTERS.map((st) => {
@@ -946,7 +946,7 @@ export const StoreTab: React.FC = () => {
       {/* SUB-VIEW 2: PRODUCTS & INVENTORY                                    */}
       {/* =================================================================== */}
       {storeSubView === 'PRODUCTS' && (
-        <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-6 space-y-4">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-6 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#1E293B] pb-4">
             <div className="flex flex-wrap items-center gap-1.5">
               {CATEGORY_OPTIONS.map((opt) => (

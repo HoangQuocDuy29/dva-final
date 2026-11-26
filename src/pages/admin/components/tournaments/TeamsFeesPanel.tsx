@@ -581,7 +581,7 @@ export const TeamsFeesPanel: React.FC<TeamsFeesPanelProps> = ({
           No teams added yet. Teams can register publicly on `/tournaments/{tournament.slug}` or you can add teams manually above.
         </div>
       ) : (
-        <div className="overflow-x-auto no-scrollbar rounded-3xl border border-[#1E293B] bg-[#111827]">
+        <div className="overflow-x-auto no-scrollbar rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl">
           <table className="w-full min-w-[840px] text-xs text-left border-collapse">
             <thead>
               <tr className="bg-[#0B0F19] text-slate-400 font-bold border-b border-[#1E293B]">

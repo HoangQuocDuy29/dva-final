@@ -62,7 +62,7 @@ export const RevenueTrendChart: React.FC = () => {
   const hovered = hover !== null ? monthlyRevenue[hover] : null;
 
   return (
-    <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-6 flex flex-col justify-between h-full gap-4">
+    <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-6 flex flex-col justify-between h-full gap-4 shadow-xl">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="font-bold text-sm text-white flex items-center gap-2">

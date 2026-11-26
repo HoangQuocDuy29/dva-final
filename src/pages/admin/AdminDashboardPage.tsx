@@ -31,10 +31,13 @@ const SheetsTab = lazy(() => import('./tabs/SheetsTab').then((m) => ({ default: 
 const StoreTab = lazy(() => import('./tabs/StoreTab').then((m) => ({ default: m.StoreTab })));
 const TournamentsTab = lazy(() => import('./tabs/TournamentsTab').then((m) => ({ default: m.TournamentsTab })));
 const VenuesTab = lazy(() => import('./tabs/VenuesTab').then((m) => ({ default: m.VenuesTab })));
+const MemberPortalTab = lazy(() => import('./tabs/MemberPortalTab').then((m) => ({ default: m.MemberPortalTab })));
+
+const HUB_ALLOWED_ROLES = new Set(['SUPERADMIN', 'ADMIN', 'CAPTAIN', 'COACH', 'PLAYER', 'STAFF']);
 
 const AdminTabLoadingFallback: React.FC = () => (
-  <div className="min-h-[320px] rounded-3xl bg-[#111827] border border-[#1E293B] flex flex-col items-center justify-center gap-3 text-slate-400">
-    <div className="w-8 h-8 rounded-full border-2 border-slate-700 border-t-orange-500 animate-spin" />
+  <div className="min-h-[320px] rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center gap-3 text-slate-400">
+    <div className="w-8 h-8 rounded-full border-2 border-white/15 border-t-orange-500 animate-spin" />
     <span className="text-xs font-semibold tracking-wide">Loading workspace module...</span>
   </div>
 );
@@ -46,7 +49,7 @@ export interface AdminDashboardPageProps {
 }
 
 const AdminDashboardShell: React.FC = () => {
-  const { isSuperAdmin, isCaptain, onOpenSheets, activeModule } =
+  const { isAdmin, isSuperAdmin, isCaptain, isMemberPortal, onOpenSheets, activeModule } =
     useAdminDashboard();
   const mainScrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -55,27 +58,37 @@ const AdminDashboardShell: React.FC = () => {
   }, [activeModule]);
 
   return (
-    <div className="h-[calc(100vh-5rem)] bg-[#0B0F19] text-white flex overflow-hidden">
-      {/* Collapsible grouped sidebar (desktop rail + mobile drawer) */}
+    <div className="relative h-[calc(100vh-5rem)] bg-[#0B0D12] text-white flex overflow-hidden">
+      {/* Warm Dark Ambient Mesh Lighting Layer (DVA Orange + Cherry Rose + Deep Amber) */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0" aria-hidden="true">
+        <div className="absolute -top-24 -left-16 w-[440px] h-[440px] rounded-full bg-orange-500/15 blur-[130px]" />
+        <div className="absolute top-1/4 -right-24 w-[460px] h-[460px] rounded-full bg-rose-600/15 blur-[130px]" />
+        <div className="absolute -bottom-28 left-1/3 w-[520px] h-[420px] rounded-full bg-amber-900/20 blur-[130px]" />
+      </div>
+
+      {/* Spatial Floating Pill Dock (Desktop left-4 pill + Mobile bottom pill + Glass drawer) */}
       <AdminSidebar />
 
       <div
         ref={mainScrollRef}
-        className="flex-1 min-w-0 h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar flex flex-col"
+        className="relative z-10 flex-1 min-w-0 h-[calc(100vh-5rem)] overflow-y-auto no-scrollbar flex flex-col"
       >
-        {/* Sticky Topbar: toggles, module title, quick search, admin identity & actions */}
+        {/* Top Floating Glass Bar */}
         <AdminHeader />
 
         {/* Main Workspace Body */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16 space-y-6">
+        <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-5 pb-24 lg:pb-16 space-y-6">
           {/* Notification feedback */}
           <FeedbackBanner />
 
-          {/* MODULE 1: OVERVIEW & METRICS */}
-          {activeModule === 'OVERVIEW' && <OverviewTab />}
+          {/* MODULE 1: ADMIN / SUPERADMIN OVERVIEW & ANALYTICS */}
+          {activeModule === 'OVERVIEW' && isAdmin && <OverviewTab />}
 
-          {/* SECONDARY MODULES (Lazy-Loaded & Suspense-Wrapped) */}
+          {/* SECONDARY & ROLE-SPECIFIC MODULES (Lazy-Loaded & Suspense-Wrapped) */}
           <Suspense fallback={<AdminTabLoadingFallback />}>
+            {/* COACH / PLAYER / STAFF SPATIAL PORTAL */}
+            {isMemberPortal && <MemberPortalTab />}
+
             {/* MODULE 2: COURTS CRUD, WEEKLY SCHEDULE & LIVE SLOT LOCK MANAGEMENT */}
             {activeModule === 'COURTS' && isSuperAdmin && <CourtsTab />}
 
@@ -83,7 +96,7 @@ const AdminDashboardShell: React.FC = () => {
             {activeModule === 'BOOKINGS' && isSuperAdmin && <BookingsTab />}
 
             {/* MODULE 4: MEMBER APPLICATIONS & AUTO-PLAYER PROMOTION */}
-            {activeModule === 'APPLICATIONS' && <ApplicationsTab />}
+            {activeModule === 'APPLICATIONS' && isAdmin && <ApplicationsTab />}
 
             {/* MODULE 5: SQUAD ROSTER CRUD WITH SEARCH */}
             {activeModule === 'PLAYERS' && isSuperAdmin && <PlayersTab />}
@@ -98,7 +111,7 @@ const AdminDashboardShell: React.FC = () => {
             {activeModule === 'LEADERSHIP' && isSuperAdmin && <LeadershipTab />}
 
             {/* MODULE 8: NEWS & STORY PUBLISHING */}
-            {activeModule === 'NEWS' && <NewsTab />}
+            {activeModule === 'NEWS' && isAdmin && <NewsTab />}
 
             {/* MODULE 9: USER ACCOUNT MANAGEMENT (SUPERADMIN only) */}
             {activeModule === 'USERS' && isSuperAdmin && <UsersTab />}
@@ -110,7 +123,7 @@ const AdminDashboardShell: React.FC = () => {
             {activeModule === 'STORE' && isSuperAdmin && <StoreTab />}
 
             {/* MODULE 12: TOURNAMENTS */}
-            {activeModule === 'TOURNAMENTS' && <TournamentsTab />}
+            {activeModule === 'TOURNAMENTS' && isAdmin && <TournamentsTab />}
 
             {/* MODULE 13: COURT MAP & VENUES (SUPERADMIN & CAPTAIN self-service) */}
             {(activeModule === 'VENUES' || activeModule === 'CAPTAIN_PROFILE') && (isSuperAdmin || isCaptain) && <VenuesTab />}
@@ -125,7 +138,7 @@ const AdminDashboardShell: React.FC = () => {
         </Suspense>
       )}
 
-      {/* SELF-SERVICE CHANGE MY PASSWORD MODAL (All authenticated admins) */}
+      {/* SELF-SERVICE CHANGE MY PASSWORD MODAL (All authenticated roles) */}
       <Suspense fallback={null}>
         <ChangePasswordModal />
       </Suspense>
@@ -138,20 +151,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   onOpenSheets,
   onUserChange,
 }) => {
-  const isHubAllowed = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN' || currentUser.role === 'CAPTAIN';
+  const isHubAllowed = HUB_ALLOWED_ROLES.has(currentUser.role);
   if (!isHubAllowed) {
     return (
-      <div className="min-h-screen bg-[#0B0F19] text-white py-24 text-center space-y-4">
-        <Shield className="w-12 h-12 text-red-500 mx-auto" />
-        <h2 className="text-xl font-bold">
-          Access Restricted to Club Administrators
-        </h2>
+      <div className="min-h-screen bg-[#0B0D12] text-white py-24 text-center space-y-4">
+        <Shield className="w-12 h-12 text-rose-500 mx-auto" />
+        <h2 className="text-xl font-bold">Access Restricted</h2>
         <p className="text-slate-400 text-xs max-w-md mx-auto">
-          Please sign in with a SUPERADMIN or ADMIN account from the profile menu to access the workspace.
+          Please sign in with an authorized DVA account from the profile menu to access the dashboard.
         </p>
         <Link
           to="/"
-          className="inline-block px-5 py-2.5 bg-slate-800 text-white rounded-xl text-xs font-semibold hover:bg-slate-700"
+          className="inline-block px-5 py-2.5 bg-white text-slate-950 rounded-full text-xs font-bold hover:brightness-95"
         >
           Return to Home
         </Link>

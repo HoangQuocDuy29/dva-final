@@ -129,9 +129,9 @@ export const GuestSessionsPanel: React.FC<GuestSessionsPanelProps> = ({ panelRef
     <section
       id="guest-sessions-panel"
       ref={panelRef}
-      className="bg-[#111827] border border-[#1E293B] rounded-3xl p-6 space-y-4 scroll-mt-20"
+      className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 space-y-4 scroll-mt-20 shadow-xl"
     >
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#1E293B] pb-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2.5">
             <h3 className="font-bold text-sm text-white flex items-center gap-2">

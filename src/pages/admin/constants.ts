@@ -51,6 +51,12 @@ export const ADMIN_ALLOWED_TABS: readonly AdminTabId[] = [
   'APPLICATIONS',
 ] as const;
 
+export const MEMBER_ALLOWED_TABS: readonly AdminTabId[] = [
+  'MEMBER_OVERVIEW',
+  'MEMBER_SCHEDULE',
+  'MEMBER_VENUES',
+] as const;
+
 const ADMIN_ALLOWED_SET = new Set<AdminTabId>(ADMIN_ALLOWED_TABS);
 
 /**
@@ -154,18 +160,44 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
 ];
 
-/** Returns the nav groups visible to the current role (CAPTAIN sees only own club; ADMIN sees 4 modules; SUPERADMIN sees all). */
-export function getVisibleNavGroups(isSuperAdmin: boolean, isCaptain = false): AdminNavGroup[] {
-  if (isCaptain) {
-    return [{
-      id: 'COMMERCE',
-      label: 'ĐỘI CỦA TÔI',
-      items: [
-        { id: 'VENUES', label: '📅 Lịch Chơi & Slot Ca', icon: CalendarClock, keywords: ['schedule', 'slot', 'session', 'captain'] },
-        { id: 'CAPTAIN_PROFILE', label: '🛡️ Hồ Sơ & Ảnh Đội', icon: ShieldCheck, keywords: ['profile', 'club', 'cover', 'gallery'] },
-      ],
-    }];
-  }
+const CAPTAIN_NAV_GROUP: AdminNavGroup = {
+  id: 'COMMERCE',
+  label: 'ĐỘI CỦA TÔI',
+  items: [
+    { id: 'VENUES', label: 'Lịch Chơi & Slot Ca', icon: CalendarClock, keywords: ['schedule', 'slot', 'session', 'captain'] },
+    { id: 'CAPTAIN_PROFILE', label: 'Hồ Sơ & Ảnh Đội', icon: ShieldCheck, keywords: ['profile', 'club', 'cover', 'gallery'] },
+  ],
+};
+
+const COACH_NAV_GROUP: AdminNavGroup = {
+  id: 'MEMBER',
+  label: 'COACH WORKSPACE',
+  items: [
+    { id: 'MEMBER_OVERVIEW', label: 'Tổng Quan HLV', icon: LayoutDashboard, keywords: ['overview', 'coach', 'skill', 'rank'] },
+    { id: 'MEMBER_SCHEDULE', label: 'Lịch Huấn Luyện', icon: Dumbbell, keywords: ['schedule', 'training', 'courses', 'sessions'] },
+    { id: 'MEMBER_VENUES', label: 'Bản Đồ Sân & CLB', icon: MapPin, keywords: ['venues', 'map', 'courts', 'clubs'] },
+  ],
+};
+
+const PLAYER_NAV_GROUP: AdminNavGroup = {
+  id: 'MEMBER',
+  label: 'ATHLETE PORTAL',
+  items: [
+    { id: 'MEMBER_OVERVIEW', label: 'Tổng Quan VĐV', icon: LayoutDashboard, keywords: ['overview', 'player', 'usav', 'skill', 'rank'] },
+    { id: 'MEMBER_SCHEDULE', label: 'Lịch Tập & Khóa Học', icon: CalendarClock, keywords: ['schedule', 'training', 'courses'] },
+    { id: 'MEMBER_VENUES', label: 'Sân & Giao Lưu', icon: MapPin, keywords: ['venues', 'courts', 'clubs', 'slots'] },
+  ],
+};
+
+/** Returns the nav groups visible to the current role (SUPERADMIN, ADMIN, CAPTAIN, COACH, PLAYER/STAFF). */
+export function getVisibleNavGroups(
+  isSuperAdmin: boolean,
+  isCaptain = false,
+  role?: string
+): AdminNavGroup[] {
+  if (isCaptain || role === 'CAPTAIN') return [CAPTAIN_NAV_GROUP];
+  if (role === 'COACH') return [COACH_NAV_GROUP];
+  if (role === 'PLAYER' || role === 'STAFF') return [PLAYER_NAV_GROUP];
   return ADMIN_NAV_GROUPS.map((g) => ({
     ...g,
     items: g.items.filter((i) => (isSuperAdmin ? true : ADMIN_ALLOWED_SET.has(i.id))),
@@ -173,7 +205,7 @@ export function getVisibleNavGroups(isSuperAdmin: boolean, isCaptain = false): A
 }
 
 export function findNavItem(id: AdminTabId): AdminNavItem | undefined {
-  for (const g of ADMIN_NAV_GROUPS) {
+  for (const g of [...ADMIN_NAV_GROUPS, CAPTAIN_NAV_GROUP, COACH_NAV_GROUP, PLAYER_NAV_GROUP]) {
     const item = g.items.find((i) => i.id === id);
     if (item) return item;
   }

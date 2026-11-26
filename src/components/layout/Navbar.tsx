@@ -218,9 +218,23 @@ export const Navbar: React.FC<NavbarProps> = ({
     return location.pathname.startsWith(path);
   };
 
-  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN' || currentUser.role === 'CAPTAIN';
+  const isAdmin =
+    currentUser.role === 'ADMIN' ||
+    currentUser.role === 'SUPERADMIN' ||
+    currentUser.role === 'CAPTAIN' ||
+    currentUser.role === 'COACH' ||
+    currentUser.role === 'PLAYER' ||
+    currentUser.role === 'STAFF';
   const isAdminRoute = location.pathname.startsWith('/admin');
   const compactNav = isScrolled && !isAdminRoute;
+  const dashboardButtonLabel =
+    currentUser.role === 'CAPTAIN'
+      ? 'Quản lý Đội của tôi'
+      : currentUser.role === 'COACH'
+        ? 'Coach Workspace'
+        : currentUser.role === 'PLAYER' || currentUser.role === 'STAFF'
+          ? 'Athlete Dashboard'
+          : t('nav.openAdminDashboard');
 
   return (
     <header
@@ -232,7 +246,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div
         className={`pointer-events-auto transition-[background-color,box-shadow,border-color] duration-300 ease-out flex items-center justify-between w-full gap-2 sm:gap-3 md:gap-2.5 lg:gap-5 ${
           isAdminRoute
-            ? 'max-w-none rounded-none h-20 border-b border-[#1E293B] bg-[#0B0F19] px-4 sm:px-6 lg:px-8'
+            ? 'max-w-none rounded-none h-20 border-b border-white/10 bg-[#0B0D12]/90 backdrop-blur-2xl px-4 sm:px-6 lg:px-8'
             : compactNav
               ? 'max-w-6xl rounded-2xl h-14 border border-slate-700/60 shadow-2xl shadow-black/50 bg-[#0B0F19]/95 px-4 sm:px-6'
               : 'max-w-7xl rounded-none h-20 border-b border-slate-800/80 bg-[#0B0F19] px-4 sm:px-6 lg:px-8'
@@ -563,7 +577,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       className="w-full text-left px-3 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold flex items-center gap-2 hover:brightness-110 shadow cursor-pointer"
                     >
                       <LayoutDashboard className="w-4 h-4" />
-                      <span>{currentUser.role === 'CAPTAIN' ? 'Quản lý Đội của tôi' : t('nav.openAdminDashboard')}</span>
+                      <span>{dashboardButtonLabel}</span>
                     </button>
                   </div>
                 )}

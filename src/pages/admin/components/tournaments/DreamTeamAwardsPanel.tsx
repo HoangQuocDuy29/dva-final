@@ -386,7 +386,7 @@ export const DreamTeamAwardsPanel: React.FC<DreamTeamAwardsPanelProps> = ({
   return (
     <div className="space-y-5">
       {/* Header & Save Bar */}
-      <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <Award className="w-5 h-5 text-[#FACC15]" />
@@ -436,7 +436,7 @@ export const DreamTeamAwardsPanel: React.FC<DreamTeamAwardsPanelProps> = ({
           </span>
         </div>
       ) : (
-        <div className="rounded-3xl border border-[#1E293B] bg-[#111827] p-5 space-y-5">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-5 space-y-5">
           {/* Featured MVP Picker */}
           <DreamTeamSlotPickerCard
             slot={mvpSlot}

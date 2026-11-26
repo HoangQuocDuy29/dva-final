@@ -35,9 +35,12 @@ export type AdminTabId =
   | 'STORE'
   | 'TOURNAMENTS'
   | 'VENUES'
-  | 'CAPTAIN_PROFILE';
+  | 'CAPTAIN_PROFILE'
+  | 'MEMBER_OVERVIEW'
+  | 'MEMBER_SCHEDULE'
+  | 'MEMBER_VENUES';
 
-export type AdminNavGroupId = 'OVERVIEW' | 'ATHLETICS' | 'COMMERCE' | 'SYSTEM';
+export type AdminNavGroupId = 'OVERVIEW' | 'ATHLETICS' | 'COMMERCE' | 'SYSTEM' | 'MEMBER';
 
 export interface AdminNavItem {
   id: AdminTabId;
@@ -111,6 +114,9 @@ export interface AdminDashboardContextValue {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isCaptain: boolean;
+  isCoach: boolean;
+  isPlayer: boolean;
+  isMemberPortal: boolean;
   onOpenSheets: () => void;
   onUserChange?: (user: UserType) => void;
   handleLogout: () => void;

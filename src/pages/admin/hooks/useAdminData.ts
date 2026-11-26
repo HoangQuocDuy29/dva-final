@@ -66,7 +66,8 @@ export function useAdminData(
   activeModule: AdminTabId = 'OVERVIEW',
   isSuperAdmin: boolean = false,
   isAdmin: boolean = false,
-  isCaptain: boolean = false
+  isCaptain: boolean = false,
+  isMemberPortal: boolean = false
 ) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [courtsList, setCourtsList] = useState<Court[]>([]);
@@ -192,9 +193,28 @@ export function useAdminData(
     [isAdmin, isSuperAdmin, isCaptain, markScopeLoaded]
   );
 
+  const loadMemberPortalData = useCallback(async () => {
+    const [playerRows, coachRows, courseRows, venueRows] = await Promise.all([
+      playerService.getPlayers().catch(() => []),
+      coachService.getCoaches().catch(() => []),
+      trainingService.getCourses().catch(() => []),
+      venueService.getPublicVenues().catch(() => []),
+    ]);
+    setPlayers(Array.isArray(playerRows) ? playerRows : []);
+    setCoachesList(Array.isArray(coachRows) ? coachRows : []);
+    setCoursesList(Array.isArray(courseRows) ? courseRows : []);
+    setVenuesList(Array.isArray(venueRows) ? venueRows : []);
+    markScopeLoaded('MEMBER_OVERVIEW');
+  }, [markScopeLoaded]);
+
   const loadOverviewOnly = useCallback(async () => {
     if (!isAdmin || isCaptain || !authService.hasToken()) return;
-    const summary = await adminService.getOverviewSummary();
+    const [summary, publicVenues] = await Promise.all([
+      adminService.getOverviewSummary(),
+      isSuperAdmin && !loadedScopesRef.current.has('VENUES')
+        ? venueService.getPublicVenues().catch(() => [])
+        : Promise.resolve(null),
+    ]);
     setOverviewSummary(summary || null);
     markScopeLoaded('OVERVIEW');
 
@@ -216,6 +236,10 @@ export function useAdminData(
       return;
     }
 
+    if (Array.isArray(publicVenues) && !loadedScopesRef.current.has('VENUES')) {
+      setVenuesList(publicVenues);
+    }
+
     if (summary) {
       if (!loadedScopesRef.current.has('BOOKINGS') && Array.isArray(summary.recentBookings)) {
         setBookings(summary.recentBookings);
@@ -227,13 +251,17 @@ export function useAdminData(
         setGuestSessions(summary.guestSessions);
       }
     }
-  }, [isAdmin, isSuperAdmin, markScopeLoaded]);
+  }, [isAdmin, isCaptain, isSuperAdmin, markScopeLoaded]);
 
   // Refresh overview + ONLY currently visited permitted scopes (never pre-loads unvisited tabs)
   const fetchData = useCallback(async () => {
-    if ((!isAdmin && !isCaptain) || !authService.hasToken()) return;
+    if ((!isAdmin && !isCaptain && !isMemberPortal) || !authService.hasToken()) return;
     setLoading(true);
     try {
+      if (isMemberPortal) {
+        await loadMemberPortalData();
+        return;
+      }
       if (isCaptain) {
         await fetchScopeData('VENUES', true);
         return;
@@ -258,13 +286,13 @@ export function useAdminData(
     } finally {
       setLoading(false);
     }
-  }, [activeModule, fetchScopeData, isAdmin, isCaptain, isSuperAdmin, loadOverviewOnly]);
+  }, [activeModule, fetchScopeData, isAdmin, isCaptain, isMemberPortal, isSuperAdmin, loadMemberPortalData, loadOverviewOnly]);
 
   // Initial Hub mount / role transition: load ONLY overview summary (+ active deep-linked tab if any)
   useEffect(() => {
     loadedScopesRef.current.clear();
     setLoadedScopes(new Set());
-    if ((!isAdmin && !isCaptain) || !authService.hasToken()) {
+    if ((!isAdmin && !isCaptain && !isMemberPortal) || !authService.hasToken()) {
       setLoading(false);
       return;
     }
@@ -273,6 +301,10 @@ export function useAdminData(
     (async () => {
       setLoading(true);
       try {
+        if (isMemberPortal) {
+          await loadMemberPortalData();
+          return;
+        }
         if (isCaptain) {
           await fetchScopeData('VENUES', false);
           return;
@@ -293,7 +325,7 @@ export function useAdminData(
     };
     // Intentionally triggered only on role / mount; tab switches below trigger lazy loading
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, isSuperAdmin, isCaptain]);
+  }, [isAdmin, isSuperAdmin, isCaptain, isMemberPortal]);
 
   // Lazy-fetch exact dataset whenever the user switches to a new tab
   useEffect(() => {

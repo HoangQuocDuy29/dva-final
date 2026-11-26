@@ -260,7 +260,7 @@ export const OfficialsPanel: React.FC<OfficialsPanelProps> = ({
       {!readOnly && (
       <form
         onSubmit={handleAddOfficial}
-        className="rounded-3xl bg-[#111827] border border-[#1E293B] p-5 space-y-3 text-xs"
+        className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-5 space-y-3 text-xs"
       >
         <h4 className="font-bold text-sm text-white flex items-center gap-2">
           <UserCheck className="w-4 h-4 text-[#38BDF8]" />

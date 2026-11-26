@@ -279,7 +279,7 @@ export const ApplicationsTab: React.FC = () => {
     <div className="space-y-5">
       {/* 1. Try-Out Analytics Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-4 space-y-1">
+        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 space-y-1">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Tổng đơn Try-Out</span>
             <Users className="w-4 h-4 text-[#F97316]" />
@@ -292,7 +292,7 @@ export const ApplicationsTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-4 space-y-1">
+        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 space-y-1">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Đã đóng phí / Miễn phí</span>
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -306,7 +306,7 @@ export const ApplicationsTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-4 space-y-1">
+        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 space-y-1">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Chờ / Đã hẹn test</span>
             <Clock className="w-4 h-4 text-[#38BDF8]" />
@@ -319,7 +319,7 @@ export const ApplicationsTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl bg-[#111827] border border-[#1E293B] p-4 space-y-1.5">
+        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Tỷ lệ Đạt &amp; Theo vị trí</span>
             <Award className="w-4 h-4 text-[#FACC15]" />
@@ -346,7 +346,7 @@ export const ApplicationsTab: React.FC = () => {
       </div>
 
       {/* Main Card */}
-      <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
         {/* Top Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div className="space-y-1">

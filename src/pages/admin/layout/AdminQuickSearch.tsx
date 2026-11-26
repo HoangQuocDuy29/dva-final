@@ -64,7 +64,10 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
   onDone,
 }) => {
   const {
+    currentUser,
     isSuperAdmin,
+    isCaptain,
+    isMemberPortal,
     setActiveModule,
     data: { players, bookings, storeOrders, storeProducts, tournamentsSummary, tournamentsList },
   } = useAdminDashboard();
@@ -103,7 +106,7 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
 
   const results = useMemo<QuickSearchResult[]>(() => {
     const q = query.trim().toLowerCase();
-    const groups = getVisibleNavGroups(isSuperAdmin);
+    const groups = getVisibleNavGroups(isSuperAdmin, isCaptain, currentUser.role);
     const baseModules: QuickSearchResult[] = groups
       .flatMap((g) => g.items.map((item) => ({ item, group: g.label })))
       .filter(
@@ -209,7 +212,7 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
           }))
       : [];
 
-    const tourSource = tournamentsList.length > 0 ? tournamentsList : tournamentsSummary;
+    const tourSource = isMemberPortal || isCaptain ? [] : (tournamentsList.length > 0 ? tournamentsList : tournamentsSummary);
     const matchedTournaments: QuickSearchResult[] = tourSource
       .filter(
         (t) =>
@@ -233,7 +236,7 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
       ...matchedStoreOrders,
       ...matchedStoreProducts,
     ];
-  }, [query, isSuperAdmin, players, bookings, storeOrders, storeProducts, tournamentsSummary, tournamentsList]);
+  }, [query, isSuperAdmin, isCaptain, isMemberPortal, currentUser.role, players, bookings, storeOrders, storeProducts, tournamentsSummary, tournamentsList]);
 
   useEffect(() => setHighlight(0), [query]);
 
@@ -267,7 +270,7 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
       <input
         ref={inputRef}
         type="text"
@@ -278,14 +281,14 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        placeholder="Search modules, athletes, bookings…"
+        placeholder={isMemberPortal ? 'Tìm mục, lịch tập, sân...' : 'Search modules, athletes, bookings…'}
         aria-label="Quick search"
         role="combobox"
         aria-expanded={open}
         aria-controls="admin-quick-search-results"
-        className="w-full h-10 pl-9 pr-14 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#38BDF8]/60 focus:ring-1 focus:ring-[#38BDF8]/40"
+        className="w-full h-9 pl-9 pr-12 rounded-full bg-white/[0.06] border border-white/10 text-xs text-white placeholder:text-slate-400 focus:outline-none focus:bg-white/[0.10] focus:border-orange-400/60 focus:ring-1 focus:ring-orange-400/30 transition-all"
       />
-      <kbd className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 items-center gap-0.5 px-1.5 py-0.5 rounded border border-[#1E293B] text-[10px] font-mono text-slate-500 pointer-events-none">
+      <kbd className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-[9px] font-mono text-slate-400 pointer-events-none">
         ⌘K
       </kbd>
 
@@ -293,7 +296,7 @@ export const AdminQuickSearch: React.FC<{ autoFocus?: boolean; enableHotkey?: bo
         <div
           id="admin-quick-search-results"
           role="listbox"
-          className="absolute left-0 right-0 mt-2 max-h-96 overflow-y-auto scrollbar-none no-scrollbar rounded-2xl bg-[#111827] border border-[#1E293B] shadow-2xl z-50 py-2"
+          className="absolute left-0 right-0 mt-2 max-h-96 overflow-y-auto scrollbar-none no-scrollbar rounded-3xl bg-[#111520]/95 backdrop-blur-2xl border border-white/15 shadow-2xl z-50 py-2"
         >
           {results.length === 0 ? (
             <p className="px-4 py-6 text-center text-xs text-slate-500">No matches for “{query}”</p>

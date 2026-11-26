@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { User as UserType, StoreSubView } from '../../../types';
 import { authService } from '../../../services/api';
 import { AdminDashboardContextValue, AdminTabId } from '../types';
-import { VALID_TABS, ADMIN_ALLOWED_TABS, createInitialManageDate } from '../constants';
+import { VALID_TABS, ADMIN_ALLOWED_TABS, MEMBER_ALLOWED_TABS, createInitialManageDate } from '../constants';
 import { useFeedback } from '../hooks/useFeedback';
 import { useAdminData } from '../hooks/useAdminData';
 
@@ -51,17 +51,24 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
   const currentViewParam = (searchParams.get('view') || 'ORDERS').toUpperCase();
   const isSuperAdmin = currentUser.role === 'SUPERADMIN';
   const isCaptain = currentUser.role === 'CAPTAIN';
+  const isCoach = currentUser.role === 'COACH';
+  const isPlayer = currentUser.role === 'PLAYER';
+  const isMemberPortal = isCoach || isPlayer || currentUser.role === 'STAFF';
   const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPERADMIN';
 
   const activeModule: AdminTabId = isCaptain
     ? (currentTabParam === 'CAPTAIN_PROFILE' ? 'CAPTAIN_PROFILE' : 'VENUES')
-    : isSuperAdmin
-      ? VALID_TABS.includes(currentTabParam as any)
+    : isMemberPortal
+      ? MEMBER_ALLOWED_TABS.includes(currentTabParam as AdminTabId)
         ? (currentTabParam as AdminTabId)
-        : 'OVERVIEW'
-      : ADMIN_ALLOWED_TABS.includes(currentTabParam as any)
-        ? (currentTabParam as AdminTabId)
-        : 'OVERVIEW';
+        : 'MEMBER_OVERVIEW'
+      : isSuperAdmin
+        ? VALID_TABS.includes(currentTabParam as any)
+          ? (currentTabParam as AdminTabId)
+          : 'OVERVIEW'
+        : ADMIN_ALLOWED_TABS.includes(currentTabParam as any)
+          ? (currentTabParam as AdminTabId)
+          : 'OVERVIEW';
 
   const storeSubView: StoreSubView = VALID_STORE_VIEWS.includes(currentViewParam as StoreSubView)
     ? (currentViewParam as StoreSubView)
@@ -74,6 +81,11 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
         setSearchParams({ tab: upper === 'CAPTAIN_PROFILE' ? 'captain_profile' : 'venues' });
         return;
       }
+      if (isMemberPortal) {
+        const safeMemberMod = MEMBER_ALLOWED_TABS.includes(upper) ? upper : 'MEMBER_OVERVIEW';
+        setSearchParams({ tab: safeMemberMod.toLowerCase() });
+        return;
+      }
       const safeMod =
         !isSuperAdmin && !ADMIN_ALLOWED_TABS.includes(upper) ? 'OVERVIEW' : mod;
       const nextParams: Record<string, string> = { tab: safeMod.toLowerCase() };
@@ -82,7 +94,7 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
       }
       setSearchParams(nextParams);
     },
-    [setSearchParams, isSuperAdmin, isCaptain]
+    [setSearchParams, isSuperAdmin, isCaptain, isMemberPortal]
   );
 
   const setStoreSubView = useCallback(
@@ -94,7 +106,13 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
   );
 
   const { feedback, setFeedback, notify } = useFeedback();
-  const { loading, fetchData, data, setData } = useAdminData(activeModule, isSuperAdmin, isAdmin, isCaptain);
+  const { loading, fetchData, data, setData } = useAdminData(
+    activeModule,
+    isSuperAdmin,
+    isAdmin,
+    isCaptain,
+    isMemberPortal
+  );
 
   // Court Schedule & Slot Lock Control state (shared across COURTS and BOOKINGS)
   const [selectedManageCourtId, setSelectedManageCourtId] = useState<string>('court-btl');
@@ -153,6 +171,9 @@ export const AdminDashboardProvider: React.FC<AdminDashboardProviderProps> = ({
     isAdmin,
     isSuperAdmin,
     isCaptain,
+    isCoach,
+    isPlayer,
+    isMemberPortal,
     onOpenSheets,
     onUserChange,
     handleLogout,

@@ -136,7 +136,7 @@ export const TrainingTab: React.FC = () => {
     <>
       <div className="space-y-6">
         {/* Trainees List */}
-        <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-4">
           <div className="flex justify-between items-center border-b border-slate-800 pb-4">
             <div>
               <h3 className="font-bold text-base text-white">
@@ -243,7 +243,7 @@ export const TrainingTab: React.FC = () => {
         </div>
 
         {/* Courses Management CRUD Section */}
-        <div className="bg-[#161F30] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+        <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
             <div>
               <h3 className="font-bold text-base text-white">
