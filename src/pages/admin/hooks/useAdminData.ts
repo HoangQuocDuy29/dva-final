@@ -137,41 +137,41 @@ export function useAdminData(
             break;
           }
           case 'TRAINING': {
-            const [courses, regs] = await Promise.all([
+            const [coursesRes, regsRes] = await Promise.allSettled([
               trainingService.getCourses({ adminMode: true }),
               trainingService.getRegistrations(),
             ]);
-            setCoursesList(Array.isArray(courses) ? courses : []);
-            setTrainingRegs(Array.isArray(regs) ? regs : []);
+            if (coursesRes.status === 'fulfilled') setCoursesList(Array.isArray(coursesRes.value) ? coursesRes.value : []);
+            if (regsRes.status === 'fulfilled') setTrainingRegs(Array.isArray(regsRes.value) ? regsRes.value : []);
             break;
           }
           case 'COURTS': {
-            const [courts, slots] = await Promise.all([
+            const [courtsRes, slotsRes] = await Promise.allSettled([
               courtService.getCourts({ adminMode: true }),
               courtService.getClosedSlots(),
             ]);
-            setCourtsList(normalizeActiveCourts(courts));
-            setClosedSlots(Array.isArray(slots) ? slots : []);
+            if (courtsRes.status === 'fulfilled') setCourtsList(normalizeActiveCourts(courtsRes.value));
+            if (slotsRes.status === 'fulfilled') setClosedSlots(Array.isArray(slotsRes.value) ? slotsRes.value : []);
             break;
           }
           case 'BOOKINGS': {
-            const [bookingRows, courts, slots] = await Promise.all([
+            const [bookingRes, courtsRes, slotsRes] = await Promise.allSettled([
               bookingService.getBookings(),
               courtService.getCourts({ adminMode: true }),
               courtService.getClosedSlots(),
             ]);
-            setBookings(Array.isArray(bookingRows) ? bookingRows : []);
-            setCourtsList(normalizeActiveCourts(courts));
-            setClosedSlots(Array.isArray(slots) ? slots : []);
+            if (bookingRes.status === 'fulfilled') setBookings(Array.isArray(bookingRes.value) ? bookingRes.value : []);
+            if (courtsRes.status === 'fulfilled') setCourtsList(normalizeActiveCourts(courtsRes.value));
+            if (slotsRes.status === 'fulfilled') setClosedSlots(Array.isArray(slotsRes.value) ? slotsRes.value : []);
             break;
           }
           case 'STORE': {
-            const [products, orders] = await Promise.all([
+            const [productsRes, ordersRes] = await Promise.allSettled([
               storeService.getProducts(),
               storeService.getOrders(),
             ]);
-            setStoreProducts(Array.isArray(products) ? products : []);
-            setStoreOrders(Array.isArray(orders) ? orders : []);
+            if (productsRes.status === 'fulfilled') setStoreProducts(Array.isArray(productsRes.value) ? productsRes.value : []);
+            if (ordersRes.status === 'fulfilled') setStoreOrders(Array.isArray(ordersRes.value) ? ordersRes.value : []);
             break;
           }
           case 'SHEETS': {
@@ -196,27 +196,29 @@ export function useAdminData(
   );
 
   const loadMemberPortalData = useCallback(async () => {
-    const [playerRows, coachRows, courseRows, venueRows] = await Promise.all([
-      playerService.getPlayers().catch(() => []),
-      coachService.getCoaches().catch(() => []),
-      trainingService.getCourses().catch(() => []),
-      venueService.getPublicVenues().catch(() => []),
+    const [playerRes, coachRes, courseRes, venueRes] = await Promise.allSettled([
+      playerService.getPlayers(),
+      coachService.getCoaches(),
+      trainingService.getCourses(),
+      venueService.getPublicVenues(),
     ]);
-    setPlayers(Array.isArray(playerRows) ? playerRows : []);
-    setCoachesList(Array.isArray(coachRows) ? coachRows : []);
-    setCoursesList(Array.isArray(courseRows) ? courseRows : []);
-    setVenuesList(Array.isArray(venueRows) ? venueRows : []);
+    setPlayers(playerRes.status === 'fulfilled' && Array.isArray(playerRes.value) ? playerRes.value : []);
+    setCoachesList(coachRes.status === 'fulfilled' && Array.isArray(coachRes.value) ? coachRes.value : []);
+    setCoursesList(courseRes.status === 'fulfilled' && Array.isArray(courseRes.value) ? courseRes.value : []);
+    setVenuesList(venueRes.status === 'fulfilled' && Array.isArray(venueRes.value) ? venueRes.value : []);
     markScopeLoaded('MEMBER_OVERVIEW');
   }, [markScopeLoaded]);
 
   const loadOverviewOnly = useCallback(async () => {
     if (!isAdmin || isCaptain || !authService.hasToken()) return;
-    const [summary, publicVenues] = await Promise.all([
+    const [summaryRes, publicVenuesRes] = await Promise.allSettled([
       adminService.getOverviewSummary(),
       isSuperAdmin && !loadedScopesRef.current.has('VENUES')
-        ? venueService.getPublicVenues().catch(() => [])
+        ? venueService.getPublicVenues()
         : Promise.resolve(null),
     ]);
+    const summary = summaryRes.status === 'fulfilled' ? summaryRes.value : null;
+    const publicVenues = publicVenuesRes.status === 'fulfilled' ? publicVenuesRes.value : null;
     setOverviewSummary(summary || null);
     markScopeLoaded('OVERVIEW');
 
@@ -268,7 +270,7 @@ export function useAdminData(
         await fetchScopeData('VENUES', true);
         return;
       }
-      await loadOverviewOnly();
+      const refreshTasks: Promise<unknown>[] = [loadOverviewOnly()];
 
       const scopesToRefresh = new Set<AdminTabId>();
       if (activeModule !== 'OVERVIEW' && (isSuperAdmin || ADMIN_PERMITTED_DATA_TABS.has(activeModule))) {
@@ -280,9 +282,11 @@ export function useAdminData(
         }
       }
 
-      if (scopesToRefresh.size > 0) {
-        await Promise.all(Array.from(scopesToRefresh).map((s) => fetchScopeData(s, true)));
+      for (const s of scopesToRefresh) {
+        refreshTasks.push(fetchScopeData(s, true));
       }
+
+      await Promise.allSettled(refreshTasks);
     } catch (e) {
       console.error(e);
     } finally {
@@ -311,10 +315,11 @@ export function useAdminData(
           await fetchScopeData('VENUES', false);
           return;
         }
-        await loadOverviewOnly();
-        if (!cancelled && activeModule !== 'OVERVIEW') {
-          await fetchScopeData(activeModule, false);
+        const initTasks: Promise<unknown>[] = [loadOverviewOnly()];
+        if (activeModule !== 'OVERVIEW') {
+          initTasks.push(fetchScopeData(activeModule, false));
         }
+        await Promise.allSettled(initTasks);
       } catch (e) {
         console.error(e);
       } finally {

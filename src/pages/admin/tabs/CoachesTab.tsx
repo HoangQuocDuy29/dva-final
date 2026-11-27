@@ -52,9 +52,9 @@ export const CoachesTab: React.FC = () => {
 
   return (
     <>
-      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-          <div>
+      <div className="dva-glass-panel rounded-3xl p-4 sm:p-6 space-y-5 dva-content-reveal">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="min-w-0">
             <h3 className="font-bold text-base text-white">
               Ban Huấn Luyện & Chuyên Gia (Coaching Staff CRUD)
             </h3>
@@ -80,7 +80,7 @@ export const CoachesTab: React.FC = () => {
               });
               setIsCoachModalOpen(true);
             }}
-            className="px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow cursor-pointer shrink-0"
+            className="h-9 px-4 bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white font-bold text-xs rounded-full inline-flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] cursor-pointer shrink-0 transition-colors duration-150"
           >
             <Plus className="w-4 h-4" />
             <span>Thêm Huấn Luyện Viên</span>
@@ -91,11 +91,11 @@ export const CoachesTab: React.FC = () => {
           {coachesList.map((coach) => (
             <div
               key={coach.id}
-              className="p-5 rounded-2xl border border-slate-800 bg-[#0E1524] flex flex-col justify-between space-y-4"
+              className="p-5 rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.055] hover:border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col justify-between space-y-4 transition-colors duration-150"
             >
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-2xl bg-[#161F30] border border-slate-700 overflow-hidden flex items-center justify-center shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-white/[0.05] border border-white/12 overflow-hidden flex items-center justify-center shrink-0">
                     {coach.avatarUrl ? (
                       <img
                         src={coach.avatarUrl}
@@ -110,9 +110,9 @@ export const CoachesTab: React.FC = () => {
                     )}
                   </div>
 
-                  <div>
-                    <h4 className="font-heading font-black text-base text-white">{coach.name}</h4>
-                    <span className="text-xs text-orange-400 font-semibold block">
+                  <div className="min-w-0">
+                    <h4 className="font-heading font-black text-base text-white truncate">{coach.name}</h4>
+                    <span className="text-xs text-orange-400 font-semibold block truncate">
                       {coach.role}
                     </span>
                     <span className="text-[11px] text-slate-400 font-mono">
@@ -127,7 +127,7 @@ export const CoachesTab: React.FC = () => {
                   {coach.certifications.map((cert, idx) => (
                     <span
                       key={idx}
-                      className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700"
+                      className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-white/[0.04] text-slate-300 border border-white/10"
                     >
                       ✓ {cert}
                     </span>
@@ -135,7 +135,7 @@ export const CoachesTab: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-white/[0.08] flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -143,7 +143,7 @@ export const CoachesTab: React.FC = () => {
                     setCoachForm(coach);
                     setIsCoachModalOpen(true);
                   }}
-                  className="min-h-[40px] px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                  className="h-9 px-4 bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 text-white text-xs font-semibold rounded-full inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150"
                 >
                   <Edit3 className="w-3.5 h-3.5 text-orange-400" />
                   <span>Sửa</span>
@@ -151,7 +151,7 @@ export const CoachesTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleDeleteCoach(coach.id, coach.name)}
-                  className="min-h-[40px] px-3.5 py-2 bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                  className="h-9 px-4 bg-white/[0.05] hover:bg-rose-500/15 border border-white/12 hover:border-rose-500/35 text-slate-300 hover:text-rose-300 text-xs font-semibold rounded-full inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Xóa</span>

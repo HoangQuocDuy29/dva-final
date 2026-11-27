@@ -31,15 +31,16 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-      <div className="w-full max-w-full sm:max-w-lg md:max-w-2xl bg-[#0B0D12]/90 backdrop-blur-2xl rounded-3xl border border-white/15 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90dvh] overflow-y-auto no-scrollbar">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-          <h3 className="font-bold text-base">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+      <div className="dva-glass-modal w-full max-w-full sm:max-w-lg md:max-w-2xl p-4 sm:p-6 shadow-[0_24px_64px_rgba(0,0,0,0.8)] text-white space-y-4 max-h-[90dvh] overflow-y-auto no-scrollbar">
+        <div className="flex justify-between items-center border-b border-white/10 pb-3">
+          <h3 className="font-heading font-black text-base">
             {editingPlayer ? `Edit Athlete: ${editingPlayer.fullName}` : 'Add New Athlete'}
           </h3>
           <button
+            type="button"
             onClick={onClose}
-            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition-colors"
+            className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors duration-150 shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -54,7 +55,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               placeholder="e.g. Nguyễn Văn An"
               value={playerForm.fullName}
               onChange={(e) => setPlayerForm({ ...playerForm, fullName: e.target.value })}
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+              className="dva-glass-input w-full px-3.5 py-2 text-xs"
             />
           </div>
 
@@ -63,9 +64,9 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
             <label className="block text-slate-300 font-semibold mb-1.5">Giới tính (Gender)</label>
             <div className="grid grid-cols-3 gap-2">
               {([
-                { value: null, label: 'Chưa rõ', activeClass: 'bg-slate-700/80 border-slate-400 text-white' },
-                { value: 'MALE' as PlayerGender, label: '♂ Nam', activeClass: 'bg-sky-500/20 border-sky-400/70 text-sky-200' },
-                { value: 'FEMALE' as PlayerGender, label: '♀ Nữ', activeClass: 'bg-pink-500/20 border-pink-400/70 text-pink-200' },
+                { value: null, label: 'Chưa rõ', activeClass: 'bg-white/[0.12] border-white/35 text-white' },
+                { value: 'MALE' as PlayerGender, label: '♂ Nam', activeClass: 'bg-sky-500/20 border-sky-400/60 text-sky-200' },
+                { value: 'FEMALE' as PlayerGender, label: '♀ Nữ', activeClass: 'bg-pink-500/20 border-pink-400/60 text-pink-200' },
               ] as const).map((opt) => {
                 const isSelected = (playerForm.gender ?? null) === opt.value;
                 return (
@@ -74,10 +75,10 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                     type="button"
                     onClick={() => setPlayerForm({ ...playerForm, gender: opt.value })}
                     aria-pressed={isSelected}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    className={`py-2 px-3 rounded-full border text-xs font-bold transition-colors duration-150 cursor-pointer ${
                       isSelected
                         ? opt.activeClass
-                        : 'bg-[#0B0F19] border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                        : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:text-white'
                     }`}
                   >
                     {opt.label}
@@ -88,18 +89,18 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
           </div>
 
           {/* LEVEL SELECTION: SENIOR / JUNIOR / YOUTH (Required by user) */}
-          <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-red-900/60 space-y-2">
+          <div className="bg-white/[0.03] p-3.5 rounded-2xl border border-rose-500/30 space-y-2">
             <label className="block text-slate-200 font-bold">
               Phân Cấp Độ / Đội Tuyển (Level) *
             </label>
             <select
               value={playerForm.level}
               onChange={(e) => setPlayerForm({ ...playerForm, level: e.target.value as PlayerLevel })}
-              className="w-full px-3 py-2 bg-[#161F30] border border-slate-700 rounded-xl text-white font-semibold outline-none focus:ring-2 focus:ring-red-500"
+              className="dva-glass-input w-full px-3.5 py-2 text-xs font-semibold [color-scheme:dark]"
             >
-              <option value="SENIOR">SENIOR — Người chơi tốt, trên 3 năm kinh nghiệm</option>
-              <option value="JUNIOR">JUNIOR — Người chơi trung bình (Intermediate)</option>
-              <option value="YOUTH">Youth</option>
+              <option value="SENIOR" className="bg-[#0E1118] text-white">SENIOR — Người chơi tốt, trên 3 năm kinh nghiệm</option>
+              <option value="JUNIOR" className="bg-[#0E1118] text-white">JUNIOR — Người chơi trung bình (Intermediate)</option>
+              <option value="YOUTH" className="bg-[#0E1118] text-white">Youth</option>
             </select>
             <p className="text-[10px] text-slate-400">
               Sau khi lưu, VĐV sẽ xuất hiện ngay lập tức trong cột tương ứng ({playerForm.level}) trên danh sách Roster của CLB.
@@ -107,7 +108,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
           </div>
 
           {/* USAV SKILL RANK SELECTION */}
-          <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-blue-900/60 space-y-2">
+          <div className="bg-white/[0.03] p-3.5 rounded-2xl border border-sky-500/30 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="block text-slate-200 font-bold">
                 🇺🇸 Hạng Trình Độ USAV (Skill Rank)
@@ -116,7 +117,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 href="/information/skill-levels"
                 target="_blank"
                 rel="noreferrer"
-                className="text-[10px] font-bold text-blue-300 hover:text-orange-400 transition-colors"
+                className="text-[10px] font-bold text-sky-300 hover:text-orange-400 transition-colors"
               >
                 Xem bảng chuẩn USAV ↗
               </a>
@@ -130,11 +131,11 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                   skillRank: (val === '' ? null : val) as SkillRank | null,
                 });
               }}
-              className="w-full px-3 py-2 bg-[#161F30] border border-slate-700 rounded-xl text-white font-semibold outline-none focus:ring-2 focus:ring-blue-500"
+              className="dva-glass-input w-full px-3.5 py-2 text-xs font-semibold [color-scheme:dark]"
             >
-              <option value="">Chưa xếp hạng (Unranked)</option>
+              <option value="" className="bg-[#0E1118] text-slate-300">Chưa xếp hạng (Unranked)</option>
               {SKILL_RANK_LIST.map((tier) => (
-                <option key={tier.code} value={tier.code}>
+                <option key={tier.code} value={tier.code} className="bg-[#0E1118] text-white">
                   {tier.code} — {tier.labelVi}
                 </option>
               ))}
@@ -145,16 +146,16 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
           </div>
 
           {/* CAPTAIN TOGGLE (Required by user) */}
-          <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-yellow-500/40 flex items-center justify-between">
+          <div className="bg-white/[0.03] p-3.5 rounded-2xl border border-amber-500/35 flex items-center justify-between gap-3">
             <div>
-              <label className="text-xs font-bold text-yellow-400 flex items-center gap-1.5 cursor-pointer">
+              <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5 cursor-pointer">
                 <span>⭐ Đội Trưởng (Team Captain)</span>
               </label>
               <p className="text-[10px] text-slate-400 mt-0.5">
                 Nếu bật (true), thẻ cầu thủ sẽ nổi bật dòng chữ "★ CAPTAIN" ở đầu card. Nếu tắt (false) sẽ không hiện.
               </p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
               <input
                 type="checkbox"
                 checked={Boolean(playerForm.captain || playerForm.isCaptain)}
@@ -164,12 +165,12 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 }}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+              <div className="w-11 h-6 bg-white/15 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white/30 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:bg-amber-500"></div>
             </label>
           </div>
 
           {/* PHOTO UPLOAD & CLOUD STORAGE */}
-          <div className="bg-[#0B0F19] p-3.5 rounded-2xl border border-slate-800 space-y-2">
+          <div className="bg-white/[0.03] p-3.5 rounded-2xl border border-white/10 space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-slate-200 font-bold block">
                 Ảnh Chân Dung VĐV (Tải lên hoặc dán link Cloud)
@@ -178,7 +179,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setPlayerForm({ ...playerForm, avatarUrl: '' })}
-                  className="text-[10px] text-red-400 hover:underline cursor-pointer"
+                  className="text-[10px] text-rose-400 hover:underline cursor-pointer"
                 >
                   Xóa ảnh
                 </button>
@@ -186,7 +187,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-16 h-20 rounded-xl bg-[#161F30] border border-slate-700 overflow-hidden flex items-center justify-center shrink-0">
+              <div className="w-16 h-20 rounded-xl bg-white/[0.04] border border-white/12 overflow-hidden flex items-center justify-center shrink-0">
                 {playerForm.avatarUrl ? (
                   <img
                     src={playerForm.avatarUrl}
@@ -198,11 +199,11 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 )}
               </div>
 
-              <div className="flex-1 space-y-2">
-                <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+              <div className="flex-1 min-w-0 space-y-2">
+                <label className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-colors duration-150 ${
                   isUploadingPlayerPhoto 
-                    ? 'bg-slate-700 text-slate-300 border-slate-600 cursor-wait' 
-                    : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700 cursor-pointer'
+                    ? 'bg-white/[0.04] text-slate-400 border-white/10 cursor-wait' 
+                    : 'bg-white/[0.06] hover:bg-white/[0.12] text-white border-white/12 cursor-pointer'
                 }`}>
                   {isUploadingPlayerPhoto ? (
                     <>
@@ -244,7 +245,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                   placeholder="Hoặc dán URL ảnh trực tiếp (Cloudinary / Unsplash / CDN)..."
                   value={playerForm.avatarUrl || ''}
                   onChange={(e) => setPlayerForm({ ...playerForm, avatarUrl: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-[#161F30] border border-slate-700 rounded-xl text-white outline-none text-xs font-mono"
+                  className="dva-glass-input w-full px-3 py-1.5 text-xs font-mono"
                 />
               </div>
             </div>
@@ -260,7 +261,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 required
                 value={playerForm.jerseyNumber}
                 onChange={(e) => setPlayerForm({ ...playerForm, jerseyNumber: Number(e.target.value) })}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums"
               />
             </div>
 
@@ -269,13 +270,13 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               <select
                 value={playerForm.position}
                 onChange={(e) => setPlayerForm({ ...playerForm, position: e.target.value as VolleyballPosition })}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-semibold [color-scheme:dark]"
               >
-                <option value="OH">Chủ công (OH - Outside Hitter)</option>
-                <option value="OP">Đối chuyền (OP - Opposite Hitter)</option>
-                <option value="MB">Phụ công (MB - Middle Blocker)</option>
-                <option value="S">Chuyền hai (S - Setter)</option>
-                <option value="L">Libero (L - Defense Specialist)</option>
+                <option value="OH" className="bg-[#0E1118] text-white">Chủ công (OH - Outside Hitter)</option>
+                <option value="OP" className="bg-[#0E1118] text-white">Đối chuyền (OP - Opposite Hitter)</option>
+                <option value="MB" className="bg-[#0E1118] text-white">Phụ công (MB - Middle Blocker)</option>
+                <option value="S" className="bg-[#0E1118] text-white">Chuyền hai (S - Setter)</option>
+                <option value="L" className="bg-[#0E1118] text-white">Libero (L - Defense Specialist)</option>
               </select>
             </div>
 
@@ -286,7 +287,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 required
                 value={playerForm.height}
                 onChange={(e) => setPlayerForm({ ...playerForm, height: Number(e.target.value) })}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums"
               />
             </div>
 
@@ -297,7 +298,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 required
                 value={playerForm.spikeTouch}
                 onChange={(e) => setPlayerForm({ ...playerForm, spikeTouch: Number(e.target.value) })}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono text-orange-400 font-bold"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums !text-orange-400 font-bold"
               />
             </div>
 
@@ -308,7 +309,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 placeholder="270"
                 value={playerForm.blockTouch ?? ''}
                 onChange={(e) => setPlayerForm({ ...playerForm, blockTouch: Number(e.target.value) })}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono text-orange-400 font-bold"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums !text-orange-400 font-bold"
               />
             </div>
 
@@ -327,7 +328,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                     bornYear: raw === '' ? undefined : Number(raw),
                   });
                 }}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums"
               />
             </div>
 
@@ -344,7 +345,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                   setPlayerForm({ ...playerForm, joined: val, joinedYear: val });
                 }}
                 placeholder="e.g. 2025"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono text-emerald-400 font-bold"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums !text-emerald-400 font-bold"
               />
             </div>
 
@@ -370,7 +371,7 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
                 type="text"
                 value={playerForm.hometownCountry || ''}
                 onChange={(e) => setPlayerForm({ ...playerForm, hometownCountry: e.target.value })}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs"
               />
             </div>
           </div>
@@ -382,21 +383,21 @@ export const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
               value={playerForm.bio || ''}
               onChange={(e) => setPlayerForm({ ...playerForm, bio: e.target.value })}
               placeholder="e.g. Cựu tuyển thủ trường đại học, đập biên uy lực, phát bóng tấn công..."
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+              className="dva-glass-input w-full px-3.5 py-2 text-xs"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-white/10">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-400 hover:text-white cursor-pointer"
+              className="h-9 px-4 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 text-slate-300 hover:text-white font-bold cursor-pointer transition-colors duration-150"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-gradient-to-r from-red-600 to-orange-500 rounded-xl text-white font-bold cursor-pointer hover:brightness-110 shadow-lg"
+              className="h-9 px-5 bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] rounded-full text-white font-bold cursor-pointer hover:brightness-110 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] transition-colors duration-150"
             >
               Lưu VĐV Vào Danh Sách
             </button>

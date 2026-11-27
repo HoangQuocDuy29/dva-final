@@ -26,9 +26,9 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-      <div className="w-full max-w-full sm:max-w-lg md:max-w-2xl bg-[#0B0D12]/90 backdrop-blur-2xl rounded-3xl border border-white/15 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90dvh] overflow-y-auto no-scrollbar">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+      <div className="dva-glass-modal w-full max-w-full sm:max-w-lg md:max-w-2xl p-4 sm:p-6 shadow-[0_24px_64px_rgba(0,0,0,0.8)] text-white space-y-4 max-h-[90dvh] overflow-y-auto no-scrollbar">
+        <div className="flex justify-between items-center border-b border-white/10 pb-3">
           <div>
             <h3 className="font-heading font-black text-lg text-white">
               {editingBooking
@@ -44,7 +44,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 flex items-center justify-center text-slate-300 hover:text-white transition-colors duration-150 cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -67,7 +67,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                   })
                 }
                 placeholder="VD: Nguyễn Văn Nam"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs"
               />
             </div>
             <div>
@@ -85,7 +85,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                   })
                 }
                 placeholder="VD: 0768299329"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums"
               />
             </div>
           </div>
@@ -104,7 +104,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                 })
               }
               placeholder="VD: customer@gmail.com"
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+              className="dva-glass-input w-full px-3.5 py-2 text-xs"
             />
           </div>
 
@@ -131,10 +131,10 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                       : undefined,
                   });
                 }}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-semibold [color-scheme:dark]"
               >
                 {courtsList.map((court) => (
-                  <option key={court.id} value={court.id}>
+                  <option key={court.id} value={court.id} className="bg-[#0E1118] text-white">
                     {court.name}
                   </option>
                 ))}
@@ -156,10 +156,10 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                       subCourt: e.target.value,
                     })
                   }
-                  className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+                  className="dva-glass-input w-full px-3.5 py-2 text-xs font-semibold [color-scheme:dark]"
                 >
-                  <option value="Sân A">Sân A (Court A)</option>
-                  <option value="Sân B">Sân B (Court B)</option>
+                  <option value="Sân A" className="bg-[#0E1118] text-white">Sân A (Court A)</option>
+                  <option value="Sân B" className="bg-[#0E1118] text-white">Sân B (Court B)</option>
                 </select>
               </div>
             )}
@@ -178,7 +178,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                     bookingDate: e.target.value,
                   })
                 }
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono cursor-pointer"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums cursor-pointer [color-scheme:dark]"
               />
             </div>
           </div>
@@ -196,7 +196,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                   setBookingForm({ ...bookingForm, startTime: e.target.value })
                 }
                 placeholder="17:30"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums"
               />
             </div>
             <div>
@@ -211,7 +211,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                   setBookingForm({ ...bookingForm, endTime: e.target.value })
                 }
                 placeholder="19:30"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums"
               />
             </div>
             <div>
@@ -229,7 +229,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                     totalHours: Number(e.target.value),
                   })
                 }
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums"
               />
             </div>
           </div>
@@ -250,7 +250,7 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                     totalPrice: Number(e.target.value),
                   })
                 }
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono text-orange-400 font-bold"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-mono tabular-nums !text-orange-400 font-bold"
               />
             </div>
 
@@ -266,30 +266,30 @@ export const BookingFormModal: React.FC<BookingFormModalProps> = ({
                     paymentStatus: e.target.value as any,
                   })
                 }
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+                className="dva-glass-input w-full px-3.5 py-2 text-xs font-semibold [color-scheme:dark]"
               >
-                <option value="PAID">PAID (Đã thanh toán / Giữ sân)</option>
-                <option value="PENDING">
+                <option value="PAID" className="bg-[#0E1118] text-white">PAID (Đã thanh toán / Giữ sân)</option>
+                <option value="PENDING" className="bg-[#0E1118] text-white">
                   PENDING (Chờ chuyển khoản VietQR)
                 </option>
-                <option value="CANCELLED">
+                <option value="CANCELLED" className="bg-[#0E1118] text-white">
                   CANCELLED (Đã hủy / Mở lại ca)
                 </option>
               </select>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-white/10">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-400 hover:text-white cursor-pointer"
+              className="h-9 px-4 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 text-slate-300 hover:text-white font-bold cursor-pointer transition-colors duration-150"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-orange-500 rounded-xl text-white font-bold cursor-pointer hover:brightness-110 shadow-lg"
+              className="h-9 px-5 bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] rounded-full text-white font-bold cursor-pointer hover:brightness-110 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] transition-colors duration-150"
             >
               {editingBooking ? 'Lưu Thay Đổi' : 'Tạo Đơn Đặt Sân'}
             </button>

@@ -810,7 +810,7 @@ export const CourtMapPage: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#141C2B] via-[#141C2B]/25 to-transparent" />
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
                   {venue.isDvaOfficial && <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r from-red-600 to-orange-500 text-white"><Sparkles className="w-3 h-3" />DVA Official</span>}
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border backdrop-blur ${vt.badgeClass}`}>{vt.shortLabel}</span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${vt.badgeClass}`}>{vt.shortLabel}</span>
                 </div>
               </div>
             )}
@@ -907,7 +907,7 @@ export const CourtMapPage: React.FC = () => {
                         : rt.state === 'LIVE'
                           ? 'opacity-80 hover:opacity-100 dva-glass-panel'
                           : rt.state === 'UPCOMING'
-                            ? 'bg-gradient-to-br from-orange-500/15 to-white/[0.04] backdrop-blur-xl border-orange-400/75 ring-1 ring-orange-500/35'
+                            ? 'bg-gradient-to-br from-orange-500/15 to-white/[0.04] border-orange-400/75 ring-1 ring-orange-500/35'
                             : 'dva-glass-panel'
                     }`}
                   >

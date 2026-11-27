@@ -36,24 +36,24 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
       <form
         onSubmit={onSubmit}
-        className="w-[95%] sm:w-full max-w-md bg-[#0F1727] border border-slate-700 rounded-2xl sm:rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar"
+        className="w-[95%] sm:w-full max-w-md dva-glass-modal shadow-[0_24px_64px_rgba(0,0,0,0.8)] p-5 sm:p-6 space-y-4 max-h-[90dvh] overflow-y-auto no-scrollbar"
       >
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <h3 className="text-base font-black text-white">Tạo Tài Khoản Mới</h3>
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition-colors"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors duration-150"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {userFormError && (
-          <div className="bg-red-950/70 border border-red-500/60 text-red-200 text-xs px-3 py-2 rounded-xl">
+          <div className="bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs px-3.5 py-2 rounded-2xl">
             {userFormError}
           </div>
         )}
@@ -71,7 +71,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
           ] as const
         ).map((f) => (
           <label key={f.key} className="block space-y-1">
-            <span className="text-[11px] font-bold text-slate-400">{f.label}</span>
+            <span className="text-[11px] font-bold text-slate-300">{f.label}</span>
             <input
               type={f.type}
               name={f.key}
@@ -80,40 +80,40 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
               value={userForm[f.key]}
               onChange={(e) => setUserForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
               autoComplete={f.autoComplete}
-              className="w-full bg-[#0B1220] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+              className="w-full dva-glass-input px-3.5 py-2 text-xs"
             />
           </label>
         ))}
 
         <label className="block space-y-1">
-          <span className="text-[11px] font-bold text-slate-400">Role</span>
+          <span className="text-[11px] font-bold text-slate-300">Role</span>
           <select
             value={userForm.role}
             onChange={(e) =>
               setUserForm((prev) => ({ ...prev, role: e.target.value as ManagedUserRole }))
             }
-            className="w-full bg-[#0B1220] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white cursor-pointer"
+            className="w-full dva-glass-input px-3.5 py-2 text-xs cursor-pointer [color-scheme:dark]"
           >
             {MANAGED_USER_ROLES.map((r) => (
-              <option key={r} value={r}>
+              <option className="bg-[#0E1118] text-white" key={r} value={r}>
                 {r}
               </option>
             ))}
           </select>
         </label>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold cursor-pointer"
+            className="h-9 px-4 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-colors duration-150"
           >
             Hủy
           </button>
           <button
             type="submit"
             disabled={isSavingUser}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold disabled:opacity-60 cursor-pointer"
+            className="h-9 px-5 rounded-full bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white text-xs font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] disabled:opacity-60 cursor-pointer transition-colors duration-150"
           >
             {isSavingUser ? 'Đang tạo...' : 'Tạo tài khoản'}
           </button>

@@ -23,11 +23,11 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-      <div className="w-[95%] sm:w-full max-w-lg md:max-w-2xl bg-[#161F30] rounded-2xl sm:rounded-3xl border border-slate-700 p-4 sm:p-6 shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
-        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-          <div>
-            <h3 className="font-heading font-black text-lg text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in">
+      <div className="w-[95%] sm:w-full max-w-lg md:max-w-2xl dva-glass-modal shadow-[0_24px_64px_rgba(0,0,0,0.8)] p-4 sm:p-6 text-white space-y-4 max-h-[90dvh] overflow-y-auto no-scrollbar">
+        <div className="flex justify-between items-center border-b border-white/10 pb-3 gap-3">
+          <div className="min-w-0">
+            <h3 className="font-heading font-black text-lg text-white truncate">
               {editingCourse ? `Chỉnh Sửa Khóa Học: ${editingCourse.title}` : 'Thêm Khóa Học Mới'}
             </h3>
             <p className="text-xs text-slate-400">
@@ -37,7 +37,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 flex items-center justify-center text-slate-300 hover:text-white transition-colors duration-150 cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -52,7 +52,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 value={courseForm.tag || ''}
                 onChange={(e) => setCourseForm({ ...courseForm, tag: e.target.value })}
                 placeholder="VD: MOST POPULAR, POPULAR CHOICE..."
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+                className="w-full px-3.5 py-2 dva-glass-input font-semibold"
               />
             </div>
             <div>
@@ -62,7 +62,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 value={courseForm.targetAudience || ''}
                 onChange={(e) => setCourseForm({ ...courseForm, targetAudience: e.target.value })}
                 placeholder="VD: Dành cho người mới tập, VĐV phong trào..."
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                className="w-full px-3.5 py-2 dva-glass-input"
               />
             </div>
           </div>
@@ -75,7 +75,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
               value={courseForm.title || ''}
               onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
               placeholder="VD: Masterclass Tấn Công Biên 4 & Đối Chuyền"
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+              className="w-full px-3.5 py-2 dva-glass-input font-semibold"
             />
           </div>
 
@@ -85,11 +85,11 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
               <select
                 value={courseForm.level || 'JUNIOR'}
                 onChange={(e) => setCourseForm({ ...courseForm, level: e.target.value as any })}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-semibold"
+                className="w-full px-3.5 py-2 dva-glass-input font-semibold [color-scheme:dark]"
               >
-                <option value="SENIOR">SENIOR (Nâng cao & Chiến thuật)</option>
-                <option value="JUNIOR">JUNIOR (Trung cấp & Kỹ năng nền tảng)</option>
-                <option value="YOUTH">Youth</option>
+                <option className="bg-[#0E1118] text-white" value="SENIOR">SENIOR (Nâng cao & Chiến thuật)</option>
+                <option className="bg-[#0E1118] text-white" value="JUNIOR">JUNIOR (Trung cấp & Kỹ năng nền tảng)</option>
+                <option className="bg-[#0E1118] text-white" value="YOUTH">Youth</option>
               </select>
             </div>
 
@@ -101,7 +101,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 step="100000"
                 value={courseForm.price || 2400000}
                 onChange={(e) => setCourseForm({ ...courseForm, price: Number(e.target.value) })}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono text-orange-400 font-bold"
+                className="w-full px-3.5 py-2 dva-glass-input font-mono text-orange-400 font-bold tabular-nums"
               />
             </div>
           </div>
@@ -116,7 +116,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
               value={courseForm.skillRankLabel || ''}
               onChange={(e) => setCourseForm({ ...courseForm, skillRankLabel: e.target.value })}
               placeholder="VD: C – B, B – BB, BB+, A+ (để trống = tự quy đổi theo Level)"
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-blue-900/70 rounded-xl text-white outline-none"
+              className="w-full px-3.5 py-2 dva-glass-input border-sky-500/30"
             />
             <datalist id="usav-rank-presets">
               {RECOMMENDED_SKILL_RANK_PRESETS.map((preset) => (
@@ -133,7 +133,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
               value={courseForm.priceUnit || ''}
               onChange={(e) => setCourseForm({ ...courseForm, priceUnit: e.target.value })}
               placeholder="VD: / buổi, / tháng, / năm, / session, / year (để trống = tự nhận diện)"
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+              className="w-full px-3.5 py-2 dva-glass-input"
             />
             <datalist id="course-billing-units">
               <option value="/ buổi" />
@@ -153,7 +153,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 value={courseForm.duration || '8 tuần (16 buổi)'}
                 onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
                 placeholder="VD: 120 phút, 2.5 tiếng, 12 tháng..."
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                className="w-full px-3.5 py-2 dva-glass-input"
               />
             </div>
             <div>
@@ -164,7 +164,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 value={courseForm.maxSlots || 16}
                 onChange={(e) => setCourseForm({ ...courseForm, maxSlots: Number(e.target.value) })}
                 placeholder="VD: 6, 12, 24..."
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                className="w-full px-3.5 py-2 dva-glass-input font-mono tabular-nums"
               />
             </div>
             <div>
@@ -173,7 +173,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 type="number"
                 value={courseForm.enrolledSlots || 0}
                 onChange={(e) => setCourseForm({ ...courseForm, enrolledSlots: Number(e.target.value) })}
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none font-mono"
+                className="w-full px-3.5 py-2 dva-glass-input font-mono tabular-nums"
               />
             </div>
           </div>
@@ -186,7 +186,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
               value={courseForm.schedule || ''}
               onChange={(e) => setCourseForm({ ...courseForm, schedule: e.target.value })}
               placeholder="VD: Thứ 3 & Thứ 5 hàng tuần (18:00 - 20:00)"
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+              className="w-full px-3.5 py-2 dva-glass-input"
             />
           </div>
 
@@ -198,7 +198,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 value={courseForm.coachName || ''}
                 onChange={(e) => setCourseForm({ ...courseForm, coachName: e.target.value })}
                 placeholder="VD: Hoàng Quốc Duy"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                className="w-full px-3.5 py-2 dva-glass-input"
               />
             </div>
             <div>
@@ -208,7 +208,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 value={courseForm.coachTitle || ''}
                 onChange={(e) => setCourseForm({ ...courseForm, coachTitle: e.target.value })}
                 placeholder="VD: Head Coach & Founder"
-                className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+                className="w-full px-3.5 py-2 dva-glass-input"
               />
             </div>
           </div>
@@ -220,7 +220,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
               value={courseForm.description || ''}
               onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
               placeholder="Tóm tắt nội dung khóa học và mục tiêu đạt được sau 8 tuần..."
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+              className="w-full px-3.5 py-2 dva-glass-input"
             />
           </div>
 
@@ -231,22 +231,22 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
               value={(courseForm.benefits || []).join('\n')}
               onChange={(e) => setCourseForm({ ...courseForm, benefits: e.target.value.split('\n') })}
               placeholder={'Mỗi quyền lợi một dòng, VD:\nÁo đấu DVA chính hãng\nPhân tích video kỹ thuật'}
-              className="w-full px-3 py-2 bg-[#0B0F19] border border-slate-700 rounded-xl text-white outline-none"
+              className="w-full px-3.5 py-2 dva-glass-input"
             />
             <p className="text-[10px] text-slate-500 mt-1">Mỗi dòng là một mục có tick xanh ngoài trang Public.</p>
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-white/10">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-400 hover:text-white cursor-pointer"
+              className="h-9 px-4 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 text-slate-300 hover:text-white font-semibold cursor-pointer transition-colors duration-150"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-orange-500 rounded-xl text-white font-bold cursor-pointer hover:brightness-110 shadow-lg"
+              className="h-9 px-5 bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] rounded-full text-white font-bold cursor-pointer hover:brightness-110 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] transition-colors duration-150"
             >
               {editingCourse ? 'Lưu Thay Đổi' : 'Tạo Khóa Học'}
             </button>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   MapPin, Plus, Pencil, Trash2, Users, Clock, ExternalLink, Search, X, Upload, Loader2, ChevronDown, ChevronRight,
   Eye, EyeOff, Check, Layers, CalendarClock, AlertTriangle, Copy, Mail, Phone, Power, KeyRound, Minus,
@@ -24,10 +24,103 @@ type ModalState =
   | { kind: 'captain'; club?: CourtClubProfile; venue?: VolleyballVenue }
   | null;
 
-const INP = 'w-full px-3 py-2 rounded-xl bg-[#0B0F19] border border-slate-700 text-xs text-white focus:outline-none focus:border-orange-500';
+const INP = 'w-full px-3 py-2 text-xs dva-glass-input [color-scheme:dark]';
 const F: React.FC<{ label: string; full?: boolean; tone?: string; children: React.ReactNode }> = ({ label, full, tone = 'text-slate-300', children }) => (
   <div className={full ? 'sm:col-span-2' : ''}><label className={`block font-bold mb-1 ${tone}`}>{label}</label>{children}</div>
 );
+
+interface UsavRankDropdownProps {
+  value: string;
+  disabled?: boolean;
+  onChange: (next: string) => void;
+}
+
+const UsavRankDropdown: React.FC<UsavRankDropdownProps> = ({ value, disabled, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onOutside = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onOutside);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onOutside);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title="Gắn hạng trình độ USAV khuyến nghị cho ca chơi"
+        onClick={() => setOpen((v) => !v)}
+        className={`px-2.5 py-1 rounded-full text-[10px] font-bold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 disabled:opacity-50 ${
+          value
+            ? 'bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 border-sky-400/35'
+            : 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 border-white/12'
+        }`}
+      >
+        <span className="truncate max-w-[140px]">{value ? `🇺🇸 USAV: ${value}` : '🇺🇸 Chưa gắn hạng'}</span>
+        <ChevronDown className={`w-3 h-3 opacity-80 shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          aria-label="Hạng USAV khuyến nghị"
+          className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 z-50 min-w-[180px] max-w-[calc(100vw-2rem)] rounded-2xl bg-[#0E1118]/95 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/75 p-1.5 space-y-0.5"
+        >
+          <button
+            type="button"
+            role="option"
+            aria-selected={!value}
+            onClick={() => {
+              setOpen(false);
+              if (value !== '') onChange('');
+            }}
+            className={`w-full px-2.5 py-1.5 rounded-xl text-left text-[11px] font-semibold flex items-center justify-between gap-2 cursor-pointer transition-colors ${
+              !value ? 'bg-orange-500/20 text-orange-200' : 'text-slate-300 hover:bg-white/[0.08] hover:text-white'
+            }`}
+          >
+            <span>🇺🇸 Chưa gắn hạng</span>
+            {!value && <Check className="w-3 h-3 text-orange-300 shrink-0" />}
+          </button>
+          {RECOMMENDED_SKILL_RANK_PRESETS.map((preset) => {
+            const active = value === preset;
+            return (
+              <button
+                key={preset}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => {
+                  setOpen(false);
+                  if (!active) onChange(preset);
+                }}
+                className={`w-full px-2.5 py-1.5 rounded-xl text-left text-[11px] font-bold flex items-center justify-between gap-2 cursor-pointer transition-colors ${
+                  active ? 'bg-sky-500/20 text-sky-200' : 'text-slate-200 hover:bg-white/[0.08] hover:text-white'
+                }`}
+              >
+                <span>🇺🇸 USAV: {preset}</span>
+                {active && <Check className="w-3 h-3 text-sky-300 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const VenuesTab: React.FC = () => {
   const { isSuperAdmin, isCaptain, activeModule, setActiveModule, data: { venuesList, loadedScopes }, setData: { setVenuesList }, notify } = useAdminDashboard();
@@ -263,9 +356,17 @@ export const VenuesTab: React.FC = () => {
     const reasonDraft = cancelReasonDrafts[s.id] ?? (s.cancelReason || '');
 
     return (
-      <div key={s.id} onClick={() => setActiveSessionId(s.id)} className={`dva-glass-card !rounded-2xl p-4 space-y-3 ${isOff ? '!border-amber-500/50 bg-amber-500/[0.06]' : ''}`}>
+      <div
+        key={s.id}
+        onClick={() => setActiveSessionId(s.id)}
+        className={`rounded-2xl border p-3.5 sm:p-4 space-y-3 transition-colors duration-150 ${
+          isOff
+            ? 'bg-amber-500/[0.07] border-amber-500/45'
+            : 'bg-white/[0.025] border-white/[0.08] hover:bg-white/[0.045] hover:border-white/15'
+        }`}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs min-w-0">
             <span className="px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/40 text-orange-300 font-black">{formatDaysOfWeek(s.daysOfWeek)}</span>
             <span className="font-mono font-bold text-white"><Clock className="w-3 h-3 inline mr-1 text-orange-400" />{s.startTime}–{s.endTime}</span>
             {s.subCourts.map((sc) => <span key={sc} className="px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/35 text-[10px] font-bold">{sc}</span>)}
@@ -278,65 +379,112 @@ export const VenuesTab: React.FC = () => {
               <span>{s.contactRevealCount ?? 0} lượt mở SĐT</span>
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-1">
-            <select
-              aria-label="Hạng USAV khuyến nghị"
-              disabled={busy}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <UsavRankDropdown
               value={s.skillRankLabel || ''}
-              onChange={(e) => void quickPatchSession(venue.id, s, { skillRankLabel: e.target.value || null })}
-              className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-blue-500/15 text-blue-200 border-blue-400/35 focus:outline-none cursor-pointer"
-              title="Gắn hạng trình độ USAV khuyến nghị cho ca chơi"
-            >
-              <option value="" className="bg-[#0B0D12] text-slate-300">🇺🇸 Chưa gắn hạng</option>
-              {RECOMMENDED_SKILL_RANK_PRESETS.map((preset) => (
-                <option key={preset} value={preset} className="bg-[#0B0D12] text-white">🇺🇸 USAV: {preset}</option>
-              ))}
-            </select>
+              disabled={busy}
+              onChange={(nextVal) => void quickPatchSession(venue.id, s, { skillRankLabel: nextVal || null })}
+            />
             {(['MALE_ONLY', 'MIXED', 'FEMALE_ONLY'] as const).map((g) => (
-              <button key={g} type="button" disabled={busy} onClick={() => void quickPatchSession(venue.id, s, { genderRule: g })} className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer transition-colors ${(s.genderRule || 'MIXED') === g ? 'bg-purple-500/30 text-purple-100 border-purple-400/50' : 'bg-white/[0.05] text-slate-300 border-white/10 hover:bg-white/10'}`}>{GENDER_RULE_META[g].shortLabel}</button>
+              <button
+                key={g}
+                type="button"
+                disabled={busy}
+                onClick={() => void quickPatchSession(venue.id, s, { genderRule: g })}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-bold border cursor-pointer transition-colors duration-150 ${
+                  (s.genderRule || 'MIXED') === g
+                    ? 'bg-purple-500/25 text-purple-100 border-purple-400/50 shadow-[0_0_12px_rgba(168,85,247,0.2)]'
+                    : 'bg-white/[0.06] text-slate-300 border-white/12 hover:bg-white/[0.12] hover:text-white'
+                }`}
+              >
+                {GENDER_RULE_META[g].shortLabel}
+              </button>
             ))}
             {isSuperAdmin && (
               <>
-                <button type="button" onClick={() => openModal({ kind: 'session', venue, item: s })} className="p-1.5 rounded-full bg-white/[0.06] hover:bg-white/15 border border-white/10 text-slate-300 cursor-pointer"><Pencil className="w-3 h-3" /></button>
-                <button type="button" onClick={async () => { if (!confirm('Xóa ca này?')) return; await venueService.deleteSession(venue.id, s.id); await reload(); notify('Đã xóa ca.'); }} className="p-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 cursor-pointer"><Trash2 className="w-3 h-3" /></button>
+                <button type="button" onClick={() => openModal({ kind: 'session', venue, item: s })} className="w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 text-slate-300 hover:text-white inline-flex items-center justify-center cursor-pointer transition-colors duration-150" title="Sửa ca"><Pencil className="w-3 h-3" /></button>
+                <button type="button" onClick={async () => { if (!confirm('Xóa ca này?')) return; await venueService.deleteSession(venue.id, s.id); await reload(); notify('Đã xóa ca.'); }} className="w-7 h-7 rounded-full bg-rose-500/12 hover:bg-rose-500/22 border border-rose-500/30 text-rose-300 inline-flex items-center justify-center cursor-pointer transition-colors duration-150" title="Xóa ca"><Trash2 className="w-3 h-3" /></button>
               </>
             )}
           </div>
         </div>
 
         {/* Quick Date Selector Bar (T2 23/11, T4 25/11, T7 28/11...) */}
-        <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t border-white/10">
-          <span className="text-[10px] font-bold uppercase text-slate-400 mr-0.5">Ngày:</span>
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-2.5 border-t border-white/[0.08]">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-0.5">Ngày:</span>
           {upcomingDates.map((d) => {
             const active = selDate === d.dateStr;
             const dOff = isSessionCancelledOnDate(s, d.dateStr);
             const dCur = getSessionDailyState(s, d.dateStr).currentPlayers;
             return (
-              <button key={d.dateStr} type="button" onClick={() => setSelectedDateBySession((p) => ({ ...p, [s.id]: d.dateStr }))} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer inline-flex items-center gap-1 transition-colors ${active ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400 shadow' : 'bg-white/[0.05] text-slate-200 border-white/10 hover:bg-white/10'}`}>
+              <button
+                key={d.dateStr}
+                type="button"
+                onClick={() => setSelectedDateBySession((p) => ({ ...p, [s.id]: d.dateStr }))}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer inline-flex items-center gap-1 transition-colors duration-150 ${
+                  active
+                    ? 'bg-gradient-to-r from-red-600/90 to-orange-500/90 text-white border-orange-400/70 shadow-[0_0_16px_rgba(249,115,22,0.28)]'
+                    : 'bg-white/[0.06] text-slate-200 border-white/12 hover:bg-white/[0.12] hover:text-white'
+                }`}
+              >
                 <span>{d.label}</span>
                 {dOff ? <span className="text-[9px] text-amber-300">⚠️</span> : (limited && dCur > 0 && <span className={`text-[9px] px-1 rounded-full ${active ? 'bg-black/25' : 'bg-sky-500/20 text-sky-300'}`}>{dCur}</span>)}
               </button>
             );
           })}
-          <input type="date" aria-label="Chọn ngày khác" value={selDate} onChange={(e) => { if (e.target.value) setSelectedDateBySession((p) => ({ ...p, [s.id]: e.target.value })); }} className="px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] text-slate-200 focus:outline-none focus:border-orange-500/50 sm:ml-auto min-w-0 max-w-full" />
+          <input
+            type="date"
+            aria-label="Chọn ngày khác"
+            value={selDate}
+            onChange={(e) => { if (e.target.value) setSelectedDateBySession((p) => ({ ...p, [s.id]: e.target.value })); }}
+            className="dva-glass-input !rounded-full px-3 py-1 text-[11px] [color-scheme:dark] sm:ml-auto w-full sm:w-auto min-w-0 max-w-full"
+          />
         </div>
 
         {/* 1-Tap Controls for Selected Date: Capacity, -/+ Players, OH-MB-OP-S-L, Off Toggle */}
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={busy} onClick={() => void quickPatchSession(venue.id, s, { capacityMode: limited ? 'UNLIMITED' : 'LIMITED_SLOTS' })} className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/10 border border-white/10 text-[11px] font-bold text-slate-200 cursor-pointer transition-colors">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void quickPatchSession(venue.id, s, { capacityMode: limited ? 'UNLIMITED' : 'LIMITED_SLOTS' })}
+              className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 text-[11px] font-bold text-slate-200 cursor-pointer transition-colors duration-150"
+            >
               {limited ? 'Giới hạn slot' : '∞ Tự do'}
             </button>
             {limited && (
-              <div className="inline-flex items-center gap-1.5 bg-white/[0.05] border border-white/10 rounded-full px-2 py-1">
-                <button type="button" disabled={busy || cur <= 0} onClick={() => void patchDailyOverride(venue.id, s, selDate, { currentPlayers: Math.max(0, cur - 1) })} className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/15 text-white inline-flex items-center justify-center cursor-pointer disabled:opacity-40 transition-colors"><Minus className="w-3.5 h-3.5" /></button>
+              <div className="inline-flex items-center gap-1.5 bg-white/[0.04] border border-white/12 rounded-full px-2 py-1">
+                <button
+                  type="button"
+                  disabled={busy || cur <= 0}
+                  onClick={() => void patchDailyOverride(venue.id, s, selDate, { currentPlayers: Math.max(0, cur - 1) })}
+                  className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/[0.16] border border-white/10 text-white inline-flex items-center justify-center cursor-pointer disabled:opacity-40 transition-colors duration-150"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
                 <span className="min-w-12 text-center font-mono font-black text-xs text-white tabular-nums">{cur} / {max}</span>
-                <button type="button" disabled={busy} onClick={() => void patchDailyOverride(venue.id, s, selDate, { currentPlayers: cur + 1 })} className="w-7 h-7 rounded-full bg-sky-500/80 hover:bg-sky-400 text-white inline-flex items-center justify-center cursor-pointer transition-colors"><Plus className="w-3.5 h-3.5" /></button>
-                <span className="text-[10px] font-bold text-emerald-300 pl-1 pr-1.5">Còn {Math.max(0, max - cur)}</span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void patchDailyOverride(venue.id, s, selDate, { currentPlayers: cur + 1 })}
+                  className="w-7 h-7 rounded-full bg-sky-500/25 hover:bg-sky-500/40 border border-sky-400/45 text-sky-200 inline-flex items-center justify-center cursor-pointer transition-colors duration-150"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-[10px] font-bold text-emerald-300 pl-1 pr-1.5 whitespace-nowrap">Còn {Math.max(0, max - cur)}</span>
               </div>
             )}
           </div>
-          <button type="button" disabled={busy} onClick={() => void toggleSessionDateOff(venue.id, s, selDate, reasonDraft.trim() || `Đội nghỉ buổi ${formatShortVnDate(selDate)}`)} className={`px-3 py-1.5 rounded-full text-[11px] font-black border inline-flex items-center gap-1.5 cursor-pointer transition-colors ${isOff ? 'bg-amber-500 text-slate-950 border-amber-300' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35 hover:bg-emerald-500/25'}`}>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void toggleSessionDateOff(venue.id, s, selDate, reasonDraft.trim() || `Đội nghỉ buổi ${formatShortVnDate(selDate)}`)}
+            className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold border inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 ${
+              isOff
+                ? 'bg-amber-500/25 hover:bg-amber-500/35 text-amber-200 border-amber-400/55 shadow-[0_0_14px_rgba(245,158,11,0.2)]'
+                : 'bg-emerald-500/12 hover:bg-emerald-500/22 text-emerald-300 border-emerald-500/30'
+            }`}
+          >
             <Power className="w-3.5 h-3.5" />{isOff ? `⚠️ Nghỉ ${formatShortVnDate(selDate)} (Mở lại)` : `Nghỉ buổi ${formatShortVnDate(selDate)}`}
           </button>
         </div>
@@ -346,7 +494,17 @@ export const VenuesTab: React.FC = () => {
           {SESSION_POSITION_OPTIONS.map((p) => {
             const on = posList.includes(p.code);
             return (
-              <button key={p.code} type="button" disabled={busy} onClick={() => void patchDailyOverride(venue.id, s, selDate, { neededPositions: on ? posList.filter((x) => x !== p.code) : [...posList, p.code] })} className={`px-2.5 py-1 rounded-full text-[11px] font-black border cursor-pointer transition-colors ${on ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white border-orange-400 shadow' : 'bg-white/[0.05] text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'}`}>
+              <button
+                key={p.code}
+                type="button"
+                disabled={busy}
+                onClick={() => void patchDailyOverride(venue.id, s, selDate, { neededPositions: on ? posList.filter((x) => x !== p.code) : [...posList, p.code] })}
+                className={`px-3 py-1 rounded-xl text-[11px] font-black border cursor-pointer transition-colors duration-150 ${
+                  on
+                    ? 'bg-orange-500/20 text-orange-200 border-orange-500/60 shadow-[0_0_14px_rgba(249,115,22,0.28)]'
+                    : 'bg-white/[0.06] text-slate-300 border-white/12 hover:bg-white/[0.12] hover:text-white'
+                }`}
+              >
                 {p.code}
               </button>
             );
@@ -354,9 +512,9 @@ export const VenuesTab: React.FC = () => {
         </div>
 
         {isOff && (
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input value={reasonDraft} onChange={(e) => setCancelReasonDrafts((p) => ({ ...p, [s.id]: e.target.value }))} placeholder="Lý do nghỉ (VD: Thiếu quân / mưa bão...)" className={INP} />
-            <button type="button" disabled={busy} onClick={() => void quickPatchSession(venue.id, s, { cancelReason: reasonDraft.trim() || null }, 'Đã lưu lý do nghỉ.')} className="px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold shrink-0 cursor-pointer">Lưu</button>
+            <button type="button" disabled={busy} onClick={() => void quickPatchSession(venue.id, s, { cancelReason: reasonDraft.trim() || null }, 'Đã lưu lý do nghỉ.')} className="h-9 px-4 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/50 text-orange-200 text-xs font-bold shrink-0 cursor-pointer transition-colors duration-150">Lưu</button>
           </div>
         )}
       </div>
@@ -367,7 +525,7 @@ export const VenuesTab: React.FC = () => {
     if (!isSuperAdmin) return null;
     const assignedByUser = new Map(allClubs.filter((r) => r.club.captainUserId && r.club.id !== currentClubId).map((r) => [r.club.captainUserId!, r.club.name]));
     return (
-      <div className="sm:col-span-2 p-3 rounded-2xl bg-cyan-950/25 border border-cyan-500/35 space-y-2">
+      <div className="sm:col-span-2 p-3.5 rounded-2xl bg-cyan-500/[0.06] border border-cyan-400/30 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="font-bold text-cyan-300 inline-flex items-center gap-1.5"><KeyRound className="w-3.5 h-3.5" />Tài khoản CAPTAIN tự quản lý (Tùy chọn)</span>
           <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 cursor-pointer">
@@ -376,8 +534,8 @@ export const VenuesTab: React.FC = () => {
         </div>
         {!form.createCaptainAccount ? (
           <select className={INP} value={form.captainUserId || ''} onChange={(e) => set({ captainUserId: e.target.value })}>
-            <option value="">— Không cấp tài khoản (Chỉ hiển thị liên hệ) —</option>
-            {captainUsers.map((u) => { const other = assignedByUser.get(u.id); return <option key={u.id} value={u.id} disabled={Boolean(other)}>{u.fullName} ({u.email}){other ? ` — đã gán cho ${other}` : ''}</option>; })}
+            <option value="" className="bg-[#0E1118] text-slate-300">— Không cấp tài khoản (Chỉ hiển thị liên hệ) —</option>
+            {captainUsers.map((u) => { const other = assignedByUser.get(u.id); return <option key={u.id} value={u.id} disabled={Boolean(other)} className="bg-[#0E1118] text-white">{u.fullName} ({u.email}){other ? ` — đã gán cho ${other}` : ''}</option>; })}
           </select>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -394,7 +552,7 @@ export const VenuesTab: React.FC = () => {
     const galQuota = isCaptain ? getMonthlyQuotaStatus(club?.galleryUpdatedAt) : { locked: false, unlockDateLabel: null };
     const galUrls: string[] = form.galleryUrls || [];
     const galFull = isCaptain && galUrls.length >= 5;
-    const lockedInp = `${INP} opacity-60 cursor-not-allowed bg-slate-900/80`;
+    const lockedInp = `${INP} opacity-55 cursor-not-allowed`;
 
     const infoFields = (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -405,7 +563,7 @@ export const VenuesTab: React.FC = () => {
         <F label={isCaptain ? '🔒 Zalo (Cố định)' : 'Zalo'}><input disabled={isCaptain} readOnly={isCaptain} className={isCaptain ? lockedInp : INP} value={form.captainZalo || ''} onChange={(e) => set({ captainZalo: e.target.value })} /></F>
         <F label={isCaptain ? '🔒 Gmail (Nội bộ Admin · Cố định)' : 'Gmail (Nội bộ Admin)'} tone="text-amber-300"><input type="email" disabled={isCaptain} readOnly={isCaptain} className={isCaptain ? lockedInp : INP} value={form.captainEmail || ''} onChange={(e) => set({ captainEmail: e.target.value })} /></F>
         {isCaptain && (
-          <p className="sm:col-span-2 px-3.5 py-2.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-[11px] font-semibold text-amber-200">
+          <p className="sm:col-span-2 px-3.5 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/35 text-[11px] font-semibold text-amber-200">
             🔒 Liên hệ Quốc Duy (Zalo/SĐT: 0768299329) nếu bạn muốn thay đổi SĐT, Zalo hoặc Gmail đội trưởng.
           </p>
         )}
@@ -417,11 +575,11 @@ export const VenuesTab: React.FC = () => {
               const active = cur.includes(id);
               const m = PLAY_STYLE_META[id];
               const onToggle = () => active ? (cur.length <= 1 ? notify('Chọn ít nhất 1 mục đích chơi', 2200) : set({ playStyles: cur.filter((x) => x !== id) })) : set({ playStyles: PLAY_STYLE_OPTIONS.filter((x) => x === id || cur.includes(x)) });
-              return <button key={id} type="button" onClick={onToggle} aria-pressed={active} className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${active ? 'bg-gradient-to-r from-red-600/90 to-orange-500/90 border-orange-400 text-white shadow-sm' : 'bg-[#0B0F19] border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'}`}>{m.emoji} {m.shortLabel}</button>;
+              return <button key={id} type="button" onClick={onToggle} aria-pressed={active} className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors duration-150 cursor-pointer ${active ? 'bg-orange-500/20 border-orange-500/60 text-orange-200 shadow-[0_0_14px_rgba(249,115,22,0.22)]' : 'bg-white/[0.06] border-white/12 text-slate-300 hover:bg-white/[0.12] hover:text-white'}`}>{m.emoji} {m.shortLabel}</button>;
             })}
           </div>
         </F>
-        <F label="Hình thức phí"><select className={INP} value={form.feeType} onChange={(e) => set({ feeType: e.target.value })}><option value="PAID">Thu phí</option><option value="FREE">Miễn phí (FREE)</option></select></F>
+        <F label="Hình thức phí"><select className={INP} value={form.feeType} onChange={(e) => set({ feeType: e.target.value })}><option value="PAID" className="bg-[#0E1118] text-white">Thu phí</option><option value="FREE" className="bg-[#0E1118] text-white">Miễn phí (FREE)</option></select></F>
         <F label="Mức phí"><input className={INP} value={form.feeAmount || ''} onChange={(e) => set({ feeAmount: e.target.value })} /></F>
         <F label="Tags (dấu phẩy)" full><input className={INP} value={form.tagsInput || ''} onChange={(e) => set({ tagsInput: e.target.value })} /></F>
         <F label="Mô tả CLB" full><textarea rows={fullPage ? 5 : 2} className={INP} value={form.description || ''} onChange={(e) => set({ description: e.target.value })} /></F>
@@ -429,15 +587,15 @@ export const VenuesTab: React.FC = () => {
     );
 
     const mediaFields = (
-      <div className={fullPage ? 'rounded-2xl p-4 bg-[#0F172A]/85 border border-slate-800 space-y-4 text-xs' : 'space-y-3 text-xs pt-1'}>
+      <div className={fullPage ? 'dva-glass-card !rounded-2xl p-4 space-y-4 text-xs' : 'space-y-3 text-xs pt-1'}>
         {fullPage && (
           <>
             <div className="flex items-center justify-between"><span className="font-heading font-black text-xs text-white">🖼️ Hình Ảnh & Xem Trước Công Khai</span><span className="text-[10px] font-bold text-cyan-300">Quota 30 ngày</span></div>
-            <div className="rounded-2xl overflow-hidden border border-slate-800 bg-[#0B0F19] relative h-40">
+            <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/[0.03] relative h-40">
               {form.coverUrl ? <img src={optimizeCloudinaryUrl(form.coverUrl, 'detail')} alt="Ảnh bìa đội" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">Chưa có ảnh bìa đội</div>}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0B0D12] via-transparent to-transparent" />
               <div className="absolute bottom-3 left-3.5 flex items-center gap-2.5">
-                <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-700 flex items-center justify-center shadow-lg shrink-0">
+                <div className="w-12 h-12 rounded-2xl overflow-hidden bg-[#0B0D12]/80 border border-white/20 flex items-center justify-center shadow-lg shrink-0">
                   {form.logoUrl ? <img src={optimizeCloudinaryLogoUrl(form.logoUrl, 120)} alt="" className="w-full h-full object-cover" /> : <span className="font-heading font-black text-sm text-orange-400">{getClubInitials(form.name || 'CLB')}</span>}
                 </div>
                 <div className="min-w-0"><p className="font-heading font-black text-sm text-white truncate">{form.name || 'Tên CLB'}</p><p className="text-[10px] text-slate-300">Hiển thị công khai trên Bản đồ sân</p></div>
@@ -445,11 +603,11 @@ export const VenuesTab: React.FC = () => {
             </div>
           </>
         )}
-        <div className="flex items-center gap-2"><input className={INP} placeholder="Logo URL..." value={form.logoUrl || ''} onChange={(e) => set({ logoUrl: e.target.value })} /><label className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 font-bold inline-flex items-center gap-1 cursor-pointer shrink-0">{uploading === 'logoUrl' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}Logo<input type="file" accept="image/*" className="hidden" onChange={(e) => void handleUpload(e.target.files, 'logoUrl', 'clubs')} /></label></div>
+        <div className="flex items-center gap-2"><input className={INP} placeholder="Logo URL..." value={form.logoUrl || ''} onChange={(e) => set({ logoUrl: e.target.value })} /><label className="px-3.5 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 font-bold inline-flex items-center gap-1 cursor-pointer shrink-0 transition-colors duration-150">{uploading === 'logoUrl' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}Logo<input type="file" accept="image/*" className="hidden" onChange={(e) => void handleUpload(e.target.files, 'logoUrl', 'clubs')} /></label></div>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <input disabled={coverQuota.locked} className={coverQuota.locked ? lockedInp : INP} placeholder="Ảnh bìa Cover URL (Tối đa 1 ảnh)..." value={form.coverUrl || ''} onChange={(e) => set({ coverUrl: e.target.value })} />
-            <label className={`px-3 py-2 rounded-xl border font-bold inline-flex items-center gap-1 shrink-0 ${coverQuota.locked ? 'bg-slate-900 border-slate-800 text-slate-500 cursor-not-allowed' : 'bg-slate-800 border-slate-700 cursor-pointer'}`}>
+            <label className={`px-3.5 py-2 rounded-full border font-bold inline-flex items-center gap-1 shrink-0 transition-colors duration-150 ${coverQuota.locked ? 'bg-white/[0.02] border-white/10 text-slate-500 cursor-not-allowed' : 'bg-white/[0.06] hover:bg-white/[0.12] border-white/12 cursor-pointer'}`}>
               {uploading === 'coverUrl' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}Cover
               <input type="file" accept="image/*" disabled={coverQuota.locked} className="hidden" onChange={(e) => void handleUpload(e.target.files, 'coverUrl', 'clubs')} />
             </label>
@@ -462,24 +620,24 @@ export const VenuesTab: React.FC = () => {
             {galQuota.locked ? (
               <span className="text-[10px] font-bold text-amber-300">⏳ Mở lại sau {galQuota.unlockDateLabel}</span>
             ) : (
-              <label className={`px-2.5 py-1 rounded-lg border font-bold ${galFull ? 'bg-slate-900 border-slate-800 text-slate-500 cursor-not-allowed' : 'bg-orange-600/20 border-orange-500/40 text-orange-300 cursor-pointer'}`}>
+              <label className={`px-3 py-1 rounded-full border font-bold transition-colors duration-150 ${galFull ? 'bg-white/[0.02] border-white/10 text-slate-500 cursor-not-allowed' : 'bg-orange-500/15 hover:bg-orange-500/25 border-orange-500/40 text-orange-300 cursor-pointer'}`}>
                 {uploading === 'gallery' ? 'Đang tải...' : galFull ? 'Đã đủ 5/5 ảnh' : '+ Thêm ảnh'}
                 <input type="file" accept="image/*" multiple disabled={galFull} className="hidden" onChange={(e) => void handleUpload(e.target.files, 'gallery', 'clubs/gallery', true)} />
               </label>
             )}
           </div>
           {isCaptain && (
-            <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className={`h-full rounded-full transition-all ${galUrls.length >= 5 ? 'bg-amber-400' : 'bg-gradient-to-r from-cyan-500 to-emerald-400'}`} style={{ width: `${Math.min(100, (galUrls.length / 5) * 100)}%` }} /></div>
+            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className={`h-full rounded-full transition-all ${galUrls.length >= 5 ? 'bg-amber-400' : 'bg-gradient-to-r from-cyan-500 to-emerald-400'}`} style={{ width: `${Math.min(100, (galUrls.length / 5) * 100)}%` }} /></div>
           )}
           <div className={`grid gap-2 ${fullPage ? 'grid-cols-3 sm:grid-cols-5' : 'grid-cols-5'}`}>
             {(fullPage ? Array.from({ length: 5 }, (_, idx) => galUrls[idx] || null) : galUrls).map((u, i) => (
               u ? (
-                <div key={`${u}-${i}`} className="relative aspect-square rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
+                <div key={`${u}-${i}`} className="relative aspect-square rounded-xl overflow-hidden border border-white/15 bg-white/[0.04]">
                   <img src={optimizeCloudinaryUrl(u, 'thumb')} alt="" className="w-full h-full object-cover" />
                   {!galQuota.locked && <button type="button" onClick={() => set({ galleryUrls: galUrls.filter((_, idx) => idx !== i) })} className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/75 text-red-300 cursor-pointer"><X className="w-3 h-3" /></button>}
                 </div>
               ) : (
-                <div key={`slot-${i}`} className="aspect-square rounded-xl border border-dashed border-slate-700/80 bg-[#0B0F19]/60 flex items-center justify-center text-[10px] font-bold text-slate-600">#{i + 1}</div>
+                <div key={`slot-${i}`} className="aspect-square rounded-xl border border-dashed border-white/15 bg-white/[0.02] flex items-center justify-center text-[10px] font-bold text-slate-500">#{i + 1}</div>
               )
             ))}
           </div>
@@ -499,7 +657,9 @@ export const VenuesTab: React.FC = () => {
     return <div className="space-y-3">{infoFields}{mediaFields}</div>;
   };
 
-  if (!loadedScopes.has('VENUES')) {
+  const isVenuesLoaded = loadedScopes.has('VENUES');
+
+  if (isCaptain && !isVenuesLoaded) {
     return (
       <div className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -680,7 +840,7 @@ export const VenuesTab: React.FC = () => {
                   {venueClosed && <div className="p-3.5 rounded-2xl bg-red-950/70 border border-red-500/60 text-xs text-red-100 flex items-start gap-2"><AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" /><div><strong className="uppercase">Sân {venue.name} đang tạm nghỉ:</strong> {venue.closureReason || 'Tạm đóng cửa'}</div></div>}
                   <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
                     <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-900 border border-white/15 shrink-0 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 120)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-lg text-orange-400">{getClubInitials(club.name)}</span>}</div>
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white/[0.06] border border-white/15 shrink-0 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 120)} alt={club.name} className="w-full h-full object-cover" /> : <span className="font-heading font-black text-lg text-orange-400">{getClubInitials(club.name)}</span>}</div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5 text-[10px]"><span className="px-2 py-0.5 rounded-full font-black uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/40">CAPTAIN · Lịch Chơi & Slot Ca</span><a href={`/services/court-map/teams/${club.slug}`} target="_blank" rel="noopener noreferrer" className="text-sky-400 font-bold hover:underline inline-flex items-center gap-0.5">Trang công khai <ExternalLink className="w-3 h-3" /></a></div>
                         <h2 className="font-heading font-black text-lg text-white truncate mt-0.5">{club.name}</h2>
@@ -729,20 +889,20 @@ export const VenuesTab: React.FC = () => {
       ) : (
         <>
           {/* SUPERADMIN TOP BAR & SUB-TABS */}
-          <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
-            <div className="inline-flex bg-white/[0.04] border border-white/10 rounded-full p-1 self-start">
-              {([['VENUES', `Quản lý Sân & Lịch Ca (${venuesList.length})`], ['CAPTAINS', `Danh bạ Đội trưởng (${allClubs.length})`]] as const).map(([id, label]) => (
-                <button key={id} type="button" onClick={() => setSubTab(id)} className={`px-3.5 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-all ${subTab === id ? 'bg-white text-slate-950 shadow' : 'text-slate-300 hover:text-white'}`}>{label}</button>
+          <div className="dva-glass-panel rounded-3xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="inline-flex flex-wrap bg-white/[0.04] border border-white/10 rounded-full p-1 self-start max-w-full">
+              {([['VENUES', `Quản lý Sân & Lịch Ca${isVenuesLoaded ? ` (${venuesList.length})` : ''}`], ['CAPTAINS', `Danh bạ Đội trưởng${isVenuesLoaded ? ` (${allClubs.length})` : ''}`]] as const).map(([id, label]) => (
+                <button key={id} type="button" onClick={() => setSubTab(id)} className={`px-3.5 py-1.5 rounded-full text-xs font-bold cursor-pointer transition-colors duration-150 ${subTab === id ? 'bg-white text-slate-950 shadow' : 'text-slate-300 hover:text-white'}`}>{label}</button>
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
               {subTab === 'VENUES' && (
-                <button type="button" onClick={() => setShowBentoOverview((v) => !v)} className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-bold text-slate-200 cursor-pointer">
+                <button type="button" onClick={() => setShowBentoOverview((v) => !v)} className="px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 text-xs font-bold text-slate-200 cursor-pointer transition-colors duration-150">
                   {showBentoOverview ? 'Thu gọn Bento Grid' : 'Hiện Bento Grid'}
                 </button>
               )}
               <a href="/services/court-map" target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-sky-400 hover:underline inline-flex items-center gap-1">Bản Đồ Công Khai <ExternalLink className="w-3.5 h-3.5" /></a>
-              {subTab === 'CAPTAINS' && <button type="button" onClick={() => openModal({ kind: 'captain' })} className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"><Users className="w-3.5 h-3.5" />Cập Nhật Đội Trưởng</button>}
+              {subTab === 'CAPTAINS' && <button type="button" onClick={() => openModal({ kind: 'captain' })} className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)]"><Users className="w-3.5 h-3.5" />Cập Nhật Đội Trưởng</button>}
             </div>
           </div>
 
@@ -792,32 +952,73 @@ export const VenuesTab: React.FC = () => {
             /* MASTER–DETAIL 2-COLUMN WORKSPACE (32% LEFT / 68% RIGHT) */
             <div ref={detailWorkspaceRef} className="flex flex-col lg:flex-row gap-4 items-start scroll-mt-20">
               {/* LEFT COLUMN (32%): VENUE LIST */}
-              <aside className="w-full lg:w-[32%] shrink-0 bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 space-y-3 shadow-xl">
+              <aside className="w-full lg:w-[32%] shrink-0 dva-glass-panel rounded-3xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="relative flex-1"><Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm sân, quận, CLB..." className="w-full pl-8 pr-2.5 py-2 rounded-xl bg-[#0F172A] border border-slate-700 text-xs text-white" /></div>
-                  <button type="button" onClick={() => openModal({ kind: 'venue' })} className="px-3 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold inline-flex items-center gap-1 shrink-0 cursor-pointer"><Plus className="w-3.5 h-3.5" />Sân</button>
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Tìm sân, quận, CLB..."
+                      className="dva-glass-input w-full pl-8 pr-3 py-2 text-xs"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openModal({ kind: 'venue' })}
+                    className="h-9 px-3.5 rounded-full bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white text-xs font-bold inline-flex items-center gap-1 shrink-0 cursor-pointer transition-colors duration-150 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)]"
+                  >
+                    <Plus className="w-3.5 h-3.5" />Sân
+                  </button>
                 </div>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {(['ALL', ...VIETNAM_CITIES.map((c) => c.name)] as const).map((c) => (
-                    <button key={c} type="button" onClick={() => setCityFilter(c)} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer ${cityFilter === c ? 'bg-orange-500 text-white border-orange-400' : 'bg-[#0F172A] text-slate-400 border-slate-800 hover:text-white'}`}>{c === 'ALL' ? 'Tất cả' : c}</button>
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCityFilter(c)}
+                      className={`px-3 py-1 rounded-full text-[11px] font-bold border cursor-pointer transition-colors duration-150 ${
+                        cityFilter === c
+                          ? 'bg-orange-500/20 border-orange-500/50 text-orange-300 shadow-[0_0_16px_rgba(249,115,22,0.18)]'
+                          : 'bg-white/[0.06] text-slate-300 border-white/12 hover:bg-white/[0.12] hover:text-white'
+                      }`}
+                    >
+                      {c === 'ALL' ? 'Tất cả' : c}
+                    </button>
                   ))}
                 </div>
-                <div className="space-y-2 max-h-[68vh] overflow-y-auto pr-0.5">
-                  {filteredVenues.map((v) => {
+                <div className="space-y-2 max-h-[68vh] overflow-y-auto pr-0.5 no-scrollbar">
+                  {!isVenuesLoaded ? (
+                    Array.from({ length: 4 }).map((_, idx) => (
+                      <div key={idx} className="dva-skeleton p-3 rounded-2xl space-y-2 h-20">
+                        <div className="dva-skeleton-bar h-3.5 w-36" />
+                        <div className="dva-skeleton-bar h-3 w-48 max-w-full" />
+                      </div>
+                    ))
+                  ) : filteredVenues.map((v) => {
                     const closed = isVenueClosedNow(v); const active = selectedVenue?.id === v.id;
                     return (
-                      <button key={v.id} type="button" onClick={() => setSelectedVenueId(v.id)} className={`w-full text-left p-3 rounded-2xl border transition-all cursor-pointer ${active ? 'bg-gradient-to-r from-red-950/50 to-orange-950/35 border-orange-500/75 shadow' : 'bg-[#0F172A] border-slate-800 hover:border-slate-700'}`}>
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setSelectedVenueId(v.id)}
+                        className={`w-full text-left p-3 rounded-2xl border transition-colors duration-150 cursor-pointer ${
+                          active
+                            ? 'bg-orange-500/[0.08] border-orange-500/50 shadow-[0_0_25px_rgba(249,115,22,0.15)]'
+                            : 'dva-glass-card !rounded-2xl'
+                        }`}
+                      >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="font-heading font-black text-xs text-white truncate">{v.name}</p>
                             <p className="text-[11px] text-slate-400 truncate mt-0.5">{v.district} · {(v.clubs || []).length} đội · {(v.sessions || []).length} ca</p>
                             <div className="mt-1.5 flex flex-wrap gap-1">
                               {v.venueType === 'FREE_PUBLIC' ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/12 text-emerald-300 border border-emerald-500/30">
                                   Sân công cộng / Không cho thuê
                                 </span>
                               ) : v.rentalPhone?.trim() ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 font-mono">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/12 text-amber-300 border border-amber-500/30 font-mono">
                                   📞 Thuê sân: {v.rentalPhone}
                                 </span>
                               ) : (
@@ -827,88 +1028,159 @@ export const VenuesTab: React.FC = () => {
                               )}
                             </div>
                           </div>
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 border ${closed ? 'bg-red-950 text-red-300 border-red-500/50' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'}`}>{closed ? 'Tạm nghỉ' : 'Mở cửa'}</span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black shrink-0 border ${closed ? 'bg-rose-500/15 text-rose-300 border-rose-500/40' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35'}`}>{closed ? 'Tạm nghỉ' : 'Mở cửa'}</span>
                         </div>
                       </button>
                     );
                   })}
-                  {filteredVenues.length === 0 && <p className="text-xs text-slate-400 text-center py-6">Không tìm thấy sân phù hợp.</p>}
+                  {isVenuesLoaded && filteredVenues.length === 0 && <p className="text-xs text-slate-400 text-center py-6">Không tìm thấy sân phù hợp.</p>}
                 </div>
               </aside>
 
               {/* RIGHT COLUMN (68%): SELECTED VENUE WORKSPACE */}
               <section className="w-full lg:flex-1 min-w-0">
-                {selectedVenue ? (() => {
+                {!isVenuesLoaded ? (
+                  <div className="dva-glass-panel rounded-3xl p-5 space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="space-y-2 flex-1">
+                        <div className="dva-skeleton-bar h-5 w-48" />
+                        <div className="dva-skeleton-bar h-3 w-72 max-w-full" />
+                      </div>
+                      <div className="dva-skeleton h-9 w-36 rounded-full shrink-0" />
+                    </div>
+                    <div className="dva-skeleton h-12 w-full rounded-2xl" />
+                    <div className="dva-skeleton h-32 w-full rounded-2xl" />
+                    <SlowServerPill active />
+                  </div>
+                ) : selectedVenue ? (() => {
                   const v = selectedVenue; const closed = isVenueClosedNow(v);
                   const draft = closureDrafts[v.id] ?? { reason: v.closureReason || '', until: v.closedUntil ? v.closedUntil.slice(0, 10) : '' };
                   const vt = VENUE_TYPE_META[v.venueType] || VENUE_TYPE_META.COMMERCIAL;
                   const allOpen = (v.clubs || []).length > 0 && (v.clubs || []).every((c) => expandedClubs[c.id]);
                   return (
-                    <div className={`bg-white/[0.04] backdrop-blur-xl border rounded-3xl overflow-hidden shadow-xl ${closed ? 'border-red-500/50' : 'border-white/10'}`}>
-                      <div className="p-5 border-b border-white/10 bg-white/[0.02] space-y-3">
+                    <div className={`dva-glass-panel rounded-3xl ${closed ? '!border-rose-500/45' : ''}`}>
+                      <div className="p-4 sm:p-5 rounded-t-3xl border-b border-white/10 bg-white/[0.02] space-y-3.5">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                           <div className="flex items-start gap-3 min-w-0">
-                            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-900 border border-slate-700 shrink-0 flex items-center justify-center">{(v.coverUrl || v.imageUrl) ? <img src={optimizeCloudinaryUrl(v.coverUrl || v.imageUrl, 'thumb')} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-5 h-5 text-orange-400" />}</div>
+                            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-white/[0.06] border border-white/15 shrink-0 flex items-center justify-center">{(v.coverUrl || v.imageUrl) ? <img src={optimizeCloudinaryUrl(v.coverUrl || v.imageUrl, 'thumb')} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-5 h-5 text-orange-400" />}</div>
                             <div className="min-w-0">
                               <div className="flex flex-wrap gap-1.5 mb-1 text-[10px]">
-                                {v.isDvaOfficial && <span className="px-2 py-0.5 rounded-full font-black bg-gradient-to-r from-red-600 to-orange-500 text-white">DVA Official</span>}
-                                <span className={`px-2 py-0.5 rounded-full font-bold border ${vt.badgeClass}`}>{vt.shortLabel}</span>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-sky-300 font-semibold"><Layers className="w-3 h-3" />{v.surfaceType} · {v.subCourtsCount} sân</span>
+                                {v.isDvaOfficial && <span className="px-2.5 py-0.5 rounded-full font-black bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-sm">DVA Official</span>}
+                                <span className={`px-2.5 py-0.5 rounded-full font-bold border ${vt.badgeClass}`}>{vt.shortLabel}</span>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 text-sky-300 font-semibold"><Layers className="w-3 h-3" />{v.surfaceType} · {v.subCourtsCount} sân</span>
                                 {v.venueType === 'COMMERCIAL' && v.rentalPhone?.trim() && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/35 font-mono font-bold">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/12 text-amber-300 border border-amber-500/35 font-mono font-bold">
                                     📞 {v.rentalPhone}{v.rentalContactName ? ` · ${v.rentalContactName}` : ''}
                                   </span>
                                 )}
                               </div>
                               <h3 className="font-heading font-black text-base text-white">{v.name}</h3>
-                              <p className="text-xs text-slate-300">{v.address} · <a href={buildGoogleMapsUrl(v)} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">Maps ↗</a></p>
+                              <p className="text-xs text-slate-300 break-words">{v.address} · <a href={buildGoogleMapsUrl(v)} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">Maps ↗</a></p>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-1.5 shrink-0">
-                            <button type="button" onClick={() => openModal({ kind: 'club', venue: v })} className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer"><Plus className="w-3.5 h-3.5" />Thêm Đội/CLB</button>
-                            <button type="button" onClick={() => openModal({ kind: 'session', venue: v })} className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold inline-flex items-center gap-1 cursor-pointer"><CalendarClock className="w-3.5 h-3.5" />+ Ca</button>
-                            <button type="button" onClick={() => openModal({ kind: 'venue', item: v })} className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold inline-flex items-center gap-1 cursor-pointer"><Pencil className="w-3.5 h-3.5" />Sửa Sân</button>
-                            <button type="button" onClick={async () => { if (!confirm(`Xóa sân "${v.name}"?`)) return; await venueService.deleteVenue(v.id); await reload(); notify('Đã xóa sân.'); }} className="p-1.5 rounded-xl bg-red-950/60 hover:bg-red-900 text-red-300 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => openModal({ kind: 'club', venue: v })}
+                              className="h-9 px-3.5 rounded-full bg-sky-500/15 hover:bg-sky-500/25 border border-sky-400/35 text-sky-300 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 whitespace-nowrap"
+                            >
+                              <Plus className="w-3.5 h-3.5" />Thêm Đội/CLB
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openModal({ kind: 'session', venue: v })}
+                              className="h-9 px-3.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/35 text-emerald-300 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 whitespace-nowrap"
+                            >
+                              <CalendarClock className="w-3.5 h-3.5" />+ Ca
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openModal({ kind: 'venue', item: v })}
+                              className="h-9 px-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 text-slate-200 hover:text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150 whitespace-nowrap"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />Sửa Sân
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Xóa sân ${v.name}`}
+                              title={`Xóa sân "${v.name}"`}
+                              onClick={async () => { if (!confirm(`Xóa sân "${v.name}"?`)) return; await venueService.deleteVenue(v.id); await reload(); notify('Đã xóa sân.'); }}
+                              className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-rose-400 hover:text-rose-300 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
 
                         {/* Inline Holiday Closure Toggle */}
-                        <div className={`p-2.5 rounded-2xl border flex flex-col xl:flex-row xl:items-center gap-2 text-xs ${closed ? 'bg-red-950/35 border-red-500/45' : 'bg-[#0B0F19]/75 border-slate-800'}`}>
-                          <button type="button" disabled={saving} onClick={() => void saveClosure(v, !closed)} className={`px-3 py-1.5 rounded-xl font-bold inline-flex items-center gap-1.5 shrink-0 cursor-pointer border ${closed ? 'bg-red-600 text-white border-red-400' : 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40'}`}><Power className="w-3.5 h-3.5" />{closed ? 'Tạm nghỉ lễ Tết (Mở lại)' : 'Mở cửa · Báo nghỉ sân'}</button>
-                          <input value={draft.reason} onChange={(e) => setClosureDrafts((p) => ({ ...p, [v.id]: { ...draft, reason: e.target.value } }))} placeholder="Lý do tạm nghỉ (Nghỉ lễ, bảo trì...)" className="flex-1 px-3 py-1.5 rounded-xl bg-[#111827] border border-slate-700 text-white" />
-                          <div className="flex items-center gap-1.5 shrink-0"><input type="date" value={draft.until} onChange={(e) => setClosureDrafts((p) => ({ ...p, [v.id]: { ...draft, until: e.target.value } }))} className="px-2 py-1.5 rounded-xl bg-[#111827] border border-slate-700 text-white" /><button type="button" disabled={saving} onClick={() => void saveClosure(v, true)} className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold cursor-pointer">Lưu</button></div>
+                        <div className={`p-2.5 rounded-2xl border flex flex-col xl:flex-row xl:items-center gap-2 text-xs ${closed ? 'bg-rose-500/[0.08] border-rose-500/40' : 'bg-white/[0.025] border-white/10'}`}>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => void saveClosure(v, !closed)}
+                            className={`h-9 px-3.5 rounded-full font-bold inline-flex items-center justify-center gap-1.5 shrink-0 cursor-pointer border transition-colors duration-150 ${
+                              closed
+                                ? 'bg-rose-500/25 hover:bg-rose-500/35 text-rose-200 border-rose-400/50'
+                                : 'bg-emerald-500/12 hover:bg-emerald-500/22 text-emerald-300 border-emerald-500/35'
+                            }`}
+                          >
+                            <Power className="w-3.5 h-3.5" />{closed ? 'Tạm nghỉ lễ Tết (Mở lại)' : 'Mở cửa · Báo nghỉ sân'}
+                          </button>
+                          <input
+                            value={draft.reason}
+                            onChange={(e) => setClosureDrafts((p) => ({ ...p, [v.id]: { ...draft, reason: e.target.value } }))}
+                            placeholder="Lý do tạm nghỉ (Nghỉ lễ, bảo trì...)"
+                            className="dva-glass-input flex-1 min-w-0 px-3 py-2 text-xs"
+                          />
+                          <div className="flex items-center gap-2 shrink-0 w-full xl:w-auto">
+                            <input
+                              type="date"
+                              aria-label="Ngày dự kiến mở lại"
+                              value={draft.until}
+                              onChange={(e) => setClosureDrafts((p) => ({ ...p, [v.id]: { ...draft, until: e.target.value } }))}
+                              className="dva-glass-input flex-1 xl:flex-none min-w-0 px-3 py-2 text-xs [color-scheme:dark]"
+                            />
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => void saveClosure(v, true)}
+                              className="h-9 px-4 rounded-full bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/50 text-orange-200 font-bold shadow-[0_0_18px_rgba(249,115,22,0.22)] cursor-pointer transition-colors duration-150 shrink-0"
+                            >
+                              Lưu
+                            </button>
+                          </div>
                         </div>
                       </div>
 
                       {/* CLUBS & SESSIONS ACCORDION */}
                       <div className="p-4 space-y-3">
-                        <div className="flex items-center justify-between text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                           <span className="font-bold text-slate-300">Đội / CLB & Ca sinh hoạt ({(v.clubs || []).length} đội · {(v.sessions || []).length} ca)</span>
-                          {(v.clubs || []).length > 0 && <button type="button" onClick={() => setExpandedClubs((p) => ({ ...p, ...Object.fromEntries((v.clubs || []).map((c) => [c.id, !allOpen])) }))} className="font-bold text-orange-400 hover:underline cursor-pointer">{allOpen ? 'Thu gọn tất cả' : 'Mở tất cả'}</button>}
+                          {(v.clubs || []).length > 0 && <button type="button" onClick={() => setExpandedClubs((p) => ({ ...p, ...Object.fromEntries((v.clubs || []).map((c) => [c.id, !allOpen])) }))} className="font-bold text-orange-400 hover:text-orange-300 hover:underline cursor-pointer">{allOpen ? 'Thu gọn tất cả' : 'Mở tất cả'}</button>}
                         </div>
                         {(v.clubs || []).map((club) => {
                           const open = Boolean(expandedClubs[club.id]);
                           const clubSessions = (v.sessions || []).filter((s) => s.clubId === club.id);
                           return (
-                            <div key={club.id} className={`rounded-2xl border border-slate-800 bg-[#0F172A] overflow-hidden ${club.isActive === false ? 'opacity-55' : ''}`}>
-                              <div className="px-3.5 py-2.5 flex items-center justify-between gap-2 hover:bg-slate-800/40">
+                            <div key={club.id} className={`dva-glass-card !rounded-2xl ${club.isActive === false ? 'opacity-55' : ''}`}>
+                              <div className="px-3.5 py-2.5 rounded-t-2xl flex items-center justify-between gap-2 hover:bg-white/[0.03] transition-colors">
                                 <button type="button" onClick={() => setExpandedClubs((p) => ({ ...p, [club.id]: !open }))} className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer">
                                   {open ? <ChevronDown className="w-4 h-4 text-orange-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />}
-                                  <div className="w-8 h-8 rounded-xl overflow-hidden bg-slate-800 shrink-0 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 80)} alt="" className="w-full h-full object-cover" /> : <span className="font-heading font-black text-[11px] text-orange-400">{getClubInitials(club.name)}</span>}</div>
+                                  <div className="w-8 h-8 rounded-xl overflow-hidden bg-white/[0.06] border border-white/10 shrink-0 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 80)} alt="" className="w-full h-full object-cover" /> : <span className="font-heading font-black text-[11px] text-orange-400">{getClubInitials(club.name)}</span>}</div>
                                   <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5"><span className="font-bold text-xs text-white truncate">{club.name}</span>{parsePlayStyles(club.playStyle).map((k) => <span key={k} className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${PLAY_STYLE_META[k].badgeClass}`}>{PLAY_STYLE_META[k].emoji}</span>)}{club.captainUser && <span title={`CAPTAIN: ${club.captainUser.email}`} className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">🔑</span>}<span className="text-[10px] text-slate-400">({clubSessions.length} ca)</span></div>
+                                    <div className="flex flex-wrap items-center gap-1.5"><span className="font-bold text-xs text-white truncate">{club.name}</span>{parsePlayStyles(club.playStyle).map((k) => <span key={k} className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${PLAY_STYLE_META[k].badgeClass}`}>{PLAY_STYLE_META[k].emoji}</span>)}{club.captainUser && <span title={`CAPTAIN: ${club.captainUser.email}`} className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">🔑</span>}<span className="text-[10px] text-slate-400">({clubSessions.length} ca)</span></div>
                                     <p className="text-[10px] text-slate-400 truncate">{club.captainName} · {club.captainPhone}</p>
                                   </div>
                                 </button>
                                 <div className="flex items-center gap-1 shrink-0">
-                                  <button type="button" onClick={() => openModal({ kind: 'session', venue: v }, club.id)} className="p-1.5 rounded-lg bg-emerald-950 text-emerald-300 cursor-pointer" title="Thêm ca"><Plus className="w-3.5 h-3.5" /></button>
-                                  <button type="button" onClick={async () => { await venueService.updateClub(v.id, club.id, { isActive: !club.isActive }); await reload(); }} className="p-1.5 rounded-lg bg-slate-800 text-slate-300 cursor-pointer">{club.isActive ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5 text-slate-500" />}</button>
-                                  <button type="button" onClick={() => openModal({ kind: 'club', venue: v, item: club })} className="p-1.5 rounded-lg bg-slate-800 text-slate-300 cursor-pointer"><Pencil className="w-3.5 h-3.5" /></button>
-                                  <button type="button" onClick={async () => { if (!confirm(`Xóa CLB "${club.name}"?`)) return; await venueService.deleteClub(v.id, club.id); await reload(); notify('Đã xóa CLB.'); }} className="p-1.5 rounded-lg bg-red-950/60 text-red-300 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+                                  <button type="button" onClick={() => openModal({ kind: 'session', venue: v }, club.id)} className="w-7 h-7 rounded-full bg-emerald-500/12 hover:bg-emerald-500/22 border border-emerald-500/30 text-emerald-300 inline-flex items-center justify-center cursor-pointer transition-colors" title="Thêm ca"><Plus className="w-3.5 h-3.5" /></button>
+                                  <button type="button" onClick={async () => { await venueService.updateClub(v.id, club.id, { isActive: !club.isActive }); await reload(); }} className="w-7 h-7 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-slate-300 inline-flex items-center justify-center cursor-pointer transition-colors" title={club.isActive ? 'Ẩn CLB' : 'Hiện CLB'}>{club.isActive ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5 text-slate-500" />}</button>
+                                  <button type="button" onClick={() => openModal({ kind: 'club', venue: v, item: club })} className="w-7 h-7 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-slate-300 hover:text-white inline-flex items-center justify-center cursor-pointer transition-colors" title="Sửa CLB"><Pencil className="w-3.5 h-3.5" /></button>
+                                  <button type="button" onClick={async () => { if (!confirm(`Xóa CLB "${club.name}"?`)) return; await venueService.deleteClub(v.id, club.id); await reload(); notify('Đã xóa CLB.'); }} className="w-7 h-7 rounded-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 text-rose-400 inline-flex items-center justify-center cursor-pointer transition-colors" title="Xóa CLB"><Trash2 className="w-3.5 h-3.5" /></button>
                                 </div>
                               </div>
                               {open && (
-                                <div className="px-3.5 pb-3.5 pt-2 border-t border-slate-800/80 space-y-2.5">
+                                <div className="px-3.5 pb-3.5 pt-2.5 border-t border-white/[0.08] space-y-2.5">
                                   {clubSessions.length ? clubSessions.map((s) => renderSessionCard(v, s)) : <p className="text-xs text-slate-500 italic">Chưa có ca sinh hoạt — bấm nút + để thêm ca.</p>}
                                 </div>
                               )}
@@ -919,33 +1191,33 @@ export const VenuesTab: React.FC = () => {
                       </div>
                     </div>
                   );
-                })() : <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-10 text-center text-xs text-slate-400">Chọn một sân ở cột bên trái để quản lý đội và ca sinh hoạt.</div>}
+                })() : <div className="dva-glass-panel rounded-3xl p-10 text-center text-xs text-slate-400">Chọn một sân ở cột bên trái để quản lý đội và ca sinh hoạt.</div>}
               </section>
             </div>
           ) : (
             /* SUB-TAB 2: DANH BẠ ĐỘI TRƯỞNG */
-            <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-xl">
-              <div className="px-5 py-3.5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <div className="dva-glass-panel rounded-3xl overflow-hidden">
+              <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                 <span className="font-bold text-slate-300">Danh bạ Đội trưởng ({filteredCaptains.length} · Gmail ẩn khỏi Public API)</span>
-                <div className="relative w-full sm:w-64"><Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm đội trưởng, SĐT, Gmail..." className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#0F172A] border border-slate-700 text-xs text-white" /></div>
+                <div className="relative w-full sm:w-64"><Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm đội trưởng, SĐT, Gmail..." className="dva-glass-input w-full pl-8 pr-3 py-1.5 text-xs" /></div>
               </div>
               <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
                 <table className="w-full text-left text-xs min-w-[740px]">
-                  <thead><tr className="border-b border-slate-800 text-[10px] uppercase text-slate-400 bg-[#111827]"><th className="py-2.5 px-4">Đội trưởng</th><th className="py-2.5 px-3">Đội / CLB</th><th className="py-2.5 px-3">Sân & Lịch hoạt động</th><th className="py-2.5 px-3">Liên hệ & Tài khoản</th><th className="py-2.5 px-4 text-right">Thao tác</th></tr></thead>
-                  <tbody className="divide-y divide-slate-800/70">
+                  <thead><tr className="border-b border-white/10 text-[10px] uppercase text-white/60 bg-white/[0.03]"><th className="py-2.5 px-4">Đội trưởng</th><th className="py-2.5 px-3">Đội / CLB</th><th className="py-2.5 px-3">Sân & Lịch hoạt động</th><th className="py-2.5 px-3">Liên hệ & Tài khoản</th><th className="py-2.5 px-4 text-right">Thao tác</th></tr></thead>
+                  <tbody className="divide-y divide-white/[0.06]">
                     {filteredCaptains.map(({ venue, club, sessions }) => (
-                      <tr key={club.id} className="hover:bg-slate-800/30">
-                        <td className="py-3 px-4 flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl overflow-hidden bg-slate-800 shrink-0 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 80)} alt="" className="w-full h-full object-cover" /> : <span className="font-heading font-black text-[11px] text-orange-400">{getClubInitials(club.name)}</span>}</div><span className="font-bold text-white">{club.captainName}</span></td>
+                      <tr key={club.id} className="hover:bg-white/[0.03] transition-colors">
+                        <td className="py-3 px-4 flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl overflow-hidden bg-white/[0.06] border border-white/10 shrink-0 flex items-center justify-center">{club.logoUrl ? <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 80)} alt="" className="w-full h-full object-cover" /> : <span className="font-heading font-black text-[11px] text-orange-400">{getClubInitials(club.name)}</span>}</div><span className="font-bold text-white">{club.captainName}</span></td>
                         <td className="py-3 px-3 font-bold text-orange-300">{club.name}</td>
                         <td className="py-3 px-3"><p className="font-semibold text-slate-200">{venue.name}</p><p className="text-[11px] text-slate-400">{sessions.map((s) => `${formatDaysOfWeek(s.daysOfWeek)} (${s.startTime}–${s.endTime})`).join(' · ') || 'Chưa có ca'}</p></td>
                         <td className="py-3 px-3 text-[11px] space-y-0.5">
                           <div className="flex items-center gap-1.5 font-mono text-slate-200"><Phone className="w-3 h-3 text-emerald-400" />{club.captainPhone}{club.captainZalo && <span className="text-sky-400">· Zalo: {club.captainZalo}</span>}</div>
                           <div className="flex items-center gap-1.5 text-slate-300"><Mail className="w-3 h-3 text-amber-400" />{club.captainEmail || <em className="text-slate-500">Chưa có Gmail</em>}</div>
-                          {club.captainUser && <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/35 text-cyan-300 text-[10px] font-bold"><KeyRound className="w-2.5 h-2.5" />CAPTAIN: {club.captainUser.email}</div>}
+                          {club.captainUser && <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/35 text-cyan-300 text-[10px] font-bold"><KeyRound className="w-2.5 h-2.5" />CAPTAIN: {club.captainUser.email}</div>}
                         </td>
                         <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
-                          {club.captainEmail && <button type="button" onClick={async () => { await navigator.clipboard.writeText(club.captainEmail!); notify(`Đã copy Gmail: ${club.captainEmail}`); }} className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"><Copy className="w-3 h-3" />Copy Gmail</button>}
-                          <button type="button" onClick={() => openModal({ kind: 'captain', club, venue })} className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer"><Pencil className="w-3 h-3" />Sửa</button>
+                          {club.captainEmail && <button type="button" onClick={async () => { await navigator.clipboard.writeText(club.captainEmail!); notify(`Đã copy Gmail: ${club.captainEmail}`); }} className="px-3 py-1 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"><Copy className="w-3 h-3" />Copy Gmail</button>}
+                          <button type="button" onClick={() => openModal({ kind: 'captain', club, venue })} className="px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-slate-200 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"><Pencil className="w-3 h-3" />Sửa</button>
                         </td>
                       </tr>
                     ))}
@@ -959,24 +1231,24 @@ export const VenuesTab: React.FC = () => {
 
       {/* SINGLE SHARED DRY MODAL (VENUE / CLUB / SESSION / CAPTAIN) */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs" role="dialog" aria-modal="true">
-          <div className="w-full max-w-full sm:max-w-xl max-h-[90dvh] overflow-y-auto rounded-3xl bg-[#0B0D12]/90 backdrop-blur-2xl border border-white/15 shadow-2xl">
-            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 bg-[#111827]/95 backdrop-blur border-b border-slate-800">
-              <h3 className="font-heading font-black text-base text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="dva-glass-modal w-full max-w-full sm:max-w-xl max-h-[90dvh] overflow-y-auto no-scrollbar">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3.5 bg-[#0B0D12]/80 backdrop-blur-2xl border-b border-white/10">
+              <h3 className="font-heading font-black text-base text-white truncate pr-2">
                 {modal.kind === 'venue' ? (modal.item ? 'Sửa Địa Điểm Sân' : 'Thêm Sân Mới')
                   : modal.kind === 'club' ? `${modal.item ? 'Sửa' : 'Tạo'} Hồ Sơ CLB · ${modal.venue.name}`
                     : modal.kind === 'session' ? `${modal.item ? 'Sửa' : 'Thêm'} Ca · ${modal.venue.name}` : 'Cập Nhật Đội Trưởng'}
               </h3>
-              <button type="button" onClick={() => setModal(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-white cursor-pointer"><X className="w-4 h-4" /></button>
+              <button type="button" onClick={() => setModal(null)} className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/12 border border-white/10 text-slate-300 hover:text-white inline-flex items-center justify-center cursor-pointer transition-colors shrink-0"><X className="w-4 h-4" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-3 text-xs">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-3 text-xs">
               {modal.kind === 'venue' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <F label="Tên sân *" full><input required className={INP} value={form.name || ''} onChange={(e) => set({ name: e.target.value })} /></F>
                   <F label="Địa chỉ *" full><input required className={INP} value={form.address || ''} onChange={(e) => set({ address: e.target.value })} /></F>
                   <F label="Thành phố *"><input required list="vn-cities-list" className={INP} value={form.city || 'Hà Nội'} onChange={(e) => set({ city: e.target.value })} /><datalist id="vn-cities-list">{VIETNAM_CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist></F>
                   <F label="Quận / Huyện *"><input required list="hanoi-districts-list" className={INP} value={form.district || ''} onChange={(e) => set({ district: e.target.value })} /><datalist id="hanoi-districts-list">{HANOI_DISTRICTS.map((d) => <option key={d} value={d} />)}</datalist></F>
-                  <F label="Mặt sân"><select className={INP} value={form.surfaceType} onChange={(e) => set({ surfaceType: e.target.value })}>{SURFACE_TYPES.map((s) => <option key={s}>{s}</option>)}</select></F>
+                  <F label="Mặt sân"><select className={INP} value={form.surfaceType} onChange={(e) => set({ surfaceType: e.target.value })}>{SURFACE_TYPES.map((s) => <option key={s} className="bg-[#0E1118] text-white">{s}</option>)}</select></F>
                   <F label="Loại sân">
                     <select
                       className={INP}
@@ -989,12 +1261,12 @@ export const VenuesTab: React.FC = () => {
                         });
                       }}
                     >
-                      <option value="COMMERCIAL">Sân dịch vụ / Có cho thuê</option>
-                      <option value="FREE_PUBLIC">Sân Free / Không cho thuê</option>
+                      <option value="COMMERCIAL" className="bg-[#0E1118] text-white">Sân dịch vụ / Có cho thuê</option>
+                      <option value="FREE_PUBLIC" className="bg-[#0E1118] text-white">Sân Free / Không cho thuê</option>
                     </select>
                   </F>
                   {form.venueType === 'COMMERCIAL' && (
-                    <div className="sm:col-span-2 p-3.5 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-amber-500/30 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2 p-3.5 rounded-2xl bg-white/[0.03] border border-amber-500/30 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <F label="📞 SĐT người cho thuê sân (Tùy chọn)" tone="text-amber-300">
                         <input
                           type="tel"
@@ -1024,12 +1296,12 @@ export const VenuesTab: React.FC = () => {
                   <F label="Dán nhanh tọa độ Google Maps (Lat, Lng)" full tone="text-orange-300"><input className={INP} placeholder="21.0005, 105.8294" value={form.coords || ''} onChange={(e) => { const m = e.target.value.match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/); set({ coords: e.target.value, ...(m ? { latitude: m[1], longitude: m[2] } : {}) }); }} /></F>
                   <F label="Latitude *"><input required type="number" step="any" className={INP} value={form.latitude || ''} onChange={(e) => set({ latitude: e.target.value })} /></F>
                   <F label="Longitude *"><input required type="number" step="any" className={INP} value={form.longitude || ''} onChange={(e) => set({ longitude: e.target.value })} /></F>
-                  <div className="sm:col-span-2 flex items-center gap-2"><input className={INP} placeholder="Ảnh bìa URL..." value={form.coverUrl || ''} onChange={(e) => set({ coverUrl: e.target.value })} /><label className="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 font-bold inline-flex items-center gap-1 cursor-pointer shrink-0">{uploading === 'coverUrl' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}Upload<input type="file" accept="image/*" className="hidden" onChange={(e) => void handleUpload(e.target.files, 'coverUrl', 'venues')} /></label></div>
+                  <div className="sm:col-span-2 flex items-center gap-2"><input className={INP} placeholder="Ảnh bìa URL..." value={form.coverUrl || ''} onChange={(e) => set({ coverUrl: e.target.value })} /><label className="px-3.5 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 font-bold inline-flex items-center gap-1 cursor-pointer shrink-0 transition-colors duration-150">{uploading === 'coverUrl' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}Upload<input type="file" accept="image/*" className="hidden" onChange={(e) => void handleUpload(e.target.files, 'coverUrl', 'venues')} /></label></div>
                   {(() => {
                     const venueClubs = modal.item?.clubs || [];
                     const selectedId = form.featuredTeamId || '';
                     return (
-                      <div className="sm:col-span-2 p-3.5 rounded-2xl bg-white/[0.04] backdrop-blur-lg border border-white/10 space-y-2.5">
+                      <div className="sm:col-span-2 p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2.5">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-bold text-orange-300">Logo đại diện hiển thị trên Bản đồ</span>
                           {venueClubs.length > 0 && <span className="text-[10px] text-slate-400">{venueClubs.length} CLB tại sân</span>}
@@ -1043,10 +1315,10 @@ export const VenuesTab: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => set({ featuredTeamId: '' })}
-                              className={`flex items-center gap-2.5 p-2 rounded-xl border text-left transition-colors cursor-pointer ${
+                              className={`flex items-center gap-2.5 p-2 rounded-2xl border text-left transition-all cursor-pointer ${
                                 !selectedId
-                                  ? 'border-orange-500 bg-orange-500/15 text-white'
-                                  : 'border-white/10 bg-[#0B0F19]/75 text-slate-300 hover:border-white/25'
+                                  ? 'border-orange-500/60 bg-orange-500/15 text-white shadow-[0_0_16px_rgba(249,115,22,0.16)]'
+                                  : 'border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06] hover:border-white/20'
                               }`}
                             >
                               <div className="w-9 h-9 rounded-full shrink-0 bg-gradient-to-br from-red-600 to-orange-500 border border-white/20 flex items-center justify-center font-heading font-black text-[9px] text-white">
@@ -1065,13 +1337,13 @@ export const VenuesTab: React.FC = () => {
                                   key={club.id}
                                   type="button"
                                   onClick={() => set({ featuredTeamId: club.id })}
-                                  className={`flex items-center gap-2.5 p-2 rounded-xl border text-left transition-colors cursor-pointer ${
+                                  className={`flex items-center gap-2.5 p-2 rounded-2xl border text-left transition-all cursor-pointer ${
                                     active
-                                      ? 'border-orange-500 bg-orange-500/15 text-white'
-                                      : 'border-white/10 bg-[#0B0F19]/75 text-slate-300 hover:border-white/25'
+                                      ? 'border-orange-500/60 bg-orange-500/15 text-white shadow-[0_0_16px_rgba(249,115,22,0.16)]'
+                                      : 'border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06] hover:border-white/20'
                                   }`}
                                 >
-                                  <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 bg-slate-900 border border-white/20 flex items-center justify-center">
+                                  <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 bg-white/[0.06] border border-white/20 flex items-center justify-center">
                                     {club.logoUrl ? (
                                       <img src={optimizeCloudinaryLogoUrl(club.logoUrl, 96)} alt={club.name} className="w-full h-full object-cover" />
                                     ) : (
@@ -1094,9 +1366,9 @@ export const VenuesTab: React.FC = () => {
                   <div className="sm:col-span-2 flex flex-wrap gap-4">
                     <label className="inline-flex items-center gap-1.5 font-bold text-orange-300 cursor-pointer"><input type="checkbox" checked={Boolean(form.isDvaOfficial)} onChange={(e) => set({ isDvaOfficial: e.target.checked })} />DVA Official</label>
                     <label className="inline-flex items-center gap-1.5 font-bold text-amber-300 cursor-pointer"><input type="checkbox" checked={Boolean(form.isFeatured)} onChange={(e) => set({ isFeatured: e.target.checked })} />Featured</label>
-                    <label className="inline-flex items-center gap-1.5 font-bold text-red-300 cursor-pointer"><input type="checkbox" checked={Boolean(form.isClosed)} onChange={(e) => set({ isClosed: e.target.checked })} />Tạm nghỉ sân</label>
+                    <label className="inline-flex items-center gap-1.5 font-bold text-rose-300 cursor-pointer"><input type="checkbox" checked={Boolean(form.isClosed)} onChange={(e) => set({ isClosed: e.target.checked })} />Tạm nghỉ sân</label>
                   </div>
-                  {form.isClosed && (<><F label="Lý do tạm nghỉ" tone="text-red-300"><input className={INP} value={form.closureReason || ''} onChange={(e) => set({ closureReason: e.target.value })} /></F><F label="Mở lại dự kiến" tone="text-red-300"><input type="date" className={INP} value={form.closedUntil || ''} onChange={(e) => set({ closedUntil: e.target.value })} /></F></>)}
+                  {form.isClosed && (<><F label="Lý do tạm nghỉ" tone="text-rose-300"><input className={INP} value={form.closureReason || ''} onChange={(e) => set({ closureReason: e.target.value })} /></F><F label="Mở lại dự kiến" tone="text-rose-300"><input type="date" className={INP} value={form.closedUntil || ''} onChange={(e) => set({ closedUntil: e.target.value })} /></F></>)}
                 </div>
               )}
 
@@ -1104,21 +1376,21 @@ export const VenuesTab: React.FC = () => {
 
               {modal.kind === 'session' && (
                 <div className="space-y-3">
-                  <F label="CLB *"><select required className={INP} value={form.clubId} onChange={(e) => { const cid = e.target.value; set({ clubId: cid, ...(!modal.item ? { genderRule: suggestGenderRule((modal.venue.clubs || []).find((c) => c.id === cid)?.playStyle) } : {}) }); }}>{(modal.venue.clubs || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></F>
-                  <F label="Thứ trong tuần *"><div className="grid grid-cols-7 gap-1.5">{VN_DAY_OPTIONS.map((d) => <button key={d.value} type="button" onClick={() => toggleArr('daysOfWeek', d.value)} className={`py-2 rounded-xl border font-bold cursor-pointer ${(form.daysOfWeek || []).includes(d.value) ? 'bg-gradient-to-r from-red-600 to-orange-500 border-orange-400 text-white' : 'bg-[#0B0F19] border-slate-700 text-slate-400'}`}>{d.short}</button>)}</div></F>
+                  <F label="CLB *"><select required className={INP} value={form.clubId} onChange={(e) => { const cid = e.target.value; set({ clubId: cid, ...(!modal.item ? { genderRule: suggestGenderRule((modal.venue.clubs || []).find((c) => c.id === cid)?.playStyle) } : {}) }); }}>{(modal.venue.clubs || []).map((c) => <option key={c.id} value={c.id} className="bg-[#0E1118] text-white">{c.name}</option>)}</select></F>
+                  <F label="Thứ trong tuần *"><div className="grid grid-cols-7 gap-1.5">{VN_DAY_OPTIONS.map((d) => <button key={d.value} type="button" onClick={() => toggleArr('daysOfWeek', d.value)} className={`py-2 rounded-xl border font-bold cursor-pointer transition-colors duration-150 ${(form.daysOfWeek || []).includes(d.value) ? 'bg-orange-500/20 border-orange-500/60 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.22)]' : 'bg-white/[0.06] border-white/12 text-slate-300 hover:bg-white/[0.12]'}`}>{d.short}</button>)}</div></F>
                   <div className="grid grid-cols-2 gap-3"><F label="Bắt đầu *"><input required type="time" className={INP} value={form.startTime || ''} onChange={(e) => set({ startTime: e.target.value })} /></F><F label="Kết thúc *"><input required type="time" className={INP} value={form.endTime || ''} onChange={(e) => set({ endTime: e.target.value })} /></F></div>
-                  <F label="Sân con *"><div className="flex flex-wrap gap-2">{getSubCourtNames(modal.venue.subCourtsCount).map((sc) => <button key={sc} type="button" onClick={() => toggleArr('subCourts', sc)} className={`px-3 py-1.5 rounded-xl border font-bold cursor-pointer ${(form.subCourts || []).includes(sc) ? 'bg-sky-600 border-sky-400 text-white' : 'bg-[#0B0F19] border-slate-700 text-slate-300'}`}>{sc}</button>)}</div></F>
-                  {liveConflicts.length > 0 && <div className="p-3 rounded-xl bg-amber-950/60 border border-amber-500/60 text-amber-200 space-y-1"><p className="font-bold flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-400" />Trùng sân con: {liveConflicts.map((c) => `${c.clubName} (${formatDaysOfWeek(c.days)} ${c.startTime}–${c.endTime} · ${c.subCourts.join(', ')})`).join('; ')}</p><label className="inline-flex items-center gap-1.5 font-bold cursor-pointer"><input type="checkbox" checked={Boolean(form.forceOverride)} onChange={(e) => set({ forceOverride: e.target.checked })} />Vẫn lưu đè cảnh báo</label></div>}
-                  <F label="Đối tượng tham gia"><div className="grid grid-cols-3 gap-1.5">{(['MALE_ONLY', 'MIXED', 'FEMALE_ONLY'] as const).map((g) => <button key={g} type="button" onClick={() => set({ genderRule: g })} className={`py-2 px-2 rounded-xl border font-bold cursor-pointer ${(form.genderRule || 'MIXED') === g ? 'bg-purple-600 border-purple-400 text-white' : 'bg-[#0B0F19] border-slate-700 text-slate-300'}`}>{GENDER_RULE_META[g].label}</button>)}</div></F>
+                  <F label="Sân con *"><div className="flex flex-wrap gap-2">{getSubCourtNames(modal.venue.subCourtsCount).map((sc) => <button key={sc} type="button" onClick={() => toggleArr('subCourts', sc)} className={`px-3 py-1.5 rounded-full border font-bold cursor-pointer transition-colors duration-150 ${(form.subCourts || []).includes(sc) ? 'bg-sky-500/20 border-sky-400/50 text-sky-200' : 'bg-white/[0.06] border-white/12 text-slate-300 hover:bg-white/[0.12]'}`}>{sc}</button>)}</div></F>
+                  {liveConflicts.length > 0 && <div className="p-3 rounded-2xl bg-amber-500/12 border border-amber-500/45 text-amber-200 space-y-1"><p className="font-bold flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />Trùng sân con: {liveConflicts.map((c) => `${c.clubName} (${formatDaysOfWeek(c.days)} ${c.startTime}–${c.endTime} · ${c.subCourts.join(', ')})`).join('; ')}</p><label className="inline-flex items-center gap-1.5 font-bold cursor-pointer"><input type="checkbox" checked={Boolean(form.forceOverride)} onChange={(e) => set({ forceOverride: e.target.checked })} />Vẫn lưu đè cảnh báo</label></div>}
+                  <F label="Đối tượng tham gia"><div className="grid grid-cols-3 gap-1.5">{(['MALE_ONLY', 'MIXED', 'FEMALE_ONLY'] as const).map((g) => <button key={g} type="button" onClick={() => set({ genderRule: g })} className={`py-2 px-2 rounded-full border font-bold cursor-pointer transition-colors duration-150 ${(form.genderRule || 'MIXED') === g ? 'bg-purple-500/25 border-purple-400/55 text-purple-100' : 'bg-white/[0.06] border-white/12 text-slate-300 hover:bg-white/[0.12]'}`}>{GENDER_RULE_META[g].label}</button>)}</div></F>
                   <F label="🇺🇸 Hạng trình độ USAV khuyến nghị (Tùy chọn)">
                     <select className={INP} value={form.skillRankLabel || ''} onChange={(e) => set({ skillRankLabel: e.target.value })}>
-                      <option value="">Chưa gắn hạng trình độ</option>
-                      {RECOMMENDED_SKILL_RANK_PRESETS.map((preset) => <option key={preset} value={preset}>USAV: {preset}</option>)}
+                      <option value="" className="bg-[#0E1118] text-slate-300">Chưa gắn hạng trình độ</option>
+                      {RECOMMENDED_SKILL_RANK_PRESETS.map((preset) => <option key={preset} value={preset} className="bg-[#0E1118] text-white">USAV: {preset}</option>)}
                     </select>
                   </F>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <F label="Trạng thái tuyển"><select className={INP} value={form.recruitmentStatus} onChange={(e) => set({ recruitmentStatus: e.target.value })}><option value="OPEN_RECRUIT">Đang tuyển slot</option><option value="CHECK_CAPTAIN">Hỏi đội trưởng</option><option value="FULL">Đã đủ người</option></select></F>
-                    <F label="Chế độ quân số"><select className={INP} value={form.capacityMode || 'UNLIMITED'} onChange={(e) => set({ capacityMode: e.target.value })}><option value="UNLIMITED">∞ Không giới hạn</option><option value="LIMITED_SLOTS">Giới hạn slot</option></select></F>
+                    <F label="Trạng thái tuyển"><select className={INP} value={form.recruitmentStatus} onChange={(e) => set({ recruitmentStatus: e.target.value })}><option value="OPEN_RECRUIT" className="bg-[#0E1118] text-white">Đang tuyển slot</option><option value="CHECK_CAPTAIN" className="bg-[#0E1118] text-white">Hỏi đội trưởng</option><option value="FULL" className="bg-[#0E1118] text-white">Đã đủ người</option></select></F>
+                    <F label="Chế độ quân số"><select className={INP} value={form.capacityMode || 'UNLIMITED'} onChange={(e) => set({ capacityMode: e.target.value })}><option value="UNLIMITED" className="bg-[#0E1118] text-white">∞ Không giới hạn</option><option value="LIMITED_SLOTS" className="bg-[#0E1118] text-white">Giới hạn slot</option></select></F>
                     {form.capacityMode === 'LIMITED_SLOTS' && <F label="Số người tối đa"><input type="number" min={1} max={100} className={INP} value={form.maxPlayers ?? 14} onChange={(e) => set({ maxPlayers: Number(e.target.value) })} /></F>}
                   </div>
                 </div>
@@ -1126,7 +1398,7 @@ export const VenuesTab: React.FC = () => {
 
               {modal.kind === 'captain' && (
                 <div className="space-y-3">
-                  <F label="Đội / CLB quản lý *" tone="text-orange-300"><select required className={INP} value={form.clubKey || ''} onChange={(e) => { const [vId, cId] = e.target.value.split('::'); const hit = allClubs.find((r) => r.venue.id === vId && r.club.id === cId); set({ clubKey: e.target.value, captainName: hit?.club.captainName || '', captainPhone: hit?.club.captainPhone || '', captainZalo: hit?.club.captainZalo || '', captainEmail: hit?.club.captainEmail || '', captainUserId: hit?.club.captainUserId || '', createCaptainAccount: false }); }}>{allClubs.map(({ venue, club }) => <option key={club.id} value={`${venue.id}::${club.id}`}>{club.name} — {venue.name}</option>)}</select></F>
+                  <F label="Đội / CLB quản lý *" tone="text-orange-300"><select required className={INP} value={form.clubKey || ''} onChange={(e) => { const [vId, cId] = e.target.value.split('::'); const hit = allClubs.find((r) => r.venue.id === vId && r.club.id === cId); set({ clubKey: e.target.value, captainName: hit?.club.captainName || '', captainPhone: hit?.club.captainPhone || '', captainZalo: hit?.club.captainZalo || '', captainEmail: hit?.club.captainEmail || '', captainUserId: hit?.club.captainUserId || '', createCaptainAccount: false }); }}>{allClubs.map(({ venue, club }) => <option key={club.id} value={`${venue.id}::${club.id}`} className="bg-[#0E1118] text-white">{club.name} — {venue.name}</option>)}</select></F>
                   <F label="Tên Đội trưởng *"><input required className={INP} value={form.captainName || ''} onChange={(e) => set({ captainName: e.target.value })} /></F>
                   <F label="Số điện thoại *"><input required className={INP} value={form.captainPhone || ''} onChange={(e) => set({ captainPhone: e.target.value })} /></F>
                   <F label="Zalo"><input className={INP} value={form.captainZalo || ''} onChange={(e) => set({ captainZalo: e.target.value })} /></F>
@@ -1135,9 +1407,9 @@ export const VenuesTab: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-                <button type="button" onClick={() => setModal(null)} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 font-bold cursor-pointer">Hủy</button>
-                <button type="submit" disabled={saving || (modal.kind === 'session' && liveConflicts.length > 0 && !form.forceOverride)} className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Lưu</button>
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <button type="button" onClick={() => setModal(null)} className="h-9 px-4 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 text-slate-200 font-bold cursor-pointer transition-colors">Hủy</button>
+                <button type="submit" disabled={saving || (modal.kind === 'session' && liveConflicts.length > 0 && !form.forceOverride)} className="h-9 px-5 rounded-full bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)]">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Lưu</button>
               </div>
             </form>
           </div>

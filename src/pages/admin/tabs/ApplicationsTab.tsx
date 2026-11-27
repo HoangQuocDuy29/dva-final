@@ -288,106 +288,116 @@ export const ApplicationsTab: React.FC = () => {
     { id: 'REJECTED', label: 'Rejected', count: analytics.REJECTED },
   ];
 
-  if (!loadedScopes.has('APPLICATIONS')) {
-    return (
-      <div className="space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, idx) => (
-            <div key={idx} className="dva-skeleton p-4 rounded-3xl h-24 space-y-2.5">
-              <div className="dva-skeleton-bar h-3 w-28" />
-              <div className="dva-skeleton-bar h-7 w-16" />
-            </div>
-          ))}
-        </div>
-        <div className="dva-glass-panel rounded-3xl p-5 space-y-3">
-          <div className="dva-skeleton h-10 w-full rounded-2xl" />
-          {Array.from({ length: 5 }).map((_, idx) => (
-            <div key={idx} className="dva-skeleton p-4 rounded-2xl h-20 flex items-center justify-between gap-4">
-              <div className="space-y-2 flex-1">
-                <div className="dva-skeleton-bar h-4 w-44" />
-                <div className="dva-skeleton-bar h-3 w-64 max-w-full" />
-              </div>
-              <div className="dva-skeleton-bar h-8 w-24 rounded-full shrink-0" />
-            </div>
-          ))}
-        </div>
-        <SlowServerPill active />
-      </div>
-    );
-  }
+  const isAppsLoaded = loadedScopes.has('APPLICATIONS');
 
   return (
     <div className="space-y-5 dva-content-reveal">
       {/* 1. Try-Out Analytics Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 space-y-1">
+        <div className="dva-glass-card rounded-3xl p-4 space-y-1">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Tổng đơn Try-Out</span>
             <Users className="w-4 h-4 text-[#F97316]" />
           </div>
-          <div className="font-mono font-black text-2xl text-white tabular-nums">
-            {analytics.ALL}
-          </div>
-          <div className="text-[11px] text-slate-400">
-            {analytics.APPROVED} Approved · {analytics.REJECTED} Rejected
-          </div>
+          {isAppsLoaded ? (
+            <>
+              <div className="font-mono font-black text-2xl text-white tabular-nums">
+                {analytics.ALL}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                {analytics.APPROVED} Approved · {analytics.REJECTED} Rejected
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1.5 pt-1">
+              <div className="dva-skeleton-bar h-7 w-16" />
+              <div className="dva-skeleton-bar h-3 w-36" />
+            </div>
+          )}
         </div>
 
-        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 space-y-1">
+        <div className="dva-glass-card rounded-3xl p-4 space-y-1">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Đã đóng phí / Miễn phí</span>
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="font-mono font-black text-2xl text-emerald-400 tabular-nums">
-            {analytics.paidOrFreeTotal}
-          </div>
-          <div className="text-[11px] text-slate-400">
-            <span className="text-emerald-300 font-semibold">{analytics.PAID} PAID</span> ·{' '}
-            <span className="text-sky-300 font-semibold">{analytics.FREE} FREE</span> (Độc lập duyệt)
-          </div>
+          {isAppsLoaded ? (
+            <>
+              <div className="font-mono font-black text-2xl text-emerald-400 tabular-nums">
+                {analytics.paidOrFreeTotal}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                <span className="text-emerald-300 font-semibold">{analytics.PAID} PAID</span> ·{' '}
+                <span className="text-sky-300 font-semibold">{analytics.FREE} FREE</span> (Độc lập duyệt)
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1.5 pt-1">
+              <div className="dva-skeleton-bar h-7 w-16" />
+              <div className="dva-skeleton-bar h-3 w-40" />
+            </div>
+          )}
         </div>
 
-        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 space-y-1">
+        <div className="dva-glass-card rounded-3xl p-4 space-y-1">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Chờ / Đã hẹn test</span>
             <Clock className="w-4 h-4 text-[#38BDF8]" />
           </div>
-          <div className="font-mono font-black text-2xl text-[#38BDF8] tabular-nums">
-            {analytics.awaitingTryout}
-          </div>
-          <div className="text-[11px] text-slate-400">
-            {analytics.PENDING} Chờ · {analytics.SCHEDULED} Đã hẹn · {analytics.RETEST} Retest
-          </div>
+          {isAppsLoaded ? (
+            <>
+              <div className="font-mono font-black text-2xl text-[#38BDF8] tabular-nums">
+                {analytics.awaitingTryout}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                {analytics.PENDING} Chờ · {analytics.SCHEDULED} Đã hẹn · {analytics.RETEST} Retest
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1.5 pt-1">
+              <div className="dva-skeleton-bar h-7 w-16" />
+              <div className="dva-skeleton-bar h-3 w-40" />
+            </div>
+          )}
         </div>
 
-        <div className="rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10 p-4 space-y-1.5">
+        <div className="dva-glass-card rounded-3xl p-4 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>Tỷ lệ Đạt &amp; Theo vị trí</span>
             <Award className="w-4 h-4 text-[#FACC15]" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono font-black text-2xl text-[#FACC15] tabular-nums">
-              {analytics.passRatePct}%
-            </span>
-            <span className="text-[10px] text-slate-400">
-              ({analytics.APPROVED}/{analytics.decided || 0} đã kết luận)
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-1 pt-0.5">
-            {POSITIONS_ORDER.map((pos) => (
-              <span
-                key={pos}
-                className="px-1.5 py-0.5 rounded bg-[#0B0F19] border border-[#1E293B] font-mono text-[10px] text-slate-300"
-              >
-                <strong className="text-orange-400">{pos}</strong>:{analytics.approvedByPos[pos]}
-              </span>
-            ))}
-          </div>
+          {isAppsLoaded ? (
+            <>
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono font-black text-2xl text-[#FACC15] tabular-nums">
+                  {analytics.passRatePct}%
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  ({analytics.APPROVED}/{analytics.decided || 0} đã kết luận)
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {POSITIONS_ORDER.map((pos) => (
+                  <span
+                    key={pos}
+                    className="px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/10 font-mono text-[10px] text-slate-300"
+                  >
+                    <strong className="text-orange-400">{pos}</strong>:{analytics.approvedByPos[pos]}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1.5 pt-1">
+              <div className="dva-skeleton-bar h-7 w-20" />
+              <div className="dva-skeleton-bar h-4 w-full" />
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Card */}
-      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-4 sm:p-6 shadow-xl space-y-5">
+      <div className="dva-glass-panel rounded-3xl p-4 sm:p-5 space-y-5">
         {/* Top Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div className="space-y-1">
@@ -421,14 +431,14 @@ export const ApplicationsTab: React.FC = () => {
                   ? 'Search name, Zalo, email, position...'
                   : 'Search name, position, division...'
               }
-              className="w-full pl-9 pr-4 py-2 rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 text-xs text-white placeholder:text-white/40 focus:outline-none focus:border-orange-500/50 transition-colors"
+              className="dva-glass-input !rounded-full w-full pl-9 pr-4 py-2 text-xs"
             />
           </div>
         </div>
 
         {/* Filter Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl sm:rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 max-w-full w-fit">
+          <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl sm:rounded-full bg-white/[0.04] border border-white/10 max-w-full w-fit">
             {statusTabs.map((tab) => (
               <button
                 key={tab.id}
@@ -437,24 +447,24 @@ export const ApplicationsTab: React.FC = () => {
                   setStatusFilter(tab.id);
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-colors duration-150 cursor-pointer ${
                   statusFilter === tab.id
                     ? 'bg-orange-500 text-white shadow-sm'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
                 }`}
               >
-                {tab.label} ({tab.count})
+                {tab.label}{isAppsLoaded ? ` (${tab.count})` : ''}
               </button>
             ))}
           </div>
 
-          <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl sm:rounded-full bg-white/[0.04] backdrop-blur-xl border border-white/10 max-w-full w-fit">
+          <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl sm:rounded-full bg-white/[0.04] border border-white/10 max-w-full w-fit">
             {(
               [
-                { id: 'ALL', label: 'All Fees' },
-                { id: 'PENDING', label: `PENDING (${analytics.UNPAID})` },
-                { id: 'PAID', label: `PAID (${analytics.PAID})` },
-                { id: 'FREE', label: `FREE (${analytics.FREE})` },
+                { id: 'ALL', label: 'All Fees', count: null },
+                { id: 'PENDING', label: 'PENDING', count: analytics.UNPAID },
+                { id: 'PAID', label: 'PAID', count: analytics.PAID },
+                { id: 'FREE', label: 'FREE', count: analytics.FREE },
               ] as const
             ).map((pf) => (
               <button
@@ -464,13 +474,13 @@ export const ApplicationsTab: React.FC = () => {
                   setPaymentFilter(pf.id);
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-colors duration-150 cursor-pointer ${
                   paymentFilter === pf.id
                     ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
                 }`}
               >
-                {pf.label}
+                {pf.label}{isAppsLoaded && pf.count !== null ? ` (${pf.count})` : ''}
               </button>
             ))}
           </div>
@@ -480,31 +490,31 @@ export const ApplicationsTab: React.FC = () => {
         <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
           <table
             className={`w-full table-fixed text-xs text-left border-collapse ${
-              isSuperAdmin ? 'min-w-[1080px]' : 'min-w-[880px]'
+              isSuperAdmin ? 'min-w-[1180px]' : 'min-w-[960px]'
             }`}
           >
             <colgroup>
               {isSuperAdmin ? (
                 <>
-                  <col className="w-[21%]" />
-                  <col className="w-[12%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[11%]" />
                   <col className="w-[15%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[23%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[25%]" />
                 </>
               ) : (
                 <>
-                  <col className="w-[27%]" />
-                  <col className="w-[16%]" />
+                  <col className="w-[26%]" />
                   <col className="w-[15%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[24%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[26%]" />
                 </>
               )}
             </colgroup>
             <thead>
-              <tr className="bg-white/[0.03] backdrop-blur-md text-white/60 font-bold border-y border-white/10">
+              <tr className="bg-white/[0.03] text-white/60 font-bold border-y border-white/10">
                 <th className="py-3 px-3 min-w-[190px]">Candidate / Profile</th>
                 <th className="py-3 px-3">Division &amp; Metrics</th>
                 {isSuperAdmin && <th className="py-3 px-3">Contact (Zalo / Email)</th>}
@@ -514,7 +524,21 @@ export const ApplicationsTab: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.06] text-slate-300">
-              {paginatedApplications.length === 0 ? (
+              {!isAppsLoaded ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`sk-${idx}`}>
+                    <td colSpan={isSuperAdmin ? 6 : 5} className="py-3 px-3">
+                      <div className="dva-skeleton p-3.5 rounded-2xl flex items-center justify-between gap-4">
+                        <div className="space-y-2 flex-1">
+                          <div className="dva-skeleton-bar h-4 w-44" />
+                          <div className="dva-skeleton-bar h-3 w-64 max-w-full" />
+                        </div>
+                        <div className="dva-skeleton-bar h-8 w-24 rounded-full shrink-0" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : paginatedApplications.length === 0 ? (
                 <tr>
                   <td colSpan={isSuperAdmin ? 6 : 5} className="py-10 text-center text-slate-500">
                     No try-out applications match the current filters.
@@ -725,7 +749,7 @@ export const ApplicationsTab: React.FC = () => {
                           <div>
                             Zalo: <strong className="font-mono text-white">{app.zalo || '—'}</strong>
                           </div>
-                          <div title={app.gmail || undefined} className="text-slate-400 truncate max-w-[195px] block">
+                          <div title={app.gmail || undefined} className="text-slate-400 truncate max-w-full block">
                             {app.gmail || '—'}
                           </div>
                           {app.instagram && app.instagram !== 'None' && (
@@ -889,7 +913,7 @@ export const ApplicationsTab: React.FC = () => {
                           )}
 
                           {app.coachNotes && (
-                            <p className="text-[10px] text-slate-400 italic line-clamp-2 max-w-[180px]">
+                            <p className="text-[10px] text-slate-400 italic line-clamp-2 max-w-full">
                               “{app.coachNotes}”
                             </p>
                           )}
@@ -905,18 +929,17 @@ export const ApplicationsTab: React.FC = () => {
 
                       {/* 6. Actions Matrix: 2 Primary Actions + Overflow Glass Menu (⋯) */}
                       <td className="py-3.5 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           {isApproved ? (
-                            <span className="h-8 px-3 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium backdrop-blur-md inline-flex items-center gap-1 whitespace-nowrap">
+                            <span className="h-8 px-2.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium inline-flex items-center gap-1 whitespace-nowrap">
                               <span>✓ ĐÃ DUYỆT</span>
-                              {scoreTotal > 0 && <span className="font-mono text-[10px] text-emerald-200">{scoreTotal}/20</span>}
                             </span>
                           ) : isSuperAdmin ? (
                             <button
                               type="button"
                               onClick={() => handleApproveApplication(app.id, fee)}
                               title="Chốt nhận chính thức (APPROVED) & thêm vào Player Roster"
-                              className="h-8 px-3.5 rounded-full text-xs font-medium backdrop-blur-md transition-all bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                              className="h-8 px-3 rounded-full text-xs font-medium transition-colors duration-150 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>Approve</span>
@@ -927,7 +950,7 @@ export const ApplicationsTab: React.FC = () => {
                             type="button"
                             onClick={() => setEvaluatingApp(app)}
                             title="Mở phiếu chấm điểm 4 tiêu chí, chốt Level & gửi mail kết quả"
-                            className="h-8 px-3.5 rounded-full text-xs font-medium backdrop-blur-md transition-all bg-sky-500/15 text-sky-300 border border-sky-500/30 hover:bg-sky-500/25 inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                            className="h-8 px-3 rounded-full text-xs font-medium transition-colors duration-150 bg-sky-500/15 text-sky-300 border border-sky-500/30 hover:bg-sky-500/25 inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                           >
                             <ClipboardCheck className="w-3.5 h-3.5" />
                             <span>{scoreTotal > 0 ? `Chấm (${scoreTotal}/20)` : 'Chấm điểm'}</span>
@@ -944,7 +967,7 @@ export const ApplicationsTab: React.FC = () => {
                                 const top = rect.bottom + 150 > window.innerHeight ? Math.max(12, rect.top - 136) : rect.bottom + 6;
                                 setActionMenu({ app, fee, top, right: Math.max(12, window.innerWidth - rect.right) });
                               }}
-                              className="w-8 h-8 rounded-full bg-white/[0.05] border border-white/10 hover:bg-white/10 text-slate-200 hover:text-white inline-flex items-center justify-center cursor-pointer transition-all shrink-0"
+                              className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/12 hover:bg-white/[0.12] text-slate-200 hover:text-white inline-flex items-center justify-center cursor-pointer transition-colors duration-150 shrink-0"
                             >
                               <MoreHorizontal className="w-4 h-4" />
                             </button>
@@ -958,6 +981,8 @@ export const ApplicationsTab: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {!isAppsLoaded && <SlowServerPill active />}
 
         <Pagination
           currentPage={safePage}

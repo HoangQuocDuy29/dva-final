@@ -134,11 +134,11 @@ export const TrainingTab: React.FC = () => {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-6 dva-content-reveal">
         {/* Trainees List */}
-        <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-4">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-            <div>
+        <div className="dva-glass-panel rounded-3xl p-4 sm:p-6 space-y-4">
+          <div className="flex justify-between items-center border-b border-white/10 pb-4">
+            <div className="min-w-0">
               <h3 className="font-bold text-base text-white">
                 Academy & Scrimmage Trainee Registrations
               </h3>
@@ -151,16 +151,16 @@ export const TrainingTab: React.FC = () => {
           <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
             <table className="w-full min-w-[700px] text-xs text-left border-collapse">
               <thead>
-                <tr className="bg-[#0E1524] text-slate-400 font-bold border-b border-slate-800">
-                  <th className="py-3 px-3">Trainee / Contact</th>
+                <tr className="bg-white/[0.04] text-slate-300 font-bold border-b border-white/10">
+                  <th className="py-3 px-3 rounded-tl-xl">Trainee / Contact</th>
                   <th className="py-3 px-3">Enrolled Program</th>
                   <th className="py-3 px-3">Skill Level</th>
                   <th className="py-3 px-3">Time Slot & Notes</th>
                   <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3 text-right">Actions</th>
+                  <th className="py-3 px-3 text-right rounded-tr-xl">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-300">
+              <tbody className="divide-y divide-white/[0.07] text-slate-300">
                 {trainingRegs.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-slate-500 text-xs">
@@ -169,14 +169,14 @@ export const TrainingTab: React.FC = () => {
                   </tr>
                 ) : (
                   paginatedRegs.map((reg) => (
-                    <tr key={reg.id} className="hover:bg-slate-800/40">
+                    <tr key={reg.id} className="hover:bg-white/[0.035] transition-colors duration-150">
                       <td className="py-3 px-3">
                         <span className="font-bold text-white block">{reg.fullName}</span>
-                        <span className="font-mono text-[11px] text-slate-400">
+                        <span className="font-mono text-[11px] text-slate-400 tabular-nums">
                           {reg.phone} · {reg.email}
                         </span>
                       </td>
-                      <td className="py-3 px-3 font-semibold text-amber-400">{reg.courseTitle}</td>
+                      <td className="py-3 px-3 font-semibold text-amber-300">{reg.courseTitle}</td>
                       <td className="py-3 px-3">{reg.experienceLevel}</td>
                       <td className="py-3 px-3 text-[11px] text-slate-400">
                         <div>Slot: {reg.preferredTimeSlot}</div>
@@ -186,10 +186,12 @@ export const TrainingTab: React.FC = () => {
                       </td>
                       <td className="py-3 px-3">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-flex items-center ${
                             reg.status === 'CONFIRMED'
-                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                              : 'bg-amber-950 text-amber-300 border border-amber-800'
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35'
+                              : reg.status === 'CANCELLED'
+                                ? 'bg-rose-500/15 text-rose-300 border-rose-500/35'
+                                : 'bg-amber-500/15 text-amber-300 border-amber-500/35'
                           }`}
                         >
                           {reg.status}
@@ -202,14 +204,14 @@ export const TrainingTab: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleUpdateTrainingStatus(reg.id, 'CONFIRMED')}
-                                className="min-h-[40px] px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-xl transition-colors cursor-pointer"
+                                className="h-8 px-3.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 font-bold text-[11px] rounded-full transition-colors duration-150 cursor-pointer"
                               >
                                 Confirm
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleUpdateTrainingStatus(reg.id, 'CANCELLED')}
-                                className="min-h-[40px] px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded-xl transition-colors cursor-pointer"
+                                className="h-8 px-3 bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 text-slate-300 hover:text-white text-[11px] font-semibold rounded-full transition-colors duration-150 cursor-pointer"
                               >
                                 Cancel
                               </button>
@@ -220,10 +222,10 @@ export const TrainingTab: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleDeleteRegistration(reg.id, reg.fullName)}
-                            className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer ml-1 transition-colors"
+                            className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-300 rounded-full bg-white/[0.05] hover:bg-rose-500/15 border border-white/12 hover:border-rose-500/35 cursor-pointer ml-1 transition-colors duration-150"
                             title="Xóa lượt đăng ký"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -243,9 +245,9 @@ export const TrainingTab: React.FC = () => {
         </div>
 
         {/* Courses Management CRUD Section */}
-        <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-            <div>
+        <div className="dva-glass-panel rounded-3xl p-4 sm:p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="min-w-0">
               <h3 className="font-bold text-base text-white">
                 Quản lý Gói Tập & Giao Lưu (Training & Scrimmage)
               </h3>
@@ -260,7 +262,7 @@ export const TrainingTab: React.FC = () => {
                 setCourseForm(createDefaultCourseForm());
                 setIsCourseModalOpen(true);
               }}
-              className="px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow cursor-pointer shrink-0"
+              className="h-9 px-4 bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white font-bold text-xs rounded-full inline-flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] cursor-pointer shrink-0 transition-colors duration-150"
             >
               <Plus className="w-4 h-4" />
               <span>Thêm Khóa Học Mới</span>
@@ -268,46 +270,46 @@ export const TrainingTab: React.FC = () => {
           </div>
 
           {/* QUICK STATUS FILTERS */}
-          <div className="flex items-center gap-1.5 bg-[#0E1524] p-1.5 rounded-2xl border border-slate-800 w-fit">
+          <div className="flex flex-wrap items-center gap-1 bg-white/[0.04] p-1 rounded-full border border-white/10 w-fit">
             <button
               type="button"
               onClick={() => setCourseStatusFilter('ALL')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`h-8 px-3 rounded-full text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5 border ${
                 courseStatusFilter === 'ALL'
-                  ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-200'
+                  : 'border-transparent text-slate-400 hover:text-white hover:bg-white/[0.05]'
               }`}
             >
               <span>All</span>
-              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-mono">
+              <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-black/30 font-mono tabular-nums">
                 {coursesList.length}
               </span>
             </button>
             <button
               type="button"
               onClick={() => setCourseStatusFilter('ACTIVE')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`h-8 px-3 rounded-full text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5 border ${
                 courseStatusFilter === 'ACTIVE'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-emerald-400'
+                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200'
+                  : 'border-transparent text-slate-400 hover:text-emerald-300 hover:bg-white/[0.05]'
               }`}
             >
               <span>Active</span>
-              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-mono">
+              <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-black/30 font-mono tabular-nums">
                 {coursesList.filter((c) => c.isActive !== false).length}
               </span>
             </button>
             <button
               type="button"
               onClick={() => setCourseStatusFilter('HIDDEN')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`h-8 px-3 rounded-full text-xs font-bold transition-colors duration-150 cursor-pointer flex items-center gap-1.5 border ${
                 courseStatusFilter === 'HIDDEN'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-amber-400'
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-200'
+                  : 'border-transparent text-slate-400 hover:text-amber-300 hover:bg-white/[0.05]'
               }`}
             >
               <span>Hidden</span>
-              <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-black/30 font-mono">
+              <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-black/30 font-mono tabular-nums">
                 {coursesList.filter((c) => c.isActive === false).length}
               </span>
             </button>
@@ -317,27 +319,27 @@ export const TrainingTab: React.FC = () => {
             {paginatedCourses.map((course) => (
               <div
                 key={course.id}
-                className="p-5 rounded-2xl border border-slate-800 bg-[#0E1524] flex flex-col justify-between space-y-4"
+                className="p-5 rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.055] hover:border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] flex flex-col justify-between space-y-4 transition-colors duration-150"
               >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
+                <div className="space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/35">
                         {course.level}
                       </span>
                       {course.isActive === false ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-950/80 text-amber-400 border border-amber-800 shadow-sm inline-flex items-center gap-1">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/15 text-amber-300 border border-amber-500/35 inline-flex items-center gap-1">
                           <EyeOff className="w-2.5 h-2.5" />
                           Hidden
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-800 shadow-sm inline-flex items-center gap-1">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/35 inline-flex items-center gap-1">
                           <Eye className="w-2.5 h-2.5" />
                           Published
                         </span>
                       )}
                     </div>
-                    <span className="font-mono text-orange-400 font-bold text-xs">
+                    <span className="font-mono text-orange-400 font-bold text-xs tabular-nums">
                       {course.price.toLocaleString('vi-VN')} đ
                     </span>
                   </div>
@@ -346,28 +348,28 @@ export const TrainingTab: React.FC = () => {
 
                   <p className="text-xs text-slate-400 line-clamp-2">{course.description}</p>
 
-                  <div className="pt-2 text-[11px] text-slate-400 space-y-1">
+                  <div className="pt-1 text-[11px] text-slate-400 space-y-1">
                     <div>
-                      📅 <strong>Lịch:</strong> {course.schedule}
+                      📅 <strong className="text-slate-200">Lịch:</strong> {course.schedule}
                     </div>
-                    <div>
-                      ⏱ <strong>Thời lượng:</strong> {course.duration} ({course.enrolledSlots}/
+                    <div className="tabular-nums">
+                      ⏱ <strong className="text-slate-200">Thời lượng:</strong> {course.duration} ({course.enrolledSlots}/
                       {course.maxSlots} học viên)
                     </div>
                     <div>
-                      🏆 <strong>HLV:</strong> {course.coachName} ({course.coachTitle})
+                      🏆 <strong className="text-slate-200">HLV:</strong> {course.coachName} ({course.coachTitle})
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
+                <div className="pt-3 border-t border-white/[0.08] flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => handleToggleCourseVisibility(course)}
-                    className={`min-h-[40px] px-3.5 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors ${
+                    className={`h-8 px-3.5 text-xs font-semibold rounded-full inline-flex items-center gap-1.5 cursor-pointer border transition-colors duration-150 ${
                       course.isActive === false
-                        ? 'bg-amber-950/50 text-amber-400 hover:bg-amber-900/60 border border-amber-800/60'
-                        : 'bg-emerald-950/50 text-emerald-400 hover:bg-emerald-900/60 border border-emerald-800/60'
+                        ? 'bg-amber-500/12 text-amber-300 hover:bg-amber-500/20 border-amber-500/35'
+                        : 'bg-emerald-500/12 text-emerald-300 hover:bg-emerald-500/20 border-emerald-500/35'
                     }`}
                     title={course.isActive === false ? 'Publish program to public catalog' : 'Hide program from public catalog'}
                   >
@@ -390,7 +392,7 @@ export const TrainingTab: React.FC = () => {
                       setCourseForm(course);
                       setIsCourseModalOpen(true);
                     }}
-                    className="min-h-[40px] px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                    className="h-8 px-3.5 bg-white/[0.05] hover:bg-white/[0.12] border border-white/12 text-white text-xs font-semibold rounded-full inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150"
                   >
                     <Edit3 className="w-3.5 h-3.5 text-orange-400" />
                     <span>Sửa</span>
@@ -398,7 +400,7 @@ export const TrainingTab: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleDeleteCourse(course.id, course.title)}
-                    className="min-h-[40px] px-3.5 py-2 bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                    className="h-8 px-3.5 bg-white/[0.05] hover:bg-rose-500/15 border border-white/12 hover:border-rose-500/35 text-slate-300 hover:text-rose-300 text-xs font-semibold rounded-full inline-flex items-center gap-1.5 cursor-pointer transition-colors duration-150"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Xóa</span>

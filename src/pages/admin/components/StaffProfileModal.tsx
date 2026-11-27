@@ -105,7 +105,7 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in"
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="staff-profile-modal-title"
@@ -115,9 +115,9 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
     >
       <form
         onSubmit={handleSubmit}
-        className="w-[95%] sm:w-full max-w-md bg-[#0F1727] border border-slate-700 rounded-2xl sm:rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar"
+        className="w-[95%] sm:w-full max-w-md dva-glass-modal shadow-[0_24px_64px_rgba(0,0,0,0.8)] p-5 sm:p-6 space-y-4 max-h-[90dvh] overflow-y-auto no-scrollbar"
       >
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600/25 to-orange-500/25 border border-orange-500/40 flex items-center justify-center text-orange-400 shrink-0">
               <UserCog className="w-4 h-4" />
@@ -129,7 +129,7 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-[11px] text-slate-400 truncate">{targetUser.email}</span>
                 <span
-                  className={`px-1.5 py-0.25 rounded text-[9px] font-black border shrink-0 ${
+                  className={`px-2 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
                     USER_ROLE_BADGE[targetUser.role] || USER_ROLE_BADGE.GUEST
                   }`}
                 >
@@ -143,20 +143,20 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
             onClick={onClose}
             disabled={isSaving || isUploading}
             aria-label="Đóng"
-            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer transition-colors disabled:opacity-50"
+            className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors duration-150 disabled:opacity-50"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-950/70 border border-red-500/60 text-red-200 text-xs px-3 py-2 rounded-xl">
+          <div className="bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs px-3.5 py-2 rounded-2xl">
             {error}
           </div>
         )}
 
         {/* Avatar uploader (reuses Cloudinary utility) */}
-        <div className="bg-[#0B1220] border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-300">Ảnh đại diện (Cloudinary)</span>
             {avatarUrl && (
@@ -164,7 +164,7 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
                 type="button"
                 onClick={() => setAvatarUrl('')}
                 disabled={isUploading || isSaving}
-                className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-[11px] text-rose-400 hover:text-rose-300 cursor-pointer disabled:opacity-50"
               >
                 <Trash2 className="w-3 h-3" />
                 <span>Xóa ảnh</span>
@@ -182,10 +182,10 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
             />
             <div className="flex-1 space-y-2 min-w-0">
               <label
-                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                className={`h-8 px-3.5 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 transition-colors duration-150 ${
                   isUploading
-                    ? 'bg-slate-700 text-slate-300 border-slate-600 cursor-wait'
-                    : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700 cursor-pointer'
+                    ? 'bg-white/[0.04] text-slate-400 border-white/10 cursor-wait'
+                    : 'bg-white/[0.06] hover:bg-white/[0.12] text-white border-white/12 cursor-pointer'
                 }`}
               >
                 {isUploading ? (
@@ -218,20 +218,20 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
             value={avatarUrl}
             onChange={(e) => setAvatarUrl(e.target.value)}
             placeholder="Hoặc dán trực tiếp URL ảnh Cloudinary / CDN..."
-            className="w-full bg-[#0F1727] border border-slate-700 focus:border-orange-500 focus:outline-none rounded-xl px-3 py-2 text-[11px] font-mono text-white transition-colors"
+            className="w-full dva-glass-input px-3 py-2 text-[11px] font-mono"
           />
         </div>
 
         {mode === 'staff' && (
           <div className="space-y-1">
-            <label htmlFor="staff-profile-email" className="block text-[11px] font-bold text-slate-400">Email đăng nhập</label>
-            <input id="staff-profile-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="captain@gmail.com" className="w-full bg-[#0B1220] border border-slate-700 focus:border-orange-500 focus:outline-none rounded-xl px-3 py-2.5 text-xs text-white transition-colors" />
+            <label htmlFor="staff-profile-email" className="block text-[11px] font-bold text-slate-300">Email đăng nhập</label>
+            <input id="staff-profile-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="captain@gmail.com" className="w-full dva-glass-input px-3.5 py-2.5 text-xs" />
           </div>
         )}
 
         {/* Display Name */}
         <div className="space-y-1">
-          <label htmlFor="staff-profile-name" className="block text-[11px] font-bold text-slate-400">
+          <label htmlFor="staff-profile-name" className="block text-[11px] font-bold text-slate-300">
             Tên hiển thị
           </label>
           <input
@@ -243,23 +243,23 @@ export const StaffProfileModal: React.FC<StaffProfileModalProps> = ({
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder="VD: Hoàng Quốc Duy"
-            className="w-full bg-[#0B1220] border border-slate-700 focus:border-orange-500 focus:outline-none rounded-xl px-3 py-2.5 text-xs text-white transition-colors"
+            className="w-full dva-glass-input px-3.5 py-2.5 text-xs"
           />
         </div>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
           <button
             type="button"
             onClick={onClose}
             disabled={isSaving || isUploading}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer transition-colors disabled:opacity-60"
+            className="h-9 px-4 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-colors duration-150 disabled:opacity-60"
           >
             Hủy
           </button>
           <button
             type="submit"
             disabled={isSaving || isUploading}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white text-xs font-bold disabled:opacity-60 cursor-pointer transition-all"
+            className="h-9 px-5 rounded-full bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white text-xs font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] disabled:opacity-60 cursor-pointer transition-colors duration-150"
           >
             {isSaving ? 'Đang lưu...' : 'Lưu hồ sơ'}
           </button>

@@ -178,14 +178,14 @@ export const UsersTab: React.FC = () => {
             <button
               type="button"
               onClick={() => openEditProfileModal(u)}
-              className="h-9 px-3.5 rounded-full bg-white/[0.05] hover:bg-sky-500/15 border border-white/12 hover:border-sky-400/40 backdrop-blur-xl text-slate-200 hover:text-sky-200 text-xs font-medium flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+              className="h-9 px-3.5 rounded-full bg-white/[0.06] hover:bg-sky-500/15 border border-white/12 hover:border-sky-400/40 text-slate-200 hover:text-sky-200 text-xs font-medium flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors transition-transform duration-150 active:scale-95 cursor-pointer whitespace-nowrap"
               title="Sửa Hồ Sơ & Avatar của bạn"
             >
               <UserCog className="w-3.5 h-3.5 text-sky-300 shrink-0" />
               <span>Sửa Hồ Sơ</span>
             </button>
           )}
-          <span className="h-9 px-3 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-xl text-[11px] font-medium text-slate-400 inline-flex items-center gap-1.5 select-none whitespace-nowrap">
+          <span className="h-9 px-3 rounded-full bg-white/[0.04] border border-white/10 text-[11px] font-medium text-slate-400 inline-flex items-center gap-1.5 select-none whitespace-nowrap">
             <ShieldCheck className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
             <span>Được bảo vệ</span>
           </span>
@@ -195,7 +195,7 @@ export const UsersTab: React.FC = () => {
 
     const isMenuOpen = openRoleMenu?.userId === u.id;
     const iconBtnBase =
-      'w-9 h-9 min-w-[36px] rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all active:scale-95 cursor-pointer disabled:opacity-50';
+      'w-9 h-9 min-w-[36px] rounded-full bg-white/[0.05] border border-white/12 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-colors transition-transform duration-150 active:scale-95 cursor-pointer disabled:opacity-50';
 
     return (
       <div className={containerClass}>
@@ -207,15 +207,15 @@ export const UsersTab: React.FC = () => {
           aria-expanded={isMenuOpen}
           aria-label={`Đổi vai trò cho ${u.fullName}`}
           onClick={(e) => toggleRoleMenu(u.id, e.currentTarget)}
-          className={`h-9 px-3.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border backdrop-blur-xl text-xs font-semibold tracking-wide text-white flex items-center gap-2 transition-all focus:outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 cursor-pointer whitespace-nowrap active:scale-95 ${
+          className={`h-9 px-3.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border text-xs font-semibold tracking-wide text-white flex items-center gap-2 transition-colors transition-transform duration-150 focus:outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50 cursor-pointer whitespace-nowrap active:scale-95 ${
             isMenuOpen
-              ? 'border-orange-500/60 bg-white/[0.08] ring-2 ring-orange-500/20'
+              ? 'border-orange-500/60 bg-white/[0.1] ring-2 ring-orange-500/20'
               : 'border-white/12 hover:border-white/25'
           }`}
         >
           <span>{u.role}</span>
           <ChevronDown
-            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-150 ${
               isMenuOpen ? 'rotate-180 text-orange-400' : ''
             }`}
           />
@@ -225,7 +225,7 @@ export const UsersTab: React.FC = () => {
         <button
           type="button"
           onClick={() => void copyCredentials(u)}
-          className="h-9 px-3.5 rounded-full bg-emerald-500/[0.08] hover:bg-emerald-500/[0.16] border border-emerald-500/25 hover:border-emerald-400/50 backdrop-blur-xl text-emerald-300 text-xs font-medium flex items-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+          className="h-9 px-3.5 rounded-full bg-emerald-500/[0.08] hover:bg-emerald-500/[0.16] border border-emerald-500/25 hover:border-emerald-400/50 text-emerald-300 text-xs font-medium flex items-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors transition-transform duration-150 active:scale-95 cursor-pointer whitespace-nowrap"
           title="Copy Email & Mật khẩu gửi Zalo"
         >
           <Copy className="w-3.5 h-3.5 shrink-0" />
@@ -237,7 +237,7 @@ export const UsersTab: React.FC = () => {
           type="button"
           disabled={isRowBusy}
           onClick={() => handleToggleUserActive(u)}
-          className={`h-9 px-3.5 rounded-full backdrop-blur-xl border text-xs font-medium flex items-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-all active:scale-95 cursor-pointer whitespace-nowrap disabled:opacity-50 ${
+          className={`h-9 px-3.5 rounded-full border text-xs font-medium flex items-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors transition-transform duration-150 active:scale-95 cursor-pointer whitespace-nowrap disabled:opacity-50 ${
             isActive
               ? 'bg-rose-500/[0.08] hover:bg-rose-500/[0.16] border-rose-500/25 hover:border-rose-400/50 text-rose-300'
               : 'bg-emerald-500/[0.08] hover:bg-emerald-500/[0.16] border-emerald-500/25 hover:border-emerald-400/50 text-emerald-300'
@@ -328,53 +328,15 @@ export const UsersTab: React.FC = () => {
   const safePage = Math.min(Math.max(1, currentPage), Math.max(1, Math.ceil(filteredUsers.length / USERS_PAGE_SIZE)));
   const paginatedUsers = filteredUsers.slice((safePage - 1) * USERS_PAGE_SIZE, safePage * USERS_PAGE_SIZE);
 
-  if (isLoadingUsers && !hasLoadedUsers) {
-    return (
-      <div className="dva-glass-panel rounded-3xl p-4 sm:p-6 shadow-xl space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-          <div className="space-y-2">
-            <div className="dva-skeleton-bar h-5 w-48" />
-            <div className="dva-skeleton-bar h-3 w-80 max-w-full" />
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="dva-skeleton h-9 w-36 rounded-full" />
-            <div className="dva-skeleton h-9 w-36 rounded-full" />
-          </div>
-        </div>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="dva-skeleton h-10 w-full md:w-80 rounded-2xl" />
-          <div className="dva-skeleton h-9 w-64 rounded-2xl" />
-        </div>
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, idx) => (
-            <div key={idx} className="dva-skeleton p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="dva-skeleton-bar w-10 h-10 rounded-full shrink-0" />
-                <div className="space-y-2">
-                  <div className="dva-skeleton-bar h-3.5 w-36" />
-                  <div className="dva-skeleton-bar h-2.5 w-48" />
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="dva-skeleton-bar h-9 w-24 rounded-full" />
-                <div className="dva-skeleton-bar h-9 w-28 rounded-full" />
-                <div className="dva-skeleton-bar h-9 w-20 rounded-full" />
-                <div className="dva-skeleton-bar h-9 w-9 rounded-full" />
-                <div className="dva-skeleton-bar h-9 w-9 rounded-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-        <SlowServerPill active />
-      </div>
-    );
-  }
+  const isInitialUsersLoading = isLoadingUsers && !hasLoadedUsers;
 
   return (
     <div className="dva-glass-panel rounded-3xl p-4 sm:p-6 shadow-xl space-y-6 dva-content-reveal">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
         <div>
-          <h2 className="text-lg font-black text-white">Quản lý Tài Khoản ({usersList.length})</h2>
+          <h2 className="text-lg font-black text-white">
+            Quản lý Tài Khoản{hasLoadedUsers ? ` (${usersList.length})` : ''}
+          </h2>
           <p className="text-xs text-slate-400">
             Tạo tài khoản, cập nhật hồ sơ/avatar, phân quyền, khóa tạm thời và quản lý phiên đăng nhập nhân sự.
           </p>
@@ -383,7 +345,7 @@ export const UsersTab: React.FC = () => {
           <button
             type="button"
             onClick={openChangePasswordModal}
-            className="h-9 px-3.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 hover:border-white/25 backdrop-blur-xl text-slate-200 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+            className="h-9 px-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 hover:border-white/25 text-slate-200 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors transition-transform duration-150 active:scale-95"
           >
             <KeyRound className="w-3.5 h-3.5 text-orange-400" />
             <span>Đổi mật khẩu của tôi</span>
@@ -391,7 +353,7 @@ export const UsersTab: React.FC = () => {
           <button
             type="button"
             onClick={openCreateUserModal}
-            className="h-9 px-4 rounded-full bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-orange-950/40 transition-all active:scale-95"
+            className="h-9 px-4 rounded-full bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-orange-950/40 transition-colors transition-transform duration-150 active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>Tạo Tài Khoản Mới</span>
@@ -417,13 +379,35 @@ export const UsersTab: React.FC = () => {
         </div>
         <div className="flex flex-wrap items-center gap-1 p-1 rounded-2xl bg-white/[0.035] border border-white/10 w-fit">
           {ROLE_FILTERS.map(([id, label]) => (
-            <button key={id} type="button" onClick={() => { setRoleFilter(id); setCurrentPage(1); }} className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${roleFilter === id ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}>
+            <button key={id} type="button" onClick={() => { setRoleFilter(id); setCurrentPage(1); }} className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-colors duration-150 cursor-pointer ${roleFilter === id ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'}`}>
               {label}
             </button>
           ))}
         </div>
       </div>
 
+      {isInitialUsersLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <div key={idx} className="dva-skeleton p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="dva-skeleton-bar w-10 h-10 rounded-full shrink-0" />
+                <div className="space-y-2">
+                  <div className="dva-skeleton-bar h-3.5 w-36" />
+                  <div className="dva-skeleton-bar h-2.5 w-48" />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="dva-skeleton-bar h-9 w-24 rounded-full" />
+                <div className="dva-skeleton-bar h-9 w-28 rounded-full" />
+                <div className="dva-skeleton-bar h-9 w-20 rounded-full" />
+              </div>
+            </div>
+          ))}
+          <SlowServerPill active />
+        </div>
+      ) : (
+      <>
       {/* DESKTOP TABLE VIEW (md and up) */}
       <div className="hidden md:block overflow-x-auto no-scrollbar">
         <table className="w-full min-w-[820px] text-xs text-left">
@@ -565,7 +549,7 @@ export const UsersTab: React.FC = () => {
                 </div>
               )}
               <div
-                className={`rounded-2xl p-3.5 border backdrop-blur-xl space-y-2.5 ${
+                className={`rounded-2xl p-3.5 border space-y-2.5 ${
                   isActive
                     ? 'bg-white/[0.03] border-white/10'
                     : 'bg-rose-950/15 border-rose-500/25'
@@ -648,6 +632,8 @@ export const UsersTab: React.FC = () => {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Portal-Rendered Spatial Glass Role Menu (Never Clipped by Table Overflow) */}
       {openRoleMenu && activeRoleMenuUser && typeof document !== 'undefined' &&

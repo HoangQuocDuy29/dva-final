@@ -47,11 +47,11 @@ export const SlotLockPanel: React.FC = () => {
   );
 
   return (
-    <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+    <div className="dva-glass-panel rounded-3xl p-4 sm:p-6 space-y-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
             <h3 className="font-heading font-black text-lg text-white">
               Live Court Schedule & Slot Lock Management
             </h3>
@@ -62,19 +62,20 @@ export const SlotLockPanel: React.FC = () => {
         </div>
 
         {/* Date Picker */}
-        <div className="flex items-center gap-2 bg-[#0E1524] px-3.5 py-2 rounded-xl border border-slate-700">
+        <div className="dva-glass-input !rounded-full flex items-center gap-2 px-3.5 py-2 w-full sm:w-auto shrink-0">
           <Calendar className="w-4 h-4 text-orange-400 shrink-0" />
           <input
             type="date"
+            aria-label="Chọn ngày quản lý lịch sân"
             value={selectedManageDate}
             onChange={(e) => setSelectedManageDate(e.target.value)}
-            className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+            className="bg-transparent text-xs font-bold font-mono tabular-nums text-white focus:outline-none cursor-pointer [color-scheme:dark] w-full sm:w-auto"
           />
         </div>
       </div>
 
       {/* Court Selector Pills */}
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2">
         {courtsList.map((court) => {
           const isSelected = court.id === selectedManageCourtId;
           return (
@@ -82,18 +83,18 @@ export const SlotLockPanel: React.FC = () => {
               key={court.id}
               type="button"
               onClick={() => setSelectedManageCourtId(court.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`h-9 px-4 rounded-full text-xs font-bold border transition-colors duration-150 inline-flex items-center gap-2 cursor-pointer ${
                 isSelected
-                  ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-lg shadow-red-950/40 ring-1 ring-red-400'
-                  : 'bg-[#0E1524] text-slate-400 hover:text-white border border-slate-800'
+                  ? 'bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] text-white border-orange-400/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_20px_rgba(249,115,22,0.28)]'
+                  : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border-white/12'
               }`}
             >
-              <span>{court.name}</span>
+              <span className="truncate">{court.name}</span>
               <span
-                className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
                   isSelected
-                    ? 'bg-black/30 text-white'
-                    : 'bg-slate-800 text-slate-400'
+                    ? 'bg-black/25 text-white'
+                    : 'bg-white/[0.06] text-slate-300'
                 }`}
               >
                 {court.code}
@@ -104,8 +105,8 @@ export const SlotLockPanel: React.FC = () => {
       </div>
 
       {/* Lock Reason Optional Input */}
-      <div className="flex items-center gap-3 bg-[#0E1524] p-3 rounded-2xl border border-slate-800 text-xs">
-        <span className="text-slate-400 font-semibold whitespace-nowrap">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-white/[0.025] p-3 rounded-2xl border border-white/[0.08] text-xs">
+        <span className="text-slate-300 font-semibold whitespace-nowrap shrink-0">
           Lý do khóa ca mặc định:
         </span>
         <input
@@ -113,7 +114,7 @@ export const SlotLockPanel: React.FC = () => {
           value={lockReason}
           onChange={(e) => setLockReason(e.target.value)}
           placeholder="VD: Đội ngoài thuê cố định, Trận đấu giao hữu CLB, Vệ sinh mặt sàn..."
-          className="flex-1 bg-transparent text-white border-b border-slate-700 focus:border-orange-500 focus:outline-none px-2 py-1 text-xs"
+          className="dva-glass-input flex-1 min-w-0 px-3.5 py-2 text-xs"
         />
       </div>
 
@@ -121,10 +122,10 @@ export const SlotLockPanel: React.FC = () => {
       <div className="space-y-4">
         {/* Sub-Court Selector for Court Clusters (BTL Thông Tin) */}
         {manageCourtHasSubCourts && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0B0F19] p-3.5 rounded-2xl border border-slate-800">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
-              <div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.025] p-3.5 rounded-2xl border border-white/[0.08]">
+            <div className="flex items-start sm:items-center gap-2 min-w-0">
+              <Sparkles className="w-4 h-4 text-orange-400 shrink-0 mt-0.5 sm:mt-0" />
+              <div className="min-w-0">
                 <span className="text-xs font-bold text-white uppercase tracking-wider block">
                   Quản lý theo Sân Con (Sub-Courts) - {selectedManageCourt?.name}:
                 </span>
@@ -134,7 +135,7 @@ export const SlotLockPanel: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               {manageCourtSubCourts.map((sc) => {
                 const isSubSelected = adminSelectedSubCourt === sc;
                 const closedCount = closedSlots.filter(
@@ -156,18 +157,18 @@ export const SlotLockPanel: React.FC = () => {
                     key={sc}
                     type="button"
                     onClick={() => setAdminSelectedSubCourt(sc)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    className={`h-8 px-3.5 rounded-full text-xs font-bold border transition-colors duration-150 inline-flex items-center gap-2 cursor-pointer ${
                       isSubSelected
-                        ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-md shadow-red-950/40 ring-1 ring-red-400'
-                        : 'bg-[#121826] text-slate-400 hover:text-white border border-slate-700'
+                        ? 'bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] text-white border-orange-400/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_18px_rgba(249,115,22,0.28)]'
+                        : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border-white/12'
                     }`}
                   >
                     <span>{sc}</span>
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-mono tabular-nums ${
                         isSubSelected
-                          ? 'bg-black/40 text-white'
-                          : 'bg-slate-800 text-slate-400'
+                          ? 'bg-black/25 text-white'
+                          : 'bg-white/[0.06] text-slate-300'
                       }`}
                     >
                       {closedCount > 0
@@ -211,21 +212,21 @@ export const SlotLockPanel: React.FC = () => {
               return (
                 <div
                   key={slot.label}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                  className={`p-4 rounded-2xl border transition-colors duration-150 flex flex-col justify-between ${
                     isClosed
-                      ? 'bg-red-950/30 border-red-800/80'
+                      ? 'bg-rose-500/[0.08] border-rose-500/35 hover:border-rose-400/50'
                       : bookingMatch
-                      ? 'bg-blue-950/30 border-blue-800/80'
-                      : 'bg-[#0E1524] border-slate-800'
+                      ? 'bg-sky-500/[0.08] border-sky-500/35 hover:border-sky-400/50'
+                      : 'dva-glass-card !rounded-2xl'
                   }`}
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-mono font-bold text-sm text-white flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-orange-400" />
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="min-w-0">
+                      <div className="font-mono font-bold tabular-nums text-sm text-white flex flex-wrap items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-orange-400 shrink-0" />
                         <span>{slot.label}</span>
                         {manageCourtHasSubCourts && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-orange-950 text-orange-300 border border-orange-800">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/15 text-orange-300 border border-orange-500/35">
                             {adminSelectedSubCourt}
                           </span>
                         )}
@@ -236,27 +237,27 @@ export const SlotLockPanel: React.FC = () => {
                     </div>
 
                     {isClosed ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200 border border-red-700 flex items-center gap-1">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/35 inline-flex items-center gap-1 shrink-0">
                         <Lock className="w-2.5 h-2.5" />
                         <span>CLOSED</span>
                       </span>
                     ) : bookingMatch ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900 text-blue-200 border border-blue-700">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/15 text-sky-300 border border-sky-400/35 shrink-0">
                         {bookingMatch.paymentStatus === 'PAID'
                           ? 'BOOKED'
                           : 'HOLDING'}
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/12 text-emerald-300 border border-emerald-500/30 shrink-0">
                         OPEN
                       </span>
                     )}
                   </div>
 
-                  <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs gap-2">
-                    <div className="text-[11px] text-slate-400 truncate">
+                  <div className="mt-3 pt-3 border-t border-white/[0.08] flex flex-wrap items-center justify-between text-xs gap-2">
+                    <div className="text-[11px] text-slate-400 truncate min-w-0 flex-1">
                       {isClosed ? (
-                        <span className="text-red-400 font-semibold">
+                        <span className="text-rose-300 font-semibold">
                           Đã khóa: {isClosed.reason || 'Bảo trì'}
                         </span>
                       ) : bookingMatch ? (
@@ -264,7 +265,7 @@ export const SlotLockPanel: React.FC = () => {
                           <strong className="text-white">
                             {bookingMatch.customerName}
                           </strong>
-                          <span className="text-slate-500 ml-1">
+                          <span className="text-slate-400 ml-1">
                             ({bookingMatch.customerPhone})
                           </span>
                         </span>
@@ -288,7 +289,7 @@ export const SlotLockPanel: React.FC = () => {
                               bookingMatch.subCourt || adminSelectedSubCourt
                             );
                           }}
-                          className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 flex items-center gap-1 transition-all cursor-pointer shadow"
+                          className="px-3 py-1.5 rounded-full font-bold text-[11px] bg-emerald-500/12 hover:bg-emerald-500/22 text-emerald-300 border border-emerald-500/35 inline-flex items-center gap-1 transition-colors duration-150 cursor-pointer"
                           title="Hủy đặt chỗ của khách và giải phóng ca này ngay lập tức"
                         >
                           <Unlock className="w-3.5 h-3.5 text-emerald-400" />
@@ -304,7 +305,7 @@ export const SlotLockPanel: React.FC = () => {
                             e.preventDefault();
                             handleToggleSlotLock(slot.label);
                           }}
-                          className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-slate-800 hover:bg-slate-700 text-white flex items-center gap-1 transition-all cursor-pointer"
+                          className="px-3 py-1.5 rounded-full font-bold text-[11px] bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white border border-white/12 inline-flex items-center gap-1 transition-colors duration-150 cursor-pointer"
                         >
                           <Unlock className="w-3.5 h-3.5 text-emerald-400" />
                           <span>Mở lại ca</span>
@@ -317,9 +318,9 @@ export const SlotLockPanel: React.FC = () => {
                             e.preventDefault();
                             handleToggleSlotLock(slot.label);
                           }}
-                          className="px-2.5 py-1.5 rounded-xl font-bold text-[11px] bg-red-950 hover:bg-red-900 text-red-300 border border-red-800 flex items-center gap-1 transition-all cursor-pointer"
+                          className="px-3 py-1.5 rounded-full font-bold text-[11px] bg-rose-500/12 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 inline-flex items-center gap-1 transition-colors duration-150 cursor-pointer"
                         >
-                          <Lock className="w-3.5 h-3.5 text-red-400" />
+                          <Lock className="w-3.5 h-3.5 text-rose-400" />
                           <span>Khóa ca</span>
                         </button>
                       ) : null}

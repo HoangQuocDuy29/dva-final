@@ -60,14 +60,14 @@ export const CourtCard: React.FC<CourtCardProps> = ({
 
   return (
     <div
-      className={`rounded-2xl border bg-[#0E1524] overflow-hidden flex flex-col justify-between shadow-lg transition-all ${
+      className={`dva-glass-card rounded-3xl overflow-hidden flex flex-col justify-between shadow-lg ${
         isMaintenance
-          ? 'border-amber-500/60 ring-1 ring-amber-500/20'
-          : 'border-slate-800 hover:border-slate-700'
+          ? '!border-amber-500/45 shadow-[0_0_24px_rgba(245,158,11,0.12)]'
+          : ''
       }`}
     >
       <div>
-        <div className="relative h-36 w-full bg-slate-900 overflow-hidden">
+        <div className="relative h-36 w-full bg-white/[0.04] overflow-hidden">
           <img
             src={court.imageUrl || '/courts/btl.png'}
             alt={court.name}
@@ -76,25 +76,25 @@ export const CourtCard: React.FC<CourtCardProps> = ({
               isMaintenance ? 'opacity-50 grayscale-[40%]' : ''
             }`}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0E1524] via-black/40 to-transparent" />
-          <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-red-600 text-white shadow">
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B0D12]/90 via-black/35 to-transparent" />
+          <div className="absolute top-3 left-3 right-3 flex flex-wrap items-center justify-between gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r from-[#B91C1C] to-[#EA580C] text-white shadow">
                 {court.code}
               </span>
               {isMaintenance ? (
-                <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-amber-950/95 text-amber-300 border border-amber-500/70 shadow flex items-center gap-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0B0D12]/80 text-amber-200 border border-amber-400/45 shadow flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                   <span>Bảo trì / Tạm ngưng</span>
                 </span>
               ) : (
-                <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-950/95 text-emerald-300 border border-emerald-500/60 shadow flex items-center gap-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0B0D12]/80 text-emerald-200 border border-emerald-400/40 shadow flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span>Hoạt động</span>
                 </span>
               )}
             </div>
-            <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-black/75 text-orange-400 border border-orange-500/30">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold tabular-nums bg-[#0B0D12]/80 text-orange-300 border border-orange-500/35">
               {Number(court.hourlyRate || 500000).toLocaleString('vi-VN')} đ/h
             </span>
           </div>
@@ -112,44 +112,44 @@ export const CourtCard: React.FC<CourtCardProps> = ({
         </div>
 
         <div className="p-4 space-y-3 text-xs">
-          <div className="flex items-center justify-between text-[11px]">
+          <div className="flex items-center justify-between gap-2 text-[11px]">
             <span className="text-slate-400">Trạng thái vận hành:</span>
             {isMaintenance ? (
-              <span className="font-bold text-amber-400">
+              <span className="font-bold text-amber-300 text-right">
                 🛠️ Đang bảo trì (Ngừng nhận đơn)
               </span>
             ) : (
-              <span className="font-bold text-emerald-400">
+              <span className="font-bold text-emerald-400 text-right">
                 ✓ Sẵn sàng cho thuê
               </span>
             )}
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
             <span>Tổng số ca / tuần:</span>
-            <strong className="font-mono text-emerald-400">
+            <strong className="font-mono tabular-nums text-emerald-400">
               {totalWeeklySlots} ca hoạt động
             </strong>
           </div>
 
-          <div className="bg-[#161F30] p-2.5 rounded-xl border border-slate-800 space-y-1.5 text-[11px]">
-            <div className="flex items-center justify-between">
+          <div className="bg-white/[0.025] p-3 rounded-2xl border border-white/[0.08] space-y-1.5 text-[11px]">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-slate-400">T2 – T6 (Ngày thường):</span>
-              <span className="font-mono text-white font-semibold truncate max-w-[155px]">
+              <span className="font-mono tabular-nums text-white font-semibold truncate max-w-[155px]">
                 {(schedule.monday || []).length > 0
                   ? `${schedule.monday.length} ca (${schedule.monday[0]?.split(' ')[0]}...)`
                   : 'Nghỉ'}
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-slate-400">Thứ 7 (Sat):</span>
-              <span className="font-mono text-orange-300 font-semibold">
+              <span className="font-mono tabular-nums text-orange-300 font-semibold">
                 {(schedule.saturday || []).length} ca
               </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-slate-400">Chủ Nhật (Sun):</span>
-              <span className="font-mono text-orange-300 font-semibold">
+              <span className="font-mono tabular-nums text-orange-300 font-semibold">
                 {(schedule.sunday || []).length} ca
               </span>
             </div>
@@ -160,10 +160,10 @@ export const CourtCard: React.FC<CourtCardProps> = ({
             type="button"
             disabled={isTogglingThis}
             onClick={() => onToggleMaintenance(court)}
-            className={`w-full min-h-[40px] py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+            className={`w-full h-9 px-3.5 rounded-full font-bold text-xs flex items-center justify-center gap-2 border transition-colors transition-transform duration-150 cursor-pointer ${
               isMaintenance
-                ? 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border-emerald-500/50'
-                : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
+                ? 'bg-emerald-500/[0.1] hover:bg-emerald-500/[0.18] text-emerald-300 border-emerald-500/30'
+                : 'bg-amber-500/[0.1] hover:bg-amber-500/[0.18] text-amber-300 border-amber-500/30'
             } ${isTogglingThis ? 'opacity-60 cursor-wait' : ''}`}
           >
             {isTogglingThis ? (
@@ -186,11 +186,11 @@ export const CourtCard: React.FC<CourtCardProps> = ({
         </div>
       </div>
 
-      <div className="px-4 py-3 border-t border-slate-800/80 flex items-center justify-between gap-2 bg-[#0B101C]">
+      <div className="px-4 py-3 border-t border-white/[0.08] flex items-center justify-between gap-2 bg-white/[0.02]">
         <button
           type="button"
           onClick={() => onEdit(court)}
-          className="flex-1 min-h-[40px] py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+          className="flex-1 h-9 px-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 text-slate-200 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors transition-transform duration-150"
         >
           <Edit3 className="w-3.5 h-3.5 text-orange-400" />
           <span>Sửa Sân & Lịch Tuần</span>
@@ -198,7 +198,7 @@ export const CourtCard: React.FC<CourtCardProps> = ({
         <button
           type="button"
           onClick={() => onDelete(court)}
-          className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl bg-slate-800/80 hover:bg-red-950 text-slate-400 hover:text-red-300 border border-slate-700/80 hover:border-red-800 flex items-center justify-center cursor-pointer transition-colors"
+          className="w-9 h-9 rounded-full bg-white/[0.05] hover:bg-rose-500/15 border border-white/12 hover:border-rose-500/35 text-slate-400 hover:text-rose-400 flex items-center justify-center cursor-pointer transition-colors transition-transform duration-150 shrink-0"
           title="Xóa sân"
         >
           <Trash2 className="w-4 h-4" />

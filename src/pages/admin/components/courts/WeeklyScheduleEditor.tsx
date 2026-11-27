@@ -69,11 +69,11 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
   const activeDaySlots = getModalDaySlots(selectedScheduleDay);
 
   return (
-    <div className="bg-[#0B0F19] border border-slate-800 rounded-2xl p-4 space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
-        <div>
+    <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-3.5 sm:p-4 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-white/10 pb-3">
+        <div className="min-w-0">
           <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-orange-400" />
+            <Clock className="w-3.5 h-3.5 text-orange-400 shrink-0" />
             Thiết Lập Lịch Tuần (Weekly Schedule Settings)
           </h4>
           <p className="text-[11px] text-slate-400 mt-0.5">
@@ -87,7 +87,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
           <button
             type="button"
             onClick={() => handleCopyDayScheduleToWeekdays(selectedScheduleDay)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-[10px] cursor-pointer transition-all flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 text-slate-200 hover:text-white font-bold text-[10px] cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5"
             title={`Sao chép các ca của ${DAYS_OF_WEEK.find((d) => d.key === selectedScheduleDay)?.labelVi} sang Thứ 2 -> Thứ 6`}
           >
             <Copy className="w-3 h-3 text-slate-400" />
@@ -106,7 +106,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
               onClick={() =>
                 handleCopyScheduleToOtherSubCourts(modalSubCourtTab)
               }
-              className="px-2.5 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 font-bold text-[10px] cursor-pointer transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-full bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/35 text-orange-300 font-bold text-[10px] cursor-pointer transition-colors duration-150 inline-flex items-center gap-1.5"
               title={`Sao chép toàn bộ lịch tuần của ${modalSubCourtTab} sang ${modalSubCourts
                 .filter((sc) => sc !== modalSubCourtTab)
                 .join(', ')}`}
@@ -126,7 +126,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
 
       {/* Inline Copy Feedback */}
       {copyFeedback && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-emerald-500/12 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
           <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
           <span>{copyFeedback}</span>
         </div>
@@ -134,13 +134,13 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
 
       {/* 1. Conditional Sub-court Tabs if hasMultipleSubCourts */}
       {hasMultipleSubCourts && (
-        <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-800/80 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+        <div className="bg-white/[0.03] p-3 rounded-2xl border border-white/10 space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-orange-400 shrink-0" />
               Chọn Sân Con Để Cấu Hình:
             </span>
-            <span className="text-[10px] text-slate-500 font-mono">
+            <span className="text-[10px] text-slate-400 font-mono">
               {modalSubCourts.length} sân con độc lập
             </span>
           </div>
@@ -158,18 +158,18 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
                   key={sc}
                   type="button"
                   onClick={() => setModalSubCourtTab(sc)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  className={`h-8 px-3.5 rounded-full text-xs font-bold border transition-colors duration-150 inline-flex items-center gap-2 cursor-pointer ${
                     isTabActive
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20 ring-1 ring-orange-400'
-                      : 'bg-[#121826] text-slate-400 hover:text-white border border-slate-700/80 hover:border-slate-600'
+                      ? 'bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] text-white border-orange-400/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_16px_rgba(249,115,22,0.28)]'
+                      : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border-white/12'
                   }`}
                 >
                   <span>{sc}</span>
                   <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-mono tabular-nums ${
                       isTabActive
-                        ? 'bg-black/35 text-white'
-                        : 'bg-slate-800 text-slate-400'
+                        ? 'bg-black/25 text-white'
+                        : 'bg-white/[0.06] text-slate-300'
                     }`}
                   >
                     {totalSlots} ca
@@ -182,10 +182,10 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
             <button
               type="button"
               onClick={() => setModalSubCourtTab('__ALL__')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`h-8 px-3.5 rounded-full text-xs font-bold border transition-colors duration-150 inline-flex items-center gap-1.5 cursor-pointer ${
                 modalSubCourtTab === '__ALL__'
-                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20 ring-1 ring-indigo-400'
-                  : 'bg-[#121826] text-slate-400 hover:text-white border border-slate-700/80 hover:border-slate-600'
+                  ? 'bg-indigo-500/25 border-indigo-400/55 text-indigo-100 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
+                  : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border-white/12'
               }`}
             >
               <CheckCheck className="w-3.5 h-3.5" />
@@ -194,7 +194,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
           </div>
 
           {modalSubCourtTab === '__ALL__' ? (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px]">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-indigo-500/12 border border-indigo-400/30 text-indigo-200 text-[11px]">
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
               <span>
                 Chế độ áp dụng chung: Thao tác thêm hoặc xóa ca sẽ đồng thời áp dụng cho tất cả các sân ({modalSubCourts.join(', ')}).
@@ -222,14 +222,14 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
               key={day.key}
               type="button"
               onClick={() => setSelectedScheduleDay(day.key)}
-              className={`px-2 py-2 rounded-xl border text-center transition-all cursor-pointer ${
+              className={`px-2 py-2 rounded-2xl border text-center transition-colors duration-150 cursor-pointer ${
                 isSelected
-                  ? 'bg-orange-500/20 border-orange-500 text-orange-300 font-black shadow-md'
-                  : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 font-semibold'
+                  ? 'bg-orange-500/20 border-orange-500/60 text-orange-200 font-black shadow-[0_0_14px_rgba(249,115,22,0.22)]'
+                  : 'bg-white/[0.03] border-white/10 text-slate-300 hover:bg-white/[0.07] hover:text-white font-semibold'
               }`}
             >
               <div className="text-[11px]">{day.shortVi}</div>
-              <div className="text-[9px] text-slate-400 mt-0.5">
+              <div className="text-[9px] text-slate-400 mt-0.5 tabular-nums">
                 {slotCount} ca
               </div>
             </button>
@@ -239,7 +239,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
 
       {/* Active Day Slots List + Add Slot */}
       <div className="space-y-3 pt-1">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-bold text-slate-200">
             Danh sách ca hoạt động:{' '}
             <span className="text-orange-400">
@@ -255,13 +255,13 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
               </span>
             )}
           </span>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-400 tabular-nums">
             {activeDaySlots.length} khung giờ
           </span>
         </div>
 
         {activeDaySlots.length === 0 ? (
-          <div className="py-5 text-center border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
+          <div className="py-5 px-3 text-center border border-dashed border-white/15 bg-white/[0.02] rounded-2xl text-slate-400 text-xs">
             Chưa có khung ca nào cho ngày này
             {hasMultipleSubCourts && modalSubCourtTab !== '__ALL__'
               ? ` của ${modalSubCourtTab}`
@@ -273,7 +273,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
             {activeDaySlots.map((slot, slotIdx) => (
               <div
                 key={`${slot}-${slotIdx}`}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs font-bold"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/12 text-white font-mono tabular-nums text-xs font-bold"
               >
                 <Clock className="w-3 h-3 text-emerald-400" />
                 <span>{slot}</span>
@@ -282,7 +282,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
                   onClick={() =>
                     handleRemoveSlotFromDay(selectedScheduleDay, slotIdx, slot)
                   }
-                  className="w-4 h-4 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-4 h-4 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 flex items-center justify-center transition-colors duration-150 cursor-pointer"
                   title="Xóa ca này"
                 >
                   <X className="w-2.5 h-2.5" />
@@ -305,12 +305,12 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
               }
             }}
             placeholder="VD: 18:00 - 20:00 hoặc 07:30 - 09:30"
-            className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs outline-none focus:border-orange-500"
+            className="dva-glass-input flex-1 min-w-0 px-3.5 py-2 font-mono tabular-nums text-xs"
           />
           <button
             type="button"
             onClick={handleAddSlotToDay}
-            className="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all shrink-0"
+            className="h-9 px-4 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 font-bold text-xs inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors duration-150 shrink-0"
           >
             <Plus className="w-3.5 h-3.5" /> + Thêm ca
           </button>
@@ -326,7 +326,7 @@ export const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
               key={preset}
               type="button"
               onClick={() => setNewSlotInput(preset)}
-              className="px-2 py-0.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] text-slate-400 hover:text-white font-mono cursor-pointer transition-colors"
+              className="px-2.5 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.1] border border-white/10 text-[10px] text-slate-300 hover:text-white font-mono tabular-nums cursor-pointer transition-colors"
             >
               {preset}
             </button>

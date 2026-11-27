@@ -34,6 +34,8 @@ const TournamentsTab = lazy(() => import('./tabs/TournamentsTab').then((m) => ({
 const VenuesTab = lazy(() => import('./tabs/VenuesTab').then((m) => ({ default: m.VenuesTab })));
 const MemberPortalTab = lazy(() => import('./tabs/MemberPortalTab').then((m) => ({ default: m.MemberPortalTab })));
 
+import { AdminTabId } from './types';
+
 const HUB_ALLOWED_ROLES = new Set(['SUPERADMIN', 'ADMIN', 'CAPTAIN', 'COACH', 'PLAYER', 'STAFF']);
 
 const AdminTabLoadingFallback: React.FC = () => (
@@ -79,10 +81,22 @@ const AdminDashboardShell: React.FC = () => {
   const { isAdmin, isSuperAdmin, isCaptain, isMemberPortal, onOpenSheets, activeModule } =
     useAdminDashboard();
   const mainScrollRef = React.useRef<HTMLDivElement>(null);
+  const [visitedModules, setVisitedModules] = React.useState<Set<AdminTabId>>(
+    () => new Set([activeModule])
+  );
 
   React.useEffect(() => {
-    mainScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    setVisitedModules((prev) => {
+      if (prev.has(activeModule)) return prev;
+      const next = new Set(prev);
+      next.add(activeModule);
+      return next;
+    });
+    mainScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeModule]);
+
+  const isVenuesActive = activeModule === 'VENUES' || activeModule === 'CAPTAIN_PROFILE';
+  const hasVisitedVenues = visitedModules.has('VENUES') || visitedModules.has('CAPTAIN_PROFILE');
 
   return (
     <div className="dva-dashboard-shell relative h-[100dvh] bg-[#0B0D12] text-white flex overflow-hidden">
@@ -104,56 +118,112 @@ const AdminDashboardShell: React.FC = () => {
         <AdminHeader />
 
         {/* Main Workspace Body */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 pb-28 md:pb-10 space-y-6">
+        <main className="flex-1 w-full max-w-[1440px] mx-auto px-3 sm:px-5 lg:px-6 pt-4 pb-28 md:pb-10 space-y-6">
           {/* Notification feedback */}
           <FeedbackBanner />
 
-          {/* MODULE 1: ADMIN / SUPERADMIN OVERVIEW & ANALYTICS */}
-          {activeModule === 'OVERVIEW' && isAdmin && <OverviewTab />}
+          {/* MODULE 1: ADMIN / SUPERADMIN OVERVIEW & ANALYTICS (Keep-Alive after first visit) */}
+          {visitedModules.has('OVERVIEW') && isAdmin && (
+            <div className={activeModule === 'OVERVIEW' ? '' : 'hidden'}>
+              <OverviewTab />
+            </div>
+          )}
 
-          {/* SECONDARY & ROLE-SPECIFIC MODULES (Lazy-Loaded & Suspense-Wrapped) */}
+          {/* SECONDARY & ROLE-SPECIFIC MODULES (Lazy-Loaded on first visit, Keep-Alive via hidden CSS for 0ms revisit) */}
           <Suspense fallback={<AdminTabLoadingFallback />}>
             {/* COACH / PLAYER / STAFF SPATIAL PORTAL */}
             {isMemberPortal && <MemberPortalTab />}
 
             {/* MODULE 2: COURTS CRUD, WEEKLY SCHEDULE & LIVE SLOT LOCK MANAGEMENT */}
-            {activeModule === 'COURTS' && isSuperAdmin && <CourtsTab />}
+            {visitedModules.has('COURTS') && isSuperAdmin && (
+              <div className={activeModule === 'COURTS' ? '' : 'hidden'}>
+                <CourtsTab />
+              </div>
+            )}
 
             {/* MODULE 3: COURT BOOKINGS & PAYMENT APPROVAL */}
-            {activeModule === 'BOOKINGS' && isSuperAdmin && <BookingsTab />}
+            {visitedModules.has('BOOKINGS') && isSuperAdmin && (
+              <div className={activeModule === 'BOOKINGS' ? '' : 'hidden'}>
+                <BookingsTab />
+              </div>
+            )}
 
             {/* MODULE 4: MEMBER APPLICATIONS & AUTO-PLAYER PROMOTION */}
-            {activeModule === 'APPLICATIONS' && isAdmin && <ApplicationsTab />}
+            {visitedModules.has('APPLICATIONS') && isAdmin && (
+              <div className={activeModule === 'APPLICATIONS' ? '' : 'hidden'}>
+                <ApplicationsTab />
+              </div>
+            )}
 
             {/* MODULE 5: SQUAD ROSTER CRUD WITH SEARCH */}
-            {activeModule === 'PLAYERS' && isSuperAdmin && <PlayersTab />}
+            {visitedModules.has('PLAYERS') && isSuperAdmin && (
+              <div className={activeModule === 'PLAYERS' ? '' : 'hidden'}>
+                <PlayersTab />
+              </div>
+            )}
 
             {/* MODULE 6: ACADEMY COURSES & SCRIMMAGE TRAINEES */}
-            {activeModule === 'TRAINING' && isSuperAdmin && <TrainingTab />}
+            {visitedModules.has('TRAINING') && isSuperAdmin && (
+              <div className={activeModule === 'TRAINING' ? '' : 'hidden'}>
+                <TrainingTab />
+              </div>
+            )}
 
             {/* MODULE 7: COACHING STAFF MANAGEMENT */}
-            {activeModule === 'COACHES' && isSuperAdmin && <CoachesTab />}
+            {visitedModules.has('COACHES') && isSuperAdmin && (
+              <div className={activeModule === 'COACHES' ? '' : 'hidden'}>
+                <CoachesTab />
+              </div>
+            )}
 
             {/* MODULE 7B: HOME LEADERSHIP & OPERATIONS TEAM (SUPERADMIN only) */}
-            {activeModule === 'LEADERSHIP' && isSuperAdmin && <LeadershipTab />}
+            {visitedModules.has('LEADERSHIP') && isSuperAdmin && (
+              <div className={activeModule === 'LEADERSHIP' ? '' : 'hidden'}>
+                <LeadershipTab />
+              </div>
+            )}
 
             {/* MODULE 8: NEWS & STORY PUBLISHING */}
-            {activeModule === 'NEWS' && isAdmin && <NewsTab />}
+            {visitedModules.has('NEWS') && isAdmin && (
+              <div className={activeModule === 'NEWS' ? '' : 'hidden'}>
+                <NewsTab />
+              </div>
+            )}
 
             {/* MODULE 9: USER ACCOUNT MANAGEMENT (SUPERADMIN only) */}
-            {activeModule === 'USERS' && isSuperAdmin && <UsersTab />}
+            {visitedModules.has('USERS') && isSuperAdmin && (
+              <div className={activeModule === 'USERS' ? '' : 'hidden'}>
+                <UsersTab />
+              </div>
+            )}
 
             {/* MODULE 10: GOOGLE SHEETS LIVE SYNC INSPECTOR */}
-            {activeModule === 'SHEETS' && isSuperAdmin && <SheetsTab onOpenSheets={onOpenSheets} />}
+            {visitedModules.has('SHEETS') && isSuperAdmin && (
+              <div className={activeModule === 'SHEETS' ? '' : 'hidden'}>
+                <SheetsTab onOpenSheets={onOpenSheets} />
+              </div>
+            )}
 
             {/* MODULE 11: DVA STORE */}
-            {activeModule === 'STORE' && isSuperAdmin && <StoreTab />}
+            {visitedModules.has('STORE') && isSuperAdmin && (
+              <div className={activeModule === 'STORE' ? '' : 'hidden'}>
+                <StoreTab />
+              </div>
+            )}
 
             {/* MODULE 12: TOURNAMENTS */}
-            {activeModule === 'TOURNAMENTS' && isAdmin && <TournamentsTab />}
+            {visitedModules.has('TOURNAMENTS') && isAdmin && (
+              <div className={activeModule === 'TOURNAMENTS' ? '' : 'hidden'}>
+                <TournamentsTab />
+              </div>
+            )}
 
             {/* MODULE 13: COURT MAP & VENUES (SUPERADMIN & CAPTAIN self-service) */}
-            {(activeModule === 'VENUES' || activeModule === 'CAPTAIN_PROFILE') && (isSuperAdmin || isCaptain) && <VenuesTab />}
+            {hasVisitedVenues && (isSuperAdmin || isCaptain) && (
+              <div className={isVenuesActive ? '' : 'hidden'}>
+                <VenuesTab />
+              </div>
+            )}
           </Suspense>
         </main>
       </div>

@@ -2,8 +2,8 @@
 
 **Feature Branch**: `001-system-overview`  
 **Created**: 2026-11-03  
-**Last Reviewed**: 2026-11-25  
-**Status**: Historical Baseline (Extended by Specs `005`, `007`, `008`, `009`, `010` and `./ARCHITECTURE.md`)  
+**Last Reviewed**: 2026-11-28  
+**Status**: Historical Baseline (Extended by Specs `005`, `007`, `008`, `009`, `010`, `011`, `012`, `013`, `014` and `./ARCHITECTURE.md`)  
 
 **Input**: User description: "Tạo một baseline specification tổng quan về hiện trạng hệ thống dva-final dựa trên ARCHITECTURE.md và cấu trúc thư mục src/. Đặt tên spec là specs/system-overview.md."
 
@@ -12,7 +12,7 @@
 > - **Modular Backend & Infrastructure:** Production DB migrated from Render/Neon to **Supabase PostgreSQL** (`ap-southeast-1`, Pooler IPv4 `:6543` / `:5432`); monolithic `server.ts` & `lib/*` refactored into `server/` (`server/index.ts`, `server/config/*`, `server/middlewares/*`, `server/modules/*`, `server/utils/*`) with FinOps (`releaseExpiredHolds`, `dbCircuitBreaker`, `appCache` TTL + `src/utils/swrCache.ts`).
 > - **Frontend Telemetry & Analytics:** Integrated **Vercel Web Analytics** (`@vercel/analytics` `^2.0.1`, `<Analytics />` from `@vercel/analytics/react` mounted inside `<BrowserRouter>` in `src/App.tsx`) to track zero-bloat SPA pageviews and top routes on `dva-volleyball-hanoi.com`.
 > - **Added Public Modules & Localization:** Added **DVA Shop** (`/shop`), **Tournaments & Leagues** (`/tournaments/*`, Spec 008 + `BO1_25` + mobile responsive layout), **Hanoi Volleyball Court Map & Club Profiles** (`/services/court-map`, `/services/court-map/teams/:slug`, Spec 009 — per-date `cancelledDates`, `dailyOverrides`, `genderRule`, `skillRankLabel`, date-aware `LIVE`/`SCHEDULED`), **Try-Out Guide** (`/information/try-out`, `TryoutPage.tsx`, `tryout` i18n namespace alongside `common`, `news`, `tournaments`), and **USAV Skill Levels Classification & System-Wide `skillRank`** (`/information/skill-levels`, Spec 010 — single-language `vi`-default / `en` switcher, official USAV 2026 rules/PDF links, `USAV ↔ DVA Squad` equivalence, `Players`/`Roster Squad` rank chips & inline `PATCH`, `Tryout Scorecard` rank sync on `APPROVED`, and `Training`/`Court Map` USAV badges).
-> - **Admin Hub & RBAC Hardening:** Expanded to **13 tabs across 4 groups** + scoped **`CAPTAIN` 2-tab Portal** (`📅 Lịch Chơi & Slot Ca`, `🛡️ Hồ Sơ & Ảnh Đội`, locked contact fields & 30-day Cloudinary media quotas, Spec 009), lazy-loaded per tab (`useAdminData.ts`), enforcing `ADMIN_ALLOWED_TABS` & `CAPTAIN_ALLOWED_RULES`, `SUPERADMIN` Master–Detail venues workspace, and `!isHubAllowed` + `<AdminDashboardProvider key={currentUser.id}>` + `request()` token-staleness guards eliminating `401` sign-out/sign-in races.
+> - **Admin Hub, Spatial Glassmorphism & Render Performance (Specs `011`–`014`):** Expanded to **13 tabs across 4 groups** + scoped **`CAPTAIN` 2-tab Portal** + **`COACH`/`PLAYER` Spatial Portal**, unified under Spatial Dark Glassmorphism (`#0B0D12` ambient mesh, transparent sticky `AdminHeader` + `max-w-[1440px]` workspace, `VenuesTab` custom `UsavRankDropdown`, `CourtsTab`/`SlotLockPanel`/`CourtFormModal` glass sync, `ApplicationsTab` rebalanced columns), single-layer `backdrop-blur` GPU compositing policy (-90% nested blur layers), **Instant Label Paint** for static buttons/filters, `0ms` keep-alive tab caching (`visitedModules` + `hidden`), and parallel `Promise.allSettled` API initialization (`useAdminData.ts`).
 
 ## User Scenarios & Testing *(mandatory)*
 

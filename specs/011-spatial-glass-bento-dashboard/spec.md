@@ -2,6 +2,7 @@
 
 **Feature ID**: `011-spatial-glass-bento-dashboard`  
 **Created**: 2026-11-26  
+**Last Updated**: 2026-11-28 (Extended by `014-spatial-glass-polish-perf`)  
 **Status**: Implemented & Verified  
 
 ## 1. Objective & Scope
@@ -26,7 +27,7 @@ Upgrade the entire DVA Club management dashboard (`/admin/dashboard`) across **a
   - Displays role-specific navigation icons with an elevated active pill (`bg-white text-slate-950`) and non-clipped hover tooltips showing module name & badge count.
   - On Mobile (`< lg`), renders as a compact floating bottom pill dock (`fixed bottom-3 left-3 right-3 rounded-full`) with quick role icons and a glass drawer toggle when a role has more than 5 modules.
 - **Top Floating Glass Bar**:
-  - Floating rounded pill bar (`rounded-full bg-white/[0.05] backdrop-blur-2xl border border-white/10`) containing quick search, contextual sub-navigation pill tabs, quick actions, and user identity + role badge dropdown on the right.
+  - Floating rounded pill bar (`rounded-full bg-[#10131C]/65 backdrop-blur-2xl border border-white/12`) inside a fully transparent sticky wrapper (`bg-transparent pointer-events-none`) aligned at `max-w-[1440px]` with `<main>`, containing quick search, contextual sub-navigation pill tabs, quick actions, and user identity + role badge dropdown on the right.
 
 ### 3.2. Bento Grid & Pure SVG Visualizations
 - **3-Column Overview KPI Row (`grid-cols-1 md:grid-cols-3 gap-4`)**:
@@ -40,8 +41,9 @@ Upgrade the entire DVA Club management dashboard (`/admin/dashboard`) across **a
   - Gradient glass cards (`rounded-3xl border border-white/15`) cycling subtle top-to-bottom gradients (`from-orange-500/25`, `from-rose-600/25`, `from-emerald-500/25`, `from-indigo-500/25` to `to-white/[0.03]`).
   - Centered `RingGauge` displaying fill/progress percentage, bottom category badge, title, 2-line description, and white circular action button (`w-9 h-9 rounded-full bg-white text-slate-900`) at bottom-right.
 
-### 3.3. Full Tab Preservation & Glassmorphism Unification
-- Wrap/upgrade containers across all existing tabs (`Tryout Applications`, `Staff & Roles`, `Roster Squad`, `Court Schedule & Slots`, `Leadership Team`, `Google Sheets Sync`, `Bookings`, `Training`, `Coaches`, `News`, `Store`, `Tournaments`, `Venues`, `Overview`) to `rounded-3xl bg-white/[0.04] backdrop-blur-xl border border-white/10` while keeping 100% of interactive features intact.
+### 3.3. Full Tab Preservation, Glassmorphism Unification & GPU Performance (Extended by Spec 014)
+- Wrap/upgrade containers across all existing tabs (`Tryout Applications`, `Staff & Roles`, `Roster Squad`, `Court Schedule & Slots`, `Leadership Team`, `Google Sheets Sync`, `Bookings`, `Training`, `Coaches`, `News`, `Store`, `Tournaments`, `Venues`, `Overview`) to `.dva-glass-panel` while keeping 100% of interactive features intact.
+- See `specs/014-spatial-glass-polish-perf/spec.md` for full inner-control glass unification (`VenuesTab`, `CourtsTab`, `CourtFormModal`), single-layer `backdrop-blur` GPU performance rules, Instant Label Paint, `ApplicationsTab` column rebalancing, and `0ms` keep-alive tab caching.
 
 ## 4. Verification Criteria
 - Visual and responsive layout verification across `SUPERADMIN`, `ADMIN`, `CAPTAIN`, `COACH`, and `PLAYER` on Desktop (`1440px`) and Mobile (`375px`).

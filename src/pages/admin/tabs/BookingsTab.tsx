@@ -133,36 +133,12 @@ export const BookingsTab: React.FC = () => {
     safePage * BOOKINGS_PAGE_SIZE
   );
 
-  if (!loadedScopes.has('BOOKINGS')) {
-    return (
-      <div className="dva-glass-panel rounded-3xl p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-          <div className="space-y-2">
-            <div className="dva-skeleton-bar h-5 w-64 max-w-full" />
-            <div className="dva-skeleton-bar h-3 w-80 max-w-full" />
-          </div>
-          <div className="dva-skeleton h-9 w-36 rounded-full" />
-        </div>
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, idx) => (
-            <div key={idx} className="dva-skeleton p-4 rounded-2xl h-16 flex items-center justify-between gap-4">
-              <div className="space-y-2 flex-1">
-                <div className="dva-skeleton-bar h-3.5 w-44" />
-                <div className="dva-skeleton-bar h-2.5 w-56 max-w-full" />
-              </div>
-              <div className="dva-skeleton-bar h-7 w-24 rounded-full shrink-0" />
-            </div>
-          ))}
-        </div>
-        <SlowServerPill active />
-      </div>
-    );
-  }
+  const isBookingsLoaded = loadedScopes.has('BOOKINGS');
 
   return (
     <>
-      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-4 dva-content-reveal">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="dva-glass-panel rounded-3xl p-4 sm:p-6 space-y-4 dva-content-reveal">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <h3 className="font-bold text-base text-white">
               Court Reservations & VietQR Payment Approvals
@@ -172,11 +148,11 @@ export const BookingsTab: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setActiveModule('COURTS')}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-700 cursor-pointer"
+              className="h-9 px-3.5 bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white font-bold text-xs rounded-full inline-flex items-center gap-1.5 border border-white/12 cursor-pointer transition-colors duration-150"
             >
               <Calendar className="w-4 h-4 text-orange-400" />
               <span>Xem Lịch Ca Sân Trực Quan</span>
@@ -206,7 +182,7 @@ export const BookingsTab: React.FC = () => {
                 });
                 setIsBookingModalOpen(true);
               }}
-              className="px-4 py-2 bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow cursor-pointer shrink-0"
+              className="h-9 px-4 bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white font-bold text-xs rounded-full inline-flex items-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] cursor-pointer shrink-0 transition-colors duration-150"
             >
               <Plus className="w-4 h-4" />
               <span>Tạo Đặt Sân Thủ Công</span>
@@ -215,9 +191,9 @@ export const BookingsTab: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
-          <table className="w-full min-w-[720px] text-xs text-left border-collapse">
+          <table className="w-full min-w-[740px] text-xs text-left border-collapse">
             <thead>
-              <tr className="bg-[#0E1524] text-slate-400 font-bold border-b border-slate-800">
+              <tr className="bg-white/[0.04] text-slate-300 font-bold border-b border-white/10">
                 <th className="py-3 px-3">Booking Code / Date</th>
                 <th className="py-3 px-3">Court / Slot</th>
                 <th className="py-3 px-3">Customer Contact</th>
@@ -227,14 +203,35 @@ export const BookingsTab: React.FC = () => {
                 <th className="py-3 px-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800 text-slate-300">
-              {paginatedBookings.map((b) => (
-                <tr key={b.id} className="hover:bg-slate-800/40">
-                  <td className="py-3 px-3 font-mono">
+            <tbody className="divide-y divide-white/[0.07] text-slate-300">
+              {!isBookingsLoaded ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`sk-${idx}`}>
+                    <td colSpan={7} className="py-3 px-3">
+                      <div className="dva-skeleton p-3.5 rounded-2xl flex items-center justify-between gap-4">
+                        <div className="space-y-2 flex-1">
+                          <div className="dva-skeleton-bar h-3.5 w-44" />
+                          <div className="dva-skeleton-bar h-2.5 w-56 max-w-full" />
+                        </div>
+                        <div className="dva-skeleton-bar h-7 w-24 rounded-full shrink-0" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : paginatedBookings.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-slate-500">
+                    Chưa có đơn đặt sân nào.
+                  </td>
+                </tr>
+              ) : (
+                paginatedBookings.map((b) => (
+                <tr key={b.id} className="hover:bg-white/[0.035] transition-colors duration-150">
+                  <td className="py-3 px-3 font-mono tabular-nums">
                     <span className="font-bold text-white block">
                       {b.bookingCode}
                     </span>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-[10px] text-slate-400">
                       {b.bookingDate}
                     </span>
                   </td>
@@ -245,12 +242,12 @@ export const BookingsTab: React.FC = () => {
                         {b.courtName}
                       </span>
                       {b.subCourt && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-orange-950 text-orange-300 border border-orange-800">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/15 text-orange-300 border border-orange-500/35">
                           {b.subCourt}
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-slate-400 tabular-nums">
                       {b.startTime} - {b.endTime} ({b.totalHours}h)
                     </span>
                   </td>
@@ -259,7 +256,7 @@ export const BookingsTab: React.FC = () => {
                     <span className="font-semibold text-white block">
                       {b.customerName}
                     </span>
-                    <span className="font-mono text-[11px] text-slate-400">
+                    <span className="font-mono text-[11px] text-slate-400 tabular-nums">
                       {b.customerPhone}
                     </span>
                   </td>
@@ -274,18 +271,18 @@ export const BookingsTab: React.FC = () => {
                     )}
                   </td>
 
-                  <td className="py-3 px-3 font-mono font-bold text-orange-400 text-xs">
+                  <td className="py-3 px-3 font-mono font-bold tabular-nums text-orange-400 text-xs whitespace-nowrap">
                     {b.totalPrice.toLocaleString('vi-VN')} đ
                   </td>
 
                   <td className="py-3 px-3">
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-block ${
                         b.paymentStatus === 'PAID'
-                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                          ? 'bg-emerald-500/12 text-emerald-300 border-emerald-500/30'
                           : b.paymentStatus === 'CANCELLED'
-                          ? 'bg-slate-800 text-slate-400 border border-slate-700'
-                          : 'bg-amber-950 text-amber-300 border border-amber-800'
+                          ? 'bg-white/[0.05] text-slate-400 border-white/10'
+                          : 'bg-amber-500/15 text-amber-300 border-amber-500/35'
                       }`}
                     >
                       {b.paymentStatus}
@@ -306,7 +303,7 @@ export const BookingsTab: React.FC = () => {
                             onClick={() =>
                               handleUpdateBookingStatus(b.id, 'PAID')
                             }
-                            className="min-h-[40px] px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-xl transition-colors cursor-pointer"
+                            className="h-8 px-3 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35 font-bold text-[11px] rounded-full transition-colors duration-150 cursor-pointer whitespace-nowrap"
                           >
                             Approve Paid
                           </button>
@@ -315,7 +312,7 @@ export const BookingsTab: React.FC = () => {
                             onClick={() =>
                               handleUpdateBookingStatus(b.id, 'CANCELLED')
                             }
-                            className="min-h-[40px] px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded-xl transition-colors cursor-pointer"
+                            className="h-8 px-3 bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 text-slate-300 hover:text-white text-[11px] rounded-full transition-colors duration-150 cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -328,26 +325,28 @@ export const BookingsTab: React.FC = () => {
                           setBookingForm(b);
                           setIsBookingModalOpen(true);
                         }}
-                        className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-300 hover:text-white rounded-xl bg-slate-800/80 hover:bg-slate-700 cursor-pointer transition-colors"
+                        className="w-8 h-8 rounded-full bg-white/[0.05] border border-white/12 flex items-center justify-center text-slate-300 hover:bg-orange-500/15 hover:border-orange-500/35 hover:text-orange-300 cursor-pointer transition-colors duration-150 shrink-0"
                         title="Chỉnh sửa thông tin đặt sân"
                       >
-                        <Edit3 className="w-4 h-4 text-orange-400" />
+                        <Edit3 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteBooking(b.id, b.bookingCode)}
-                        className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-red-300 rounded-xl bg-slate-800/80 hover:bg-red-950/80 cursor-pointer transition-colors"
+                        className="w-8 h-8 rounded-full bg-white/[0.05] border border-white/12 flex items-center justify-center text-slate-400 hover:bg-rose-500/15 hover:border-rose-500/35 hover:text-rose-300 cursor-pointer transition-colors duration-150 shrink-0"
                         title="Xóa đơn đặt sân"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
+        {!isBookingsLoaded && <SlowServerPill active />}
         <Pagination
           currentPage={safePage}
           totalItems={bookings.length}

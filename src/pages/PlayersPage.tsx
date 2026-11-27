@@ -282,7 +282,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ currentUser }) => {
               </div>
             )}
             <span
-              className="absolute bottom-2 right-2 bg-[#0B0D12]/85 backdrop-blur-md border border-orange-500/40 text-orange-400 font-sans tabular-nums font-bold text-xs px-2 py-0.5 rounded-lg shadow-lg"
+              className="absolute bottom-2 right-2 bg-[#0B0D12]/90 border border-orange-500/40 text-orange-400 font-sans tabular-nums font-bold text-xs px-2 py-0.5 rounded-lg shadow-lg"
               aria-label={`Jersey number ${player.jerseyNumber}`}
             >
               #{player.jerseyNumber}

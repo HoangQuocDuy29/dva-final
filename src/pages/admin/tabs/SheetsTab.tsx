@@ -27,11 +27,11 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
   const [syncTestMessage, setSyncTestMessage] = useState<string | null>(null);
 
   return (
-    <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-950 text-emerald-400 border border-emerald-800">
+    <div className="dva-glass-panel rounded-3xl p-4 sm:p-6 space-y-6 dva-content-reveal">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/35">
               Google Sheets Auto-Sync Webhook
             </span>
             {googleScriptUrl ? (
@@ -46,19 +46,19 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
               </span>
             )}
           </div>
-          <h3 className="font-heading font-black text-xl text-white mt-1">
+          <h3 className="font-heading font-black text-xl text-white mt-1.5">
             Đồng Bộ Dữ Liệu Tự Động Về Google Sheets (Mỗi Form 1 Sheet)
           </h3>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 mt-0.5">
             Mỗi khi có người điền form (Đặt Sân, Đăng Ký Khóa Học, Tuyển Thành Viên, Đơn Hàng DVA Shop), hệ thống sẽ tự động bắn webhook gửi dữ liệu về Google Sheets theo từng Sheet riêng biệt trong cùng 1 file trang tính của CLB.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={handleOpenSheets}
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer border border-slate-700"
+            className="h-9 px-4 bg-white/[0.06] hover:bg-white/[0.12] text-white font-bold text-xs rounded-full inline-flex items-center gap-1.5 cursor-pointer border border-white/12 transition-colors duration-150"
           >
             <Table className="w-4 h-4 text-emerald-400" />
             <span>Open Live Data Inspector</span>
@@ -67,7 +67,7 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
       </div>
 
       {/* URL INPUT & SAVE/TEST ACTION */}
-      <div className="bg-[#0E1524] p-5 rounded-2xl border border-slate-800 space-y-3">
+      <div className="bg-white/[0.03] p-4 sm:p-5 rounded-2xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] space-y-3">
         <label className="block text-xs font-bold text-slate-200">
           1. Google Apps Script Web App Deployment URL:
         </label>
@@ -77,7 +77,7 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
             placeholder="https://script.google.com/macros/s/AKfycb.../exec"
             value={googleScriptUrl}
             onChange={(e) => setGoogleScriptUrl(e.target.value)}
-            className="flex-1 px-3.5 py-2.5 bg-[#080C14] border border-slate-700 rounded-xl text-white text-xs font-mono outline-none focus:ring-2 focus:ring-red-500"
+            className="flex-1 px-3.5 py-2.5 dva-glass-input text-xs font-mono"
           />
           <button
             type="button"
@@ -85,7 +85,7 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
               await googleScriptSyncService.setScriptUrl(googleScriptUrl);
               notify('Google Apps Script URL saved and synchronized to server!', 3500);
             }}
-            className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors shrink-0"
+            className="h-10 px-4 bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white font-bold text-xs rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] cursor-pointer transition-colors duration-150 shrink-0"
           >
             Save Configuration
           </button>
@@ -189,14 +189,14 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
                 setIsTestingSync(false);
               }
             }}
-            className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-colors shrink-0"
+            className="h-10 px-4 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 disabled:opacity-50 text-emerald-300 font-bold text-xs rounded-full cursor-pointer transition-colors duration-150 shrink-0"
           >
             {isTestingSync ? 'Sending...' : 'Test Send to Sheet'}
           </button>
         </div>
 
         {syncTestMessage && (
-          <div className="p-3 bg-emerald-950/60 border border-emerald-700 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
+          <div className="p-3 bg-emerald-500/12 border border-emerald-500/35 rounded-2xl text-xs text-emerald-300 flex items-center gap-2">
             <CheckCheck className="w-4 h-4 shrink-0" />
             <span>{syncTestMessage}</span>
           </div>
@@ -205,40 +205,40 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
 
       {/* 4 SHEETS INFO CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-        <div className="p-4 rounded-2xl bg-[#0E1524] border border-slate-800 space-y-1.5">
-          <div className="flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.055] border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] space-y-1.5 transition-colors duration-150">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-bold text-white">Tab: DatSan</span>
-            <span className="px-2 py-0.5 rounded text-[9px] bg-red-950 text-red-300 border border-red-800">Court Bookings</span>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/35">Court Bookings</span>
           </div>
           <p className="text-slate-400 text-[11px] leading-relaxed">
             Stores booking code, court, date, session, athlete name, phone, email, fee, VietQR memo, and payment status.
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0E1524] border border-slate-800 space-y-1.5">
-          <div className="flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.055] border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] space-y-1.5 transition-colors duration-150">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-bold text-white">Tab: DangKyKhoaHoc</span>
-            <span className="px-2 py-0.5 rounded text-[9px] bg-orange-950 text-orange-300 border border-orange-800">Training</span>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500/15 text-orange-300 border border-orange-500/35">Training</span>
           </div>
           <p className="text-slate-400 text-[11px] leading-relaxed">
             Stores scrimmage matchplay and 1-on-1 private masterclass enrollments, skill tier, preferred slot, and contact details.
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0E1524] border border-slate-800 space-y-1.5">
-          <div className="flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.055] border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] space-y-1.5 transition-colors duration-150">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-bold text-white">Tab: TuyenThanhVien</span>
-            <span className="px-2 py-0.5 rounded text-[9px] bg-blue-950 text-blue-300 border border-blue-800">Tryouts</span>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/35">Tryouts</span>
           </div>
           <p className="text-slate-400 text-[11px] leading-relaxed">
             Stores athlete recruit applications: position, division, height, spike reach, block reach, Zalo, and 5-1 knowledge.
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0E1524] border border-slate-800 space-y-1.5">
-          <div className="flex items-center justify-between">
+        <div className="p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.055] border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] space-y-1.5 transition-colors duration-150">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-bold text-white">Tab: DonHang_Shop</span>
-            <span className="px-2 py-0.5 rounded text-[9px] bg-purple-950 text-purple-300 border border-purple-800">DVA Store</span>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/35">DVA Store</span>
           </div>
           <p className="text-slate-400 text-[11px] leading-relaxed">
             Stores DVA Shop merchandise orders, jersey printing specs, court pick-up / COD delivery, VietQR memo, and idempotent status updates.
@@ -247,10 +247,10 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
       </div>
 
       {/* SCRIPT CODE BOX & 4 STEPS SETUP GUIDE */}
-      <div className="bg-[#0E1524] p-5 rounded-2xl border border-slate-800 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+      <div className="bg-white/[0.03] p-4 sm:p-5 rounded-2xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
-            <Code className="w-4 h-4 text-orange-400" />
+            <Code className="w-4 h-4 text-orange-400 shrink-0" />
             <span className="font-bold text-white text-xs">
               Updated Google Apps Script Code (Copy & Paste into Apps Script)
             </span>
@@ -262,7 +262,7 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
               setScriptCopied(true);
               setTimeout(() => setScriptCopied(false), 3000);
             }}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer border border-slate-700"
+            className="h-8 px-3.5 bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 text-xs font-bold rounded-full inline-flex items-center gap-1.5 cursor-pointer border border-white/12 transition-colors duration-150 shrink-0"
           >
             {scriptCopied ? (
               <>
@@ -280,25 +280,25 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
 
         {/* 4-Step Guide */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-[11px] text-slate-300">
-          <div className="p-3 bg-[#080C14] rounded-xl border border-slate-800/80 space-y-1">
+          <div className="p-3 bg-white/[0.025] rounded-xl border border-white/[0.08] space-y-1">
             <span className="font-bold text-orange-400">Step 1: Open Google Sheet</span>
             <p className="text-slate-400">
               Create a new Google Spreadsheet on your Google Drive (e.g. named <em>DVA Volleyball Database</em>).
             </p>
           </div>
-          <div className="p-3 bg-[#080C14] rounded-xl border border-slate-800/80 space-y-1">
+          <div className="p-3 bg-white/[0.025] rounded-xl border border-white/[0.08] space-y-1">
             <span className="font-bold text-orange-400">Step 2: Open Apps Script</span>
             <p className="text-slate-400">
               On the Google Sheets top menu, click <strong>Extensions</strong> &gt; <strong>Apps Script</strong>.
             </p>
           </div>
-          <div className="p-3 bg-[#080C14] rounded-xl border border-slate-800/80 space-y-1">
+          <div className="p-3 bg-white/[0.025] rounded-xl border border-white/[0.08] space-y-1">
             <span className="font-bold text-orange-400">Step 3: Paste Code & Save</span>
             <p className="text-slate-400">
               Replace all existing code in <code className="text-slate-200">Code.gs</code> with the copied code above, and click <strong>Save</strong>.
             </p>
           </div>
-          <div className="p-3 bg-[#080C14] rounded-xl border border-slate-800/80 space-y-1">
+          <div className="p-3 bg-white/[0.025] rounded-xl border border-white/[0.08] space-y-1">
             <span className="font-bold text-orange-400">Step 4: Deploy Web App</span>
             <p className="text-slate-400">
               Click <strong>Deploy</strong> &gt; <strong>New deployment</strong> &gt; select <strong>Web app</strong>. Set <em>Who has access</em> to <strong>Anyone</strong>. Copy the Web App URL and paste it into the field above.
@@ -307,7 +307,7 @@ export const SheetsTab: React.FC<SheetsTabProps> = ({ onOpenSheets: onOpenSheets
         </div>
 
         {/* Readonly script snippet */}
-        <pre className="p-3.5 bg-[#080C14] rounded-xl border border-slate-800 text-[10px] font-mono text-slate-300 max-h-52 overflow-y-auto no-scrollbar leading-relaxed">
+        <pre className="p-3.5 bg-black/35 rounded-xl border border-white/10 text-[10px] font-mono text-slate-300 max-h-52 overflow-y-auto no-scrollbar leading-relaxed">
           {GOOGLE_APPS_SCRIPT_TEMPLATE}
         </pre>
       </div>

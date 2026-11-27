@@ -45,10 +45,10 @@ export const CourtsTab: React.FC = () => {
   } = useCourtCrud();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 dva-content-reveal">
       {/* 1. COURTS LIST CRUD & WEEKLY SCHEDULE OVERVIEW */}
-      <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="dva-glass-panel rounded-3xl p-4 sm:p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <h3 className="font-heading font-black text-lg text-white">
               Quản Lý Hệ Thống Sân & Khung Giờ Hàng Tuần (Courts & Weekly Schedule CRUD)
@@ -60,7 +60,7 @@ export const CourtsTab: React.FC = () => {
           <button
             type="button"
             onClick={handleOpenAddCourtModal}
-            className="px-4 py-2.5 bg-gradient-to-r from-red-600 to-orange-500 hover:brightness-110 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-lg cursor-pointer self-start sm:self-auto shrink-0"
+            className="h-9 px-4 rounded-full bg-gradient-to-r from-[#B91C1C] via-[#EA580C] to-[#F97316] hover:brightness-110 text-white font-bold text-xs inline-flex items-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(249,115,22,0.3)] cursor-pointer self-start sm:self-auto shrink-0 transition-colors transition-transform duration-150"
           >
             <Plus className="w-4 h-4" />
             <span>Thêm Sân Mới</span>

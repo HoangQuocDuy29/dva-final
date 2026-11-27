@@ -192,9 +192,9 @@ export const AdminHeader: React.FC = () => {
 
   return (
     <>
-      <div className="sticky top-0 z-40 pt-3 pb-2 px-3 sm:px-6 lg:px-8 shrink-0 bg-gradient-to-b from-[#0B0D12] via-[#0B0D12]/90 to-transparent">
-        <div ref={profileDropdownRef} className="relative w-full max-w-7xl mx-auto">
-        <header className="w-full max-w-full overflow-hidden min-h-[52px] sm:h-14 px-3 py-2 sm:px-4 rounded-full bg-white/[0.05] backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/40 flex items-center gap-1.5 sm:gap-3">
+      <div className="sticky top-0 z-40 pt-3 pb-2 px-3 sm:px-5 lg:px-6 shrink-0 bg-transparent pointer-events-none">
+        <div ref={profileDropdownRef} className="relative w-full max-w-[1440px] mx-auto pointer-events-none">
+        <header className="pointer-events-auto w-full max-w-full overflow-hidden min-h-[52px] sm:h-14 px-3 py-2 sm:px-4 rounded-full bg-[#10131C]/65 backdrop-blur-2xl border border-white/12 shadow-[0_12px_36px_rgba(0,0,0,0.28)] flex items-center gap-1.5 sm:gap-3">
           {/* Compact active module badge + Vietnam time-of-day greeting (all 5 roles) */}
           <div className="min-w-0 flex-1 lg:flex-none lg:max-w-[235px] flex flex-col pl-0.5 pr-1">
             <span className="text-[10px] font-semibold text-orange-300/95 leading-none truncate" title={greetingText}>
@@ -347,7 +347,7 @@ export const AdminHeader: React.FC = () => {
           <div
             role="menu"
             aria-label="Profile options"
-            className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-3xl bg-[#111520]/95 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/80 py-2 z-50 text-xs"
+            className="pointer-events-auto absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] rounded-3xl bg-[#111520]/95 backdrop-blur-2xl border border-white/15 shadow-2xl shadow-black/80 py-2 z-50 text-xs"
           >
                   <div className="px-4 py-2.5 border-b border-white/10 flex items-center gap-3">
                     <RoleAvatarRing
