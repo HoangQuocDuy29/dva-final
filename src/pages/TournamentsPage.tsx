@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, ChevronDown, FileText, GitBranch, ShieldCheck, Trophy } from 'lucide-react';
+import { CalendarDays, ChevronDown, ClipboardCheck, FileText, GitBranch, ShieldCheck, Trophy } from 'lucide-react';
 import { Tournament, TournamentTeam } from '../types';
 import { tournamentService } from '../services/api';
 import {
@@ -20,9 +20,10 @@ import {
 } from '../components/tournaments/TournamentRulesAndOfficialsView';
 import { TeamRosterDrawer } from '../components/tournaments/TeamRosterDrawer';
 import { CaptainRegisterModal } from '../components/tournaments/CaptainRegisterModal';
+import { TournamentCheckInView } from '../components/tournaments/TournamentCheckInView';
 
-type SubView = 'overview' | 'bracket' | 'schedule' | 'rules' | 'officials';
-const VALID_SUBVIEWS: readonly SubView[] = ['overview', 'bracket', 'schedule', 'rules', 'officials'] as const;
+type SubView = 'overview' | 'bracket' | 'schedule' | 'rules' | 'officials' | 'checkin';
+const VALID_SUBVIEWS: readonly SubView[] = ['overview', 'bracket', 'schedule', 'rules', 'officials', 'checkin'] as const;
 
 export const TournamentsPage: React.FC = () => {
   const { t } = useTranslation('tournaments');
@@ -153,6 +154,12 @@ export const TournamentsPage: React.FC = () => {
 
   const navTabs: Array<{ id: SubView; label: string; icon: React.ComponentType<{ className?: string }>; hidden?: boolean }> = [
     { id: 'overview', label: t('tabs.overview'), icon: Trophy },
+    {
+      id: 'checkin',
+      label: t('tabs.checkin'),
+      icon: ClipboardCheck,
+      hidden: !(activeTournament.mode === 'PARTICIPATING' && Boolean(activeTournament.positionQuotas)),
+    },
     {
       id: 'bracket',
       label: t('tabs.bracket'),
@@ -297,6 +304,10 @@ export const TournamentsPage: React.FC = () => {
 
         {activeSubView === 'officials' && (
           <TournamentOfficialsView tournament={activeTournament} />
+        )}
+
+        {activeSubView === 'checkin' && (
+          <TournamentCheckInView tournament={activeTournament} />
         )}
       </div>
 

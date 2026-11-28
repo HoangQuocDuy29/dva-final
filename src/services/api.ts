@@ -27,6 +27,12 @@ import {
   StoreOrder,
   StoreOrderCreatePayload,
   Tournament,
+  TournamentCheckIn,
+  TournamentCheckInAdminResponse,
+  TournamentCheckInPublicResponse,
+  TournamentCheckInStatus,
+  TournamentCheckInSubmitPayload,
+  TournamentCheckInSubmitResponse,
   TournamentDreamTeamSelection,
   TournamentFinanceSummary,
   TournamentMatch,
@@ -35,6 +41,7 @@ import {
   TournamentPlayer,
   TournamentPublicRegistrationPayload,
   TournamentTeam,
+  VolleyballPosition,
   VolleyballVenue,
   CourtClubProfile,
   VenueSessionSlot,
@@ -2256,6 +2263,59 @@ export const tournamentService = {
     const res = await request<Tournament>(
       `/tournaments/${encodeURIComponent(tournamentId)}/dream-team`,
       { method: 'PUT', body: JSON.stringify({ dreamTeam }) }
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async getPublicCheckIn(slugOrId: string): Promise<TournamentCheckInPublicResponse> {
+    return request<TournamentCheckInPublicResponse>(
+      `/tournaments/${encodeURIComponent(slugOrId)}/checkin`,
+      { cache: 'no-store' }
+    );
+  },
+
+  async submitPublicCheckIn(
+    slugOrId: string,
+    payload: TournamentCheckInSubmitPayload
+  ): Promise<TournamentCheckInSubmitResponse> {
+    const res = await deduplicatedPost<TournamentCheckInSubmitResponse>(
+      `/tournaments/${encodeURIComponent(slugOrId)}/checkin`,
+      payload
+    );
+    invalidateTournamentsCache();
+    return res;
+  },
+
+  async getAdminCheckIns(tournamentId: string): Promise<TournamentCheckInAdminResponse> {
+    return request<TournamentCheckInAdminResponse>(
+      `/admin/tournaments/${encodeURIComponent(tournamentId)}/checkins`,
+      { cache: 'no-store' }
+    );
+  },
+
+  async updateAdminCheckIn(
+    checkInId: string,
+    payload: Partial<{
+      status: TournamentCheckInStatus;
+      isPaid: boolean;
+      note: string | null;
+      jerseyNumber: number | null;
+      position: VolleyballPosition;
+    }>
+  ): Promise<TournamentCheckIn> {
+    const updated = await request<TournamentCheckIn>(
+      `/admin/tournaments/checkins/${encodeURIComponent(checkInId)}`,
+      { method: 'PATCH', body: JSON.stringify(payload) }
+    );
+    invalidateTournamentsCache();
+    return updated;
+  },
+
+  async deleteAdminCheckIn(checkInId: string): Promise<{ success: boolean }> {
+    const res = await request<{ success: boolean }>(
+      `/admin/tournaments/checkins/${encodeURIComponent(checkInId)}`,
+      { method: 'DELETE' }
     );
     invalidateTournamentsCache();
     return res;

@@ -938,6 +938,146 @@ export interface TournamentStandingRow {
   hasTieWarning?: boolean;
 }
 
+export type PositionQuotas = Record<VolleyballPosition, number>;
+
+export type TournamentCheckInStatus = 'CONFIRMED' | 'RESERVE';
+
+export interface PositionQuotaCount {
+  quota: number;
+  confirmed: number;
+  reserve: number;
+  remaining: number;
+  overflow: number;
+  isFull: boolean;
+}
+
+export interface TournamentCheckIn {
+  id: string;
+  tournamentId: string;
+  playerId: string | null;
+  isGuest: boolean;
+  fullName: string;
+  birthYear: number;
+  gender: PlayerGender;
+  position: VolleyballPosition;
+  skillRank: SkillRank;
+  spikeTouch?: number | null;
+  blockTouch?: number | null;
+  jerseyNumber?: number | null;
+  phone: string;
+  status: TournamentCheckInStatus;
+  note?: string | null;
+  isPaid: boolean;
+  paidAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicCheckInAttendee {
+  id: string;
+  fullName: string;
+  position: VolleyballPosition;
+  jerseyNumber: number | null;
+  status: TournamentCheckInStatus;
+  isGuest: boolean;
+}
+
+export interface PublicCheckInSquadOption {
+  id: string;
+  fullName: string;
+  jerseyNumber: number;
+  position: VolleyballPosition;
+  level: PlayerLevel;
+  bornYear?: number | null;
+  gender?: PlayerGender | null;
+  skillRank?: SkillRank | null;
+  spikeTouch?: number | null;
+  blockTouch?: number | null;
+  hasAccountPhone?: boolean;
+  alreadyCheckedIn?: boolean;
+}
+
+export interface TournamentCheckInPublicResponse {
+  tournament: {
+    id: string;
+    slug: string;
+    name: string;
+    subtitle?: string;
+    mode: TournamentMode;
+    status: TournamentStatus;
+    startDate: string;
+    endDate?: string;
+    startTime?: string;
+    endTime?: string;
+    location: string;
+    mapsUrl?: string;
+    registrationDeadline?: string;
+    registrationDeadlineTime?: string;
+    isRegistrationOpen: boolean;
+    isRosterLocked: boolean;
+    positionQuotas: PositionQuotas | null;
+    quotaHardLock: boolean;
+    feePerPlayer: number;
+  };
+  checkInEnabled: boolean;
+  isExpired: boolean;
+  canSubmit: boolean;
+  counts: Record<VolleyballPosition, PositionQuotaCount>;
+  totals: {
+    confirmed: number;
+    reserve: number;
+    totalQuota: number;
+  };
+  attendees: PublicCheckInAttendee[];
+  squadOptions: PublicCheckInSquadOption[];
+}
+
+export interface TournamentCheckInSubmitPayload {
+  playerId?: string | null;
+  fullName?: string;
+  birthYear?: number;
+  gender?: PlayerGender;
+  position: VolleyballPosition;
+  skillRank?: SkillRank;
+  spikeTouch?: number | null;
+  blockTouch?: number | null;
+  jerseyNumber?: number | null;
+  phone?: string;
+  status: TournamentCheckInStatus;
+  note?: string;
+}
+
+export interface TournamentCheckInSubmitResponse {
+  checkIn: PublicCheckInAttendee;
+  status: TournamentCheckInStatus;
+  downgraded: boolean;
+  squadMatchHint?: string | null;
+}
+
+export interface TournamentCheckInAdminResponse {
+  tournamentId: string;
+  slug: string;
+  name: string;
+  positionQuotas: PositionQuotas | null;
+  quotaHardLock: boolean;
+  feePerPlayer: number;
+  registrationDeadline?: string;
+  registrationDeadlineTime?: string;
+  isRegistrationOpen: boolean;
+  checkIns: TournamentCheckIn[];
+  counts: Record<VolleyballPosition, PositionQuotaCount>;
+  summary: {
+    totalConfirmed: number;
+    totalReserve: number;
+    totalQuota: number;
+    paidCount: number;
+    collectedAmount: number;
+    expectedAmount: number;
+    isReadyToAccept: boolean;
+    missingPositions: Array<{ position: VolleyballPosition; missing: number }>;
+  };
+}
+
 export interface Tournament {
   id: string;
   slug: string;
@@ -952,6 +1092,10 @@ export interface Tournament {
   requireBirthYear: boolean;
   maxTeams: number;
   registrationDeadline?: string;
+  registrationDeadlineTime?: string;
+  positionQuotas?: PositionQuotas | null;
+  quotaHardLock?: boolean;
+  feePerPlayer?: number;
   startDate: string;
   endDate?: string;
   startTime?: string;

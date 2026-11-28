@@ -12,7 +12,8 @@
     "bracket": "Bảng xếp hạng & Nhánh đấu",
     "schedule": "Lịch đấu & Kết quả",
     "rules": "Điều lệ Giải",
-    "officials": "Tổ Trọng tài"
+    "officials": "Tổ Trọng tài",
+    "checkin": "Điểm danh Giải mời"
   },
   "status": {
     "UPCOMING": "Sắp diễn ra",
@@ -275,5 +276,24 @@
     "matchesTitle": "Hành trình Thi đấu tại Giải",
     "noRoster": "Chưa có danh sách VĐV cho đội này.",
     "noMatches": "Chưa có dữ liệu trận đấu."
+  },
+  "checkin": {
+    "title": "Điểm danh Đội hình Giải mời",
+    "deadline": "Hạn chót điểm danh",
+    "feePerPlayer": "Lệ phí dự kiến / người",
+    "free": "Miễn phí",
+    "tabSquad": "Đã có trong Squad",
+    "tabGuest": "Khách mời / Ngoài Squad",
+    "statusConfirmed": "Chắc chắn tham gia",
+    "statusReserve": "Dự bị / Chờ bổ sung",
+    "fullBadge": "Đã đủ",
+    "remainingSlots": "Còn {{count}} slot",
+    "attendeesTitle": "Danh sách anh em đã điểm danh",
+    "guestBadge": "Ngoài Squad",
+    "submit": "Xác nhận Điểm danh",
+    "submitting": "Đang gửi điểm danh...",
+    "closedNotice": "Cổng điểm danh giải đấu hiện đang đóng hoặc đã khóa danh sách.",
+    "expiredNotice": "Đã quá hạn chót điểm danh. Vui lòng liên hệ Đội trưởng nếu cần bổ sung.",
+    "notEnabled": "Giải đấu này chưa mở đợt điểm danh đội hình giải mời."
   }
 }

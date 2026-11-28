@@ -121,10 +121,12 @@ model Player {
   avatarUrl       String?
   bio             String?            @db.Text
   isCaptain       Boolean            @default(false)
-  joinedYear      Int                @default(2025)
-  isActive        Boolean            @default(true) // Soft visibility flag (Public vs Admin)
+  joinedYear      Int                 @default(2025)
+  isActive        Boolean             @default(true) // Soft visibility flag (Public vs Admin)
 
-  createdAt       DateTime           @default(now())
+  tournamentCheckIns TournamentCheckIn[]
+
+  createdAt       DateTime            @default(now())
   updatedAt       DateTime           @updatedAt
 
   @@index([level, position])
@@ -646,9 +648,13 @@ model Tournament {
   isRegistrationOpen   Boolean                @default(true)
   isRosterLocked       Boolean                @default(false) // Khóa danh sách VĐV toàn giải trước giờ thi đấu
   requireBirthYear     Boolean                @default(false) // Yêu cầu nhập năm sinh từng VĐV khi đăng ký
-  maxTeams             Int                    @default(8)
-  registrationDeadline String?                // YYYY-MM-DD
-  startDate            String                 // YYYY-MM-DD
+  maxTeams                 Int                    @default(8)
+  registrationDeadline     String?                // YYYY-MM-DD
+  registrationDeadlineTime String?                // HH:mm (mặc định "23:59" khi bỏ trống, tính theo +07:00)
+  positionQuotas           Json?                  // { "OH":3, "MB":2, "OP":2, "S":1, "L":1 } — null = tắt điểm danh giải mời
+  quotaHardLock            Boolean                @default(false) // true = tự hạ xuống RESERVE khi đủ chỉ tiêu vị trí
+  feePerPlayer             Int                    @default(0)     // Lệ phí dự kiến / VĐV (VNĐ)
+  startDate                String                 // YYYY-MM-DD
   endDate              String?                // YYYY-MM-DD
   startTime            String?                // HH:mm (VD: "07:30")
   endTime              String?                // HH:mm (VD: "19:00")
@@ -669,6 +675,7 @@ model Tournament {
   players              TournamentPlayer[]
   matches              TournamentMatch[]
   officials            TournamentOfficial[]
+  checkIns             TournamentCheckIn[]
 
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
@@ -806,6 +813,39 @@ model TournamentOfficial {
 
   @@index([tournamentId, sortOrder(sort: Asc)])
   @@map("tournament_officials")
+}
+
+/// Điểm danh VĐV tham dự giải mời (Squad + Khách mời ngoài Squad, không lưu ảnh)
+model TournamentCheckIn {
+  id           String             @id @default(uuid())
+  tournamentId String
+  tournament   Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  playerId     String?            // null = Ngoài Squad / Khách mời (không ghi vào bảng players)
+  player       Player?            @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  // Snapshot chuyên môn tại thời điểm điểm danh (phục vụ xếp đội hình & xuất danh sách nộp BTC)
+  fullName     String
+  birthYear    Int
+  gender       String             // "MALE" | "FEMALE"
+  position     VolleyballPosition
+  skillRank    String             // "C" | "B" | "BB" | "A" | "AA" | "OPEN"
+  spikeTouch   Float?             // Bật đà (cm)
+  blockTouch   Float?             // Bật chắn (cm)
+  jerseyNumber Int?
+  phone        String             // SĐT/Zalo đã chuẩn hóa (chỉ số, 0xxxxxxxxx) — strip khỏi API Public
+  status       String             @default("CONFIRMED") // "CONFIRMED" | "RESERVE"
+  note         String?            @db.VarChar(200)
+  isPaid       Boolean            @default(false)
+  paidAt       DateTime?
+
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([tournamentId, playerId])
+  @@unique([tournamentId, phone])
+  @@index([tournamentId, status, position])
+  @@index([tournamentId, createdAt(sort: Asc)])
+  @@map("tournament_check_ins")
 }
 
 // ============================================================================

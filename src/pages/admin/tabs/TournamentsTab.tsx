@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Award,
   Check,
+  ClipboardCheck,
   Copy,
   Edit3,
   Eye,
@@ -31,8 +32,9 @@ import { TeamsFeesPanel } from '../components/tournaments/TeamsFeesPanel';
 import { CourtsideMatchesPanel } from '../components/tournaments/CourtsideMatchesPanel';
 import { OfficialsPanel } from '../components/tournaments/OfficialsPanel';
 import { DreamTeamAwardsPanel } from '../components/tournaments/DreamTeamAwardsPanel';
+import { CheckInRosterPanel } from '../components/tournaments/CheckInRosterPanel';
 
-type AdminTourSubTab = 'TEAMS' | 'MATCHES' | 'OFFICIALS' | 'AWARDS';
+type AdminTourSubTab = 'TEAMS' | 'CHECKIN' | 'MATCHES' | 'OFFICIALS' | 'AWARDS';
 
 function toFinanceSummary(t: Tournament): TournamentFinanceSummary {
   return {
@@ -81,6 +83,12 @@ export const TournamentsTab: React.FC = () => {
     () => tournamentsList.find((t) => t.id === selectedId) || tournamentsList[0] || null,
     [tournamentsList, selectedId]
   );
+
+  useEffect(() => {
+    if (selectedTournament && selectedTournament.mode !== 'PARTICIPATING' && subTab === 'CHECKIN') {
+      setSubTab('TEAMS');
+    }
+  }, [selectedTournament, subTab]);
 
   const refreshTournaments = async () => {
     const fresh = await tournamentService.getTournaments({ adminMode: true });
@@ -389,20 +397,49 @@ export const TournamentsTab: React.FC = () => {
                     <span>Copy Rules Link</span>
                   </button>
 
-                  {!readOnly && selectedTournament.mode === 'HOSTED' && (
+                  {!readOnly && selectedTournament.mode === 'PARTICIPATING' && selectedTournament.positionQuotas && (
                     <button
                       type="button"
-                      onClick={() => handleToggleRegistration(selectedTournament)}
-                      className={`px-3 py-2 rounded-xl border font-bold inline-flex items-center gap-1.5 cursor-pointer ${
-                        selectedTournament.isRegistrationOpen
-                          ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300'
-                          : 'bg-slate-800 border-slate-700 text-slate-400'
-                      }`}
+                      onClick={() => copyLink('checkin', `/tournaments/${selectedTournament.slug}/checkin`)}
+                      className="px-3 py-2 rounded-xl bg-orange-950/60 hover:bg-orange-900/60 border border-orange-700/60 text-orange-200 font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                      title="Copy direct Check-In link for Zalo Squad Group"
                     >
-                      {selectedTournament.isRegistrationOpen ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                      <span>{selectedTournament.isRegistrationOpen ? 'Reg Open' : 'Reg Closed'}</span>
+                      {copiedKey === 'checkin' ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <ClipboardCheck className="w-3.5 h-3.5" />
+                      )}
+                      <span>Copy Check-In Link</span>
                     </button>
                   )}
+
+                  {!readOnly &&
+                    (selectedTournament.mode === 'HOSTED' || Boolean(selectedTournament.positionQuotas)) && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleRegistration(selectedTournament)}
+                        className={`px-3 py-2 rounded-xl border font-bold inline-flex items-center gap-1.5 cursor-pointer ${
+                          selectedTournament.isRegistrationOpen
+                            ? 'bg-emerald-950/60 border-emerald-700 text-emerald-300'
+                            : 'bg-slate-800 border-slate-700 text-slate-400'
+                        }`}
+                      >
+                        {selectedTournament.isRegistrationOpen ? (
+                          <Unlock className="w-3.5 h-3.5" />
+                        ) : (
+                          <Lock className="w-3.5 h-3.5" />
+                        )}
+                        <span>
+                          {selectedTournament.mode === 'PARTICIPATING'
+                            ? selectedTournament.isRegistrationOpen
+                              ? 'Check-In Open'
+                              : 'Check-In Closed'
+                            : selectedTournament.isRegistrationOpen
+                              ? 'Reg Open'
+                              : 'Reg Closed'}
+                        </span>
+                      </button>
+                    )}
 
                   {!readOnly && (
                     <button
@@ -466,6 +503,9 @@ export const TournamentsTab: React.FC = () => {
               <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-[#111827] border border-[#1E293B]">
                 {[
                   { id: 'TEAMS' as const, label: 'Teams, Fees & Rosters', icon: Users },
+                  ...(!readOnly && selectedTournament.mode === 'PARTICIPATING'
+                    ? [{ id: 'CHECKIN' as const, label: 'Điểm danh & Đội hình', icon: ClipboardCheck }]
+                    : []),
                   { id: 'MATCHES' as const, label: 'Matches, Standings & Live Scorer', icon: CalendarClock },
                   { id: 'AWARDS' as const, label: 'Podium & Dream Team', icon: Award },
                   { id: 'OFFICIALS' as const, label: 'Referees & Officials', icon: ShieldCheck },
@@ -490,6 +530,13 @@ export const TournamentsTab: React.FC = () => {
                 <TeamsFeesPanel
                   tournament={selectedTournament}
                   onRefresh={refreshTournaments}
+                  notify={notify}
+                  readOnly={readOnly}
+                />
+              )}
+              {subTab === 'CHECKIN' && !readOnly && selectedTournament.mode === 'PARTICIPATING' && (
+                <CheckInRosterPanel
+                  tournament={selectedTournament}
                   notify={notify}
                   readOnly={readOnly}
                 />

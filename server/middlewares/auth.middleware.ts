@@ -225,6 +225,8 @@ const PUBLIC_RULES: Rule[] = [
   rule('POST', /^\/store\/orders\/[^/]+\/confirm-payment\/?$/),
   rule('GET', /^\/tournaments\/?$/),
   rule('GET', /^\/tournaments\/[^/]+\/?$/),
+  rule('GET', /^\/tournaments\/[^/]+\/checkin\/?$/),
+  rule('POST', /^\/tournaments\/[^/]+\/checkin\/?$/),
   rule('POST', /^\/tournaments\/[^/]+\/register\/?$/),
   rule('POST', /^\/tournaments\/[^/]+\/teams\/[^/]+\/confirm-payment\/?$/),
   rule('GET', /^\/venues\/?$/),

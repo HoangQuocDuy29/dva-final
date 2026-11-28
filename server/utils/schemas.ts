@@ -731,6 +731,26 @@ const OPTIONAL_PODIUM_JSON: Rule = (v, k) => {
   return out;
 };
 
+const OPTIONAL_POSITION_QUOTAS: Rule = (v, k) => {
+  if (v === null) return null;
+  if (typeof v !== 'object' || Array.isArray(v)) {
+    throw new HttpError(400, `${k} must be an object of position quotas or null`);
+  }
+  const obj = v as Record<string, unknown>;
+  const out: Record<string, number> = {};
+  for (const pos of POSITIONS) {
+    const raw = obj[pos];
+    if (raw === undefined || raw === null || raw === '') {
+      out[pos] = 0;
+    } else {
+      out[pos] = I(0, 20)(raw, `${k}.${pos}`);
+    }
+  }
+  return out;
+};
+
+export const CHECKIN_STATUSES = ['CONFIRMED', 'RESERVE'] as const;
+
 export const TOURNAMENT_SCHEMA: Schema = {
   slug: S(150),
   name: S(180, 2),
@@ -744,6 +764,10 @@ export const TOURNAMENT_SCHEMA: Schema = {
   requireBirthYear: B,
   maxTeams: I(2, 32),
   registrationDeadline: OPTIONAL_DATE,
+  registrationDeadlineTime: OPTIONAL_TIME,
+  positionQuotas: OPTIONAL_POSITION_QUOTAS,
+  quotaHardLock: B,
+  feePerPlayer: I(0, 50_000_000),
   startDate: D,
   endDate: OPTIONAL_DATE,
   startTime: OPTIONAL_TIME,
@@ -759,6 +783,39 @@ export const TOURNAMENT_SCHEMA: Schema = {
   prizeConfig: OPTIONAL_PRIZE_JSON,
   dvaResultSummary: S(200),
   podiumOverride: OPTIONAL_PODIUM_JSON,
+};
+
+const OPTIONAL_CHECKIN_TOUCH = (min: number, max: number): Rule => (v, k) => {
+  if (v === '' || v === null || v === undefined) return undefined;
+  return N(min, max)(v, k);
+};
+
+const OPTIONAL_CHECKIN_JERSEY: Rule = (v, k) => {
+  if (v === '' || v === null || v === undefined) return undefined;
+  return I(0, 99)(v, k);
+};
+
+export const TOURNAMENT_CHECKIN_PUBLIC_SCHEMA: Schema = {
+  playerId: S(100),
+  fullName: S(120, 2),
+  birthYear: I(1950, 2016),
+  gender: E(GENDERS),
+  position: E(POSITIONS),
+  skillRank: E(SKILL_RANKS),
+  spikeTouch: OPTIONAL_CHECKIN_TOUCH(150, 420),
+  blockTouch: OPTIONAL_CHECKIN_TOUCH(140, 400),
+  jerseyNumber: OPTIONAL_CHECKIN_JERSEY,
+  phone: S(30),
+  status: E(CHECKIN_STATUSES),
+  note: S(200),
+};
+
+export const TOURNAMENT_CHECKIN_ADMIN_SCHEMA: Schema = {
+  status: E(CHECKIN_STATUSES),
+  isPaid: B,
+  note: S(200),
+  jerseyNumber: OPTIONAL_CHECKIN_JERSEY,
+  position: E(POSITIONS),
 };
 
 export const TOURNAMENT_VISIBILITY_SCHEMA: Schema = {

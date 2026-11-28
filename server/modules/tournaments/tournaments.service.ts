@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import { env } from '../../config/env';
 import {
   normalizeSquad,
@@ -384,15 +385,20 @@ export async function createTournament(data: Record<string, any>) {
       status: data.status || 'UPCOMING',
       isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
       isRegistrationOpen:
-        mode === 'HOSTED'
-          ? data.isRegistrationOpen !== undefined
-            ? Boolean(data.isRegistrationOpen)
-            : true
-          : false,
+        data.isRegistrationOpen !== undefined
+          ? Boolean(data.isRegistrationOpen)
+          : mode === 'HOSTED' || Boolean(data.positionQuotas),
       isRosterLocked: Boolean(data.isRosterLocked),
       requireBirthYear: Boolean(data.requireBirthYear),
       maxTeams: data.maxTeams ?? 8,
       registrationDeadline: data.registrationDeadline ?? null,
+      registrationDeadlineTime: data.registrationDeadlineTime ?? null,
+      positionQuotas:
+        mode === 'PARTICIPATING' && data.positionQuotas
+          ? (data.positionQuotas as any)
+          : Prisma.DbNull,
+      quotaHardLock: mode === 'PARTICIPATING' ? Boolean(data.quotaHardLock) : false,
+      feePerPlayer: mode === 'PARTICIPATING' ? Math.max(0, Number(data.feePerPlayer) || 0) : 0,
       startDate: data.startDate,
       endDate: data.endDate ?? data.startDate,
       startTime: data.startTime ?? '07:30',
@@ -450,13 +456,22 @@ export async function updateTournament(id: string, data: Record<string, any>, ra
         ...data,
         ...(nextSlug ? { slug: nextSlug } : {}),
         ...(nextMode === 'PARTICIPATING'
-          ? { entryFeePerTeam: 0, isRegistrationOpen: false }
+          ? { entryFeePerTeam: 0 }
           : data.mode === 'HOSTED'
-            ? { trackingMode: 'FULL_BRACKET' }
+            ? {
+                trackingMode: 'FULL_BRACKET',
+                positionQuotas: Prisma.DbNull,
+                quotaHardLock: false,
+                feePerPlayer: 0,
+              }
             : {}),
         ...(rawBody?.registrationDeadline === null || rawBody?.registrationDeadline === ''
           ? { registrationDeadline: null }
           : {}),
+        ...(rawBody?.registrationDeadlineTime === null || rawBody?.registrationDeadlineTime === ''
+          ? { registrationDeadlineTime: null }
+          : {}),
+        ...(rawBody?.positionQuotas === null ? { positionQuotas: Prisma.DbNull } : {}),
         ...(rawBody?.startTime === null || rawBody?.startTime === '' ? { startTime: null } : {}),
         ...(rawBody?.endTime === null || rawBody?.endTime === '' ? { endTime: null } : {}),
         ...(rawBody?.podiumOverride === null ? { podiumOverride: null as any } : {}),

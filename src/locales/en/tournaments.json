@@ -12,7 +12,8 @@
     "bracket": "Live Bracket & Standings",
     "schedule": "Match Schedule & Results",
     "rules": "Rules & Regulations",
-    "officials": "Officials & Referees"
+    "officials": "Officials & Referees",
+    "checkin": "Squad Check-In"
   },
   "status": {
     "UPCOMING": "Upcoming",
@@ -275,5 +276,24 @@
     "matchesTitle": "Tournament Match Journey",
     "noRoster": "Team roster has not been published yet.",
     "noMatches": "No matches recorded yet."
+  },
+  "checkin": {
+    "title": "Invitational Squad Check-In",
+    "deadline": "Check-In Deadline",
+    "feePerPlayer": "Est. Fee / Player",
+    "free": "Free",
+    "tabSquad": "In DVA Squad",
+    "tabGuest": "Guest / External",
+    "statusConfirmed": "Confirmed to Play",
+    "statusReserve": "Reserve / Standby",
+    "fullBadge": "Full",
+    "remainingSlots": "{{count}} left",
+    "attendeesTitle": "Checked-In Roster",
+    "guestBadge": "Outside Squad",
+    "submit": "Confirm Check-In",
+    "submitting": "Submitting...",
+    "closedNotice": "Check-in is currently closed or rosters are locked.",
+    "expiredNotice": "The check-in deadline has passed. Contact the Captain for late changes.",
+    "notEnabled": "Invitational squad check-in is not enabled for this tournament."
   }
 }

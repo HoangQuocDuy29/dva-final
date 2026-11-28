@@ -25,6 +25,7 @@ import {
   TournamentMatch as DbTournamentMatch,
   TournamentOfficial as DbTournamentOfficial,
 } from '@prisma/client';
+import { normalizePositionQuotas } from '../../src/shared/tournaments';
 import {
   Booking,
   BookingAddons,
@@ -931,6 +932,10 @@ export function toTournamentDto(
     requireBirthYear: Boolean(t.requireBirthYear),
     maxTeams: Number(t.maxTeams) || 8,
     registrationDeadline: t.registrationDeadline ?? undefined,
+    registrationDeadlineTime: t.registrationDeadlineTime ?? undefined,
+    positionQuotas: normalizePositionQuotas(t.positionQuotas),
+    quotaHardLock: Boolean(t.quotaHardLock),
+    feePerPlayer: Math.max(0, Number(t.feePerPlayer) || 0),
     startDate: t.startDate,
     endDate: t.endDate ?? undefined,
     startTime: t.startTime ?? undefined,

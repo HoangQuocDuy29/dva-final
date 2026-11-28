@@ -1,6 +1,9 @@
 import type {
   DreamTeamSlotKey,
+  PositionQuotaCount,
+  PositionQuotas,
   Tournament,
+  TournamentCheckInStatus,
   TournamentDreamTeamSelection,
   TournamentIndividualAward,
   TournamentMatch,
@@ -1137,4 +1140,217 @@ export function matchesTournamentCourtFilter(
 ): boolean {
   if (filter === 'ALL') return true;
   return normalizeTournamentCourtName(courtName) === filter;
+}
+
+// ============================================================================
+// INVITATIONAL TOURNAMENT CHECK-IN HELPERS (015-invitational-checkin)
+// ============================================================================
+
+export const POSITION_QUOTA_ORDER: readonly VolleyballPosition[] = ['OH', 'MB', 'OP', 'S', 'L'] as const;
+
+export const POSITION_BTC_ORDER: readonly VolleyballPosition[] = ['S', 'OH', 'MB', 'OP', 'L'] as const;
+
+export const DEFAULT_POSITION_QUOTAS: PositionQuotas = {
+  OH: 3,
+  MB: 2,
+  OP: 2,
+  S: 1,
+  L: 1,
+};
+
+export function normalizePositionQuotas(raw: unknown): PositionQuotas | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  const result: PositionQuotas = { OH: 0, MB: 0, OP: 0, S: 0, L: 0 };
+  let hasAnyKey = false;
+  for (const pos of POSITION_QUOTA_ORDER) {
+    if (pos in obj) {
+      hasAnyKey = true;
+      const num = Number(obj[pos]);
+      result[pos] = Number.isFinite(num) ? Math.max(0, Math.min(20, Math.round(num))) : 0;
+    }
+  }
+  return hasAnyKey ? result : null;
+}
+
+/**
+ * Normalize Vietnamese phone numbers: strip separators, convert +84/84 prefix to leading 0.
+ */
+export function normalizeCheckInPhone(raw: string): string {
+  let digits = (raw || '').trim().replace(/[\s.\-()]/g, '');
+  if (digits.startsWith('+84')) {
+    digits = `0${digits.slice(3)}`;
+  } else if (digits.startsWith('84') && digits.length === 11) {
+    digits = `0${digits.slice(2)}`;
+  }
+  return digits.replace(/\D/g, '');
+}
+
+export function isValidVnPhone(normalized: string): boolean {
+  return /^0\d{9}$/.test(normalized);
+}
+
+/**
+ * Exact deadline evaluation in Vietnam timezone (+07:00).
+ * Combines registrationDeadline (YYYY-MM-DD) + registrationDeadlineTime (HH:mm, default "23:59").
+ */
+export function isCheckInDeadlinePassed(
+  registrationDeadline?: string | null,
+  registrationDeadlineTime?: string | null,
+  now?: Date
+): boolean {
+  const dateStr = (registrationDeadline || '').trim();
+  if (!dateStr) return false;
+  const rawTime = (registrationDeadlineTime || '').trim();
+  const timeStr = /^\d{2}:\d{2}$/.test(rawTime) ? rawTime : '23:59';
+  const deadlineMs = Date.parse(`${dateStr}T${timeStr}:59+07:00`);
+  if (Number.isNaN(deadlineMs)) return false;
+  return (now ? now.getTime() : Date.now()) > deadlineMs;
+}
+
+export function formatCheckInDeadlineDisplay(
+  registrationDeadline?: string | null,
+  registrationDeadlineTime?: string | null
+): string | null {
+  const dateStr = (registrationDeadline || '').trim();
+  if (!dateStr) return null;
+  const rawTime = (registrationDeadlineTime || '').trim();
+  const timeStr = /^\d{2}:\d{2}$/.test(rawTime) ? rawTime : '23:59';
+  return `${timeStr} · ${formatYmdToDdMmYyyy(dateStr)}`;
+}
+
+export function buildPositionMatrix(
+  quotas: PositionQuotas | null | undefined,
+  items: ReadonlyArray<{ position: VolleyballPosition; status: TournamentCheckInStatus }>
+): {
+  counts: Record<VolleyballPosition, PositionQuotaCount>;
+  totalConfirmed: number;
+  totalReserve: number;
+  totalQuota: number;
+  isReadyToAccept: boolean;
+  missingPositions: Array<{ position: VolleyballPosition; missing: number }>;
+} {
+  const q: PositionQuotas = quotas ?? { OH: 0, MB: 0, OP: 0, S: 0, L: 0 };
+  const confirmedByPos: Record<VolleyballPosition, number> = { OH: 0, MB: 0, OP: 0, S: 0, L: 0 };
+  const reserveByPos: Record<VolleyballPosition, number> = { OH: 0, MB: 0, OP: 0, S: 0, L: 0 };
+
+  for (const item of items) {
+    if (!POSITION_QUOTA_ORDER.includes(item.position)) continue;
+    if (item.status === 'CONFIRMED') {
+      confirmedByPos[item.position] += 1;
+    } else {
+      reserveByPos[item.position] += 1;
+    }
+  }
+
+  const counts = {} as Record<VolleyballPosition, PositionQuotaCount>;
+  const missingPositions: Array<{ position: VolleyballPosition; missing: number }> = [];
+  let totalConfirmed = 0;
+  let totalReserve = 0;
+  let totalQuota = 0;
+
+  for (const pos of POSITION_QUOTA_ORDER) {
+    const quota = Math.max(0, Number(q[pos]) || 0);
+    const confirmed = confirmedByPos[pos];
+    const reserve = reserveByPos[pos];
+    const remaining = Math.max(0, quota - confirmed);
+    const overflow = Math.max(0, confirmed - quota);
+    const isFull = quota > 0 ? confirmed >= quota : false;
+
+    counts[pos] = { quota, confirmed, reserve, remaining, overflow, isFull };
+    totalConfirmed += confirmed;
+    totalReserve += reserve;
+    totalQuota += quota;
+
+    if (remaining > 0) {
+      missingPositions.push({ position: pos, missing: remaining });
+    }
+  }
+
+  const isReadyToAccept = totalQuota > 0 && missingPositions.length === 0;
+  return {
+    counts,
+    totalConfirmed,
+    totalReserve,
+    totalQuota,
+    isReadyToAccept,
+    missingPositions,
+  };
+}
+
+/**
+ * Format confirmed check-ins for direct copy-paste to Zalo BTC group:
+ * STT · Họ tên · Năm sinh · Vị trí · Số áo (sorted S -> OH -> MB -> OP -> L, then jersey #).
+ */
+export function formatBtcRosterText(
+  tournamentName: string,
+  checkIns: ReadonlyArray<{
+    fullName: string;
+    birthYear: number;
+    position: VolleyballPosition;
+    jerseyNumber?: number | null;
+    status: TournamentCheckInStatus;
+  }>
+): string {
+  const posRank = new Map<VolleyballPosition, number>(
+    POSITION_BTC_ORDER.map((pos, idx) => [pos, idx])
+  );
+  const confirmed = checkIns
+    .filter((c) => c.status === 'CONFIRMED')
+    .slice()
+    .sort((a, b) => {
+      const pa = posRank.get(a.position) ?? 99;
+      const pb = posRank.get(b.position) ?? 99;
+      if (pa !== pb) return pa - pb;
+      const ja = a.jerseyNumber ?? 9999;
+      const jb = b.jerseyNumber ?? 9999;
+      if (ja !== jb) return ja - jb;
+      return a.fullName.localeCompare(b.fullName, 'vi');
+    });
+
+  const lines = [`DANH SÁCH VĐV — DVA · ${tournamentName}`];
+  if (confirmed.length === 0) {
+    lines.push('(Chưa có VĐV nào xác nhận tham gia chính thức)');
+  } else {
+    confirmed.forEach((c, idx) => {
+      const jerseyPart =
+        c.jerseyNumber !== null && c.jerseyNumber !== undefined ? ` · #${c.jerseyNumber}` : '';
+      lines.push(`${idx + 1}. ${c.fullName} · ${c.birthYear} · ${c.position}${jerseyPart}`);
+    });
+  }
+  return lines.join('\n');
+}
+
+export function stripVietnameseTonesClient(str: string): string {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
+
+export function buildCheckInVietQrUrl(
+  amount: number,
+  rawMemo: string
+): {
+  qrUrl: string;
+  transferContent: string;
+  bankName: string;
+  accountNo: string;
+  accountName: string;
+} {
+  const bankId = 'MB';
+  const bankName = 'MB Bank (Military Commercial Joint Stock Bank)';
+  const accountNo = '0002090671521';
+  const accountName = 'HOANG QUOC DUY';
+  const cleanMemo = stripVietnameseTonesClient(rawMemo)
+    .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+    .slice(0, 50);
+  const transferContent = cleanMemo || 'DVA LE PHI GIAI';
+  const safeAmount = Math.max(0, Math.round(Number(amount) || 0));
+  const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${safeAmount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accountName)}`;
+  return { qrUrl, transferContent, bankName, accountNo, accountName };
 }

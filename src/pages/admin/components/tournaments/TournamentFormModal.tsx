@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload, Loader2, Plus, Trash2, Trophy, Award, Banknote, Medal, Clock, AlertTriangle } from 'lucide-react';
 import {
+  PositionQuotas,
   Tournament,
   TournamentMode,
   TournamentPrizeMode,
@@ -11,6 +12,8 @@ import {
 } from '../../../../types';
 import { buildCloudinaryFolder, uploadToCloudinary } from '../../../../utils/cloudinary';
 import {
+  DEFAULT_POSITION_QUOTAS,
+  POSITION_QUOTA_ORDER,
   computeTotalCashPrize,
   getTodayLocalYmd,
   resolveTournamentPrizeMode,
@@ -50,6 +53,11 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
   const [requireBirthYear, setRequireBirthYear] = useState(false);
   const [maxTeams, setMaxTeams] = useState(8);
   const [registrationDeadline, setRegistrationDeadline] = useState('');
+  const [registrationDeadlineTime, setRegistrationDeadlineTime] = useState('23:59');
+  const [enableCheckIn, setEnableCheckIn] = useState(false);
+  const [positionQuotas, setPositionQuotas] = useState<PositionQuotas>(DEFAULT_POSITION_QUOTAS);
+  const [quotaHardLock, setQuotaHardLock] = useState(false);
+  const [feePerPlayer, setFeePerPlayer] = useState(0);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [startTime, setStartTime] = useState('07:30');
@@ -89,6 +97,11 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
       setRequireBirthYear(Boolean(editing.requireBirthYear));
       setMaxTeams(editing.maxTeams || 8);
       setRegistrationDeadline(editing.registrationDeadline || '');
+      setRegistrationDeadlineTime(editing.registrationDeadlineTime || '23:59');
+      setEnableCheckIn(editing.mode === 'PARTICIPATING' && Boolean(editing.positionQuotas));
+      setPositionQuotas(editing.positionQuotas ? { ...editing.positionQuotas } : { ...DEFAULT_POSITION_QUOTAS });
+      setQuotaHardLock(Boolean(editing.quotaHardLock));
+      setFeePerPlayer(editing.feePerPlayer || 0);
       setStartDate(editing.startDate || '');
       setEndDate(editing.endDate || editing.startDate || '');
       setStartTime(editing.startTime || '07:30');
@@ -122,6 +135,11 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
       setRequireBirthYear(false);
       setMaxTeams(8);
       setRegistrationDeadline('');
+      setRegistrationDeadlineTime('23:59');
+      setEnableCheckIn(false);
+      setPositionQuotas({ ...DEFAULT_POSITION_QUOTAS });
+      setQuotaHardLock(false);
+      setFeePerPlayer(0);
       setStartDate(today);
       setEndDate(today);
       setStartTime('07:30');
@@ -200,11 +218,24 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
           trackingMode: mode === 'HOSTED' ? 'FULL_BRACKET' : trackingMode,
           status,
           isActive,
-          isRegistrationOpen: mode === 'HOSTED' ? isRegistrationOpen : false,
+          isRegistrationOpen:
+            mode === 'HOSTED' ? isRegistrationOpen : enableCheckIn ? isRegistrationOpen : false,
           isRosterLocked,
           requireBirthYear,
           maxTeams: Math.max(2, Math.min(32, Number(maxTeams) || 8)),
-          registrationDeadline: registrationDeadline || undefined,
+          registrationDeadline: registrationDeadline || (editing ? '' : undefined),
+          registrationDeadlineTime:
+            registrationDeadline
+              ? registrationDeadlineTime.trim() || '23:59'
+              : editing
+                ? ''
+                : undefined,
+          positionQuotas: mode === 'PARTICIPATING' ? (enableCheckIn ? positionQuotas : null) : null,
+          quotaHardLock: mode === 'PARTICIPATING' && enableCheckIn ? quotaHardLock : false,
+          feePerPlayer:
+            mode === 'PARTICIPATING' && enableCheckIn
+              ? Math.max(0, Math.round(Number(feePerPlayer) || 0))
+              : 0,
           startDate,
           endDate: endDate || startDate,
           startTime: startTime.trim() || '07:30',
@@ -280,7 +311,8 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
                     }
                   } else {
                     setEntryFeePerTeam(0);
-                    setIsRegistrationOpen(false);
+                    setEnableCheckIn(true);
+                    setIsRegistrationOpen(true);
                   }
                 }}
                 className="w-full px-3 py-2.5 rounded-xl bg-[#0B0F19] border border-[#1E293B] text-white font-semibold"
@@ -529,13 +561,20 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
                     />
                     <span className="font-bold text-emerald-300">Open Public Captain Registration</span>
                   </label>
-                  <div className="flex items-center gap-2 ml-auto">
+                  <div className="flex flex-wrap items-center gap-2 ml-auto">
                     <span className="text-slate-400">Reg. Deadline:</span>
                     <input
                       type="date"
                       value={registrationDeadline}
                       onChange={(e) => setRegistrationDeadline(e.target.value)}
                       className="px-2.5 py-1 rounded-lg bg-[#111827] border border-[#1E293B] text-white"
+                    />
+                    <input
+                      type="time"
+                      value={registrationDeadlineTime}
+                      onChange={(e) => setRegistrationDeadlineTime(e.target.value)}
+                      aria-label="Registration Deadline Time"
+                      className="px-2.5 py-1 rounded-lg bg-[#111827] border border-[#1E293B] text-white font-mono"
                     />
                   </div>
                 </>
@@ -618,6 +657,132 @@ export const TournamentFormModal: React.FC<TournamentFormModalProps> = ({
                   />
                 </div>
               </div>
+              {/* Invitational Squad Check-In & Position Quota Configuration */}
+              <div className="p-3.5 rounded-2xl bg-[#0B0F19] border border-sky-700/40 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enableCheckIn}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setEnableCheckIn(checked);
+                        if (checked) setIsRegistrationOpen(true);
+                      }}
+                      className="accent-[#F97316] w-4 h-4"
+                    />
+                    <span className="font-bold text-white">
+                      Bật Cổng Điểm Danh Giải Mời &amp; Giới Hạn Slot Vị Trí
+                    </span>
+                  </label>
+                  {enableCheckIn && (
+                    <button
+                      type="button"
+                      onClick={() => setPositionQuotas({ ...DEFAULT_POSITION_QUOTAS })}
+                      className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-[11px] font-bold text-sky-300 cursor-pointer"
+                    >
+                      Mặc định (3-2-2-1-1)
+                    </button>
+                  )}
+                </div>
+
+                {enableCheckIn && (
+                  <div className="space-y-3 pt-2 border-t border-white/10">
+                    {/* Position Quota Grid */}
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-300 mb-1.5">
+                        Chỉ tiêu / Giới hạn Slot chính thức theo vị trí (OH · MB · OP · S · L)
+                      </span>
+                      <div className="grid grid-cols-5 gap-2">
+                        {POSITION_QUOTA_ORDER.map((pos) => (
+                          <div key={pos} className="space-y-1">
+                            <label className="block text-center text-[10px] font-mono font-black text-sky-300">
+                              {pos}
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={20}
+                              value={positionQuotas[pos]}
+                              onChange={(e) =>
+                                setPositionQuotas((prev) => ({
+                                  ...prev,
+                                  [pos]: Math.max(0, Math.min(20, Number(e.target.value) || 0)),
+                                }))
+                              }
+                              className="w-full px-2 py-2 rounded-xl bg-[#111827] border border-[#1E293B] text-center text-white font-mono font-bold tabular-nums"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Deadline Date + Time + Fee per player */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">
+                          Hạn chót điểm danh (Ngày)
+                        </label>
+                        <input
+                          type="date"
+                          value={registrationDeadline}
+                          onChange={(e) => setRegistrationDeadline(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-[#111827] border border-[#1E293B] text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">
+                          Giờ chốt (+07:00)
+                        </label>
+                        <input
+                          type="time"
+                          value={registrationDeadlineTime}
+                          onChange={(e) => setRegistrationDeadlineTime(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-[#111827] border border-[#1E293B] text-white font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">
+                          Lệ phí dự kiến / VĐV (VNĐ)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={10000}
+                          value={feePerPlayer}
+                          onChange={(e) => setFeePerPlayer(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full px-3 py-2 rounded-xl bg-[#111827] border border-[#1E293B] text-[#FACC15] font-mono font-bold tabular-nums"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Open & Hard-Lock Toggles */}
+                    <div className="flex flex-wrap items-center gap-4 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isRegistrationOpen}
+                          onChange={(e) => setIsRegistrationOpen(e.target.checked)}
+                          className="accent-emerald-500 w-4 h-4"
+                        />
+                        <span className="font-bold text-emerald-300">Đang mở nhận điểm danh</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={quotaHardLock}
+                          onChange={(e) => setQuotaHardLock(e.target.checked)}
+                          className="accent-amber-500 w-4 h-4"
+                        />
+                        <span className="font-bold text-amber-300">
+                          Khóa trần suất chính thức (tự hạ Dự bị khi đủ slot)
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {trackingMode === 'DVA_FOCUS' && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                   <input

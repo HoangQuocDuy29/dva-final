@@ -5,6 +5,8 @@ import { ah, publicWriteLimiter } from '../../middlewares/error.middleware';
 import { applyPublicCacheHeaders } from '../../utils/cache';
 import { sanitize } from '../../utils/validation';
 import {
+  TOURNAMENT_CHECKIN_ADMIN_SCHEMA,
+  TOURNAMENT_CHECKIN_PUBLIC_SCHEMA,
   TOURNAMENT_DREAM_TEAM_SCHEMA,
   TOURNAMENT_FORCE_ACTION_SCHEMA,
   TOURNAMENT_IMPORT_SQUAD_SCHEMA,
@@ -51,6 +53,13 @@ import {
   updateTournamentTeam,
   verifyTeamRoster,
 } from './tournaments.service';
+import {
+  deleteAdminTournamentCheckIn,
+  getPublicTournamentCheckIn,
+  listAdminTournamentCheckIns,
+  submitPublicTournamentCheckIn,
+  updateAdminTournamentCheckIn,
+} from './tournaments.checkin.service';
 
 export const tournamentsRouter = Router();
 
@@ -120,6 +129,62 @@ tournamentsRouter.post(
   ah(async (req, res) => {
     const payload = await confirmTeamPaymentPublic(req.params.slugOrId, req.params.teamId);
     res.json(payload);
+  })
+);
+
+// Public Invitational Tournament Check-In (Live Position Quotas + Public Attendees, strictly NO phones)
+tournamentsRouter.get(
+  '/tournaments/:slugOrId/checkin',
+  ah(async (req, res) => {
+    const isStaffUser = isStaff(req.user);
+    const payload = await getPublicTournamentCheckIn(req.params.slugOrId);
+    if (!payload) {
+      return res.status(404).json({ error: 'Tournament not found.' });
+    }
+    applyPublicCacheHeaders(res, isStaffUser, { maxAgeSec: 5, swrSec: 10 });
+    return res.json(payload);
+  })
+);
+
+// Public Invitational Check-In Submit (Squad or Guest — no image upload)
+tournamentsRouter.post(
+  '/tournaments/:slugOrId/checkin',
+  publicWriteLimiter,
+  ah(async (req, res) => {
+    const data = sanitize(req.body, TOURNAMENT_CHECKIN_PUBLIC_SCHEMA, {
+      required: ['position'],
+    });
+    const payload = await submitPublicTournamentCheckIn(req.params.slugOrId, data);
+    res.status(201).json(payload);
+  })
+);
+
+// Admin (SUPERADMIN only): Invitational Check-In Roster, Matrix & Fee Tracking
+tournamentsRouter.get(
+  '/admin/tournaments/:id/checkins',
+  requireSuperAdmin,
+  ah(async (req, res) => {
+    const payload = await listAdminTournamentCheckIns(req.params.id);
+    res.json(payload);
+  })
+);
+
+tournamentsRouter.patch(
+  '/admin/tournaments/checkins/:checkInId',
+  requireSuperAdmin,
+  ah(async (req, res) => {
+    const data = sanitize(req.body, TOURNAMENT_CHECKIN_ADMIN_SCHEMA, { partial: true });
+    const updated = await updateAdminTournamentCheckIn(req.params.checkInId, data, req.body || {});
+    res.json(updated);
+  })
+);
+
+tournamentsRouter.delete(
+  '/admin/tournaments/checkins/:checkInId',
+  requireSuperAdmin,
+  ah(async (req, res) => {
+    const result = await deleteAdminTournamentCheckIn(req.params.checkInId);
+    res.json(result);
   })
 );
 
